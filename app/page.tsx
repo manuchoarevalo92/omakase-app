@@ -36,7 +36,9 @@ export default function Home() {
   const now = new Date();
   const [ingredientes, setIngredientes] = useState<Ingrediente[]>([]);
   const [platos, setPlatos] = useState<Plato[]>([]);
-  const [seleccionOmakase, setSeleccionOmakase] = useState<string[]>([]);
+  const [seleccionOmakase, setSeleccionOmakase] = useState<string[]>(
+    () => Array.from({ length: TOTAL_ITEMS_OMAKASE }, () => "")
+  );
   const [seleccionExtensiones, setSeleccionExtensiones] = useState<string[]>([]);
   const [fechaServicio, setFechaServicio] = useState(
     `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(
@@ -78,19 +80,17 @@ export default function Home() {
     );
   }, [platosConEstado]);
 
-  const omakasePorCategoria = useMemo(() => {
-    let numero = 0;
-    return CATEGORIAS_OMAKASE.map((categoria) => {
-      const items = menuOmakaseDisponibles
-        .filter((plato) => plato.categoria === categoria)
-        .map((plato) => ({
-          plato,
-          numero: ++numero,
-        }));
-
-      return { categoria, items };
-    });
+  const omakaseOpcionesPorCategoria = useMemo(() => {
+    return CATEGORIAS_OMAKASE.map((categoria) => ({
+      categoria,
+      items: menuOmakaseDisponibles.filter((plato) => plato.categoria === categoria),
+    }));
   }, [menuOmakaseDisponibles]);
+
+  const pasosCompletados = useMemo(
+    () => seleccionOmakase.filter((id) => id.trim().length > 0).length,
+    [seleccionOmakase]
+  );
 
   const extensionesDisponibles = useMemo(() => {
     return platosConEstado.filter(
@@ -159,15 +159,11 @@ export default function Home() {
     );
   };
 
-  const toggleSeleccionOmakase = (platoId: string) => {
-    const yaSeleccionado = seleccionOmakase.includes(platoId);
-    if (!yaSeleccionado && seleccionOmakase.length >= TOTAL_ITEMS_OMAKASE) {
-      setError(`El Menú Omakase debe tener un máximo de ${TOTAL_ITEMS_OMAKASE} items.`);
-      return;
-    }
-
+  const actualizarPasoOmakase = (index: number, platoId: string) => {
     setError(null);
-    toggleSeleccion(platoId, setSeleccionOmakase);
+    setSeleccionOmakase((actual) =>
+      actual.map((item, i) => (i === index ? platoId : item))
+    );
   };
 
   const cerrarYGuardarMenu = async () => {
@@ -175,9 +171,9 @@ export default function Home() {
     setError(null);
     setSuccess(null);
 
-    if (seleccionOmakase.length !== TOTAL_ITEMS_OMAKASE) {
+    if (pasosCompletados !== TOTAL_ITEMS_OMAKASE) {
       setError(
-        `El Menú Omakase debe tener exactamente ${TOTAL_ITEMS_OMAKASE} items antes de guardar.`
+        `Completa los ${TOTAL_ITEMS_OMAKASE} pasos del Menú Omakase antes de guardar.`
       );
       setIsSaving(false);
       return;
@@ -285,32 +281,40 @@ export default function Home() {
             <div className="grid gap-4 md:grid-cols-2">
               <section className="rounded-xl border border-zinc-800 bg-zinc-950/60 p-4">
                 <h2 className="mb-3 text-sm uppercase tracking-[0.16em] text-zinc-400">
-                  Menú Omakase ({seleccionOmakase.length}/{TOTAL_ITEMS_OMAKASE})
+                  Menú Omakase ({pasosCompletados}/{TOTAL_ITEMS_OMAKASE})
                 </h2>
                 {menuOmakaseDisponibles.length > 0 ? (
-                  <div className="space-y-4">
-                    {omakasePorCategoria.map((bloque) => (
-                      <div key={bloque.categoria}>
-                        <h3 className="mb-2 text-xs uppercase tracking-[0.14em] text-zinc-500">
-                          {bloque.categoria}
-                        </h3>
-                        {bloque.items.length > 0 ? (
-                          <div className="space-y-2">
-                            {bloque.items.map(({ plato, numero }) =>
-                              renderCard(
-                                plato,
-                                seleccionOmakase.includes(plato.id),
-                                () => toggleSeleccionOmakase(plato.id),
-                                false,
-                                numero
-                              )
-                            )}
-                          </div>
-                        ) : (
-                          <p className="text-sm text-zinc-600">
-                            Sin platos disponibles en esta categoría.
-                          </p>
-                        )}
+                  <div className="grid gap-2 sm:grid-cols-2">
+                    {Array.from({ length: TOTAL_ITEMS_OMAKASE }, (_, index) => (
+                      <div
+                        key={`paso-${index + 1}`}
+                        className="rounded-lg border border-zinc-800 bg-zinc-900/60 px-3 py-2"
+                      >
+                        <label
+                          htmlFor={`paso-omakase-${index + 1}`}
+                          className="mb-1 block text-[11px] uppercase tracking-[0.12em] text-zinc-500"
+                        >
+                          Paso {index + 1}
+                        </label>
+                        <select
+                          id={`paso-omakase-${index + 1}`}
+                          value={seleccionOmakase[index] ?? ""}
+                          onChange={(event) =>
+                            actualizarPasoOmakase(index, event.target.value)
+                          }
+                          className="w-full rounded-md border border-zinc-700 bg-zinc-950 px-2.5 py-2 text-sm text-zinc-100 outline-none transition focus:border-zinc-500"
+                        >
+                          <option value="">Seleccionar plato...</option>
+                          {omakaseOpcionesPorCategoria.map((bloque) => (
+                            <optgroup key={bloque.categoria} label={bloque.categoria}>
+                              {bloque.items.map((plato) => (
+                                <option key={plato.id} value={plato.id}>
+                                  {plato.nombre}
+                                </option>
+                              ))}
+                            </optgroup>
+                          ))}
+                        </select>
                       </div>
                     ))}
                   </div>
@@ -367,7 +371,7 @@ export default function Home() {
             <div className="mt-6 flex flex-col gap-3 border-t border-zinc-800 pt-5 sm:flex-row sm:items-center sm:justify-between">
               <div className="flex flex-col gap-3">
                 <p className="text-sm text-zinc-400">
-                  Seleccionados: {seleccionOmakase.length}/{TOTAL_ITEMS_OMAKASE} omakase /{" "}
+                  Seleccionados: {pasosCompletados}/{TOTAL_ITEMS_OMAKASE} omakase /{" "}
                   {seleccionExtensiones.length} extensiones
                 </p>
                 <div className="grid gap-2 sm:grid-cols-3">
