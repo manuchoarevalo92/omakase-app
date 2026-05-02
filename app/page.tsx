@@ -105,33 +105,37 @@ export default function Home() {
   const cargarDatos = async () => {
     setIsLoading(true);
     setError(null);
+    try {
+      const [ingredientesResponse, platosResponse] = await Promise.all([
+        supabase
+          .from("ingredientes")
+          .select("id, nombre, disponible")
+          .order("nombre", { ascending: true }),
+        supabase
+          .from("platos")
+          .select("id, nombre, categoria, ingredientes_requeridos")
+          .order("nombre", { ascending: true }),
+      ]);
 
-    const [ingredientesResponse, platosResponse] = await Promise.all([
-      supabase
-        .from("ingredientes")
-        .select("id, nombre, disponible")
-        .order("nombre", { ascending: true }),
-      supabase
-        .from("platos")
-        .select("id, nombre, categoria, ingredientes_requeridos")
-        .order("nombre", { ascending: true }),
-    ]);
+      if (ingredientesResponse.error) {
+        setError(ingredientesResponse.error.message);
+        return;
+      }
 
-    if (ingredientesResponse.error) {
-      setError(ingredientesResponse.error.message);
+      if (platosResponse.error) {
+        setError(platosResponse.error.message);
+        return;
+      }
+
+      setIngredientes((ingredientesResponse.data as Ingrediente[]) ?? []);
+      setPlatos((platosResponse.data as Plato[]) ?? []);
+    } catch (err) {
+      setError(
+        err instanceof Error ? err.message : "Error al conectar con Supabase."
+      );
+    } finally {
       setIsLoading(false);
-      return;
     }
-
-    if (platosResponse.error) {
-      setError(platosResponse.error.message);
-      setIsLoading(false);
-      return;
-    }
-
-    setIngredientes((ingredientesResponse.data as Ingrediente[]) ?? []);
-    setPlatos((platosResponse.data as Plato[]) ?? []);
-    setIsLoading(false);
   };
 
   useEffect(() => {

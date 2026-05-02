@@ -23,20 +23,25 @@ export default function InventarioPage() {
   const cargarIngredientes = async () => {
     setIsLoading(true);
     setError(null);
+    try {
+      const { data, error: fetchError } = await supabase
+        .from("ingredientes")
+        .select("id, nombre, disponible")
+        .order("nombre", { ascending: true });
 
-    const { data, error: fetchError } = await supabase
-      .from("ingredientes")
-      .select("id, nombre, disponible")
-      .order("nombre", { ascending: true });
+      if (fetchError) {
+        setError(fetchError.message);
+        return;
+      }
 
-    if (fetchError) {
-      setError(fetchError.message);
+      setIngredientes((data as Ingrediente[]) ?? []);
+    } catch (err) {
+      setError(
+        err instanceof Error ? err.message : "Error al conectar con Supabase."
+      );
+    } finally {
       setIsLoading(false);
-      return;
     }
-
-    setIngredientes((data as Ingrediente[]) ?? []);
-    setIsLoading(false);
   };
 
   useEffect(() => {

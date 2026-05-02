@@ -161,19 +161,25 @@ export default function RecetaPage() {
   const cargarPlatos = async () => {
     setIsLoading(true);
     setError(null);
-    const { data, error: fetchError } = await supabase
-      .from("platos")
-      .select("id, nombre")
-      .order("nombre", { ascending: true });
+    try {
+      const { data, error: fetchError } = await supabase
+        .from("platos")
+        .select("id, nombre")
+        .order("nombre", { ascending: true });
 
-    if (fetchError) {
-      setError(fetchError.message);
+      if (fetchError) {
+        setError(fetchError.message);
+        return;
+      }
+
+      setPlatos((data as Plato[]) ?? []);
+    } catch (err) {
+      setError(
+        err instanceof Error ? err.message : "Error al conectar con Supabase."
+      );
+    } finally {
       setIsLoading(false);
-      return;
     }
-
-    setPlatos((data as Plato[]) ?? []);
-    setIsLoading(false);
   };
 
   const cargarReceta = async (id: string) => {
@@ -187,11 +193,22 @@ export default function RecetaPage() {
     }
 
     setError(null);
-    const { data, error: recetaError } = await supabase
-      .from("recetas")
-      .select("plato_id, ingredientes, preparacion, pax")
-      .eq("plato_id", id)
-      .maybeSingle();
+    let data: unknown = null;
+    let recetaError: { message: string } | null = null;
+    try {
+      const result = await supabase
+        .from("recetas")
+        .select("plato_id, ingredientes, preparacion, pax")
+        .eq("plato_id", id)
+        .maybeSingle();
+      data = result.data;
+      recetaError = result.error;
+    } catch (err) {
+      setError(
+        err instanceof Error ? err.message : "Error al cargar la receta desde Supabase."
+      );
+      return;
+    }
 
     if (recetaError) {
       setError(recetaError.message);

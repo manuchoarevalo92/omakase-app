@@ -82,30 +82,34 @@ export default function HistorialPage() {
   const cargarHistorial = async () => {
     setIsLoading(true);
     setError(null);
+    try {
+      const [historialResponse, platosResponse] = await Promise.all([
+        supabase
+          .from("historial_servicios")
+          .select("id, fecha, hora, servicio, menu_omakase, extensiones")
+          .order("fecha", { ascending: false }),
+        supabase.from("platos").select("id, nombre"),
+      ]);
 
-    const [historialResponse, platosResponse] = await Promise.all([
-      supabase
-        .from("historial_servicios")
-        .select("id, fecha, hora, servicio, menu_omakase, extensiones")
-        .order("fecha", { ascending: false }),
-      supabase.from("platos").select("id, nombre"),
-    ]);
+      if (historialResponse.error) {
+        setError(historialResponse.error.message);
+        return;
+      }
 
-    if (historialResponse.error) {
-      setError(historialResponse.error.message);
+      if (platosResponse.error) {
+        setError(platosResponse.error.message);
+        return;
+      }
+
+      setHistorial((historialResponse.data as RegistroHistorial[]) ?? []);
+      setPlatos((platosResponse.data as PlatoLite[]) ?? []);
+    } catch (err) {
+      setError(
+        err instanceof Error ? err.message : "Error al conectar con Supabase."
+      );
+    } finally {
       setIsLoading(false);
-      return;
     }
-
-    if (platosResponse.error) {
-      setError(platosResponse.error.message);
-      setIsLoading(false);
-      return;
-    }
-
-    setHistorial((historialResponse.data as RegistroHistorial[]) ?? []);
-    setPlatos((platosResponse.data as PlatoLite[]) ?? []);
-    setIsLoading(false);
   };
 
   useEffect(() => {
