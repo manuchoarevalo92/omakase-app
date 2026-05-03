@@ -14,6 +14,7 @@ type Ingrediente = {
   id: string;
   nombre: string;
   disponible: boolean;
+  rubro?: string | null;
 };
 
 type Plato = {
@@ -177,7 +178,7 @@ export default function Home() {
       const [ingredientesResponse, platosResponse] = await Promise.all([
         supabase
           .from("ingredientes")
-          .select("id, nombre, disponible")
+          .select("id, nombre, disponible, rubro")
           .order("nombre", { ascending: true }),
         supabase
           .from("platos")

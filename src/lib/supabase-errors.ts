@@ -28,6 +28,10 @@ export function formatPostgrestError(error: {
       bits.push(
         "RLS en historial_servicios: hace falta INSERT y SELECT para anon si guardás menú y ves el historial."
       );
+    } else if (msg.includes("ingredientes")) {
+      bits.push(
+        "RLS en ingredientes: la app usa la anon key. Hacen falta políticas SELECT, INSERT, UPDATE y DELETE para anon (ver supabase/ingredientes-rls-anon.sql en el repo)."
+      );
     } else {
       bits.push(
         "Error de permisos / RLS en Supabase: revisá las políticas de la tabla indicada en el mensaje para el rol anon (clave pública del cliente)."
@@ -45,6 +49,11 @@ export function formatPostgrestError(error: {
     if (msg.includes("recetas") && msg.includes("pax")) {
       bits.push(
         'Ejemplo: alter table public.recetas add column if not exists pax integer; (archivo supabase/recetas-pax.sql en el repo).'
+      );
+    }
+    if (msg.includes("ingredientes") && msg.includes("rubro")) {
+      bits.push(
+        "Ejemplo: supabase/ingredientes-rubro.sql (columna rubro en public.ingredientes)."
       );
     }
   }

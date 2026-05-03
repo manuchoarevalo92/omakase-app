@@ -11,6 +11,7 @@ type Ingrediente = {
   id: string;
   nombre: string;
   disponible: boolean;
+  rubro?: string | null;
 };
 
 type Plato = {
@@ -88,7 +89,7 @@ export default function PlatosPage() {
       const [ingredientesResponse, platosResponse] = await Promise.all([
         supabase
           .from("ingredientes")
-          .select("id, nombre, disponible")
+          .select("id, nombre, disponible, rubro")
           .order("nombre", { ascending: true }),
         supabase
           .from("platos")
@@ -187,8 +188,8 @@ export default function PlatosPage() {
 
     const { data, error: insertError } = await supabase
       .from("ingredientes")
-      .insert({ nombre, disponible: true })
-      .select("id, nombre, disponible")
+      .insert({ nombre, disponible: true, rubro: "Despensa" })
+      .select("id, nombre, disponible, rubro")
       .single();
 
     if (insertError) {
