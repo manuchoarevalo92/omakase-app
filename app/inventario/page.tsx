@@ -19,12 +19,15 @@ type Ingrediente = {
   rubro: RubroIngrediente;
 };
 
-/** Pescado y Fruta arrancan plegados; Despensa abierta (la más usada al cargar). */
-const RUBRO_EXPANDIDO_INICIAL: Record<RubroIngrediente, boolean> = {
-  "Pescado/Marisco": false,
-  "Fruta/Vegetal": false,
-  Despensa: true,
-};
+/** Todas las secciones arrancan plegadas; el usuario abre las que necesite. */
+const RUBRO_EXPANDIDO_INICIAL: Record<RubroIngrediente, boolean> =
+  RUBROS_INGREDIENTE.reduce(
+    (acc, r) => {
+      acc[r] = false;
+      return acc;
+    },
+    {} as Record<RubroIngrediente, boolean>
+  );
 
 export default function InventarioPage() {
   const [ingredientes, setIngredientes] = useState<Ingrediente[]>([]);
@@ -212,8 +215,8 @@ export default function InventarioPage() {
         <header className="mb-6">
           <h1 className="text-2xl font-semibold text-white">Ingredientes</h1>
           <p className="mt-1 text-sm text-zinc-400">
-            Disponibilidad y altas por rubro. Cada sección se pliega o despliega
-            tocando el título (Despensa abre sola la primera vez).
+            Disponibilidad y altas por rubro. Al entrar, las tres secciones vienen
+            cerradas; tocá el título para abrir o cerrar cada una.
           </p>
         </header>
 
