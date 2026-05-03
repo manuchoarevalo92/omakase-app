@@ -456,9 +456,9 @@ export default function Home() {
               </p>
             ) : (
             <>
-            <div className="grid gap-4 md:grid-cols-2">
-              <section className="rounded-xl border border-zinc-800 bg-zinc-950/60 p-4">
-                <h2 className="mb-3 text-sm uppercase tracking-[0.16em] text-zinc-400">
+            <div className="grid min-w-0 gap-4 md:grid-cols-2">
+              <section className="min-w-0 rounded-xl border border-zinc-800 bg-zinc-950/60 p-4">
+                <h2 className="mb-3 min-w-0 text-balance break-words text-sm uppercase tracking-[0.16em] text-zinc-400">
                   Menú Omakase (Base {pasosBaseCompletados}/{TOTAL_ITEMS_OMAKASE}
                   {" · "}Regalo {pasosRegaloCompletados}/{OTSUMAMI_REGALO})
                 </h2>
@@ -671,8 +671,8 @@ export default function Home() {
                 )}
               </section>
 
-              <section className="rounded-xl border border-zinc-800 bg-zinc-950/60 p-4">
-                <h2 className="mb-3 text-sm uppercase tracking-[0.16em] text-zinc-400">
+              <section className="min-w-0 rounded-xl border border-zinc-800 bg-zinc-950/60 p-4">
+                <h2 className="mb-3 min-w-0 text-balance break-words text-sm uppercase tracking-[0.16em] text-zinc-400">
                   Extensiones / Extras ({extensionSlots.filter((id) => id).length}/
                   {EXTENSION_SLOTS})
                 </h2>
@@ -733,8 +733,8 @@ export default function Home() {
               </section>
             </div>
 
-            <section className="mt-6 rounded-xl border border-zinc-800 bg-zinc-950/60 p-4">
-              <h2 className="mb-3 text-sm uppercase tracking-[0.16em] text-zinc-400">
+            <section className="mt-6 min-w-0 rounded-xl border border-zinc-800 bg-zinc-950/60 p-4">
+              <h2 className="mb-3 min-w-0 text-sm uppercase tracking-[0.16em] text-zinc-400">
                 No disponibles
               </h2>
               <div className="grid gap-2 sm:grid-cols-2">
