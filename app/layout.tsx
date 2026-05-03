@@ -15,7 +15,7 @@ const geistMono = Geist_Mono({
 
 export const metadata: Metadata = {
   title: "Omakase App",
-  description: "Gestión diaria de menú, platos e inventario.",
+  description: "Gestión diaria de menú, platos e ingredientes.",
 };
 
 export default function RootLayout({
