@@ -3,6 +3,8 @@
 import { Dispatch, SetStateAction, useEffect, useMemo, useState } from "react";
 import { Check, Loader2, Lock, Pencil } from "lucide-react";
 
+import { MenuGuardadoSecciones } from "@/app/components/menu-guardado-secciones";
+import { formatPostgrestError } from "@/src/lib/supabase-errors";
 import { supabase } from "@/src/lib/supabase";
 
 type Categoria = "Otsumami" | "Nigiri" | "Postre" | "Extensión";
@@ -260,26 +262,17 @@ export default function Home() {
       ...omakaseOtsumamiRegalo,
     ].filter((id) => id.trim().length > 0);
 
+    const extensionesFinal = extensionSlots.filter((id) => id.trim().length > 0);
+
     const payload: HistorialPayload = {
       fecha: fechaServicio,
       hora: horaServicio,
       servicio,
       menu_omakase: menuOmakaseFinal,
-      extensiones: extensionSlots.filter((id) => id.trim().length > 0),
+      extensiones: extensionesFinal,
     };
 
-    const { error: saveError } = await supabase
-      .from("historial_servicios")
-      .insert(payload);
-
-    if (saveError) {
-      setError(saveError.message);
-      setIsSaving(false);
-      return;
-    }
-
-    setSuccess(`Menú guardado para ${fechaServicio} (${servicio} - ${horaServicio}).`);
-    setResumenServicio({
+    const resumen: ResumenServicio = {
       fecha: fechaServicio,
       hora: horaServicio,
       servicio,
@@ -287,10 +280,41 @@ export default function Home() {
       nigiri: omakaseNigiri.filter((id) => id.trim().length > 0),
       postre: omakasePostre.filter((id) => id.trim().length > 0),
       regalo: omakaseOtsumamiRegalo.filter((id) => id.trim().length > 0),
-      extensiones: extensionSlots.filter((id) => id.trim().length > 0),
-    });
-    setEditorOcultoTrasGuardar(true);
-    setIsSaving(false);
+      extensiones: extensionesFinal,
+    };
+
+    try {
+      const { error: saveError } = await supabase
+        .from("historial_servicios")
+        .insert(payload);
+
+      if (saveError) {
+        setResumenServicio(resumen);
+        setEditorOcultoTrasGuardar(true);
+        setSuccess(null);
+        setError(
+          `No se pudo guardar en la nube (el resumen de arriba es local hasta que se solucione). ${formatPostgrestError(saveError)}`
+        );
+        return;
+      }
+
+      setSuccess(
+        `Menú guardado para ${fechaServicio} (${servicio} - ${horaServicio}).`
+      );
+      setResumenServicio(resumen);
+      setEditorOcultoTrasGuardar(true);
+    } catch (err) {
+      setResumenServicio(resumen);
+      setEditorOcultoTrasGuardar(true);
+      setSuccess(null);
+      setError(
+        err instanceof Error
+          ? `Error al guardar: ${err.message}`
+          : "Error desconocido al conectar con Supabase."
+      );
+    } finally {
+      setIsSaving(false);
+    }
   };
 
   const nombrePlato = (id: string) =>
@@ -404,95 +428,14 @@ export default function Home() {
               </div>
             </div>
             <div className="max-h-[min(70vh,32rem)] overflow-y-auto overscroll-contain">
-              <div className="grid gap-3 sm:grid-cols-2 sm:gap-x-5">
-                {resumenServicio.otsumamiBase.length > 0 ? (
-                  <div className="min-w-0">
-                    <p className="mb-1 text-[10px] font-semibold uppercase tracking-[0.16em] text-zinc-500">
-                      Otsumami
-                    </p>
-                    <ul className="space-y-0.5 text-[13px] leading-snug text-zinc-100">
-                      {resumenServicio.otsumamiBase.map((id, i) => (
-                        <li key={`r-otsu-${id}-${i}`} className="flex gap-1.5">
-                          <span className="w-4 shrink-0 text-right font-mono text-[11px] text-zinc-500 tabular-nums">
-                            {i + 1}
-                          </span>
-                          <span className="min-w-0 break-words">{nombrePlato(id)}</span>
-                        </li>
-                      ))}
-                    </ul>
-                  </div>
-                ) : null}
-                {resumenServicio.nigiri.length > 0 ? (
-                  <div className="min-w-0 sm:row-span-2">
-                    <p className="mb-1 text-[10px] font-semibold uppercase tracking-[0.16em] text-zinc-500">
-                      Nigiri
-                    </p>
-                    <ul className="columns-1 gap-x-4 sm:columns-2 sm:text-[12px]">
-                      {resumenServicio.nigiri.map((id, i) => (
-                        <li
-                          key={`r-nig-${id}-${i}`}
-                          className="mb-0.5 flex break-inside-avoid gap-1.5 pr-1 leading-snug text-zinc-100"
-                        >
-                          <span className="w-4 shrink-0 text-right font-mono text-[11px] text-zinc-500 tabular-nums">
-                            {i + 1}
-                          </span>
-                          <span className="min-w-0 break-words">{nombrePlato(id)}</span>
-                        </li>
-                      ))}
-                    </ul>
-                  </div>
-                ) : null}
-                <div className="min-w-0 space-y-2 sm:col-start-1">
-                  {resumenServicio.postre.length > 0 ? (
-                    <div>
-                      <p className="mb-1 text-[10px] font-semibold uppercase tracking-[0.16em] text-zinc-500">
-                        Postre
-                      </p>
-                      <ul className="space-y-0.5 text-[13px] leading-snug text-zinc-100">
-                        {resumenServicio.postre.map((id, i) => (
-                          <li key={`r-post-${id}-${i}`} className="break-words">
-                            {nombrePlato(id)}
-                          </li>
-                        ))}
-                      </ul>
-                    </div>
-                  ) : null}
-                  {resumenServicio.regalo.length > 0 ? (
-                    <div>
-                      <p className="mb-1 text-[10px] font-semibold uppercase tracking-[0.16em] text-zinc-500">
-                        Regalo
-                      </p>
-                      <ul className="space-y-0.5 text-[13px] leading-snug text-zinc-100">
-                        {resumenServicio.regalo.map((id, i) => (
-                          <li key={`r-reg-${id}-${i}`} className="break-words">
-                            {nombrePlato(id)}
-                          </li>
-                        ))}
-                      </ul>
-                    </div>
-                  ) : null}
-                </div>
-              </div>
-              {resumenServicio.extensiones.length > 0 ? (
-                <div className="mt-3 border-t border-zinc-800 pt-2">
-                  <p className="mb-1 text-[10px] font-semibold uppercase tracking-[0.16em] text-zinc-500">
-                    Extras
-                  </p>
-                  <ul className="columns-1 gap-x-4 sm:columns-2 sm:text-[12px]">
-                    {resumenServicio.extensiones.map((id, i) => (
-                      <li
-                        key={`r-ext-${id}-${i}`}
-                        className="mb-0.5 flex break-inside-avoid gap-1.5 pr-1 leading-snug text-zinc-100"
-                      >
-                        <span className="w-4 shrink-0 text-right font-mono text-[11px] text-zinc-500 tabular-nums">
-                          {i + 1}
-                        </span>
-                        <span className="min-w-0 break-words">{nombrePlato(id)}</span>
-                      </li>
-                    ))}
-                  </ul>
-                </div>
-              ) : null}
+              <MenuGuardadoSecciones
+                otsumami={resumenServicio.otsumamiBase}
+                nigiri={resumenServicio.nigiri}
+                postre={resumenServicio.postre}
+                regalo={resumenServicio.regalo}
+                extensiones={resumenServicio.extensiones}
+                nombrePlato={nombrePlato}
+              />
             </div>
           </div>
         ) : null}

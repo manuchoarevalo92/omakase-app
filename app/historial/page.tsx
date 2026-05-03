@@ -3,6 +3,9 @@
 import { useEffect, useMemo, useState } from "react";
 import { Loader2 } from "lucide-react";
 
+import { MenuGuardadoSecciones } from "@/app/components/menu-guardado-secciones";
+import { partesDesdeMenuOmakaseGuardado } from "@/src/lib/menu-omakase-guardado";
+import { formatPostgrestError } from "@/src/lib/supabase-errors";
 import { supabase } from "@/src/lib/supabase";
 
 type Servicio = "Mediodia" | "Noche";
@@ -92,12 +95,12 @@ export default function HistorialPage() {
       ]);
 
       if (historialResponse.error) {
-        setError(historialResponse.error.message);
+        setError(formatPostgrestError(historialResponse.error));
         return;
       }
 
       if (platosResponse.error) {
-        setError(platosResponse.error.message);
+        setError(formatPostgrestError(platosResponse.error));
         return;
       }
 
@@ -121,15 +124,6 @@ export default function HistorialPage() {
       window.clearTimeout(timer);
     };
   }, []);
-
-  const renderListaPlatos = (ids: string[] | null) => {
-    const items = ids ?? [];
-    if (items.length === 0) {
-      return "Sin selección";
-    }
-
-    return items.map((id) => platosMap.get(id) ?? `Plato ${id.slice(0, 6)}`).join(" · ");
-  };
 
   return (
     <main className="min-h-screen bg-zinc-950 px-6 py-10 text-zinc-100">
@@ -191,9 +185,27 @@ export default function HistorialPage() {
             Cargando historial...
           </div>
         ) : historialAgrupado.length === 0 ? (
-          <p className="text-sm text-zinc-500">
-            No hay resultados para los filtros seleccionados.
-          </p>
+          historial.length === 0 ? (
+            <div className="rounded-lg border border-zinc-800 bg-zinc-950/60 px-4 py-4 text-sm leading-relaxed text-zinc-400">
+              <p className="font-medium text-zinc-200">Todavía no hay registros</p>
+              <p className="mt-2">
+                Si ya guardaste menús desde la página principal y acá sigue vacío, lo
+                habitual es que en Supabase la tabla{" "}
+                <code className="text-zinc-300">historial_servicios</code> tenga RLS
+                activado sin una política de{" "}
+                <code className="text-zinc-300">SELECT</code> para el rol{" "}
+                <code className="text-zinc-300">anon</code> (la app usa la anon key).
+              </p>
+              <p className="mt-2">
+                Si nunca se guardó bien, revisá también políticas de{" "}
+                <code className="text-zinc-300">INSERT</code> en esa misma tabla.
+              </p>
+            </div>
+          ) : (
+            <p className="text-sm text-zinc-500">
+              No hay resultados para los filtros seleccionados.
+            </p>
+          )
         ) : (
           <div className="space-y-6">
             {historialAgrupado.map((grupo) => (
@@ -215,14 +227,20 @@ export default function HistorialPage() {
                           </span>
                         </p>
                       </div>
-                      <p className="text-xs text-zinc-400">
-                        <span className="text-zinc-500">Menú Omakase:</span>{" "}
-                        {renderListaPlatos(registro.menu_omakase)}
-                      </p>
-                      <p className="mt-1 text-xs text-zinc-400">
-                        <span className="text-zinc-500">Extensiones:</span>{" "}
-                        {renderListaPlatos(registro.extensiones)}
-                      </p>
+                      <div className="mt-3 border-t border-zinc-800/80 pt-3">
+                        <p className="mb-2 text-[10px] font-semibold uppercase tracking-[0.14em] text-zinc-500">
+                          Menú guardado
+                        </p>
+                        <MenuGuardadoSecciones
+                          {...partesDesdeMenuOmakaseGuardado(registro.menu_omakase)}
+                          extensiones={(registro.extensiones ?? []).filter((id) =>
+                            String(id ?? "").trim()
+                          )}
+                          nombrePlato={(id) =>
+                            platosMap.get(id) ?? `Plato ${id.slice(0, 6)}…`
+                          }
+                        />
+                      </div>
                     </article>
                   ))}
                 </div>
