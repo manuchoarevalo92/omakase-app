@@ -3,6 +3,7 @@
 import { FormEvent, useEffect, useMemo, useState } from "react";
 import { Loader2, Plus, Trash2 } from "lucide-react";
 
+import { formatPostgrestError } from "@/src/lib/supabase-errors";
 import { supabase } from "@/src/lib/supabase";
 
 type Plato = {
@@ -168,7 +169,7 @@ export default function RecetaPage() {
         .order("nombre", { ascending: true });
 
       if (fetchError) {
-        setError(fetchError.message);
+        setError(formatPostgrestError(fetchError));
         return;
       }
 
@@ -211,7 +212,7 @@ export default function RecetaPage() {
     }
 
     if (recetaError) {
-      setError(recetaError.message);
+      setError(formatPostgrestError(recetaError));
       return;
     }
 
@@ -330,7 +331,7 @@ export default function RecetaPage() {
     });
 
     if (upsertError) {
-      setError(upsertError.message);
+      setError(formatPostgrestError(upsertError));
       setIsSaving(false);
       return;
     }
