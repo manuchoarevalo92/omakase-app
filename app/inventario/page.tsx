@@ -19,23 +19,19 @@ type Ingrediente = {
   rubro: RubroIngrediente;
 };
 
-/** Rubros cuya lista se puede plegar (Despensa queda siempre visible). */
-type RubroColapsable = "Pescado/Marisco" | "Fruta/Vegetal";
-
-function esRubroColapsable(r: RubroIngrediente): r is RubroColapsable {
-  return r === "Pescado/Marisco" || r === "Fruta/Vegetal";
-}
+/** Pescado y Fruta arrancan plegados; Despensa abierta (la más usada al cargar). */
+const RUBRO_EXPANDIDO_INICIAL: Record<RubroIngrediente, boolean> = {
+  "Pescado/Marisco": false,
+  "Fruta/Vegetal": false,
+  Despensa: true,
+};
 
 export default function InventarioPage() {
   const [ingredientes, setIngredientes] = useState<Ingrediente[]>([]);
   const [nuevoIngrediente, setNuevoIngrediente] = useState("");
   const [nuevoRubro, setNuevoRubro] = useState<RubroIngrediente>("Despensa");
-  const [rubroExpandido, setRubroExpandido] = useState<
-    Record<RubroColapsable, boolean>
-  >({
-    "Pescado/Marisco": false,
-    "Fruta/Vegetal": false,
-  });
+  const [rubroExpandido, setRubroExpandido] =
+    useState<Record<RubroIngrediente, boolean>>(RUBRO_EXPANDIDO_INICIAL);
   const [isLoading, setIsLoading] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -141,9 +137,7 @@ export default function InventarioPage() {
       setError(formatPostgrestError(updateError));
       return;
     }
-    if (esRubroColapsable(rubro)) {
-      setRubroExpandido((prev) => ({ ...prev, [rubro]: true }));
-    }
+    setRubroExpandido((prev) => ({ ...prev, [rubro]: true }));
   };
 
   const agregarIngrediente = async (event: FormEvent<HTMLFormElement>) => {
@@ -188,9 +182,7 @@ export default function InventarioPage() {
         },
       ].sort((a, b) => a.nombre.localeCompare(b.nombre, "es"))
     );
-    if (esRubroColapsable(rubroNuevo)) {
-      setRubroExpandido((prev) => ({ ...prev, [rubroNuevo]: true }));
-    }
+    setRubroExpandido((prev) => ({ ...prev, [rubroNuevo]: true }));
     setNuevoIngrediente("");
     setIsSubmitting(false);
   };
@@ -220,8 +212,8 @@ export default function InventarioPage() {
         <header className="mb-6">
           <h1 className="text-2xl font-semibold text-white">Ingredientes</h1>
           <p className="mt-1 text-sm text-zinc-400">
-            Disponibilidad y altas por rubro. Pescado/Marisco y Fruta/Vegetal se
-            pueden plegar tocando el título; Despensa siempre muestra la lista.
+            Disponibilidad y altas por rubro. Cada sección se pliega o despliega
+            tocando el título (Despensa abre sola la primera vez).
           </p>
         </header>
 
@@ -299,8 +291,7 @@ export default function InventarioPage() {
           <div className="space-y-8">
             {RUBROS_INGREDIENTE.map((rubro) => {
               const lista = porRubro.get(rubro) ?? [];
-              const colapsable = esRubroColapsable(rubro);
-              const expandido = colapsable ? rubroExpandido[rubro] : true;
+              const expandido = rubroExpandido[rubro];
               const listId = `rubro-list-${rubro.replace(/\//g, "-")}`;
 
               const tituloRubro = (
@@ -317,204 +308,117 @@ export default function InventarioPage() {
                   key={rubro}
                   className={`rounded-xl border border-zinc-800 border-l-4 ${RUBRO_SECTION_BORDER[rubro]} bg-zinc-950/35 p-4`}
                 >
-                  {colapsable ? (
-                    <button
-                      type="button"
-                      id={`rubro-head-${rubro.replace(/\//g, "-")}`}
-                      aria-expanded={expandido}
-                      aria-controls={listId}
-                      onClick={() =>
-                        setRubroExpandido((prev) => ({
-                          ...prev,
-                          [rubro]: !prev[rubro],
-                        }))
-                      }
-                      className="mb-3 flex w-full items-center gap-2 border-b border-zinc-800/80 pb-2 text-left text-sm font-semibold uppercase tracking-[0.14em] text-zinc-300 transition hover:text-zinc-100"
-                    >
-                      <span className="inline-flex shrink-0 text-zinc-500" aria-hidden>
-                        {expandido ? (
-                          <ChevronDown className="h-4 w-4" />
-                        ) : (
-                          <ChevronRight className="h-4 w-4" />
-                        )}
-                      </span>
-                      <span className="min-w-0">{tituloRubro}</span>
-                    </button>
-                  ) : (
-                    <h2 className="mb-3 border-b border-zinc-800/80 pb-2 text-sm font-semibold uppercase tracking-[0.14em] text-zinc-300">
-                      {tituloRubro}
-                    </h2>
-                  )}
-
-                  {colapsable ? (
-                    <div id={listId}>
+                  <button
+                    type="button"
+                    id={`rubro-head-${rubro.replace(/\//g, "-")}`}
+                    aria-expanded={expandido}
+                    aria-controls={listId}
+                    onClick={() =>
+                      setRubroExpandido((prev) => ({
+                        ...prev,
+                        [rubro]: !prev[rubro],
+                      }))
+                    }
+                    className="mb-3 flex w-full items-center gap-2 border-b border-zinc-800/80 pb-2 text-left text-sm font-semibold uppercase tracking-[0.14em] text-zinc-300 transition hover:text-zinc-100"
+                  >
+                    <span className="inline-flex shrink-0 text-zinc-500" aria-hidden>
                       {expandido ? (
-                        lista.length === 0 ? (
-                          <p className="text-sm text-zinc-600">
-                            Sin ítems en este rubro.
-                          </p>
-                        ) : (
-                          <ul className="space-y-2" role="list">
-                            {lista.map((ingrediente) => (
-                              <li
-                                key={ingrediente.id}
-                                className="flex flex-col gap-2 rounded-xl border border-zinc-800 bg-zinc-950/70 px-3 py-2.5 sm:flex-row sm:items-center sm:justify-between"
-                              >
-                                <span className="min-w-0 text-sm text-zinc-100">
-                                  {ingrediente.nombre}
-                                </span>
-                                <div className="flex flex-wrap items-center gap-2 sm:justify-end">
-                                  <label
-                                    className="sr-only"
-                                    htmlFor={`rubro-${ingrediente.id}`}
-                                  >
-                                    Rubro de {ingrediente.nombre}
-                                  </label>
-                                  <select
-                                    id={`rubro-${ingrediente.id}`}
-                                    value={ingrediente.rubro}
-                                    onChange={(e) =>
-                                      void actualizarRubro(
-                                        ingrediente.id,
-                                        normalizarRubro(e.target.value)
-                                      )
-                                    }
-                                    className={selectRubroClass}
-                                  >
-                                    {RUBROS_INGREDIENTE.map((r) => (
-                                      <option key={r} value={r}>
-                                        {r}
-                                      </option>
-                                    ))}
-                                  </select>
-                                  <button
-                                    type="button"
-                                    role="switch"
-                                    aria-checked={ingrediente.disponible}
-                                    onClick={() =>
-                                      void actualizarDisponibilidad(
-                                        ingrediente.id,
-                                        !ingrediente.disponible
-                                      )
-                                    }
-                                    className={`relative h-6 w-11 shrink-0 rounded-full transition ${
-                                      ingrediente.disponible
-                                        ? "bg-zinc-100"
-                                        : "bg-zinc-700"
-                                    }`}
-                                    aria-label={`Cambiar disponibilidad de ${ingrediente.nombre}`}
-                                  >
-                                    <span
-                                      className={`absolute top-0.5 h-5 w-5 rounded-full bg-zinc-950 transition ${
-                                        ingrediente.disponible
-                                          ? "left-[22px]"
-                                          : "left-0.5"
-                                      }`}
-                                    />
-                                  </button>
-                                  <button
-                                    type="button"
-                                    onClick={() =>
-                                      void eliminarIngrediente(ingrediente.id)
-                                    }
-                                    className="rounded-lg border border-zinc-800 p-2 text-zinc-400 transition hover:border-zinc-600 hover:text-zinc-100"
-                                    aria-label={`Eliminar ${ingrediente.nombre}`}
-                                  >
-                                    <Trash2 className="h-4 w-4" />
-                                  </button>
-                                </div>
-                              </li>
-                            ))}
-                          </ul>
-                        )
-                      ) : lista.length > 0 ? (
-                        <p className="text-xs text-zinc-600">
-                          {lista.length}{" "}
-                          {lista.length === 1
-                            ? "ítem oculto"
-                            : "ítems ocultos"}
-                          . Tocá el título para ver la lista.
+                        <ChevronDown className="h-4 w-4" />
+                      ) : (
+                        <ChevronRight className="h-4 w-4" />
+                      )}
+                    </span>
+                    <span className="min-w-0">{tituloRubro}</span>
+                  </button>
+
+                  <div id={listId}>
+                    {expandido ? (
+                      lista.length === 0 ? (
+                        <p className="text-sm text-zinc-600">
+                          Sin ítems en este rubro.
                         </p>
-                      ) : null}
-                    </div>
-                  ) : lista.length === 0 ? (
-                    <p className="text-sm text-zinc-600">
-                      Sin ítems en este rubro.
-                    </p>
-                  ) : (
-                    <ul className="space-y-2" role="list">
-                      {lista.map((ingrediente) => (
-                        <li
-                          key={ingrediente.id}
-                          className="flex flex-col gap-2 rounded-xl border border-zinc-800 bg-zinc-950/70 px-3 py-2.5 sm:flex-row sm:items-center sm:justify-between"
-                        >
-                          <span className="min-w-0 text-sm text-zinc-100">
-                            {ingrediente.nombre}
-                          </span>
-                          <div className="flex flex-wrap items-center gap-2 sm:justify-end">
-                            <label
-                              className="sr-only"
-                              htmlFor={`rubro-${ingrediente.id}`}
+                      ) : (
+                        <ul className="space-y-2" role="list">
+                          {lista.map((ingrediente) => (
+                            <li
+                              key={ingrediente.id}
+                              className="flex flex-col gap-2 rounded-xl border border-zinc-800 bg-zinc-950/70 px-3 py-2.5 sm:flex-row sm:items-center sm:justify-between"
                             >
-                              Rubro de {ingrediente.nombre}
-                            </label>
-                            <select
-                              id={`rubro-${ingrediente.id}`}
-                              value={ingrediente.rubro}
-                              onChange={(e) =>
-                                void actualizarRubro(
-                                  ingrediente.id,
-                                  normalizarRubro(e.target.value)
-                                )
-                              }
-                              className={selectRubroClass}
-                            >
-                              {RUBROS_INGREDIENTE.map((r) => (
-                                <option key={r} value={r}>
-                                  {r}
-                                </option>
-                              ))}
-                            </select>
-                            <button
-                              type="button"
-                              role="switch"
-                              aria-checked={ingrediente.disponible}
-                              onClick={() =>
-                                void actualizarDisponibilidad(
-                                  ingrediente.id,
-                                  !ingrediente.disponible
-                                )
-                              }
-                              className={`relative h-6 w-11 shrink-0 rounded-full transition ${
-                                ingrediente.disponible
-                                  ? "bg-zinc-100"
-                                  : "bg-zinc-700"
-                              }`}
-                              aria-label={`Cambiar disponibilidad de ${ingrediente.nombre}`}
-                            >
-                              <span
-                                className={`absolute top-0.5 h-5 w-5 rounded-full bg-zinc-950 transition ${
-                                  ingrediente.disponible
-                                    ? "left-[22px]"
-                                    : "left-0.5"
-                                }`}
-                              />
-                            </button>
-                            <button
-                              type="button"
-                              onClick={() =>
-                                void eliminarIngrediente(ingrediente.id)
-                              }
-                              className="rounded-lg border border-zinc-800 p-2 text-zinc-400 transition hover:border-zinc-600 hover:text-zinc-100"
-                              aria-label={`Eliminar ${ingrediente.nombre}`}
-                            >
-                              <Trash2 className="h-4 w-4" />
-                            </button>
-                          </div>
-                        </li>
-                      ))}
-                    </ul>
-                  )}
+                              <span className="min-w-0 text-sm text-zinc-100">
+                                {ingrediente.nombre}
+                              </span>
+                              <div className="flex flex-wrap items-center gap-2 sm:justify-end">
+                                <label
+                                  className="sr-only"
+                                  htmlFor={`rubro-${ingrediente.id}`}
+                                >
+                                  Rubro de {ingrediente.nombre}
+                                </label>
+                                <select
+                                  id={`rubro-${ingrediente.id}`}
+                                  value={ingrediente.rubro}
+                                  onChange={(e) =>
+                                    void actualizarRubro(
+                                      ingrediente.id,
+                                      normalizarRubro(e.target.value)
+                                    )
+                                  }
+                                  className={selectRubroClass}
+                                >
+                                  {RUBROS_INGREDIENTE.map((r) => (
+                                    <option key={r} value={r}>
+                                      {r}
+                                    </option>
+                                  ))}
+                                </select>
+                                <button
+                                  type="button"
+                                  role="switch"
+                                  aria-checked={ingrediente.disponible}
+                                  onClick={() =>
+                                    void actualizarDisponibilidad(
+                                      ingrediente.id,
+                                      !ingrediente.disponible
+                                    )
+                                  }
+                                  className={`relative h-6 w-11 shrink-0 rounded-full transition ${
+                                    ingrediente.disponible
+                                      ? "bg-zinc-100"
+                                      : "bg-zinc-700"
+                                  }`}
+                                  aria-label={`Cambiar disponibilidad de ${ingrediente.nombre}`}
+                                >
+                                  <span
+                                    className={`absolute top-0.5 h-5 w-5 rounded-full bg-zinc-950 transition ${
+                                      ingrediente.disponible
+                                        ? "left-[22px]"
+                                        : "left-0.5"
+                                    }`}
+                                  />
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() =>
+                                    void eliminarIngrediente(ingrediente.id)
+                                  }
+                                  className="rounded-lg border border-zinc-800 p-2 text-zinc-400 transition hover:border-zinc-600 hover:text-zinc-100"
+                                  aria-label={`Eliminar ${ingrediente.nombre}`}
+                                >
+                                  <Trash2 className="h-4 w-4" />
+                                </button>
+                              </div>
+                            </li>
+                          ))}
+                        </ul>
+                      )
+                    ) : lista.length > 0 ? (
+                      <p className="text-xs text-zinc-600">
+                        {lista.length}{" "}
+                        {lista.length === 1 ? "ítem oculto" : "ítems ocultos"}.
+                        Tocá el título para ver la lista.
+                      </p>
+                    ) : null}
+                  </div>
                 </section>
               );
             })}
