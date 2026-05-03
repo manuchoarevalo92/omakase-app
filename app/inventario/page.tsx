@@ -123,10 +123,12 @@ export default function InventarioPage() {
   };
 
   return (
-    <main className="min-h-screen bg-zinc-950 px-6 py-10 text-zinc-100">
+    <main className="min-h-screen min-w-0 bg-zinc-950 px-4 py-6 text-zinc-100 sm:px-6 sm:py-10">
       <section className="mx-auto w-full max-w-2xl rounded-2xl border border-zinc-800 bg-zinc-900/60 p-6 shadow-[0_0_0_1px_rgba(255,255,255,0.02)] backdrop-blur">
         <header className="mb-6">
-          <p className="text-xs uppercase tracking-[0.2em] text-zinc-500">Omakase</p>
+          <p className="hidden text-xs uppercase tracking-[0.2em] text-zinc-500 sm:block">
+            Omakase
+          </p>
           <h1 className="mt-2 text-2xl font-semibold text-white">Ingredientes</h1>
           <p className="mt-1 text-sm text-zinc-400">
             Disponibilidad y altas para armar los platos.

@@ -365,14 +365,16 @@ export default function Home() {
   };
 
   return (
-    <main className="min-h-screen bg-zinc-950 px-5 py-8 text-zinc-100 sm:px-6 sm:py-10">
-      <section className="mx-auto w-full max-w-6xl rounded-2xl border border-zinc-800 bg-zinc-900/60 p-5 shadow-[0_0_0_1px_rgba(255,255,255,0.02)] backdrop-blur sm:p-6">
+    <main className="min-h-screen min-w-0 bg-zinc-950 px-4 py-6 text-zinc-100 sm:px-6 sm:py-10">
+      <section className="mx-auto w-full min-w-0 max-w-6xl rounded-2xl border border-zinc-800 bg-zinc-900/60 p-4 shadow-[0_0_0_1px_rgba(255,255,255,0.02)] backdrop-blur sm:p-6">
         <header className="mb-6">
-          <p className="text-xs uppercase tracking-[0.2em] text-zinc-500">Omakase</p>
-          <h1 className="mt-2 text-2xl font-semibold tracking-tight text-white sm:text-3xl">
+          <p className="hidden text-xs uppercase tracking-[0.2em] text-zinc-500 sm:block">
+            Omakase
+          </p>
+          <h1 className="mt-2 text-balance text-xl font-semibold tracking-tight text-white sm:text-2xl md:text-3xl">
             Generador de Menú Diario
           </h1>
-          <p className="mt-2 text-sm text-zinc-400">
+          <p className="mt-2 text-pretty text-sm text-zinc-400">
             Selecciona platos disponibles para el servicio y guarda el cierre del
             menú del día.
           </p>
@@ -391,27 +393,27 @@ export default function Home() {
         ) : null}
 
         {resumenServicio ? (
-          <div className="sticky top-2 z-10 mb-6 rounded-lg border border-zinc-600 bg-zinc-950/95 p-3 shadow-lg shadow-black/40 backdrop-blur-sm sm:p-4">
-            <div className="mb-2 flex flex-wrap items-center justify-between gap-2 border-b border-zinc-800 pb-2">
-              <div>
+          <div className="sticky top-2 z-10 mb-6 min-w-0 rounded-lg border border-zinc-600 bg-zinc-950/95 p-3 shadow-lg shadow-black/40 backdrop-blur-sm sm:p-4">
+            <div className="mb-2 flex flex-col gap-2 border-b border-zinc-800 pb-2 sm:flex-row sm:flex-wrap sm:items-center sm:justify-between sm:gap-x-2">
+              <div className="min-w-0">
                 <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-zinc-500">
                   Menú en servicio
                 </p>
-                <p className="mt-0.5 text-xs text-zinc-200">
+                <p className="mt-0.5 flex flex-wrap gap-x-1 text-xs text-zinc-200">
                   <span className="tabular-nums">{resumenServicio.fecha}</span>
-                  <span className="text-zinc-600"> · </span>
+                  <span className="text-zinc-600">·</span>
                   <span className="tabular-nums">{resumenServicio.hora}</span>
-                  <span className="text-zinc-600"> · </span>
-                  {resumenServicio.servicio}
+                  <span className="text-zinc-600">·</span>
+                  <span>{resumenServicio.servicio}</span>
                 </p>
               </div>
-              <div className="flex shrink-0 flex-wrap items-center justify-end gap-2">
+              <div className="flex w-full min-w-0 flex-col gap-2 sm:w-auto sm:flex-row sm:flex-wrap sm:justify-end">
                 <button
                   type="button"
                   onClick={() => setEditorOcultoTrasGuardar(false)}
-                  className="inline-flex items-center gap-1.5 rounded-md border border-zinc-600 bg-zinc-800/80 px-2.5 py-1 text-[11px] font-medium text-zinc-100 transition hover:border-zinc-500 hover:bg-zinc-800"
+                  className="inline-flex w-full items-center justify-center gap-1.5 rounded-md border border-zinc-600 bg-zinc-800/80 px-2.5 py-2 text-[11px] font-medium text-zinc-100 transition hover:border-zinc-500 hover:bg-zinc-800 sm:w-auto sm:py-1"
                 >
-                  <Pencil className="h-3 w-3" aria-hidden />
+                  <Pencil className="h-3 w-3 shrink-0" aria-hidden />
                   Editar menú
                 </button>
                 <button
@@ -421,7 +423,7 @@ export default function Home() {
                     setSuccess(null);
                     setEditorOcultoTrasGuardar(false);
                   }}
-                  className="rounded-md border border-zinc-700 bg-zinc-900 px-2.5 py-1 text-[11px] text-zinc-300 transition hover:border-zinc-500 hover:text-zinc-100"
+                  className="w-full rounded-md border border-zinc-700 bg-zinc-900 px-2.5 py-2 text-[11px] text-zinc-300 transition hover:border-zinc-500 hover:text-zinc-100 sm:w-auto sm:py-1"
                 >
                   Ocultar resumen
                 </button>
