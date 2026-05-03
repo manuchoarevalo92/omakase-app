@@ -37,7 +37,3 @@ select {
   max-width: 100%;
 }
 
-/* Scroll horizontal suave en nav móvil */
-.nav-x-scroll-touch {
-  -webkit-overflow-scrolling: touch;
-}

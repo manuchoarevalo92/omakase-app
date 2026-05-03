@@ -368,10 +368,7 @@ export default function Home() {
     <main className="min-h-screen min-w-0 bg-zinc-950 px-4 py-6 text-zinc-100 sm:px-6 sm:py-10">
       <section className="mx-auto w-full min-w-0 max-w-6xl rounded-2xl border border-zinc-800 bg-zinc-900/60 p-4 shadow-[0_0_0_1px_rgba(255,255,255,0.02)] backdrop-blur sm:p-6">
         <header className="mb-6">
-          <p className="hidden text-xs uppercase tracking-[0.2em] text-zinc-500 sm:block">
-            Omakase
-          </p>
-          <h1 className="mt-2 text-balance text-xl font-semibold tracking-tight text-white sm:text-2xl md:text-3xl">
+          <h1 className="text-balance text-xl font-semibold tracking-tight text-white sm:text-2xl md:text-3xl">
             Generador de Menú Diario
           </h1>
           <p className="mt-2 text-pretty text-sm text-zinc-400">

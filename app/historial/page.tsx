@@ -129,10 +129,7 @@ export default function HistorialPage() {
     <main className="min-h-screen min-w-0 bg-zinc-950 px-4 py-6 text-zinc-100 sm:px-6 sm:py-10">
       <section className="mx-auto w-full max-w-5xl rounded-2xl border border-zinc-800 bg-zinc-900/60 p-6 shadow-[0_0_0_1px_rgba(255,255,255,0.02)] backdrop-blur">
         <header className="mb-6">
-          <p className="hidden text-xs uppercase tracking-[0.2em] text-zinc-500 sm:block">
-            Omakase
-          </p>
-          <h1 className="mt-2 text-2xl font-semibold text-white">Historial de Servicios</h1>
+          <h1 className="text-2xl font-semibold text-white">Historial de Servicios</h1>
         </header>
 
         <section className="mb-6 grid gap-2 rounded-xl border border-zinc-800 bg-zinc-950/60 p-3 sm:grid-cols-3">
