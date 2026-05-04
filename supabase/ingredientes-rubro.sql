@@ -5,7 +5,9 @@ alter table public.ingredientes
   add column if not exists rubro text;
 
 update public.ingredientes
-set rubro = 'Despensa'
-where rubro is null or trim(rubro) = '';
+set rubro = 'Despensa/Prep'
+where rubro is null
+  or trim(rubro) = ''
+  or lower(trim(rubro)) = 'despensa';
 
-comment on column public.ingredientes.rubro is 'Pescado/Marisco | Fruta/Vegetal | Despensa';
+comment on column public.ingredientes.rubro is 'Pescado/Marisco | Fruta/Vegetal | Despensa/Prep';

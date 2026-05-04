@@ -188,7 +188,7 @@ export default function PlatosPage() {
 
     const { data, error: insertError } = await supabase
       .from("ingredientes")
-      .insert({ nombre, disponible: true, rubro: "Despensa" })
+      .insert({ nombre, disponible: true, rubro: "Despensa/Prep" })
       .select("id, nombre, disponible, rubro")
       .single();
 

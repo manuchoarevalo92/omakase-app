@@ -2,7 +2,7 @@
 export const RUBROS_INGREDIENTE = [
   "Pescado/Marisco",
   "Fruta/Vegetal",
-  "Despensa",
+  "Despensa/Prep",
 ] as const;
 
 export type RubroIngrediente = (typeof RUBROS_INGREDIENTE)[number];
@@ -13,19 +13,19 @@ const CANON = new Set<string>(RUBROS_INGREDIENTE);
 export const RUBRO_SECTION_BORDER: Record<RubroIngrediente, string> = {
   "Pescado/Marisco": "border-l-sky-500/75",
   "Fruta/Vegetal": "border-l-emerald-500/75",
-  Despensa: "border-l-amber-500/65",
+  "Despensa/Prep": "border-l-amber-500/65",
 };
 
 /**
  * Convierte lo que venga de la DB al rubro canónico de la app.
- * Si no coincide (espacios, guiones, sin barra, sinónimos), cae en Despensa.
+ * Si no coincide (espacios, guiones, sin barra, sinonimos), cae en Despensa/Prep.
  */
 export function normalizarRubro(
   valor: string | null | undefined
 ): RubroIngrediente {
   const raw = (valor ?? "").trim();
   if (!raw) {
-    return "Despensa";
+    return "Despensa/Prep";
   }
   if (CANON.has(raw)) {
     return raw as RubroIngrediente;
@@ -54,13 +54,16 @@ export function normalizarRubro(
     verdura: "Fruta/Vegetal",
     vegetable: "Fruta/Vegetal",
     fruit: "Fruta/Vegetal",
-    despensa: "Despensa",
-    pantry: "Despensa",
+    "despensa/prep": "Despensa/Prep",
+    "despensa prep": "Despensa/Prep",
+    despensa: "Despensa/Prep",
+    prep: "Despensa/Prep",
+    pantry: "Despensa/Prep",
   };
 
   const resolved = alias[key] ?? alias[slashKey];
   if (resolved) {
     return resolved;
   }
-  return "Despensa";
+  return "Despensa/Prep";
 }

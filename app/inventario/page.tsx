@@ -32,7 +32,9 @@ const RUBRO_EXPANDIDO_INICIAL: Record<RubroIngrediente, boolean> =
 export default function InventarioPage() {
   const [ingredientes, setIngredientes] = useState<Ingrediente[]>([]);
   const [nuevoIngrediente, setNuevoIngrediente] = useState("");
-  const [nuevoRubro, setNuevoRubro] = useState<RubroIngrediente>("Despensa");
+  const [nuevoRubro, setNuevoRubro] = useState<RubroIngrediente>(
+    "Despensa/Prep"
+  );
   const [rubroExpandido, setRubroExpandido] =
     useState<Record<RubroIngrediente, boolean>>(RUBRO_EXPANDIDO_INICIAL);
   const [isLoading, setIsLoading] = useState(true);
