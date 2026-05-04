@@ -19,6 +19,11 @@ type Ingrediente = {
   rubro: RubroIngrediente;
 };
 
+type PlatoConIngredientes = {
+  id: string;
+  ingredientes_requeridos: string[] | null;
+};
+
 /** Todas las secciones arrancan plegadas; el usuario abre las que necesite. */
 const RUBRO_EXPANDIDO_INICIAL: Record<RubroIngrediente, boolean> =
   RUBROS_INGREDIENTE.reduce(
@@ -205,6 +210,48 @@ export default function InventarioPage() {
     if (deleteError) {
       setIngredientes(previous);
       setError(formatPostgrestError(deleteError));
+      return;
+    }
+
+    const { data: platosConIngrediente, error: fetchPlatosError } = await supabase
+      .from("platos")
+      .select("id, ingredientes_requeridos")
+      .contains("ingredientes_requeridos", [id]);
+
+    if (fetchPlatosError) {
+      setError(
+        `Ingrediente eliminado, pero no se pudo limpiar en platos: ${formatPostgrestError(
+          fetchPlatosError
+        )}`
+      );
+      return;
+    }
+
+    const platos = (platosConIngrediente ?? []) as PlatoConIngredientes[];
+    if (platos.length === 0) {
+      return;
+    }
+
+    const updates = await Promise.all(
+      platos.map(async (plato) => {
+        const nuevos = (plato.ingredientes_requeridos ?? []).filter(
+          (ingredienteId) => ingredienteId !== id
+        );
+        const { error: updatePlatoError } = await supabase
+          .from("platos")
+          .update({ ingredientes_requeridos: nuevos })
+          .eq("id", plato.id);
+        return updatePlatoError;
+      })
+    );
+
+    const primerError = updates.find((err) => err != null);
+    if (primerError) {
+      setError(
+        `Ingrediente eliminado, pero algunos platos quedaron sin sincronizar: ${formatPostgrestError(
+          primerError
+        )}`
+      );
     }
   };
 
