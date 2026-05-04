@@ -41,6 +41,8 @@ export default function RecetaPage() {
   const [platoId, setPlatoId] = useState<string>("");
   const [ingredientes, setIngredientes] = useState<IngredienteReceta[]>([filaVacia()]);
   const [preparacion, setPreparacion] = useState("");
+  const [preparacionGuardada, setPreparacionGuardada] = useState("");
+  const [editandoPreparacion, setEditandoPreparacion] = useState(true);
   const [pax, setPax] = useState("");
   /** Última referencia usada para relación PAX ↔ gramos totales (se actualiza al recalcular o al cargar). */
   const [referenciaPax, setReferenciaPax] = useState<number | null>(null);
@@ -187,6 +189,8 @@ export default function RecetaPage() {
     if (!id) {
       setIngredientes([filaVacia()]);
       setPreparacion("");
+      setPreparacionGuardada("");
+      setEditandoPreparacion(true);
       setPax("");
       setReferenciaPax(null);
       setReferenciaGramosTotales(null);
@@ -220,6 +224,8 @@ export default function RecetaPage() {
     if (!row) {
       setIngredientes([filaVacia()]);
       setPreparacion("");
+      setPreparacionGuardada("");
+      setEditandoPreparacion(true);
       setPax("");
       setReferenciaPax(null);
       setReferenciaGramosTotales(null);
@@ -235,7 +241,10 @@ export default function RecetaPage() {
           : (item.gramos as string) ?? "",
     }));
     setIngredientes(normalizados.length > 0 ? normalizados : [filaVacia()]);
-    setPreparacion(row.preparacion ?? "");
+    const prep = row.preparacion ?? "";
+    setPreparacion(prep);
+    setPreparacionGuardada(prep);
+    setEditandoPreparacion(prep.trim().length === 0);
     const paxCargado = row.pax != null && row.pax > 0 ? row.pax : null;
     setPax(paxCargado != null ? String(paxCargado) : "");
     const totalG = sumarGramosTotales(normalizados);
@@ -336,6 +345,8 @@ export default function RecetaPage() {
       return;
     }
 
+    setPreparacionGuardada(preparacion.trim());
+    setEditandoPreparacion(false);
     setSuccess(`Receta guardada para ${platoSeleccionado?.nombre ?? "el plato"}.`);
     setIsSaving(false);
   };
@@ -515,17 +526,51 @@ export default function RecetaPage() {
             </div>
 
             <div className="rounded-xl border border-zinc-800 bg-zinc-950/60 p-4">
-              <h2 className="mb-3 text-sm uppercase tracking-[0.16em] text-zinc-400">
-                Preparación
-              </h2>
-              <textarea
-                value={preparacion}
-                onChange={(e) => setPreparacion(e.target.value)}
-                disabled={!platoId}
-                rows={10}
-                placeholder="Pasos, tiempos, temperaturas..."
-                className="w-full resize-y rounded-lg border border-zinc-700 bg-zinc-900 px-3 py-2 text-sm text-zinc-100 outline-none transition focus:border-zinc-500 disabled:opacity-50"
-              />
+              <div className="mb-3 flex items-center justify-between gap-3">
+                <h2 className="text-sm uppercase tracking-[0.16em] text-zinc-400">
+                  Preparación
+                </h2>
+                {platoId && preparacionGuardada.trim().length > 0 ? (
+                  <button
+                    type="button"
+                    onClick={() => setEditandoPreparacion((prev) => !prev)}
+                    className="rounded-lg border border-zinc-700 bg-zinc-900 px-3 py-1.5 text-xs text-zinc-200 transition hover:border-zinc-500 hover:text-white"
+                  >
+                    {editandoPreparacion ? "Ver compacto" : "Editar"}
+                  </button>
+                ) : null}
+              </div>
+
+              {editandoPreparacion ? (
+                <>
+                  <textarea
+                    value={preparacion}
+                    onChange={(e) => setPreparacion(e.target.value)}
+                    disabled={!platoId}
+                    rows={10}
+                    placeholder="Pasos, tiempos, temperaturas..."
+                    className="w-full resize-y rounded-lg border border-zinc-700 bg-zinc-900 px-3 py-2 text-sm text-zinc-100 outline-none transition focus:border-zinc-500 disabled:opacity-50"
+                  />
+                  {platoId && preparacionGuardada.trim().length > 0 ? (
+                    <div className="mt-2 flex justify-end">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setPreparacion(preparacionGuardada);
+                          setEditandoPreparacion(false);
+                        }}
+                        className="rounded-lg border border-zinc-700 bg-zinc-900 px-3 py-1.5 text-xs text-zinc-300 transition hover:border-zinc-500 hover:text-white"
+                      >
+                        Cancelar edición
+                      </button>
+                    </div>
+                  ) : null}
+                </>
+              ) : (
+                <article className="rounded-lg border border-zinc-800 bg-zinc-900/60 px-3 py-2 text-sm leading-relaxed text-zinc-200 whitespace-pre-wrap">
+                  {preparacionGuardada}
+                </article>
+              )}
             </div>
 
             <button
