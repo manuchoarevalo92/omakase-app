@@ -24,6 +24,10 @@ export function formatPostgrestError(error: {
       bits.push(
         "RLS en la tabla recetas: la app usa la anon key. En Supabase → SQL Editor, creá políticas para el rol anon que permitan SELECT, INSERT y UPDATE (el guardado usa upsert). Ver supabase/recetas-rls-anon.sql en el repo."
       );
+    } else if (msg.includes("platos")) {
+      bits.push(
+        "RLS en platos: la app usa la anon key. Hacen falta políticas SELECT, INSERT, UPDATE y DELETE para anon (ver supabase/platos-rls-anon.sql en el repo)."
+      );
     } else if (msg.includes("historial_servicios")) {
       bits.push(
         "RLS en historial_servicios: hace falta INSERT y SELECT para anon si guardás menú y ves el historial."

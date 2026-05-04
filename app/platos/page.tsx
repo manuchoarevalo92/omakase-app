@@ -3,6 +3,7 @@
 import { FormEvent, useEffect, useMemo, useState } from "react";
 import { Loader2, Plus, Trash2 } from "lucide-react";
 
+import { formatPostgrestError } from "@/src/lib/supabase-errors";
 import { supabase } from "@/src/lib/supabase";
 
 type Categoria = "Otsumami" | "Nigiri" | "Postre" | "Extensión";
@@ -98,12 +99,12 @@ export default function PlatosPage() {
       ]);
 
       if (ingredientesResponse.error) {
-        setError(ingredientesResponse.error.message);
+        setError(formatPostgrestError(ingredientesResponse.error));
         return;
       }
 
       if (platosResponse.error) {
-        setError(platosResponse.error.message);
+        setError(formatPostgrestError(platosResponse.error));
         return;
       }
 
@@ -164,7 +165,7 @@ export default function PlatosPage() {
       .single();
 
     if (updateError) {
-      setError(updateError.message);
+      setError(formatPostgrestError(updateError));
       setIsUpdatingIngredientes(false);
       return;
     }
@@ -193,7 +194,7 @@ export default function PlatosPage() {
       .single();
 
     if (insertError) {
-      setError(insertError.message);
+      setError(formatPostgrestError(insertError));
       setIsAddingIngrediente(false);
       return;
     }
@@ -251,7 +252,7 @@ export default function PlatosPage() {
       .single();
 
     if (insertError) {
-      setError(insertError.message);
+      setError(formatPostgrestError(insertError));
       setIsSaving(false);
       return;
     }
@@ -285,7 +286,7 @@ export default function PlatosPage() {
       .eq("id", confirmDeletePlato.id);
 
     if (deleteError) {
-      setError(deleteError.message);
+      setError(formatPostgrestError(deleteError));
       setIsDeleting(false);
       return;
     }
