@@ -7,13 +7,14 @@ import { Loader2, LogOut } from "lucide-react";
 
 const ALL_LINKS = [
   { href: "/", label: "Menú" },
+  { href: "/bebidas", label: "Bebidas" },
   { href: "/inventario", label: "Ingredientes" },
   { href: "/platos", label: "Platos" },
   { href: "/receta", label: "Receta" },
   { href: "/historial", label: "Historial" },
 ] as const;
 
-const STAFF_HREFS = new Set<string>(["/", "/inventario", "/historial"]);
+const STAFF_HREFS = new Set<string>(["/", "/bebidas", "/inventario", "/historial"]);
 
 type SessionInfo = { id: string; name: string; role: "admin" | "staff" };
 
