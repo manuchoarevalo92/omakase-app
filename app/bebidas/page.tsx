@@ -1,7 +1,10 @@
 "use client";
 
 import { Plus, Trash2 } from "lucide-react";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
+
+import { formatPostgrestError } from "@/src/lib/supabase-errors";
+import { supabase } from "@/src/lib/supabase";
 
 type BebidaItem = {
   id: string;
@@ -10,6 +13,12 @@ type BebidaItem = {
 };
 
 const TOTAL_ASIENTOS = 8;
+const STORAGE_KEY = "omakase_bebidas_v1";
+
+type BebidaAsientoRow = {
+  asiento: number;
+  consumos: BebidaItem[] | null;
+};
 
 const crearItem = (): BebidaItem => ({
   id: crypto.randomUUID(),
@@ -17,10 +26,126 @@ const crearItem = (): BebidaItem => ({
   cantidad: "",
 });
 
+const crearEstadoVacio = (): BebidaItem[][] =>
+  Array.from({ length: TOTAL_ASIENTOS }, () => [crearItem()]);
+
+const normalizarConsumos = (consumos: BebidaItem[] | null | undefined): BebidaItem[] => {
+  const lista = Array.isArray(consumos) ? consumos : [];
+  const normalizados = lista
+    .map((item) => ({
+      id: item.id || crypto.randomUUID(),
+      bebida: typeof item.bebida === "string" ? item.bebida : "",
+      cantidad: typeof item.cantidad === "string" ? item.cantidad : "",
+    }))
+    .filter((item) => item.bebida.trim() || item.cantidad.trim());
+  return normalizados.length > 0 ? normalizados : [crearItem()];
+};
+
+const cargarEstadoLocal = (): BebidaItem[][] => {
+  const vacio = crearEstadoVacio();
+  if (typeof window === "undefined") {
+    return vacio;
+  }
+  try {
+    const raw = window.localStorage.getItem(STORAGE_KEY);
+    if (!raw) {
+      return vacio;
+    }
+    const parsed = JSON.parse(raw) as unknown;
+    if (!Array.isArray(parsed) || parsed.length !== TOTAL_ASIENTOS) {
+      return vacio;
+    }
+    return parsed.map((consumos) => normalizarConsumos(consumos as BebidaItem[]));
+  } catch {
+    return vacio;
+  }
+};
+
 export default function BebidasPage() {
-  const [bebidasPorAsiento, setBebidasPorAsiento] = useState<BebidaItem[][]>(() =>
-    Array.from({ length: TOTAL_ASIENTOS }, () => [crearItem()])
-  );
+  const [bebidasPorAsiento, setBebidasPorAsiento] = useState<BebidaItem[][]>(cargarEstadoLocal);
+  const [isSyncing, setIsSyncing] = useState(false);
+  const [syncError, setSyncError] = useState<string | null>(null);
+  const [lastSyncLabel, setLastSyncLabel] = useState<string | null>(null);
+  const cargadoRemotoRef = useRef(false);
+  const timerSyncRef = useRef<number | null>(null);
+
+  useEffect(() => {
+    const cargarDesdeNube = async () => {
+      const { data, error } = await supabase
+        .from("bebidas_asientos")
+        .select("asiento, consumos")
+        .order("asiento", { ascending: true });
+
+      if (error) {
+        setSyncError(formatPostgrestError(error));
+        cargadoRemotoRef.current = true;
+        return;
+      }
+
+      const rows = (data ?? []) as BebidaAsientoRow[];
+      if (rows.length > 0) {
+        const merged = Array.from({ length: TOTAL_ASIENTOS }, (_, i) => {
+          const row = rows.find((r) => r.asiento === i + 1);
+          return normalizarConsumos(row?.consumos);
+        });
+        setBebidasPorAsiento(merged);
+      }
+      setSyncError(null);
+      cargadoRemotoRef.current = true;
+    };
+    void cargarDesdeNube();
+  }, []);
+
+  useEffect(() => {
+    try {
+      window.localStorage.setItem(STORAGE_KEY, JSON.stringify(bebidasPorAsiento));
+    } catch {
+      // Ignora fallos de almacenamiento local.
+    }
+  }, [bebidasPorAsiento]);
+
+  useEffect(() => {
+    if (!cargadoRemotoRef.current) {
+      return;
+    }
+
+    if (timerSyncRef.current) {
+      window.clearTimeout(timerSyncRef.current);
+    }
+
+    timerSyncRef.current = window.setTimeout(() => {
+      const sync = async () => {
+        setIsSyncing(true);
+        const payload = bebidasPorAsiento.map((consumos, index) => ({
+          asiento: index + 1,
+          consumos,
+          updated_at: new Date().toISOString(),
+        }));
+        const { error } = await supabase
+          .from("bebidas_asientos")
+          .upsert(payload, { onConflict: "asiento" });
+
+        if (error) {
+          setSyncError(formatPostgrestError(error));
+          setIsSyncing(false);
+          return;
+        }
+
+        setSyncError(null);
+        setLastSyncLabel(
+          new Date().toLocaleTimeString("es-ES", { hour: "2-digit", minute: "2-digit" })
+        );
+        setIsSyncing(false);
+      };
+      void sync();
+    }, 700);
+
+    return () => {
+      if (timerSyncRef.current) {
+        window.clearTimeout(timerSyncRef.current);
+      }
+    };
+  }, [bebidasPorAsiento]);
 
   const totalItemsCargados = useMemo(() => {
     return bebidasPorAsiento.reduce(
@@ -75,7 +200,20 @@ export default function BebidasPage() {
           <p className="mt-1 text-xs text-zinc-500">
             Ítems cargados: <span className="font-medium text-zinc-300">{totalItemsCargados}</span>
           </p>
+          <p className="mt-1 text-xs text-zinc-500">
+            {isSyncing
+              ? "Sincronizando con Supabase..."
+              : lastSyncLabel
+                ? `Sincronizado a las ${lastSyncLabel}`
+                : "Sin cambios sincronizados todavía"}
+          </p>
         </header>
+
+        {syncError ? (
+          <p className="mb-4 rounded-lg border border-red-900/70 bg-red-950/50 px-3 py-2 text-sm text-red-200">
+            {syncError}
+          </p>
+        ) : null}
 
         <div className="grid gap-4 sm:grid-cols-2">
           {bebidasPorAsiento.map((items, asientoIndex) => (
