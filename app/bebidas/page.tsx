@@ -189,11 +189,25 @@ export default function BebidasPage() {
     );
   };
 
+  const limpiarTodo = () => {
+    setSyncError(null);
+    setBebidasPorAsiento(crearEstadoVacio());
+  };
+
   return (
     <main className="min-h-screen min-w-0 bg-zinc-950 px-4 py-6 text-zinc-100 sm:px-6 sm:py-10">
       <section className="mx-auto w-full max-w-5xl rounded-2xl border border-zinc-800 bg-zinc-900/60 p-6 shadow-[0_0_0_1px_rgba(255,255,255,0.02)] backdrop-blur">
         <header className="mb-6">
-          <h1 className="text-2xl font-semibold text-white">Bebidas</h1>
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <h1 className="text-2xl font-semibold text-white">Bebidas</h1>
+            <button
+              type="button"
+              onClick={limpiarTodo}
+              className="inline-flex items-center gap-1.5 rounded-lg border border-red-900/60 bg-red-950/40 px-3 py-1.5 text-xs text-red-200 transition hover:bg-red-950/70"
+            >
+              Limpiar todo
+            </button>
+          </div>
           <p className="mt-1 text-sm text-zinc-400">
             Registro rápido por asiento (1 al 8): bebida y cantidad.
           </p>
