@@ -1,7 +1,7 @@
 "use client";
 
 import { Plus, Trash2 } from "lucide-react";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 
 type UnidadMedida = "Caja" | "Kilo" | "Unidad";
 
@@ -21,6 +21,7 @@ const PROVEEDORES = [
 ] as const;
 
 const UNIDADES: UnidadMedida[] = ["Caja", "Kilo", "Unidad"];
+const STORAGE_KEY = "omakase_pedidos_v1";
 
 const crearItem = (): PedidoItem => ({
   id: crypto.randomUUID(),
@@ -29,18 +30,64 @@ const crearItem = (): PedidoItem => ({
   unidad: "Unidad",
 });
 
-export default function PedidosPage() {
-  const [pedidosPorProveedor, setPedidosPorProveedor] = useState<
-    Record<(typeof PROVEEDORES)[number], PedidoItem[]>
-  >(() =>
-    PROVEEDORES.reduce(
+const crearEstadoVacio = (): Record<(typeof PROVEEDORES)[number], PedidoItem[]> =>
+  PROVEEDORES.reduce(
+    (acc, proveedor) => {
+      acc[proveedor] = [crearItem()];
+      return acc;
+    },
+    {} as Record<(typeof PROVEEDORES)[number], PedidoItem[]>
+  );
+
+const cargarEstadoInicial = (): Record<(typeof PROVEEDORES)[number], PedidoItem[]> => {
+  const vacio = crearEstadoVacio();
+  if (typeof window === "undefined") {
+    return vacio;
+  }
+  try {
+    const raw = window.localStorage.getItem(STORAGE_KEY);
+    if (!raw) {
+      return vacio;
+    }
+    const parsed = JSON.parse(raw) as Partial<
+      Record<(typeof PROVEEDORES)[number], PedidoItem[]>
+    >;
+    return PROVEEDORES.reduce(
       (acc, proveedor) => {
-        acc[proveedor] = [crearItem()];
+        const filas = Array.isArray(parsed?.[proveedor]) ? parsed[proveedor] : [];
+        const normalizadas = filas
+          .map((fila) => {
+            const unidad = UNIDADES.includes(fila.unidad) ? fila.unidad : "Unidad";
+            return {
+              id: fila.id || crypto.randomUUID(),
+              item: typeof fila.item === "string" ? fila.item : "",
+              cantidad: typeof fila.cantidad === "string" ? fila.cantidad : "",
+              unidad,
+            } satisfies PedidoItem;
+          })
+          .filter((fila) => fila.item.trim() || fila.cantidad.trim());
+        acc[proveedor] = normalizadas.length > 0 ? normalizadas : [crearItem()];
         return acc;
       },
       {} as Record<(typeof PROVEEDORES)[number], PedidoItem[]>
-    )
-  );
+    );
+  } catch {
+    return vacio;
+  }
+};
+
+export default function PedidosPage() {
+  const [pedidosPorProveedor, setPedidosPorProveedor] = useState<
+    Record<(typeof PROVEEDORES)[number], PedidoItem[]>
+  >(cargarEstadoInicial);
+
+  useEffect(() => {
+    try {
+      window.localStorage.setItem(STORAGE_KEY, JSON.stringify(pedidosPorProveedor));
+    } catch {
+      // Ignora errores de almacenamiento para no bloquear la carga de pedidos.
+    }
+  }, [pedidosPorProveedor]);
 
   const totalItemsCargados = useMemo(() => {
     return PROVEEDORES.reduce(
