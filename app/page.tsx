@@ -36,6 +36,7 @@ type ResumenServicio = {
   fecha: string;
   hora: string;
   servicio: Servicio;
+  menuTipo: "Clasico" | "Nigiri only";
   otsumamiBase: string[];
   nigiri: string[];
   postre: string[];
@@ -44,7 +45,7 @@ type ResumenServicio = {
 };
 
 const CATEGORIAS_OMAKASE: Categoria[] = ["Otsumami", "Nigiri", "Postre"];
-const TOTAL_ITEMS_OMAKASE = 17;
+const TOTAL_ITEMS_OMAKASE_CLASICO = 17;
 const OTSUMAMI_BASE = 4;
 const OTSUMAMI_REGALO = 2;
 const NIGIRI_BASE = 12;
@@ -94,6 +95,7 @@ export default function Home() {
   );
   /** Tras guardar, el formulario se pliega para priorizar el resumen; "Editar menú" lo vuelve a mostrar. */
   const [editorOcultoTrasGuardar, setEditorOcultoTrasGuardar] = useState(false);
+  const [menuNigiriOnly, setMenuNigiriOnly] = useState(false);
 
   const ingredientesMap = useMemo(() => {
     return new Map(ingredientes.map((item) => [item.id, item]));
@@ -133,12 +135,17 @@ export default function Home() {
   }, [menuOmakaseDisponibles]);
 
   const pasosBaseCompletados = useMemo(() => {
+    if (menuNigiriOnly) {
+      return omakaseNigiri.filter((id) => id.trim().length > 0).length;
+    }
     return [
       ...omakaseOtsumami,
       ...omakaseNigiri,
       ...omakasePostre,
     ].filter((id) => id.trim().length > 0).length;
-  }, [omakaseNigiri, omakaseOtsumami, omakasePostre]);
+  }, [menuNigiriOnly, omakaseNigiri, omakaseOtsumami, omakasePostre]);
+
+  const totalPasosBaseObjetivo = menuNigiriOnly ? NIGIRI_BASE : TOTAL_ITEMS_OMAKASE_CLASICO;
 
   const pasosRegaloCompletados = useMemo(
     () => omakaseOtsumamiRegalo.filter((id) => id.trim().length > 0).length,
@@ -248,20 +255,19 @@ export default function Home() {
     setError(null);
     setSuccess(null);
 
-    if (pasosBaseCompletados !== TOTAL_ITEMS_OMAKASE) {
+    if (pasosBaseCompletados !== totalPasosBaseObjetivo) {
       setError(
-        `Completa los ${TOTAL_ITEMS_OMAKASE} pasos del Menú Omakase antes de guardar.`
+        `Completa los ${totalPasosBaseObjetivo} pasos del Menú Omakase antes de guardar.`
       );
       setIsSaving(false);
       return;
     }
 
-    const menuOmakaseFinal = [
-      ...omakaseOtsumami,
-      ...omakaseNigiri,
-      ...omakasePostre,
-      ...omakaseOtsumamiRegalo,
-    ].filter((id) => id.trim().length > 0);
+    const menuOmakaseFinal = (
+      menuNigiriOnly
+        ? [...omakaseNigiri]
+        : [...omakaseOtsumami, ...omakaseNigiri, ...omakasePostre, ...omakaseOtsumamiRegalo]
+    ).filter((id) => id.trim().length > 0);
 
     const extensionesFinal = extensionSlots.filter((id) => id.trim().length > 0);
 
@@ -277,10 +283,15 @@ export default function Home() {
       fecha: fechaServicio,
       hora: horaServicio,
       servicio,
-      otsumamiBase: omakaseOtsumami.filter((id) => id.trim().length > 0),
+      menuTipo: menuNigiriOnly ? "Nigiri only" : "Clasico",
+      otsumamiBase: menuNigiriOnly
+        ? []
+        : omakaseOtsumami.filter((id) => id.trim().length > 0),
       nigiri: omakaseNigiri.filter((id) => id.trim().length > 0),
-      postre: omakasePostre.filter((id) => id.trim().length > 0),
-      regalo: omakaseOtsumamiRegalo.filter((id) => id.trim().length > 0),
+      postre: menuNigiriOnly ? [] : omakasePostre.filter((id) => id.trim().length > 0),
+      regalo: menuNigiriOnly
+        ? []
+        : omakaseOtsumamiRegalo.filter((id) => id.trim().length > 0),
       extensiones: extensionesFinal,
     };
 
@@ -403,6 +414,8 @@ export default function Home() {
                   <span className="tabular-nums">{resumenServicio.hora}</span>
                   <span className="text-zinc-600">·</span>
                   <span>{resumenServicio.servicio}</span>
+                  <span className="text-zinc-600">·</span>
+                  <span>{resumenServicio.menuTipo}</span>
                 </p>
               </div>
               <div className="flex w-full min-w-0 flex-col gap-2 sm:w-auto sm:flex-row sm:flex-wrap sm:justify-end">
@@ -456,111 +469,132 @@ export default function Home() {
             <>
             <div className="grid min-w-0 gap-4 md:grid-cols-2">
               <section className="min-w-0 rounded-xl border border-zinc-800 bg-zinc-950/60 p-4">
-                <h2 className="mb-3 min-w-0 text-balance break-words text-sm uppercase tracking-[0.16em] text-zinc-400">
-                  Menú Omakase (Base {pasosBaseCompletados}/{TOTAL_ITEMS_OMAKASE}
-                  {" · "}Regalo {pasosRegaloCompletados}/{OTSUMAMI_REGALO})
-                </h2>
+                <div className="mb-3 flex items-center justify-between gap-2">
+                  <h2 className="min-w-0 text-balance break-words text-sm uppercase tracking-[0.16em] text-zinc-400">
+                    Menú Omakase (Base {pasosBaseCompletados}/{totalPasosBaseObjetivo}
+                    {!menuNigiriOnly
+                      ? ` · Regalo ${pasosRegaloCompletados}/${OTSUMAMI_REGALO}`
+                      : ""}
+                    )
+                  </h2>
+                  <label className="inline-flex shrink-0 items-center gap-2 rounded-md border border-zinc-700 bg-zinc-900 px-2.5 py-1.5 text-[11px] text-zinc-300">
+                    <input
+                      type="checkbox"
+                      checked={menuNigiriOnly}
+                      onChange={(event) => {
+                        setMenuNigiriOnly(event.target.checked);
+                        setError(null);
+                      }}
+                      className="h-3.5 w-3.5 rounded border-zinc-600 bg-zinc-950 text-zinc-100"
+                    />
+                    Menú nigiri only
+                  </label>
+                </div>
                 {menuOmakaseDisponibles.length > 0 ? (
                   <div className="space-y-4">
-                    <div>
-                      <h3 className="mb-2 text-xs uppercase tracking-[0.14em] text-zinc-500">
-                        Otsumami (4 base)
-                      </h3>
-                      <div className="grid gap-2 sm:grid-cols-2">
-                        {omakaseOtsumami.map((valor, index) => (
-                          <div
-                            key={`otsu-base-${index + 1}`}
-                            className="rounded-lg border border-zinc-800 bg-zinc-900/60 px-3 py-2"
-                          >
-                            <label
-                              htmlFor={`otsu-base-${index + 1}`}
-                              className="mb-1 block text-[11px] uppercase tracking-[0.12em] text-zinc-500"
-                            >
-                              Otsumami {index + 1}
-                            </label>
-                            <select
-                              id={`otsu-base-${index + 1}`}
-                              value={valor}
-                              onChange={(event) =>
-                                actualizarPasoOmakase(
-                                  index,
-                                  event.target.value,
-                                  setOmakaseOtsumami
-                                )
-                              }
-                              className="w-full rounded-md border border-zinc-700 bg-zinc-950 px-2.5 py-2 text-sm text-zinc-100 outline-none transition focus:border-zinc-500"
-                            >
-                              <option value="">Seleccionar Otsumami...</option>
-                              {(omakaseOpcionesPorCategoria.get("Otsumami") ?? []).map(
-                                (plato) => (
-                                  <option
-                                    key={plato.id}
-                                    value={plato.id}
-                                    disabled={esOpcionDuplicadaEnSeccion(
-                                      omakaseOtsumami,
+                    {!menuNigiriOnly ? (
+                      <>
+                        <div>
+                          <h3 className="mb-2 text-xs uppercase tracking-[0.14em] text-zinc-500">
+                            Otsumami (4 base)
+                          </h3>
+                          <div className="grid gap-2 sm:grid-cols-2">
+                            {omakaseOtsumami.map((valor, index) => (
+                              <div
+                                key={`otsu-base-${index + 1}`}
+                                className="rounded-lg border border-zinc-800 bg-zinc-900/60 px-3 py-2"
+                              >
+                                <label
+                                  htmlFor={`otsu-base-${index + 1}`}
+                                  className="mb-1 block text-[11px] uppercase tracking-[0.12em] text-zinc-500"
+                                >
+                                  Otsumami {index + 1}
+                                </label>
+                                <select
+                                  id={`otsu-base-${index + 1}`}
+                                  value={valor}
+                                  onChange={(event) =>
+                                    actualizarPasoOmakase(
                                       index,
-                                      plato.id
-                                    )}
-                                  >
-                                    {plato.nombre}
-                                  </option>
-                                )
-                              )}
-                            </select>
+                                      event.target.value,
+                                      setOmakaseOtsumami
+                                    )
+                                  }
+                                  className="w-full rounded-md border border-zinc-700 bg-zinc-950 px-2.5 py-2 text-sm text-zinc-100 outline-none transition focus:border-zinc-500"
+                                >
+                                  <option value="">Seleccionar Otsumami...</option>
+                                  {(omakaseOpcionesPorCategoria.get("Otsumami") ?? []).map(
+                                    (plato) => (
+                                      <option
+                                        key={plato.id}
+                                        value={plato.id}
+                                        disabled={esOpcionDuplicadaEnSeccion(
+                                          omakaseOtsumami,
+                                          index,
+                                          plato.id
+                                        )}
+                                      >
+                                        {plato.nombre}
+                                      </option>
+                                    )
+                                  )}
+                                </select>
+                              </div>
+                            ))}
                           </div>
-                        ))}
-                      </div>
-                    </div>
+                        </div>
 
-                    <div>
-                      <h3 className="mb-2 text-xs uppercase tracking-[0.14em] text-zinc-500">
-                        Otsumami regalo (opcionales)
-                      </h3>
-                      <div className="grid gap-2 sm:grid-cols-2">
-                        {omakaseOtsumamiRegalo.map((valor, index) => (
-                          <div
-                            key={`otsu-regalo-${index + 1}`}
-                            className="rounded-lg border border-zinc-800 bg-zinc-900/40 px-3 py-2"
-                          >
-                            <label
-                              htmlFor={`otsu-regalo-${index + 1}`}
-                              className="mb-1 block text-[11px] uppercase tracking-[0.12em] text-zinc-500"
-                            >
-                              Regalo {index + 1}
-                            </label>
-                            <select
-                              id={`otsu-regalo-${index + 1}`}
-                              value={valor}
-                              onChange={(event) =>
-                                actualizarPasoOmakase(
-                                  index,
-                                  event.target.value,
-                                  setOmakaseOtsumamiRegalo
-                                )
-                              }
-                              className="w-full rounded-md border border-zinc-700 bg-zinc-950 px-2.5 py-2 text-sm text-zinc-100 outline-none transition focus:border-zinc-500"
-                            >
-                              <option value="">Sin regalo</option>
-                              {(omakaseOpcionesPorCategoria.get("Otsumami") ?? []).map(
-                                (plato) => (
-                                  <option
-                                    key={plato.id}
-                                    value={plato.id}
-                                    disabled={esOpcionDuplicadaEnSeccion(
-                                      omakaseOtsumamiRegalo,
+                        <div>
+                          <h3 className="mb-2 text-xs uppercase tracking-[0.14em] text-zinc-500">
+                            Otsumami regalo (opcionales)
+                          </h3>
+                          <div className="grid gap-2 sm:grid-cols-2">
+                            {omakaseOtsumamiRegalo.map((valor, index) => (
+                              <div
+                                key={`otsu-regalo-${index + 1}`}
+                                className="rounded-lg border border-zinc-800 bg-zinc-900/40 px-3 py-2"
+                              >
+                                <label
+                                  htmlFor={`otsu-regalo-${index + 1}`}
+                                  className="mb-1 block text-[11px] uppercase tracking-[0.12em] text-zinc-500"
+                                >
+                                  Regalo {index + 1}
+                                </label>
+                                <select
+                                  id={`otsu-regalo-${index + 1}`}
+                                  value={valor}
+                                  onChange={(event) =>
+                                    actualizarPasoOmakase(
                                       index,
-                                      plato.id
-                                    )}
-                                  >
-                                    {plato.nombre}
-                                  </option>
-                                )
-                              )}
-                            </select>
+                                      event.target.value,
+                                      setOmakaseOtsumamiRegalo
+                                    )
+                                  }
+                                  className="w-full rounded-md border border-zinc-700 bg-zinc-950 px-2.5 py-2 text-sm text-zinc-100 outline-none transition focus:border-zinc-500"
+                                >
+                                  <option value="">Sin regalo</option>
+                                  {(omakaseOpcionesPorCategoria.get("Otsumami") ?? []).map(
+                                    (plato) => (
+                                      <option
+                                        key={plato.id}
+                                        value={plato.id}
+                                        disabled={esOpcionDuplicadaEnSeccion(
+                                          omakaseOtsumamiRegalo,
+                                          index,
+                                          plato.id
+                                        )}
+                                      >
+                                        {plato.nombre}
+                                      </option>
+                                    )
+                                  )}
+                                </select>
+                              </div>
+                            ))}
                           </div>
-                        ))}
-                      </div>
-                    </div>
+                        </div>
+                      </>
+                    ) : null}
 
                     <div>
                       <h3 className="mb-2 text-xs uppercase tracking-[0.14em] text-zinc-500">
@@ -612,55 +646,57 @@ export default function Home() {
                       </div>
                     </div>
 
-                    <div>
-                      <h3 className="mb-2 text-xs uppercase tracking-[0.14em] text-zinc-500">
-                        Postre (1)
-                      </h3>
-                      <div className="grid gap-2 sm:grid-cols-2">
-                        {omakasePostre.map((valor, index) => (
-                          <div
-                            key={`postre-${index + 1}`}
-                            className="rounded-lg border border-zinc-800 bg-zinc-900/60 px-3 py-2"
-                          >
-                            <label
-                              htmlFor={`postre-${index + 1}`}
-                              className="mb-1 block text-[11px] uppercase tracking-[0.12em] text-zinc-500"
+                    {!menuNigiriOnly ? (
+                      <div>
+                        <h3 className="mb-2 text-xs uppercase tracking-[0.14em] text-zinc-500">
+                          Postre (1)
+                        </h3>
+                        <div className="grid gap-2 sm:grid-cols-2">
+                          {omakasePostre.map((valor, index) => (
+                            <div
+                              key={`postre-${index + 1}`}
+                              className="rounded-lg border border-zinc-800 bg-zinc-900/60 px-3 py-2"
                             >
-                              Postre
-                            </label>
-                            <select
-                              id={`postre-${index + 1}`}
-                              value={valor}
-                              onChange={(event) =>
-                                actualizarPasoOmakase(
-                                  index,
-                                  event.target.value,
-                                  setOmakasePostre
-                                )
-                              }
-                              className="w-full rounded-md border border-zinc-700 bg-zinc-950 px-2.5 py-2 text-sm text-zinc-100 outline-none transition focus:border-zinc-500"
-                            >
-                              <option value="">Seleccionar Postre...</option>
-                              {(omakaseOpcionesPorCategoria.get("Postre") ?? []).map(
-                                (plato) => (
-                                  <option
-                                    key={plato.id}
-                                    value={plato.id}
-                                    disabled={esOpcionDuplicadaEnSeccion(
-                                      omakasePostre,
-                                      index,
-                                      plato.id
-                                    )}
-                                  >
-                                    {plato.nombre}
-                                  </option>
-                                )
-                              )}
-                            </select>
-                          </div>
-                        ))}
+                              <label
+                                htmlFor={`postre-${index + 1}`}
+                                className="mb-1 block text-[11px] uppercase tracking-[0.12em] text-zinc-500"
+                              >
+                                Postre
+                              </label>
+                              <select
+                                id={`postre-${index + 1}`}
+                                value={valor}
+                                onChange={(event) =>
+                                  actualizarPasoOmakase(
+                                    index,
+                                    event.target.value,
+                                    setOmakasePostre
+                                  )
+                                }
+                                className="w-full rounded-md border border-zinc-700 bg-zinc-950 px-2.5 py-2 text-sm text-zinc-100 outline-none transition focus:border-zinc-500"
+                              >
+                                <option value="">Seleccionar Postre...</option>
+                                {(omakaseOpcionesPorCategoria.get("Postre") ?? []).map(
+                                  (plato) => (
+                                    <option
+                                      key={plato.id}
+                                      value={plato.id}
+                                      disabled={esOpcionDuplicadaEnSeccion(
+                                        omakasePostre,
+                                        index,
+                                        plato.id
+                                      )}
+                                    >
+                                      {plato.nombre}
+                                    </option>
+                                  )
+                                )}
+                              </select>
+                            </div>
+                          ))}
+                        </div>
                       </div>
-                    </div>
+                    ) : null}
                   </div>
                 ) : (
                   <p className="text-sm text-zinc-500">
@@ -751,8 +787,11 @@ export default function Home() {
             <div className="mt-6 flex flex-col gap-3 border-t border-zinc-800 pt-5 sm:flex-row sm:items-center sm:justify-between">
               <div className="flex flex-col gap-3">
                 <p className="text-sm text-zinc-400">
-                  Seleccionados: {pasosBaseCompletados}/{TOTAL_ITEMS_OMAKASE} base +{" "}
-                  {pasosRegaloCompletados}/{OTSUMAMI_REGALO} regalo /{" "}
+                  Seleccionados: {pasosBaseCompletados}/{totalPasosBaseObjetivo} base
+                  {!menuNigiriOnly
+                    ? ` + ${pasosRegaloCompletados}/${OTSUMAMI_REGALO} regalo`
+                    : ""}
+                  {" / "}
                   {extensionSlots.filter((id) => id).length}/{EXTENSION_SLOTS} extras
                 </p>
                 <div className="grid gap-2 sm:grid-cols-3">
