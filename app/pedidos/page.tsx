@@ -1,7 +1,10 @@
 "use client";
 
 import { Plus, Trash2 } from "lucide-react";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
+
+import { formatPostgrestError } from "@/src/lib/supabase-errors";
+import { supabase } from "@/src/lib/supabase";
 
 type UnidadMedida = "Caja" | "Kilo" | "Unidad";
 
@@ -10,6 +13,13 @@ type PedidoItem = {
   item: string;
   cantidad: string;
   unidad: UnidadMedida;
+};
+
+type Proveedor = (typeof PROVEEDORES)[number];
+
+type PedidoProveedorRow = {
+  proveedor: Proveedor;
+  items: PedidoItem[] | null;
 };
 
 const PROVEEDORES = [
@@ -76,10 +86,68 @@ const cargarEstadoInicial = (): Record<(typeof PROVEEDORES)[number], PedidoItem[
   }
 };
 
+const normalizarFilas = (filas: PedidoItem[] | null | undefined): PedidoItem[] => {
+  const safe = Array.isArray(filas) ? filas : [];
+  const normalizadas = safe
+    .map((fila) => {
+      const unidad = UNIDADES.includes(fila.unidad) ? fila.unidad : "Unidad";
+      return {
+        id: fila.id || crypto.randomUUID(),
+        item: typeof fila.item === "string" ? fila.item : "",
+        cantidad: typeof fila.cantidad === "string" ? fila.cantidad : "",
+        unidad,
+      } satisfies PedidoItem;
+    })
+    .filter((fila) => fila.item.trim() || fila.cantidad.trim());
+  return normalizadas.length > 0 ? normalizadas : [crearItem()];
+};
+
+const mergeDesdeNube = (
+  rows: PedidoProveedorRow[]
+): Record<(typeof PROVEEDORES)[number], PedidoItem[]> => {
+  return PROVEEDORES.reduce(
+    (acc, proveedor) => {
+      const row = rows.find((r) => r.proveedor === proveedor);
+      acc[proveedor] = normalizarFilas(row?.items);
+      return acc;
+    },
+    {} as Record<(typeof PROVEEDORES)[number], PedidoItem[]>
+  );
+};
+
 export default function PedidosPage() {
   const [pedidosPorProveedor, setPedidosPorProveedor] = useState<
     Record<(typeof PROVEEDORES)[number], PedidoItem[]>
   >(cargarEstadoInicial);
+  const [isSyncing, setIsSyncing] = useState(false);
+  const [syncError, setSyncError] = useState<string | null>(null);
+  const [lastSyncLabel, setLastSyncLabel] = useState<string | null>(null);
+  const cargadoRemotoRef = useRef(false);
+  const timerSyncRef = useRef<number | null>(null);
+
+  useEffect(() => {
+    const cargarDesdeNube = async () => {
+      const { data, error } = await supabase
+        .from("pedidos_proveedores")
+        .select("proveedor, items")
+        .in("proveedor", [...PROVEEDORES]);
+
+      if (error) {
+        setSyncError(formatPostgrestError(error));
+        cargadoRemotoRef.current = true;
+        return;
+      }
+
+      const rows = (data ?? []) as PedidoProveedorRow[];
+      if (rows.length > 0) {
+        setPedidosPorProveedor(mergeDesdeNube(rows));
+      }
+      setSyncError(null);
+      cargadoRemotoRef.current = true;
+    };
+
+    void cargarDesdeNube();
+  }, []);
 
   useEffect(() => {
     try {
@@ -87,6 +155,47 @@ export default function PedidosPage() {
     } catch {
       // Ignora errores de almacenamiento para no bloquear la carga de pedidos.
     }
+  }, [pedidosPorProveedor]);
+
+  useEffect(() => {
+    if (!cargadoRemotoRef.current) {
+      return;
+    }
+
+    if (timerSyncRef.current) {
+      window.clearTimeout(timerSyncRef.current);
+    }
+
+    timerSyncRef.current = window.setTimeout(() => {
+      const sync = async () => {
+        setIsSyncing(true);
+        const payload = PROVEEDORES.map((proveedor) => ({
+          proveedor,
+          items: pedidosPorProveedor[proveedor],
+          updated_at: new Date().toISOString(),
+        }));
+        const { error } = await supabase
+          .from("pedidos_proveedores")
+          .upsert(payload, { onConflict: "proveedor" });
+
+        if (error) {
+          setSyncError(formatPostgrestError(error));
+          setIsSyncing(false);
+          return;
+        }
+
+        setSyncError(null);
+        setLastSyncLabel(new Date().toLocaleTimeString("es-ES", { hour: "2-digit", minute: "2-digit" }));
+        setIsSyncing(false);
+      };
+      void sync();
+    }, 700);
+
+    return () => {
+      if (timerSyncRef.current) {
+        window.clearTimeout(timerSyncRef.current);
+      }
+    };
   }, [pedidosPorProveedor]);
 
   const totalItemsCargados = useMemo(() => {
@@ -140,7 +249,20 @@ export default function PedidosPage() {
           <p className="mt-1 text-xs text-zinc-500">
             Ítems cargados: <span className="font-medium text-zinc-300">{totalItemsCargados}</span>
           </p>
+          <p className="mt-1 text-xs text-zinc-500">
+            {isSyncing
+              ? "Sincronizando con Supabase..."
+              : lastSyncLabel
+                ? `Sincronizado a las ${lastSyncLabel}`
+                : "Sin cambios sincronizados todavía"}
+          </p>
         </header>
+
+        {syncError ? (
+          <p className="mb-4 rounded-lg border border-red-900/70 bg-red-950/50 px-3 py-2 text-sm text-red-200">
+            {syncError}
+          </p>
+        ) : null}
 
         <div className="grid gap-4 sm:grid-cols-2">
           {PROVEEDORES.map((proveedor) => (

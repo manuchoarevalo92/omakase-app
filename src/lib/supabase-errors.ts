@@ -28,6 +28,10 @@ export function formatPostgrestError(error: {
       bits.push(
         "RLS en platos: la app usa la anon key. Hacen falta políticas SELECT, INSERT, UPDATE y DELETE para anon (ver supabase/platos-rls-anon.sql en el repo)."
       );
+    } else if (msg.includes("pedidos_proveedores")) {
+      bits.push(
+        "RLS en pedidos_proveedores: hacen falta políticas SELECT, INSERT y UPDATE para anon (ver supabase/pedidos-proveedores-rls-anon.sql en el repo)."
+      );
     } else if (msg.includes("historial_servicios")) {
       bits.push(
         "RLS en historial_servicios: hace falta INSERT y SELECT para anon si guardás menú y ves el historial."
