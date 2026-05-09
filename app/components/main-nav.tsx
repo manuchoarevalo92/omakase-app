@@ -121,17 +121,17 @@ export function MainNav() {
               const isActive =
                 pathname === link.href ||
                 (link.href !== "/" && pathname.startsWith(link.href));
-              const padXIngredientes =
+              const tabSizing =
                 link.href === "/inventario"
-                  ? "px-4 py-2.5 max-sm:min-h-[3.125rem] sm:px-3.5"
-                  : "px-3 py-2.5 max-sm:min-h-[3rem] sm:px-3";
+                  ? "px-6 py-3 leading-snug tracking-normal max-sm:min-h-[3.5rem] sm:px-5 sm:py-1.5 sm:leading-tight sm:tracking-tight"
+                  : "px-3 py-2.5 leading-tight tracking-tight max-sm:min-h-[3rem] sm:px-3 sm:py-1.5";
 
               return (
                 <Link
                   key={link.href}
                   href={link.href}
                   data-nav-active={isActive ? true : undefined}
-                  className={`inline-flex min-h-12 w-full items-center justify-center rounded-xl border text-center text-sm font-semibold leading-tight tracking-tight transition sm:w-auto sm:min-h-0 sm:shrink-0 sm:rounded-lg sm:py-1.5 sm:text-sm sm:font-medium ${padXIngredientes} ${
+                  className={`inline-flex min-h-12 w-full items-center justify-center rounded-xl border text-center text-sm font-semibold transition sm:w-auto sm:min-h-0 sm:shrink-0 sm:rounded-lg sm:text-sm sm:font-medium ${tabSizing} ${
                     isActive
                       ? "border-zinc-200 bg-zinc-100 text-zinc-900"
                       : "border-zinc-700 bg-zinc-900 text-zinc-300 hover:border-zinc-500 hover:text-zinc-100"
