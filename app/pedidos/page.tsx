@@ -331,10 +331,8 @@ export default function PedidosPage() {
   const [vistaPorProveedor, setVistaPorProveedor] =
     useState<Record<Proveedor, VistaProveedor>>(cargarVistasPorProveedor);
   const [copiadoProveedor, setCopiadoProveedor] = useState<Proveedor | null>(null);
-  const [focoFilaNueva, setFocoFilaNueva] = useState<{
-    proveedor: Proveedor;
-    filaId: string;
-  } | null>(null);
+  /** Id de fila recién añadida para enfocar el nombre (único en la página; no filtrar por proveedor). */
+  const [focoFilaNuevaId, setFocoFilaNuevaId] = useState<string | null>(null);
   const copiadoTimerRef = useRef<number | null>(null);
   const cargadoRemotoRef = useRef(false);
   const timerSyncRef = useRef<number | null>(null);
@@ -457,7 +455,7 @@ export default function PedidosPage() {
       ...actual,
       [proveedor]: [...actual[proveedor], nuevo],
     }));
-    setFocoFilaNueva({ proveedor, filaId: nuevo.id });
+    setFocoFilaNuevaId(nuevo.id);
   };
 
   const quitarFila = (proveedor: (typeof PROVEEDORES)[number], itemId: string) => {
@@ -620,12 +618,8 @@ export default function PedidosPage() {
                       fila={fila}
                       actualizarFila={actualizarFila}
                       solicitarEliminarFila={solicitarEliminarFila}
-                      enfocarNombre={
-                        focoFilaNueva !== null &&
-                        focoFilaNueva.proveedor === proveedor &&
-                        focoFilaNueva.filaId === fila.id
-                      }
-                      onEnfocarNombreConsumido={() => setFocoFilaNueva(null)}
+                      enfocarNombre={focoFilaNuevaId === fila.id}
+                      onEnfocarNombreConsumido={() => setFocoFilaNuevaId(null)}
                     />
                   ))}
                   {conNombreSinCantidad.length > 0 ? (
@@ -649,12 +643,8 @@ export default function PedidosPage() {
                           fila={fila}
                           actualizarFila={actualizarFila}
                           solicitarEliminarFila={solicitarEliminarFila}
-                          enfocarNombre={
-                            focoFilaNueva !== null &&
-                            focoFilaNueva.proveedor === proveedor &&
-                            focoFilaNueva.filaId === fila.id
-                          }
-                          onEnfocarNombreConsumido={() => setFocoFilaNueva(null)}
+                          enfocarNombre={focoFilaNuevaId === fila.id}
+                          onEnfocarNombreConsumido={() => setFocoFilaNuevaId(null)}
                         />
                       ))}
                     </>
@@ -666,12 +656,8 @@ export default function PedidosPage() {
                       fila={fila}
                       actualizarFila={actualizarFila}
                       solicitarEliminarFila={solicitarEliminarFila}
-                      enfocarNombre={
-                        focoFilaNueva !== null &&
-                        focoFilaNueva.proveedor === proveedor &&
-                        focoFilaNueva.filaId === fila.id
-                      }
-                      onEnfocarNombreConsumido={() => setFocoFilaNueva(null)}
+                      enfocarNombre={focoFilaNuevaId === fila.id}
+                      onEnfocarNombreConsumido={() => setFocoFilaNuevaId(null)}
                     />
                   ))}
                 </div>
