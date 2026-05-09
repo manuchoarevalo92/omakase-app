@@ -483,21 +483,16 @@ export default function PedidosPage() {
                         {filasLista.length === 0 ? (
                           <p className="mt-1.5 text-xs italic text-zinc-600">Sin ítems</p>
                         ) : (
-                          <ul className="mt-1.5 space-y-0.5 text-[13px] leading-snug">
-                            {filasLista.map((fila, i) => (
-                                <li key={fila.id} className="flex gap-1.5 text-zinc-100">
-                                  <span className="w-4 shrink-0 text-right font-mono text-[11px] text-zinc-500 tabular-nums">
-                                    {i + 1}
-                                  </span>
-                                  <span className="min-w-0 break-words">
-                                    <span className="font-medium">{fila.item.trim()}</span>
-                                    <span className="text-zinc-500"> · </span>
-                                    <span className="tabular-nums text-zinc-200">
-                                      {fila.cantidad.trim() || "—"}
-                                    </span>
-                                    <span className="text-zinc-400"> {fila.unidad}</span>
-                                  </span>
-                                </li>
+                          <ul className="mt-1.5 list-outside list-disc space-y-0.5 pl-4 text-[13px] leading-snug marker:text-[11px] marker:text-zinc-500">
+                            {filasLista.map((fila) => (
+                              <li key={fila.id} className="pl-1 text-zinc-100">
+                                <span className="font-medium">{fila.item.trim()}</span>
+                                <span className="text-zinc-500"> · </span>
+                                <span className="tabular-nums text-zinc-200">
+                                  {fila.cantidad.trim() || "—"}
+                                </span>
+                                <span className="text-zinc-400"> {fila.unidad}</span>
+                              </li>
                             ))}
                           </ul>
                         )}
