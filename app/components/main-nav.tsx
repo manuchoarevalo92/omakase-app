@@ -94,10 +94,10 @@ export function MainNav() {
 
   return (
     <nav className="sticky top-0 z-50 w-full max-w-full border-b border-zinc-800 bg-zinc-950/95 pt-[calc(env(safe-area-inset-top,0px)+2rem)] backdrop-blur sm:pt-[calc(env(safe-area-inset-top,0px)+0.5rem)]">
-      <div className="box-border flex w-full min-w-0 max-w-full flex-wrap items-center justify-center gap-x-2 gap-y-3 px-3 py-4 sm:mx-auto sm:max-w-6xl sm:justify-between sm:gap-x-2 sm:gap-y-2 sm:px-6 sm:py-3">
+      <div className="box-border flex w-full min-w-0 max-w-full flex-nowrap items-center gap-2 px-3 py-4 sm:mx-auto sm:max-w-6xl sm:px-6 sm:py-3">
         <div
           ref={navScrollRef}
-          className="-mx-3 flex min-h-14 w-full min-w-0 flex-nowrap items-stretch gap-2.5 overflow-x-auto overflow-y-hidden overscroll-x-contain px-3 py-1 [scrollbar-width:none] snap-x snap-mandatory touch-pan-x [&::-webkit-scrollbar]:hidden sm:mx-0 sm:min-h-0 sm:w-auto sm:flex-1 sm:flex-wrap sm:items-center sm:justify-end sm:overflow-x-visible sm:overflow-y-visible sm:overscroll-auto sm:px-0 sm:py-0 sm:snap-none"
+          className="-mx-3 flex min-h-14 min-w-0 flex-1 flex-nowrap items-stretch gap-2.5 overflow-x-auto overflow-y-hidden overscroll-x-contain px-3 py-1 [scrollbar-width:none] snap-x snap-mandatory touch-pan-x [&::-webkit-scrollbar]:hidden sm:mx-0 sm:min-h-0 sm:flex-1 sm:flex-wrap sm:items-center sm:justify-end sm:overflow-x-visible sm:overflow-y-visible sm:overscroll-auto sm:px-0 sm:py-0 sm:snap-none"
         >
           {session === undefined ? (
             <Loader2 className="mx-auto h-7 w-7 shrink-0 animate-spin text-zinc-500 sm:mx-0 sm:h-5 sm:w-5" aria-label="Cargando menú" />
@@ -125,27 +125,20 @@ export function MainNav() {
           )}
         </div>
         {session ? (
-          <div className="flex w-full shrink-0 flex-wrap items-center justify-center gap-2 sm:w-auto sm:justify-end">
-            <span className="max-w-[14rem] truncate text-base text-zinc-500 sm:max-w-none sm:text-xs">
-              {session.name}
-              {session.role === "staff" ? (
-                <span className="text-zinc-600"> · equipo</span>
-              ) : null}
-            </span>
-            <button
-              type="button"
-              onClick={() => void logout()}
-              disabled={loggingOut}
-              className="inline-flex min-h-14 items-center gap-2 rounded-xl border border-zinc-700 bg-zinc-900 px-5 py-3 text-base font-medium text-zinc-300 transition hover:border-zinc-500 hover:text-zinc-100 disabled:opacity-50 sm:min-h-0 sm:rounded-lg sm:gap-1 sm:px-2 sm:py-1.5 sm:text-xs"
-            >
-              {loggingOut ? (
-                <Loader2 className="h-5 w-5 animate-spin sm:h-3.5 sm:w-3.5" aria-hidden />
-              ) : (
-                <LogOut className="h-5 w-5 sm:h-3.5 sm:w-3.5" aria-hidden />
-              )}
-              Salir
-            </button>
-          </div>
+          <button
+            type="button"
+            onClick={() => void logout()}
+            disabled={loggingOut}
+            title="Salir"
+            aria-label="Cerrar sesión"
+            className="inline-flex size-11 shrink-0 items-center justify-center self-center rounded-xl border border-zinc-700 bg-zinc-900 text-zinc-400 transition hover:border-zinc-500 hover:text-zinc-100 disabled:opacity-50 sm:size-9"
+          >
+            {loggingOut ? (
+              <Loader2 className="h-5 w-5 animate-spin" aria-hidden />
+            ) : (
+              <LogOut className="h-5 w-5 sm:h-4 sm:w-4" aria-hidden />
+            )}
+          </button>
         ) : null}
       </div>
     </nav>
