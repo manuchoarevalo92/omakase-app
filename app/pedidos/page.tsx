@@ -178,6 +178,14 @@ const filasPedidoParaCopiar = (filas: PedidoItem[]) =>
     (f) => f.item.trim().length > 0 && !esCantidadCeroOVacia(f.cantidad)
   );
 
+/** Texto introductorio en modo Lista (mismo que se copia al portapapeles antes del listado). */
+const PREAMBLE_TEXTO_LISTA_PEDIDO = [
+  "buenas! les pido para hoy:",
+  "",
+  "Para salir hoy a Alfonso X 6 chamberi.",
+  "",
+].join("\n");
+
 const textoPedidoComprimido = (
   filas: PedidoItem[]
 ): { texto: string; lineas: number } => {
@@ -190,6 +198,16 @@ const textoPedidoComprimido = (
     texto: lineasTexto.join("\n"),
     lineas: Math.max(lineasTexto.length, 1),
   };
+};
+
+/** Encabezado del mensaje + líneas del pedido (para copiar/pegar en WhatsApp u otro canal). */
+const textoListaParaPortapapeles = (filas: PedidoItem[]): string => {
+  const { texto } = textoPedidoComprimido(filas);
+  const cuerpoItems = texto.trim();
+  if (!cuerpoItems) {
+    return PREAMBLE_TEXTO_LISTA_PEDIDO.trimEnd();
+  }
+  return `${PREAMBLE_TEXTO_LISTA_PEDIDO}${texto}`;
 };
 
 function PedidoFilaEditableRow(props: {
@@ -436,7 +454,7 @@ export default function PedidosPage() {
   };
 
   const copiarTextoProveedor = async (proveedor: Proveedor) => {
-    const { texto } = textoPedidoComprimido(pedidosPorProveedor[proveedor]);
+    const texto = textoListaParaPortapapeles(pedidosPorProveedor[proveedor]);
     try {
       await navigator.clipboard.writeText(texto);
       setCopiadoProveedor(proveedor);
@@ -459,7 +477,7 @@ export default function PedidosPage() {
           <h1 className="text-2xl font-semibold text-white">Pedidos</h1>
           <p className="mt-1 text-sm text-zinc-400">
             Carga rápida de pedidos por proveedor: item, cantidad y unidad. Por proveedor podés
-            alternar entre vista editable y lista comprimida para copiar y enviar.             Las líneas con cantidad vacía o 0 se agrupan abajo en Editar; desde ahí las podés
+            alternar entre vista editable y lista comprimida para copiar y enviar. Las líneas con cantidad vacía o 0 se agrupan abajo en Editar; desde ahí las podés
             eliminar de una con <span className="text-zinc-300">Borrar todas</span>.
           </p>
           <p className="mt-1 text-xs text-zinc-500">
@@ -581,6 +599,14 @@ export default function PedidosPage() {
                 </div>
               ) : (
                 <div className="space-y-3">
+                  <section className="rounded-lg border border-zinc-800/90 bg-zinc-950/50 px-3 py-2.5">
+                    <h3 className="text-[10px] font-semibold uppercase tracking-[0.16em] text-zinc-500">
+                      Mensaje
+                    </h3>
+                    <p className="mt-1.5 whitespace-pre-wrap text-[13px] leading-relaxed text-zinc-200">
+                      {PREAMBLE_TEXTO_LISTA_PEDIDO.trimEnd()}
+                    </p>
+                  </section>
                   <div className="border-t border-zinc-800/80 pt-3">
                     <p className="mb-2 text-[10px] font-semibold uppercase tracking-[0.14em] text-zinc-500">
                       Pedido
@@ -595,7 +621,8 @@ export default function PedidosPage() {
                           <p className="mt-1.5 text-xs italic text-zinc-600">Sin ítems</p>
                         ) : conNombreYcantidad.length === 0 ? (
                           <p className="mt-1.5 text-xs italic text-zinc-600">
-                            Nada con cantidad cargada (el copiado queda vacío hasta que pongas números)
+                            Nada con cantidad cargada — al copiar irá sólo el mensaje de arriba hasta que
+                            cargues números
                           </p>
                         ) : (
                           <ul className="mt-1.5 list-outside list-disc space-y-0.5 pl-4 text-[13px] leading-snug marker:text-[11px] marker:text-zinc-500">
@@ -650,9 +677,12 @@ export default function PedidosPage() {
                     ) : null}
                   </div>
                   <p className="text-xs text-zinc-500">
-                    El copiado incluye sólo ítems con cantidad, una línea por ítem (
-                    <span className="font-mono text-[11px] text-zinc-400">Ítem: cantidad unidad</span>
-                    ). Volvé a <span className="text-zinc-400">Editar</span> para cambiar datos.
+                    <span className="text-zinc-400">Copiar</span> incluye el mensaje de arriba y las
+                    líneas con cantidad, en formato{" "}
+                    <span className="font-mono text-[11px] text-zinc-400">
+                      Ítem: cantidad unidad
+                    </span>
+                    . Volvé a <span className="text-zinc-400">Editar</span> para cambiar datos.
                   </p>
                 </div>
               )}
