@@ -238,19 +238,54 @@ function PedidoFilaEditableRow(props: {
     patch: Partial<PedidoItem>
   ) => void;
   solicitarEliminarFila: (proveedor: Proveedor, itemId: string) => void;
+  /** Añadir fila: enfoca nombre y hace scroll; se consume al aplicar. */
+  enfocarNombre?: boolean;
+  onEnfocarNombreConsumido?: () => void;
 }) {
-  const { proveedor, fila, actualizarFila, solicitarEliminarFila } = props;
+  const {
+    proveedor,
+    fila,
+    actualizarFila,
+    solicitarEliminarFila,
+    enfocarNombre,
+    onEnfocarNombreConsumido,
+  } = props;
+  const itemRef = useRef<HTMLInputElement>(null);
+  const cantidadRef = useRef<HTMLInputElement>(null);
+  const onEnfocarNombreConsumidoRef = useRef(onEnfocarNombreConsumido);
+  onEnfocarNombreConsumidoRef.current = onEnfocarNombreConsumido;
+
+  useEffect(() => {
+    if (!enfocarNombre) {
+      return;
+    }
+    const id = requestAnimationFrame(() => {
+      itemRef.current?.focus();
+      itemRef.current?.scrollIntoView({ block: "nearest", behavior: "smooth" });
+      onEnfocarNombreConsumidoRef.current?.();
+    });
+    return () => cancelAnimationFrame(id);
+  }, [enfocarNombre, fila.id]);
+
   return (
     <div className="flex flex-wrap items-center gap-2 rounded-lg border border-zinc-800 bg-zinc-900/50 px-2 py-2">
       <input
+        ref={itemRef}
         value={fila.item}
         onChange={(e) =>
           actualizarFila(proveedor, fila.id, { item: e.target.value })
         }
+        onKeyDown={(e) => {
+          if (e.key === "Enter") {
+            e.preventDefault();
+            cantidadRef.current?.focus();
+          }
+        }}
         placeholder="Item"
         className="min-w-[10rem] flex-1 rounded-md border border-zinc-700 bg-zinc-950 px-2.5 py-2 text-sm text-zinc-100 outline-none transition focus:border-zinc-500"
       />
       <input
+        ref={cantidadRef}
         value={fila.cantidad}
         onChange={(e) =>
           actualizarFila(proveedor, fila.id, { cantidad: e.target.value })
@@ -296,6 +331,10 @@ export default function PedidosPage() {
   const [vistaPorProveedor, setVistaPorProveedor] =
     useState<Record<Proveedor, VistaProveedor>>(cargarVistasPorProveedor);
   const [copiadoProveedor, setCopiadoProveedor] = useState<Proveedor | null>(null);
+  const [focoFilaNueva, setFocoFilaNueva] = useState<{
+    proveedor: Proveedor;
+    filaId: string;
+  } | null>(null);
   const copiadoTimerRef = useRef<number | null>(null);
   const cargadoRemotoRef = useRef(false);
   const timerSyncRef = useRef<number | null>(null);
@@ -413,10 +452,12 @@ export default function PedidosPage() {
   };
 
   const agregarFila = (proveedor: (typeof PROVEEDORES)[number]) => {
+    const nuevo = crearItem();
     setPedidosPorProveedor((actual) => ({
       ...actual,
-      [proveedor]: [...actual[proveedor], crearItem()],
+      [proveedor]: [...actual[proveedor], nuevo],
     }));
+    setFocoFilaNueva({ proveedor, filaId: nuevo.id });
   };
 
   const quitarFila = (proveedor: (typeof PROVEEDORES)[number], itemId: string) => {
@@ -579,6 +620,12 @@ export default function PedidosPage() {
                       fila={fila}
                       actualizarFila={actualizarFila}
                       solicitarEliminarFila={solicitarEliminarFila}
+                      enfocarNombre={
+                        focoFilaNueva !== null &&
+                        focoFilaNueva.proveedor === proveedor &&
+                        focoFilaNueva.filaId === fila.id
+                      }
+                      onEnfocarNombreConsumido={() => setFocoFilaNueva(null)}
                     />
                   ))}
                   {conNombreSinCantidad.length > 0 ? (
@@ -602,6 +649,12 @@ export default function PedidosPage() {
                           fila={fila}
                           actualizarFila={actualizarFila}
                           solicitarEliminarFila={solicitarEliminarFila}
+                          enfocarNombre={
+                            focoFilaNueva !== null &&
+                            focoFilaNueva.proveedor === proveedor &&
+                            focoFilaNueva.filaId === fila.id
+                          }
+                          onEnfocarNombreConsumido={() => setFocoFilaNueva(null)}
                         />
                       ))}
                     </>
@@ -613,6 +666,12 @@ export default function PedidosPage() {
                       fila={fila}
                       actualizarFila={actualizarFila}
                       solicitarEliminarFila={solicitarEliminarFila}
+                      enfocarNombre={
+                        focoFilaNueva !== null &&
+                        focoFilaNueva.proveedor === proveedor &&
+                        focoFilaNueva.filaId === fila.id
+                      }
+                      onEnfocarNombreConsumido={() => setFocoFilaNueva(null)}
                     />
                   ))}
                 </div>
