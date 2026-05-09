@@ -83,7 +83,7 @@ export function MainNav() {
   }
 
   return (
-    <nav className="sticky top-0 z-50 w-full max-w-full border-b border-zinc-800 bg-zinc-950/95 backdrop-blur">
+    <nav className="sticky top-0 z-50 w-full max-w-full border-b border-zinc-800 bg-zinc-950/95 pt-[env(safe-area-inset-top)] backdrop-blur">
       <div className="box-border flex w-full min-w-0 max-w-full flex-wrap items-center justify-center gap-x-2 gap-y-2 px-2 py-2 sm:mx-auto sm:max-w-6xl sm:justify-between sm:px-6 sm:py-3">
         <div className="flex w-full min-w-0 flex-wrap items-center justify-center gap-1.5 sm:flex-1 sm:justify-end sm:gap-2">
           {session === undefined ? (
