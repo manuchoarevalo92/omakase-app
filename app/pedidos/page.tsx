@@ -146,12 +146,13 @@ const cargarVistasPorProveedor = (): Record<Proveedor, VistaProveedor> => {
   return base;
 };
 
+const filasPedidoConNombre = (filas: PedidoItem[]) =>
+  filas.filter((f) => f.item.trim().length > 0);
+
 const textoPedidoComprimido = (
   filas: PedidoItem[]
 ): { texto: string; lineas: number } => {
-  const lineasTexto = filas
-    .filter((f) => f.item.trim().length > 0)
-    .map((f) => {
+  const lineasTexto = filasPedidoConNombre(filas).map((f) => {
       const item = f.item.trim();
       const cant = f.cantidad.trim() || "—";
       return `${item}: ${cant} ${f.unidad}`;
@@ -367,7 +368,9 @@ export default function PedidosPage() {
         ) : null}
 
         <div className="grid gap-4 sm:grid-cols-2">
-          {PROVEEDORES.map((proveedor) => (
+          {PROVEEDORES.map((proveedor) => {
+            const filasLista = filasPedidoConNombre(pedidosPorProveedor[proveedor]);
+            return (
             <section
               key={proveedor}
               className="rounded-xl border border-zinc-800 bg-zinc-950/60 p-4"
@@ -467,45 +470,64 @@ export default function PedidosPage() {
                   ))}
                 </div>
               ) : (
-                <div className="space-y-2">
-                  {(() => {
-                    const { texto, lineas } = textoPedidoComprimido(
-                      pedidosPorProveedor[proveedor]
-                    );
-                    return (
-                      <>
-                        <textarea
-                          readOnly
-                          value={texto || "(Sin ítems con nombre todavía)"}
-                          rows={Math.min(12, Math.max(3, lineas + 1))}
-                          className="w-full resize-y rounded-lg border border-zinc-700 bg-zinc-950 px-3 py-2 font-mono text-sm leading-relaxed text-zinc-100 outline-none focus:border-zinc-500"
-                          aria-label={`Pedido comprimido para ${proveedor}`}
-                        />
-                        <div className="flex flex-wrap items-center gap-2">
-                          <button
-                            type="button"
-                            onClick={() => void copiarTextoProveedor(proveedor)}
-                            className="inline-flex items-center gap-1.5 rounded-lg border border-zinc-600 bg-zinc-800 px-3 py-2 text-xs font-medium text-zinc-100 transition hover:border-zinc-500 hover:bg-zinc-700"
-                          >
-                            <Clipboard className="h-3.5 w-3.5" aria-hidden />
-                            Copiar al portapapeles
-                          </button>
-                          {copiadoProveedor === proveedor ? (
-                            <span className="text-xs text-emerald-400">Copiado</span>
-                          ) : null}
-                        </div>
-                        <p className="text-xs text-zinc-500">
-                          Una línea por ítem — formato:{" "}
-                          <span className="font-mono text-zinc-400">Ítem: cantidad unidad</span>.
-                          Volvé a <span className="text-zinc-400">Editar</span> para modificar datos.
-                        </p>
-                      </>
-                    );
-                  })()}
+                <div className="space-y-3">
+                  <div className="border-t border-zinc-800/80 pt-3">
+                    <p className="mb-2 text-[10px] font-semibold uppercase tracking-[0.14em] text-zinc-500">
+                      Pedido
+                    </p>
+                    <div className="space-y-2.5">
+                      <section className="rounded-lg border border-zinc-800/90 bg-zinc-950/50 px-3 py-2.5">
+                        <h3 className="text-[10px] font-semibold uppercase tracking-[0.16em] text-zinc-500">
+                          Ítems
+                        </h3>
+                        {filasLista.length === 0 ? (
+                          <p className="mt-1.5 text-xs italic text-zinc-600">Sin ítems</p>
+                        ) : (
+                          <ul className="mt-1.5 space-y-0.5 text-[13px] leading-snug">
+                            {filasLista.map((fila, i) => (
+                                <li key={fila.id} className="flex gap-1.5 text-zinc-100">
+                                  <span className="w-4 shrink-0 text-right font-mono text-[11px] text-zinc-500 tabular-nums">
+                                    {i + 1}
+                                  </span>
+                                  <span className="min-w-0 break-words">
+                                    <span className="font-medium">{fila.item.trim()}</span>
+                                    <span className="text-zinc-500"> · </span>
+                                    <span className="tabular-nums text-zinc-200">
+                                      {fila.cantidad.trim() || "—"}
+                                    </span>
+                                    <span className="text-zinc-400"> {fila.unidad}</span>
+                                  </span>
+                                </li>
+                            ))}
+                          </ul>
+                        )}
+                      </section>
+                    </div>
+                  </div>
+                  <div className="flex flex-wrap items-center gap-2">
+                    <button
+                      type="button"
+                      onClick={() => void copiarTextoProveedor(proveedor)}
+                      className="inline-flex items-center gap-1.5 rounded-lg border border-zinc-600 bg-zinc-800 px-3 py-2 text-xs font-medium text-zinc-100 transition hover:border-zinc-500 hover:bg-zinc-700"
+                    >
+                      <Clipboard className="h-3.5 w-3.5" aria-hidden />
+                      Copiar al portapapeles
+                    </button>
+                    {copiadoProveedor === proveedor ? (
+                      <span className="text-xs text-emerald-400">Copiado</span>
+                    ) : null}
+                  </div>
+                  <p className="text-xs text-zinc-500">
+                    El copiado sigue usando{" "}
+                    <span className="font-mono text-[11px] text-zinc-400">Ítem: cantidad unidad</span>{" "}
+                    por línea (WhatsApp / mail). Volvé a <span className="text-zinc-400">Editar</span>{" "}
+                    para cambiar datos.
+                  </p>
                 </div>
               )}
             </section>
-          ))}
+            );
+          })}
         </div>
       </section>
     </main>
