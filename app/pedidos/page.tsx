@@ -179,13 +179,27 @@ const filasPedidoParaCopiar = (filas: PedidoItem[]) =>
   );
 
 /** Texto introductorio en modo Lista (mismo que se copia al portapapeles antes del listado). */
-const PREAMBLE_TEXTO_LISTA_PEDIDO = [
+const PREAMBLE_TEXTO_LISTA_PEDIDO_DEFECTO = [
   "buenas! les pido para hoy:",
   "",
   "Para salir hoy a Alfonso X 6 chamberi.",
   "",
   "",
 ].join("\n");
+
+const PREAMBLE_TEXTO_LISTA_PEDIDO_COMINPORT = [
+  "Buenas! Te pido para que me entreguen el próximo día disponible.",
+  "Cliente YUKU MADRID CIF: ESB56825342",
+  "Entrega en ALFONSO X 6, CHAMBERÍ . ",
+  "Te dejo un movil por si no hay nadie: +34 664 63 56 69",
+  "",
+  "",
+].join("\n");
+
+const preambleListaPedidoPorProveedor = (proveedor: Proveedor): string =>
+  proveedor === "Cominport"
+    ? PREAMBLE_TEXTO_LISTA_PEDIDO_COMINPORT
+    : PREAMBLE_TEXTO_LISTA_PEDIDO_DEFECTO;
 
 const textoPedidoComprimido = (
   filas: PedidoItem[]
@@ -202,13 +216,17 @@ const textoPedidoComprimido = (
 };
 
 /** Encabezado del mensaje + líneas del pedido (para copiar/pegar en WhatsApp u otro canal). */
-const textoListaParaPortapapeles = (filas: PedidoItem[]): string => {
+const textoListaParaPortapapeles = (
+  proveedor: Proveedor,
+  filas: PedidoItem[]
+): string => {
+  const preamble = preambleListaPedidoPorProveedor(proveedor);
   const { texto } = textoPedidoComprimido(filas);
   const cuerpoItems = texto.trim();
   if (!cuerpoItems) {
-    return PREAMBLE_TEXTO_LISTA_PEDIDO.trimEnd();
+    return preamble.trimEnd();
   }
-  return `${PREAMBLE_TEXTO_LISTA_PEDIDO}${texto}`;
+  return `${preamble}${texto}`;
 };
 
 function PedidoFilaEditableRow(props: {
@@ -455,7 +473,7 @@ export default function PedidosPage() {
   };
 
   const copiarTextoProveedor = async (proveedor: Proveedor) => {
-    const texto = textoListaParaPortapapeles(pedidosPorProveedor[proveedor]);
+    const texto = textoListaParaPortapapeles(proveedor, pedidosPorProveedor[proveedor]);
     try {
       await navigator.clipboard.writeText(texto);
       setCopiadoProveedor(proveedor);
@@ -605,7 +623,7 @@ export default function PedidosPage() {
                       Mensaje
                     </h3>
                     <p className="mt-1.5 whitespace-pre-wrap text-[13px] leading-relaxed text-zinc-200">
-                      {PREAMBLE_TEXTO_LISTA_PEDIDO.trimEnd()}
+                      {preambleListaPedidoPorProveedor(proveedor).trimEnd()}
                     </p>
                   </section>
                   <div className="border-t border-zinc-800/80 pt-10">
