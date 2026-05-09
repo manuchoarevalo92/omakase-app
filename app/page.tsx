@@ -350,7 +350,7 @@ export default function Home() {
         type="button"
         onClick={onClick}
         disabled={blocked}
-        className={`w-full rounded-xl border px-4 py-3 text-left transition ${
+        className={`w-full rounded-xl border px-4 py-4 text-left transition sm:py-3 ${
           blocked
             ? "cursor-not-allowed border-zinc-800 bg-zinc-900/40 text-zinc-500"
             : selected
@@ -359,17 +359,17 @@ export default function Home() {
         }`}
       >
         <div className="flex items-center justify-between gap-3">
-          <span className="text-sm font-medium">
+          <span className="text-base font-medium sm:text-sm">
             {numero ? `${numero}. ` : ""}
             {plato.nombre}
           </span>
           {blocked ? (
-            <Lock className="h-4 w-4 shrink-0" />
+            <Lock className="h-5 w-5 shrink-0 sm:h-4 sm:w-4" />
           ) : selected ? (
-            <Check className="h-4 w-4 shrink-0" />
+            <Check className="h-5 w-5 shrink-0 sm:h-4 sm:w-4" />
           ) : null}
         </div>
-        <p className="mt-1 text-xs opacity-75">
+        <p className="mt-1 text-sm opacity-75 sm:text-xs">
           {ingredientesTexto || "Sin ingredientes asignados"}
         </p>
       </button>
@@ -378,12 +378,12 @@ export default function Home() {
 
   return (
     <main className="min-h-screen min-w-0 bg-zinc-950 px-4 py-6 text-zinc-100 sm:px-6 sm:py-10">
-      <section className="mx-auto w-full min-w-0 max-w-6xl rounded-2xl border border-zinc-800 bg-zinc-900/60 p-4 shadow-[0_0_0_1px_rgba(255,255,255,0.02)] backdrop-blur sm:p-6">
+      <section className="mx-auto w-full min-w-0 max-w-6xl rounded-2xl border border-zinc-800 bg-zinc-900/60 p-5 shadow-[0_0_0_1px_rgba(255,255,255,0.02)] backdrop-blur sm:p-6">
         <header className="mb-6">
-          <h1 className="text-balance text-xl font-semibold tracking-tight text-white sm:text-2xl md:text-3xl">
+          <h1 className="text-balance text-2xl font-semibold tracking-tight text-white sm:text-2xl md:text-3xl">
             Generador de Menú Diario
           </h1>
-          <p className="mt-2 text-pretty text-sm text-zinc-400">
+          <p className="mt-2 text-pretty text-base text-zinc-400 sm:text-sm">
             Selecciona platos disponibles para el servicio y guarda el cierre del
             menú del día.
           </p>
@@ -467,17 +467,17 @@ export default function Home() {
               </p>
             ) : (
             <>
-            <div className="grid min-w-0 gap-4 md:grid-cols-2">
-              <section className="min-w-0 rounded-xl border border-zinc-800 bg-zinc-950/60 p-4">
+            <div className="grid min-w-0 gap-5 md:grid-cols-2 md:gap-4">
+              <section className="min-w-0 rounded-xl border border-zinc-800 bg-zinc-950/60 p-5 sm:p-4">
                 <div className="mb-3 flex items-center justify-between gap-2">
-                  <h2 className="min-w-0 text-balance break-words text-sm uppercase tracking-[0.16em] text-zinc-400">
+                  <h2 className="min-w-0 text-balance break-words text-base font-semibold uppercase tracking-[0.16em] text-zinc-400 sm:text-sm sm:font-normal">
                     Menú Omakase (Base {pasosBaseCompletados}/{totalPasosBaseObjetivo}
                     {!menuNigiriOnly
                       ? ` · Regalo ${pasosRegaloCompletados}/${OTSUMAMI_REGALO}`
                       : ""}
                     )
                   </h2>
-                  <label className="inline-flex shrink-0 items-center gap-2 rounded-md border border-zinc-700 bg-zinc-900 px-2.5 py-1.5 text-[11px] text-zinc-300">
+                  <label className="inline-flex shrink-0 items-center gap-2 rounded-md border border-zinc-700 bg-zinc-900 px-3 py-2 text-xs text-zinc-300 sm:px-2.5 sm:py-1.5 sm:text-[11px]">
                     <input
                       type="checkbox"
                       checked={menuNigiriOnly}
@@ -485,28 +485,28 @@ export default function Home() {
                         setMenuNigiriOnly(event.target.checked);
                         setError(null);
                       }}
-                      className="h-3.5 w-3.5 rounded border-zinc-600 bg-zinc-950 text-zinc-100"
+                      className="h-4 w-4 rounded border-zinc-600 bg-zinc-950 text-zinc-100 sm:h-3.5 sm:w-3.5"
                     />
                     Menú nigiri only
                   </label>
                 </div>
                 {menuOmakaseDisponibles.length > 0 ? (
-                  <div className="space-y-4">
+                  <div className="space-y-5 sm:space-y-4">
                     {!menuNigiriOnly ? (
                       <>
                         <div>
-                          <h3 className="mb-2 text-xs uppercase tracking-[0.14em] text-zinc-500">
+                          <h3 className="mb-3 text-sm uppercase tracking-[0.14em] text-zinc-500 sm:mb-2 sm:text-xs">
                             Otsumami (4 base)
                           </h3>
-                          <div className="grid gap-2 sm:grid-cols-2">
+                          <div className="grid gap-3 sm:grid-cols-2 sm:gap-2">
                             {omakaseOtsumami.map((valor, index) => (
                               <div
                                 key={`otsu-base-${index + 1}`}
-                                className="rounded-lg border border-zinc-800 bg-zinc-900/60 px-3 py-2"
+                                className="rounded-lg border border-zinc-800 bg-zinc-900/60 px-4 py-3.5 sm:px-3 sm:py-2"
                               >
                                 <label
                                   htmlFor={`otsu-base-${index + 1}`}
-                                  className="mb-1 block text-[11px] uppercase tracking-[0.12em] text-zinc-500"
+                                  className="mb-1.5 block text-sm uppercase tracking-[0.12em] text-zinc-500 sm:mb-1 sm:text-[11px]"
                                 >
                                   Otsumami {index + 1}
                                 </label>
@@ -520,7 +520,7 @@ export default function Home() {
                                       setOmakaseOtsumami
                                     )
                                   }
-                                  className="w-full rounded-md border border-zinc-700 bg-zinc-950 px-2.5 py-2 text-sm text-zinc-100 outline-none transition focus:border-zinc-500"
+                                  className="w-full rounded-md border border-zinc-700 bg-zinc-950 px-3 py-3 text-base text-zinc-100 outline-none transition focus:border-zinc-500 sm:px-2.5 sm:py-2 sm:text-sm"
                                 >
                                   <option value="">Seleccionar Otsumami...</option>
                                   {(omakaseOpcionesPorCategoria.get("Otsumami") ?? []).map(
@@ -545,18 +545,18 @@ export default function Home() {
                         </div>
 
                         <div>
-                          <h3 className="mb-2 text-xs uppercase tracking-[0.14em] text-zinc-500">
+                          <h3 className="mb-3 text-sm uppercase tracking-[0.14em] text-zinc-500 sm:mb-2 sm:text-xs">
                             Otsumami regalo (opcionales)
                           </h3>
-                          <div className="grid gap-2 sm:grid-cols-2">
+                          <div className="grid gap-3 sm:grid-cols-2 sm:gap-2">
                             {omakaseOtsumamiRegalo.map((valor, index) => (
                               <div
                                 key={`otsu-regalo-${index + 1}`}
-                                className="rounded-lg border border-zinc-800 bg-zinc-900/40 px-3 py-2"
+                                className="rounded-lg border border-zinc-800 bg-zinc-900/40 px-4 py-3.5 sm:px-3 sm:py-2"
                               >
                                 <label
                                   htmlFor={`otsu-regalo-${index + 1}`}
-                                  className="mb-1 block text-[11px] uppercase tracking-[0.12em] text-zinc-500"
+                                  className="mb-1.5 block text-sm uppercase tracking-[0.12em] text-zinc-500 sm:mb-1 sm:text-[11px]"
                                 >
                                   Regalo {index + 1}
                                 </label>
@@ -570,7 +570,7 @@ export default function Home() {
                                       setOmakaseOtsumamiRegalo
                                     )
                                   }
-                                  className="w-full rounded-md border border-zinc-700 bg-zinc-950 px-2.5 py-2 text-sm text-zinc-100 outline-none transition focus:border-zinc-500"
+                                  className="w-full rounded-md border border-zinc-700 bg-zinc-950 px-3 py-3 text-base text-zinc-100 outline-none transition focus:border-zinc-500 sm:px-2.5 sm:py-2 sm:text-sm"
                                 >
                                   <option value="">Sin regalo</option>
                                   {(omakaseOpcionesPorCategoria.get("Otsumami") ?? []).map(
@@ -597,18 +597,18 @@ export default function Home() {
                     ) : null}
 
                     <div>
-                      <h3 className="mb-2 text-xs uppercase tracking-[0.14em] text-zinc-500">
+                      <h3 className="mb-3 text-sm uppercase tracking-[0.14em] text-zinc-500 sm:mb-2 sm:text-xs">
                         Nigiri (12)
                       </h3>
-                      <div className="grid gap-2 sm:grid-cols-2">
+                      <div className="grid gap-3 sm:grid-cols-2 sm:gap-2">
                         {omakaseNigiri.map((valor, index) => (
                           <div
                             key={`nigiri-${index + 1}`}
-                            className="rounded-lg border border-zinc-800 bg-zinc-900/60 px-3 py-2"
+                            className="rounded-lg border border-zinc-800 bg-zinc-900/60 px-4 py-3.5 sm:px-3 sm:py-2"
                           >
                             <label
                               htmlFor={`nigiri-${index + 1}`}
-                              className="mb-1 block text-[11px] uppercase tracking-[0.12em] text-zinc-500"
+                              className="mb-1.5 block text-sm uppercase tracking-[0.12em] text-zinc-500 sm:mb-1 sm:text-[11px]"
                             >
                               Nigiri {index + 1}
                             </label>
@@ -622,7 +622,7 @@ export default function Home() {
                                   setOmakaseNigiri
                                 )
                               }
-                              className="w-full rounded-md border border-zinc-700 bg-zinc-950 px-2.5 py-2 text-sm text-zinc-100 outline-none transition focus:border-zinc-500"
+                              className="w-full rounded-md border border-zinc-700 bg-zinc-950 px-3 py-3 text-base text-zinc-100 outline-none transition focus:border-zinc-500 sm:px-2.5 sm:py-2 sm:text-sm"
                             >
                               <option value="">Seleccionar Nigiri...</option>
                               {(omakaseOpcionesPorCategoria.get("Nigiri") ?? []).map(
@@ -648,18 +648,18 @@ export default function Home() {
 
                     {!menuNigiriOnly ? (
                       <div>
-                        <h3 className="mb-2 text-xs uppercase tracking-[0.14em] text-zinc-500">
+                        <h3 className="mb-3 text-sm uppercase tracking-[0.14em] text-zinc-500 sm:mb-2 sm:text-xs">
                           Postre (1)
                         </h3>
-                        <div className="grid gap-2 sm:grid-cols-2">
+                        <div className="grid gap-3 sm:grid-cols-2 sm:gap-2">
                           {omakasePostre.map((valor, index) => (
                             <div
                               key={`postre-${index + 1}`}
-                              className="rounded-lg border border-zinc-800 bg-zinc-900/60 px-3 py-2"
+                              className="rounded-lg border border-zinc-800 bg-zinc-900/60 px-4 py-3.5 sm:px-3 sm:py-2"
                             >
                               <label
                                 htmlFor={`postre-${index + 1}`}
-                                className="mb-1 block text-[11px] uppercase tracking-[0.12em] text-zinc-500"
+                                className="mb-1.5 block text-sm uppercase tracking-[0.12em] text-zinc-500 sm:mb-1 sm:text-[11px]"
                               >
                                 Postre
                               </label>
@@ -673,7 +673,7 @@ export default function Home() {
                                     setOmakasePostre
                                   )
                                 }
-                                className="w-full rounded-md border border-zinc-700 bg-zinc-950 px-2.5 py-2 text-sm text-zinc-100 outline-none transition focus:border-zinc-500"
+                                className="w-full rounded-md border border-zinc-700 bg-zinc-950 px-3 py-3 text-base text-zinc-100 outline-none transition focus:border-zinc-500 sm:px-2.5 sm:py-2 sm:text-sm"
                               >
                                 <option value="">Seleccionar Postre...</option>
                                 {(omakaseOpcionesPorCategoria.get("Postre") ?? []).map(
@@ -699,31 +699,31 @@ export default function Home() {
                     ) : null}
                   </div>
                 ) : (
-                  <p className="text-sm text-zinc-500">
+                  <p className="text-base text-zinc-500 sm:text-sm">
                     No hay platos omakase disponibles.
                   </p>
                 )}
               </section>
 
-              <section className="min-w-0 rounded-xl border border-zinc-800 bg-zinc-950/60 p-4">
-                <h2 className="mb-3 min-w-0 text-balance break-words text-sm uppercase tracking-[0.16em] text-zinc-400">
+              <section className="min-w-0 rounded-xl border border-zinc-800 bg-zinc-950/60 p-5 sm:p-4">
+                <h2 className="mb-3 min-w-0 text-balance break-words text-base font-semibold uppercase tracking-[0.16em] text-zinc-400 sm:text-sm sm:font-normal">
                   Extensiones / Extras ({extensionSlots.filter((id) => id).length}/
                   {EXTENSION_SLOTS})
                 </h2>
-                <p className="mb-3 text-xs leading-relaxed text-zinc-500">
+                <p className="mb-3 text-sm leading-relaxed text-zinc-500 sm:text-xs">
                   Hasta cinco extras opcionales: podés elegir Otsumami, Nigiri o platos de categoría
                   Extensión (solo disponibles).
                 </p>
                 {extrasDisponiblesTotal > 0 ? (
-                  <div className="grid gap-2 sm:grid-cols-2">
+                  <div className="grid gap-3 sm:grid-cols-2 sm:gap-2">
                     {extensionSlots.map((valor, index) => (
                       <div
                         key={`extra-${index + 1}`}
-                        className="rounded-lg border border-zinc-800 bg-zinc-900/60 px-3 py-2"
+                        className="rounded-lg border border-zinc-800 bg-zinc-900/60 px-4 py-3.5 sm:px-3 sm:py-2"
                       >
                         <label
                           htmlFor={`extra-${index + 1}`}
-                          className="mb-1 block text-[11px] uppercase tracking-[0.12em] text-zinc-500"
+                          className="mb-1.5 block text-sm uppercase tracking-[0.12em] text-zinc-500 sm:mb-1 sm:text-[11px]"
                         >
                           Extra {index + 1}
                         </label>
@@ -733,7 +733,7 @@ export default function Home() {
                           onChange={(event) =>
                             actualizarExtensionSlot(index, event.target.value)
                           }
-                          className="w-full rounded-md border border-zinc-700 bg-zinc-950 px-2.5 py-2 text-sm text-zinc-100 outline-none transition focus:border-zinc-500"
+                          className="w-full rounded-md border border-zinc-700 bg-zinc-950 px-3 py-3 text-base text-zinc-100 outline-none transition focus:border-zinc-500 sm:px-2.5 sm:py-2 sm:text-sm"
                         >
                           <option value="">Sin extra</option>
                           {CATEGORIAS_EXTRAS.map((categoria) => (
@@ -760,24 +760,24 @@ export default function Home() {
                     ))}
                   </div>
                 ) : (
-                  <p className="text-sm text-zinc-500">
+                  <p className="text-base text-zinc-500 sm:text-sm">
                     No hay platos disponibles para extras (Otsumami, Nigiri o Extensión).
                   </p>
                 )}
               </section>
             </div>
 
-            <section className="mt-6 min-w-0 rounded-xl border border-zinc-800 bg-zinc-950/60 p-4">
-              <h2 className="mb-3 min-w-0 text-sm uppercase tracking-[0.16em] text-zinc-400">
+            <section className="mt-6 min-w-0 rounded-xl border border-zinc-800 bg-zinc-950/60 p-5 sm:p-4">
+              <h2 className="mb-3 min-w-0 text-base font-semibold uppercase tracking-[0.16em] text-zinc-400 sm:text-sm sm:font-normal">
                 No disponibles
               </h2>
-              <div className="grid gap-2 sm:grid-cols-2">
+              <div className="grid gap-3 sm:grid-cols-2 sm:gap-2">
                 {platosNoDisponibles.length > 0 ? (
                   platosNoDisponibles.map((plato) =>
                     renderCard(plato, false, () => undefined, true)
                   )
                 ) : (
-                  <p className="text-sm text-zinc-500">
+                  <p className="text-base text-zinc-500 sm:text-sm">
                     Todos los platos están disponibles.
                   </p>
                 )}
@@ -786,7 +786,7 @@ export default function Home() {
 
             <div className="mt-6 flex flex-col gap-3 border-t border-zinc-800 pt-5 sm:flex-row sm:items-center sm:justify-between">
               <div className="flex flex-col gap-3">
-                <p className="text-sm text-zinc-400">
+                <p className="text-base text-zinc-400 sm:text-sm">
                   Seleccionados: {pasosBaseCompletados}/{totalPasosBaseObjetivo} base
                   {!menuNigiriOnly
                     ? ` + ${pasosRegaloCompletados}/${OTSUMAMI_REGALO} regalo`
@@ -794,23 +794,23 @@ export default function Home() {
                   {" / "}
                   {extensionSlots.filter((id) => id).length}/{EXTENSION_SLOTS} extras
                 </p>
-                <div className="grid gap-2 sm:grid-cols-3">
+                <div className="grid gap-3 sm:grid-cols-3 sm:gap-2">
                   <input
                     type="date"
                     value={fechaServicio}
                     onChange={(event) => setFechaServicio(event.target.value)}
-                    className="rounded-lg border border-zinc-700 bg-zinc-900 px-3 py-2 text-sm text-zinc-100 outline-none transition focus:border-zinc-500"
+                    className="rounded-lg border border-zinc-700 bg-zinc-900 px-3 py-3 text-base text-zinc-100 outline-none transition focus:border-zinc-500 sm:py-2 sm:text-sm"
                   />
                   <input
                     type="time"
                     value={horaServicio}
                     onChange={(event) => setHoraServicio(event.target.value)}
-                    className="rounded-lg border border-zinc-700 bg-zinc-900 px-3 py-2 text-sm text-zinc-100 outline-none transition focus:border-zinc-500"
+                    className="rounded-lg border border-zinc-700 bg-zinc-900 px-3 py-3 text-base text-zinc-100 outline-none transition focus:border-zinc-500 sm:py-2 sm:text-sm"
                   />
                   <select
                     value={servicio}
                     onChange={(event) => setServicio(event.target.value as Servicio)}
-                    className="rounded-lg border border-zinc-700 bg-zinc-900 px-3 py-2 text-sm text-zinc-100 outline-none transition focus:border-zinc-500"
+                    className="rounded-lg border border-zinc-700 bg-zinc-900 px-3 py-3 text-base text-zinc-100 outline-none transition focus:border-zinc-500 sm:py-2 sm:text-sm"
                   >
                     <option value="Mediodia">Mediodia</option>
                     <option value="Noche">Noche</option>
@@ -821,7 +821,7 @@ export default function Home() {
                 type="button"
                 onClick={() => void cerrarYGuardarMenu()}
                 disabled={isSaving}
-                className="inline-flex items-center justify-center gap-2 rounded-xl border border-zinc-700 bg-zinc-100 px-4 py-2 text-sm font-medium text-zinc-900 transition hover:bg-white disabled:cursor-not-allowed disabled:opacity-60"
+                className="inline-flex items-center justify-center gap-2 rounded-xl border border-zinc-700 bg-zinc-100 px-5 py-3.5 text-base font-medium text-zinc-900 transition hover:bg-white disabled:cursor-not-allowed disabled:opacity-60 sm:px-4 sm:py-2 sm:text-sm"
               >
                 {isSaving ? (
                   <>
