@@ -184,6 +184,7 @@ const PREAMBLE_TEXTO_LISTA_PEDIDO = [
   "",
   "Para salir hoy a Alfonso X 6 chamberi.",
   "",
+  "",
 ].join("\n");
 
 const textoPedidoComprimido = (
@@ -607,7 +608,7 @@ export default function PedidosPage() {
                       {PREAMBLE_TEXTO_LISTA_PEDIDO.trimEnd()}
                     </p>
                   </section>
-                  <div className="border-t border-zinc-800/80 pt-3">
+                  <div className="border-t border-zinc-800/80 pt-10">
                     <p className="mb-2 text-[10px] font-semibold uppercase tracking-[0.14em] text-zinc-500">
                       Pedido
                     </p>
