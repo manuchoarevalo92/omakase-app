@@ -106,10 +106,10 @@ export function MainNav() {
 
   return (
     <nav className="sticky top-0 z-50 w-full max-w-full border-b border-zinc-800 bg-zinc-950/95 pt-[calc(env(safe-area-inset-top,0px)+2rem)] backdrop-blur sm:pt-[calc(env(safe-area-inset-top,0px)+0.5rem)]">
-      <div className="box-border flex w-full min-w-0 max-w-full flex-nowrap items-start gap-1.5 px-3 py-4 sm:mx-auto sm:max-w-6xl sm:items-center sm:gap-2 sm:px-6 sm:py-3">
+      <div className="box-border flex w-full min-w-0 max-w-full flex-col gap-2 px-3 py-4 sm:mx-auto sm:max-w-6xl sm:flex-row sm:items-center sm:gap-2 sm:px-6 sm:py-3">
         <div
           ref={navScrollRef}
-          className={`-mx-3 grid min-h-14 min-w-0 flex-1 gap-2 px-3 py-1 ${mobileNavGridClass} sm:mx-0 sm:flex sm:min-h-0 sm:flex-1 sm:flex-wrap sm:items-center sm:justify-end sm:gap-2.5 sm:px-0 sm:py-0`}
+          className={`-mx-3 grid min-h-14 min-w-0 w-full flex-1 gap-2 px-3 py-1 sm:mx-0 sm:flex sm:min-h-0 sm:min-w-0 sm:flex-1 sm:flex-wrap sm:items-center sm:justify-end sm:gap-2.5 sm:px-0 sm:py-0 ${mobileNavGridClass}`}
         >
           {session === undefined ? (
             <Loader2
@@ -117,47 +117,59 @@ export function MainNav() {
               aria-label="Cargando menú"
             />
           ) : (
-            links.map((link) => {
-              const isActive =
-                pathname === link.href ||
-                (link.href !== "/" && pathname.startsWith(link.href));
-              const tabSizing =
-                link.href === "/inventario"
-                  ? "px-3 py-3 leading-snug tracking-normal max-sm:hyphens-auto sm:px-3 sm:py-1.5 sm:leading-tight sm:tracking-tight"
-                  : "px-3 py-2.5 leading-tight tracking-tight max-sm:min-h-[3rem] sm:py-1.5";
+            <>
+              {links.map((link) => {
+                const isActive =
+                  pathname === link.href ||
+                  (link.href !== "/" && pathname.startsWith(link.href));
+                const tabSizing =
+                  link.href === "/inventario"
+                    ? "px-3 py-3 leading-snug tracking-normal max-sm:hyphens-auto sm:px-3 sm:py-1.5 sm:leading-tight sm:tracking-tight"
+                    : "px-3 py-2.5 leading-tight tracking-tight max-sm:min-h-[3rem] sm:py-1.5";
 
-              return (
-                <Link
-                  key={link.href}
-                  href={link.href}
-                  data-nav-active={isActive ? true : undefined}
-                  className={`inline-flex min-h-12 min-w-0 w-full items-center justify-center whitespace-normal rounded-xl border text-center text-pretty text-sm font-semibold transition sm:w-auto sm:min-h-0 sm:shrink-0 sm:rounded-lg sm:text-sm sm:font-medium ${tabSizing} ${
-                    isActive
-                      ? "border-zinc-200 bg-zinc-100 text-zinc-900"
-                      : "border-zinc-700 bg-zinc-900 text-zinc-300 hover:border-zinc-500 hover:text-zinc-100"
-                  }`}
-                >
-                  {link.label}
-                </Link>
-              );
-            })
+                return (
+                  <Link
+                    key={link.href}
+                    href={link.href}
+                    data-nav-active={isActive ? true : undefined}
+                    className={`inline-flex min-h-12 min-w-0 w-full items-center justify-center whitespace-normal rounded-xl border text-center text-pretty text-sm font-semibold transition sm:w-auto sm:min-h-0 sm:shrink-0 sm:rounded-lg sm:text-sm sm:font-medium ${tabSizing} ${
+                      isActive
+                        ? "border-zinc-200 bg-zinc-100 text-zinc-900"
+                        : "border-zinc-700 bg-zinc-900 text-zinc-300 hover:border-zinc-500 hover:text-zinc-100"
+                    }`}
+                  >
+                    {link.label}
+                  </Link>
+                );
+              })}
+              {session ? (
+                <div className="flex min-h-12 min-w-0 items-center justify-center gap-1 px-2 text-center text-xs leading-snug text-zinc-500 sm:min-h-0 sm:max-w-[12rem] sm:shrink-0 sm:px-2 sm:text-left">
+                  <span className="line-clamp-2 break-words">{session.name}</span>
+                  {session.role === "staff" ? (
+                    <span className="shrink-0 text-zinc-600"> · equipo</span>
+                  ) : null}
+                </div>
+              ) : null}
+            </>
           )}
         </div>
         {session ? (
-          <button
-            type="button"
-            onClick={() => void logout()}
-            disabled={loggingOut}
-            title="Salir"
-            aria-label="Cerrar sesión"
-            className="inline-flex size-8 shrink-0 items-center justify-center rounded-lg border border-zinc-700 bg-zinc-900 text-zinc-400 transition hover:border-zinc-500 hover:text-zinc-100 disabled:opacity-50 sm:size-8"
-          >
-            {loggingOut ? (
-              <Loader2 className="h-3.5 w-3.5 animate-spin" aria-hidden />
-            ) : (
-              <LogOut className="h-3.5 w-3.5" aria-hidden />
-            )}
-          </button>
+          <div className="flex shrink-0 justify-end sm:self-center">
+            <button
+              type="button"
+              onClick={() => void logout()}
+              disabled={loggingOut}
+              title="Salir"
+              aria-label="Cerrar sesión"
+              className="inline-flex size-8 items-center justify-center rounded-lg border border-zinc-700 bg-zinc-900 text-zinc-400 transition hover:border-zinc-500 hover:text-zinc-100 disabled:opacity-50 sm:size-8"
+            >
+              {loggingOut ? (
+                <Loader2 className="h-3.5 w-3.5 animate-spin" aria-hidden />
+              ) : (
+                <LogOut className="h-3.5 w-3.5" aria-hidden />
+              )}
+            </button>
+          </div>
         ) : null}
       </div>
     </nav>
