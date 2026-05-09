@@ -106,10 +106,10 @@ export function MainNav() {
 
   return (
     <nav className="sticky top-0 z-50 w-full max-w-full border-b border-zinc-800 bg-zinc-950/95 pt-[calc(env(safe-area-inset-top,0px)+2rem)] backdrop-blur sm:pt-[calc(env(safe-area-inset-top,0px)+0.5rem)]">
-      <div className="box-border flex w-full min-w-0 max-w-full flex-col gap-2 px-3 py-4 sm:mx-auto sm:max-w-6xl sm:flex-row sm:items-center sm:gap-2 sm:px-6 sm:py-3">
+      <div className="box-border w-full min-w-0 max-w-full px-3 py-4 sm:mx-auto sm:max-w-6xl sm:px-6 sm:py-3">
         <div
           ref={navScrollRef}
-          className={`-mx-3 grid min-h-14 min-w-0 w-full flex-1 gap-2 px-3 py-1 sm:mx-0 sm:flex sm:min-h-0 sm:min-w-0 sm:flex-1 sm:flex-wrap sm:items-center sm:justify-end sm:gap-2.5 sm:px-0 sm:py-0 ${mobileNavGridClass}`}
+          className={`-mx-3 grid min-h-14 min-w-0 w-full gap-2 px-3 py-1 sm:mx-0 sm:flex sm:min-h-0 sm:min-w-0 sm:w-full sm:flex-1 sm:flex-wrap sm:items-center sm:justify-end sm:gap-2.5 sm:px-0 sm:py-0 ${mobileNavGridClass}`}
         >
           {session === undefined ? (
             <Loader2
@@ -143,34 +143,32 @@ export function MainNav() {
                 );
               })}
               {session ? (
-                <div className="flex min-h-12 min-w-0 items-center justify-center gap-1 px-2 text-center text-xs leading-snug text-zinc-500 sm:min-h-0 sm:max-w-[12rem] sm:shrink-0 sm:px-2 sm:text-left">
-                  <span className="line-clamp-2 break-words">{session.name}</span>
-                  {session.role === "staff" ? (
-                    <span className="shrink-0 text-zinc-600"> · equipo</span>
-                  ) : null}
+                <div className="flex min-h-12 min-w-0 items-center justify-center gap-2 px-1 text-zinc-500 sm:min-h-0 sm:max-w-none sm:shrink-0 sm:justify-end sm:gap-2 sm:pl-2 sm:pr-0">
+                  <p className="min-w-0 max-w-[10rem] text-center text-sm font-medium leading-snug sm:max-w-[11rem] sm:text-left">
+                    <span className="line-clamp-2 text-pretty break-words">{session.name}</span>
+                    {session.role === "staff" ? (
+                      <span className="text-zinc-600"> · equipo</span>
+                    ) : null}
+                  </p>
+                  <button
+                    type="button"
+                    onClick={() => void logout()}
+                    disabled={loggingOut}
+                    title="Salir"
+                    aria-label="Cerrar sesión"
+                    className="inline-flex size-8 shrink-0 items-center justify-center rounded-lg border border-zinc-700 bg-zinc-900 text-zinc-400 transition hover:border-zinc-500 hover:text-zinc-100 disabled:opacity-50"
+                  >
+                    {loggingOut ? (
+                      <Loader2 className="h-3.5 w-3.5 animate-spin" aria-hidden />
+                    ) : (
+                      <LogOut className="h-3.5 w-3.5" aria-hidden />
+                    )}
+                  </button>
                 </div>
               ) : null}
             </>
           )}
         </div>
-        {session ? (
-          <div className="flex shrink-0 justify-end sm:self-center">
-            <button
-              type="button"
-              onClick={() => void logout()}
-              disabled={loggingOut}
-              title="Salir"
-              aria-label="Cerrar sesión"
-              className="inline-flex size-8 items-center justify-center rounded-lg border border-zinc-700 bg-zinc-900 text-zinc-400 transition hover:border-zinc-500 hover:text-zinc-100 disabled:opacity-50 sm:size-8"
-            >
-              {loggingOut ? (
-                <Loader2 className="h-3.5 w-3.5 animate-spin" aria-hidden />
-              ) : (
-                <LogOut className="h-3.5 w-3.5" aria-hidden />
-              )}
-            </button>
-          </div>
-        ) : null}
       </div>
     </nav>
   );
