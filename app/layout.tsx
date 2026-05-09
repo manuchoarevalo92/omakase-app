@@ -14,7 +14,13 @@ const geistMono = Geist_Mono({
   subsets: ["latin"],
 });
 
+/** Base pública para URLs del manifest e íconos; en Vercel suele inferirse, aquí lo fijamos explícito si hay env. */
+const siteUrl =
+  process.env.NEXT_PUBLIC_SITE_URL ??
+  (process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : undefined);
+
 export const metadata: Metadata = {
+  ...(siteUrl ? { metadataBase: new URL(siteUrl) } : {}),
   title: "Omakase App",
   description: "Gestión diaria de menú, platos e ingredientes.",
   applicationName: "Omakase App",
@@ -22,6 +28,13 @@ export const metadata: Metadata = {
     capable: true,
     statusBarStyle: "black-translucent",
     title: "Omakase",
+  },
+  /**
+   * Refuerzo para modo "app" (standalone): Chrome/Android histórico lee mobile-web-app-capable;
+   * Apple sigue usando apple-mobile-web-app-capable (lo genera appleWebApp arriba).
+   */
+  other: {
+    "mobile-web-app-capable": "yes",
   },
   icons: {
     icon: [
