@@ -9,8 +9,8 @@ const ALL_LINKS = [
   { href: "/", label: "Menú" },
   { href: "/bebidas", label: "Bebidas" },
   { href: "/pedidos", label: "Pedidos" },
-  { href: "/inventario", label: "Ingredientes" },
   { href: "/platos", label: "Platos" },
+  { href: "/inventario", label: "Ingredientes" },
   { href: "/receta", label: "Receta" },
   { href: "/historial", label: "Historial" },
 ] as const;
