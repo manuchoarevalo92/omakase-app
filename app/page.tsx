@@ -86,37 +86,40 @@ function rellenarIdsPorSlot(ids: string[], total: number): string[] {
   return out.slice(0, total);
 }
 
-function ordenHistorialMasReciente(a: RegistroHistorialRow, b: RegistroHistorialRow): number {
-  const minutos = (h: string | null) => {
-    if (!h?.trim()) {
-      return -1;
-    }
-    const parts = h.trim().split(":");
-    const hh = Number(parts[0]);
-    const mm = Number(parts[1]);
-    if (!Number.isFinite(hh) || !Number.isFinite(mm)) {
-      return -1;
-    }
-    return hh * 60 + mm;
-  };
-  const ma = minutos(a.hora);
-  const mb = minutos(b.hora);
+function minutosHistoriaHora(h: string | null): number {
+  if (!h?.trim()) {
+    return -1;
+  }
+  const parts = h.trim().split(":");
+  const hh = Number(parts[0]);
+  const mm = Number(parts[1]);
+  if (!Number.isFinite(hh) || !Number.isFinite(mm)) {
+    return -1;
+  }
+  return hh * 60 + mm;
+}
+
+/** Último servicio cerrado primero (fecha ISO desc, hora desc, id). */
+function compararHistorialMasReciente(a: RegistroHistorialRow, b: RegistroHistorialRow): number {
+  const df = b.fecha.localeCompare(a.fecha);
+  if (df !== 0) {
+    return df;
+  }
+  const ma = minutosHistoriaHora(a.hora);
+  const mb = minutosHistoriaHora(b.hora);
   if (ma !== mb) {
     return mb - ma;
   }
   return b.id.localeCompare(a.id);
 }
 
-function mejorRegistroDelDia(
-  rows: RegistroHistorialRow[],
-  servicioPreferido: Servicio
+function registroMasRecienteEnHistorial(
+  rows: RegistroHistorialRow[]
 ): RegistroHistorialRow | null {
   if (!rows.length) {
     return null;
   }
-  const mismoServicio = rows.filter((r) => r.servicio === servicioPreferido);
-  const pool = mismoServicio.length > 0 ? mismoServicio : rows;
-  return [...pool].sort(ordenHistorialMasReciente)[0] ?? null;
+  return [...rows].sort(compararHistorialMasReciente)[0] ?? null;
 }
 
 export default function Home() {
@@ -264,15 +267,10 @@ export default function Home() {
     extensionSlots,
   ]);
 
-  const hidratarFormularioDesdeUltimoHistorialDelDia = (
+  const hidratarFormularioDesdeRegistroHistorial = (
     elegido: RegistroHistorialRow,
-    fechaHoy: string,
-    servicioPreferido: Servicio
+    servicioFallback: Servicio
   ): void => {
-    if (elegido.fecha !== fechaHoy) {
-      return;
-    }
-
     const idsSinVacios = (elegido.menu_omakase ?? [])
       .map((id) => String(id).trim())
       .filter(Boolean);
@@ -294,7 +292,7 @@ export default function Home() {
     const servicioRow: Servicio =
       elegido.servicio === "Mediodia" || elegido.servicio === "Noche"
         ? elegido.servicio
-        : servicioPreferido;
+        : servicioFallback;
 
     let otsBase: string[];
     let nig: string[];
@@ -357,7 +355,7 @@ export default function Home() {
     setResumenServicio(resumenArmado);
     setEditorOcultoTrasGuardar(true);
     setSuccess(
-      "Menú del día cargado desde el último guardado en la nube. Usá Editar menú para cambios; podés volver a guardar durante el día."
+      `Último menú del historial cargado (${elegido.fecha} · ${servicioRow}${horaEtiqueta ? ` · ${horaEtiqueta}` : ""}). Tocá Editar menú para modificarlo o guardalo de nuevo.`
     );
     setError(null);
   };
@@ -366,8 +364,7 @@ export default function Home() {
     setIsLoading(true);
     setError(null);
     try {
-      const fechaHoy = formatFechaLocalYYYYMMDD(new Date());
-      const servicioPreferidoInicial: Servicio =
+      const servicioFallbackInicial: Servicio =
         new Date().getHours() < 17 ? "Mediodia" : "Noche";
 
       const [ingredientesResponse, platosResponse, historialResponse] =
@@ -383,7 +380,8 @@ export default function Home() {
           supabase
             .from("historial_servicios")
             .select("id, fecha, hora, servicio, menu_omakase, extensiones")
-            .eq("fecha", fechaHoy),
+            .order("fecha", { ascending: false })
+            .limit(120),
         ]);
 
       if (ingredientesResponse.error) {
@@ -400,12 +398,11 @@ export default function Home() {
       setPlatos((platosResponse.data as Plato[]) ?? []);
 
       if (!historialResponse.error && historialResponse.data?.length) {
-        const elegido = mejorRegistroDelDia(
-          historialResponse.data as RegistroHistorialRow[],
-          servicioPreferidoInicial
+        const elegido = registroMasRecienteEnHistorial(
+          historialResponse.data as RegistroHistorialRow[]
         );
         if (elegido) {
-          hidratarFormularioDesdeUltimoHistorialDelDia(elegido, fechaHoy, servicioPreferidoInicial);
+          hidratarFormularioDesdeRegistroHistorial(elegido, servicioFallbackInicial);
         }
       }
     } catch (err) {
@@ -568,13 +565,15 @@ export default function Home() {
   return (
     <main className="min-h-screen min-w-0 bg-zinc-950 px-4 py-6 text-zinc-100 sm:px-6 sm:py-10">
       <section className="mx-auto w-full min-w-0 max-w-6xl rounded-2xl border border-zinc-800 bg-zinc-900/60 p-4 shadow-[0_0_0_1px_rgba(255,255,255,0.02)] backdrop-blur sm:p-6">
-        <header className="mb-6">
+        <header className="mb-4">
           <h1 className="text-balance text-xl font-semibold tracking-tight text-white sm:text-2xl md:text-3xl">
             Generador de Menú Diario
           </h1>
           <p className="mt-2 text-pretty text-sm text-zinc-400">
-            Selecciona platos disponibles para el servicio y guarda el cierre del
-            menú del día.
+            Si ya hay registros en historial, ves primero el{" "}
+            <span className="text-zinc-300">último menú guardado</span> (solo lectura) con{" "}
+            <span className="text-zinc-300">Editar menú</span>. Si arrancás desde cero, sólo aparece el
+            generador.
           </p>
         </header>
 
@@ -590,83 +589,76 @@ export default function Home() {
           </p>
         ) : null}
 
-        {resumenServicio ? (
-          <div className="sticky top-2 z-10 mb-6 min-w-0 rounded-lg border border-zinc-600 bg-zinc-950/95 p-3 shadow-lg shadow-black/40 backdrop-blur-sm sm:p-4">
-            <div className="mb-2 flex flex-col gap-2 border-b border-zinc-800 pb-2 sm:flex-row sm:flex-wrap sm:items-start sm:justify-between sm:gap-x-4">
-              <div className="min-w-0">
-                <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-zinc-500">
-                  Menú del día · {editorOcultoTrasGuardar ? "solo lectura" : "actualizándose"}
-                </p>
-                <p className="mt-0.5 flex flex-wrap gap-x-1 text-xs text-zinc-200">
-                  <span className="tabular-nums">{resumenDerivadoDelFormulario.fecha}</span>
-                  <span className="text-zinc-600">·</span>
-                  <span className="tabular-nums">{resumenDerivadoDelFormulario.hora}</span>
-                  <span className="text-zinc-600">·</span>
-                  <span>{resumenDerivadoDelFormulario.servicio}</span>
-                  <span className="text-zinc-600">·</span>
-                  <span>{resumenDerivadoDelFormulario.menuTipo}</span>
-                </p>
-                {!editorOcultoTrasGuardar ? (
-                  <p className="mt-1 max-w-xl text-[11px] leading-snug text-zinc-500">
-                    Los cambios en el menú se ven acá al instante. Usá Guardar más abajo para
-                    registrar en historial / nube.
-                  </p>
-                ) : (
-                  <p className="mt-1 max-w-xl text-[11px] leading-snug text-zinc-500">
-                    Esta vista permanece disponible durante el día. Editar para abrir el generador y
-                    ajustar platos u horarios.
-                  </p>
-                )}
-              </div>
-              <div className="flex w-full shrink-0 flex-col gap-2 sm:w-auto sm:min-w-[11rem] sm:flex-row">
-                {editorOcultoTrasGuardar ? (
-                  <button
-                    type="button"
-                    onClick={() => setEditorOcultoTrasGuardar(false)}
-                    className="inline-flex w-full items-center justify-center gap-1.5 rounded-md border border-zinc-600 bg-zinc-800/80 px-2.5 py-2 text-[11px] font-medium text-zinc-100 transition hover:border-zinc-500 hover:bg-zinc-800 sm:w-auto sm:py-2"
-                  >
-                    <Pencil className="h-3 w-3 shrink-0" aria-hidden />
-                    Editar menú
-                  </button>
-                ) : (
-                  <button
-                    type="button"
-                    onClick={() => setEditorOcultoTrasGuardar(true)}
-                    className="inline-flex w-full items-center justify-center gap-1.5 rounded-md border border-zinc-600 bg-zinc-900 px-2.5 py-2 text-[11px] font-medium text-zinc-200 transition hover:border-zinc-500 hover:bg-zinc-800/90 sm:w-auto sm:py-2"
-                  >
-                    <List className="h-3 w-3 shrink-0" aria-hidden />
-                    Ver sólo menú
-                  </button>
-                )}
-              </div>
-            </div>
-            <div className="max-h-[min(70vh,32rem)] overflow-y-auto overscroll-contain">
-              <MenuGuardadoSecciones
-                otsumami={resumenDerivadoDelFormulario.otsumamiBase}
-                nigiri={resumenDerivadoDelFormulario.nigiri}
-                postre={resumenDerivadoDelFormulario.postre}
-                regalo={resumenDerivadoDelFormulario.regalo}
-                extensiones={resumenDerivadoDelFormulario.extensiones}
-                nombrePlato={nombrePlato}
-              />
-            </div>
-          </div>
-        ) : null}
-
         {isLoading ? (
           <div className="flex items-center gap-2 text-sm text-zinc-400">
             <Loader2 className="h-4 w-4 animate-spin" />
-            Cargando platos e ingredientes...
+            Cargando historial, platos e ingredientes...
           </div>
         ) : (
           <>
-            {editorOcultoTrasGuardar ? (
-              <p className="mb-4 text-center text-xs text-zinc-500">
-                Ahí va el menú del día. Abrí{" "}
-                <span className="text-zinc-400">Editar menú</span> cuando quieras cambiar fecha,
-                platos u hora.
-              </p>
-            ) : (
+            {resumenServicio ? (
+              <div className="sticky top-2 z-10 mb-6 min-w-0 rounded-xl border border-zinc-500/80 bg-zinc-950/95 p-3 shadow-[0_12px_48px_rgba(0,0,0,0.45)] backdrop-blur-sm ring-1 ring-zinc-500/20 sm:p-5">
+                <div className="mb-3 flex flex-col gap-2 border-b border-zinc-800 pb-3 sm:flex-row sm:flex-wrap sm:items-start sm:justify-between sm:gap-x-4">
+                  <div className="min-w-0">
+                    <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-zinc-400">
+                      Visor · último menú del historial
+                      {editorOcultoTrasGuardar ? " · solo lectura" : " · en edición"}
+                    </p>
+                    <p className="mt-1 flex flex-wrap gap-x-1 text-sm text-zinc-100">
+                      <span className="tabular-nums">{resumenDerivadoDelFormulario.fecha}</span>
+                      <span className="text-zinc-600">·</span>
+                      <span className="tabular-nums">{resumenDerivadoDelFormulario.hora}</span>
+                      <span className="text-zinc-600">·</span>
+                      <span>{resumenDerivadoDelFormulario.servicio}</span>
+                      <span className="text-zinc-600">·</span>
+                      <span>{resumenDerivadoDelFormulario.menuTipo}</span>
+                    </p>
+                    {!editorOcultoTrasGuardar ? (
+                      <p className="mt-1.5 max-w-xl text-[11px] leading-snug text-zinc-500">
+                        Los cambios se reflejan aquí al instante; usá <span className="text-zinc-400">Cerrar Menú y Guardar</span> más abajo para registrar.
+                      </p>
+                    ) : (
+                      <p className="mt-1.5 max-w-xl text-[11px] leading-snug text-zinc-500">
+                        Tomado del registro más reciente en la nube. <span className="text-zinc-400">Editar menú</span> abre el armado completo.
+                      </p>
+                    )}
+                  </div>
+                  <div className="flex w-full shrink-0 flex-col gap-2 sm:w-auto sm:min-w-[11rem] sm:flex-row">
+                    {editorOcultoTrasGuardar ? (
+                      <button
+                        type="button"
+                        onClick={() => setEditorOcultoTrasGuardar(false)}
+                        className="inline-flex w-full items-center justify-center gap-1.5 rounded-lg border border-emerald-900/50 bg-emerald-950/50 px-3 py-2.5 text-xs font-semibold text-emerald-50 transition hover:bg-emerald-900/40 sm:w-auto"
+                      >
+                        <Pencil className="h-3.5 w-3.5 shrink-0" aria-hidden />
+                        Editar menú
+                      </button>
+                    ) : (
+                      <button
+                        type="button"
+                        onClick={() => setEditorOcultoTrasGuardar(true)}
+                        className="inline-flex w-full items-center justify-center gap-1.5 rounded-lg border border-zinc-600 bg-zinc-900 px-3 py-2.5 text-xs font-medium text-zinc-200 transition hover:border-zinc-500 hover:bg-zinc-800/90 sm:w-auto"
+                      >
+                        <List className="h-3.5 w-3.5 shrink-0" aria-hidden />
+                        Ver sólo menú
+                      </button>
+                    )}
+                  </div>
+                </div>
+                <div className="max-h-[min(75vh,36rem)] overflow-y-auto overscroll-contain">
+                  <MenuGuardadoSecciones
+                    otsumami={resumenDerivadoDelFormulario.otsumamiBase}
+                    nigiri={resumenDerivadoDelFormulario.nigiri}
+                    postre={resumenDerivadoDelFormulario.postre}
+                    regalo={resumenDerivadoDelFormulario.regalo}
+                    extensiones={resumenDerivadoDelFormulario.extensiones}
+                    nombrePlato={nombrePlato}
+                  />
+                </div>
+              </div>
+            ) : null}
+
+            {editorOcultoTrasGuardar ? null : (
             <>
             <div className="grid min-w-0 gap-4 md:grid-cols-2">
               <section className="min-w-0 rounded-xl border border-zinc-800 bg-zinc-950/60 p-4">
