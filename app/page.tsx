@@ -5,6 +5,12 @@ import { Check, Loader2, Lock, Pencil } from "lucide-react";
 
 import { MenuGuardadoSecciones } from "@/app/components/menu-guardado-secciones";
 import { formatPostgrestError } from "@/src/lib/supabase-errors";
+import {
+  MENU_GUARDADO_NIGIRI,
+  MENU_GUARDADO_OTSUMAMI,
+  MENU_GUARDADO_POSTRE,
+  partesDesdeMenuOmakaseGuardado,
+} from "@/src/lib/menu-omakase-guardado";
 import { supabase } from "@/src/lib/supabase";
 
 type Categoria = "Otsumami" | "Nigiri" | "Postre" | "Extensión";
@@ -32,6 +38,15 @@ type HistorialPayload = {
   extensiones: string[];
 };
 
+type RegistroHistorialRow = {
+  id: string;
+  fecha: string;
+  hora: string | null;
+  servicio: Servicio | null;
+  menu_omakase: string[] | null;
+  extensiones: string[] | null;
+};
+
 type ResumenServicio = {
   fecha: string;
   hora: string;
@@ -53,6 +68,57 @@ const POSTRE_BASE = 1;
 const EXTENSION_SLOTS = 5;
 const CATEGORIAS_EXTRAS: Categoria[] = ["Otsumami", "Nigiri", "Extensión"];
 
+function formatFechaLocalYYYYMMDD(d: Date): string {
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(
+    d.getDate()
+  ).padStart(2, "0")}`;
+}
+
+function horaLocalHHmm(d: Date): string {
+  return `${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}`;
+}
+
+function rellenarIdsPorSlot(ids: string[], total: number): string[] {
+  const out = ids.slice();
+  while (out.length < total) {
+    out.push("");
+  }
+  return out.slice(0, total);
+}
+
+function ordenHistorialMasReciente(a: RegistroHistorialRow, b: RegistroHistorialRow): number {
+  const minutos = (h: string | null) => {
+    if (!h?.trim()) {
+      return -1;
+    }
+    const parts = h.trim().split(":");
+    const hh = Number(parts[0]);
+    const mm = Number(parts[1]);
+    if (!Number.isFinite(hh) || !Number.isFinite(mm)) {
+      return -1;
+    }
+    return hh * 60 + mm;
+  };
+  const ma = minutos(a.hora);
+  const mb = minutos(b.hora);
+  if (ma !== mb) {
+    return mb - ma;
+  }
+  return b.id.localeCompare(a.id);
+}
+
+function mejorRegistroDelDia(
+  rows: RegistroHistorialRow[],
+  servicioPreferido: Servicio
+): RegistroHistorialRow | null {
+  if (!rows.length) {
+    return null;
+  }
+  const mismoServicio = rows.filter((r) => r.servicio === servicioPreferido);
+  const pool = mismoServicio.length > 0 ? mismoServicio : rows;
+  return [...pool].sort(ordenHistorialMasReciente)[0] ?? null;
+}
+
 export default function Home() {
   const now = new Date();
   const [ingredientes, setIngredientes] = useState<Ingrediente[]>([]);
@@ -72,11 +138,7 @@ export default function Home() {
   const [extensionSlots, setExtensionSlots] = useState<string[]>(() =>
     Array.from({ length: EXTENSION_SLOTS }, () => "")
   );
-  const [fechaServicio, setFechaServicio] = useState(
-    `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(
-      now.getDate()
-    ).padStart(2, "0")}`
-  );
+  const [fechaServicio, setFechaServicio] = useState(() => formatFechaLocalYYYYMMDD(now));
   const [horaServicio, setHoraServicio] = useState(
     `${String(now.getHours()).padStart(2, "0")}:${String(now.getMinutes()).padStart(
       2,
@@ -178,20 +240,127 @@ export default function Home() {
     return platosConEstado.filter((plato) => !plato.disponible);
   }, [platosConEstado]);
 
+  const hidratarFormularioDesdeUltimoHistorialDelDia = (
+    elegido: RegistroHistorialRow,
+    fechaHoy: string,
+    servicioPreferido: Servicio
+  ): void => {
+    if (elegido.fecha !== fechaHoy) {
+      return;
+    }
+
+    const idsSinVacios = (elegido.menu_omakase ?? [])
+      .map((id) => String(id).trim())
+      .filter(Boolean);
+
+    const minPlatosClasico =
+      MENU_GUARDADO_OTSUMAMI + MENU_GUARDADO_NIGIRI + MENU_GUARDADO_POSTRE;
+    const maxPlatosClasico = minPlatosClasico + OTSUMAMI_REGALO;
+
+    const esNigiriOnly = idsSinVacios.length === MENU_GUARDADO_NIGIRI;
+    const esClasicoValido =
+      idsSinVacios.length >= minPlatosClasico && idsSinVacios.length <= maxPlatosClasico;
+
+    if (!esNigiriOnly && !esClasicoValido) {
+      return;
+    }
+
+    const refDate = new Date();
+    const horaEtiqueta = elegido.hora?.trim() ? elegido.hora : horaLocalHHmm(refDate);
+    const servicioRow: Servicio =
+      elegido.servicio === "Mediodia" || elegido.servicio === "Noche"
+        ? elegido.servicio
+        : servicioPreferido;
+
+    let otsBase: string[];
+    let nig: string[];
+    let post: string[];
+    let rega: string[];
+
+    if (esNigiriOnly) {
+      setMenuNigiriOnly(true);
+      otsBase = Array.from({ length: OTSUMAMI_BASE }, () => "");
+      nig = rellenarIdsPorSlot(idsSinVacios, NIGIRI_BASE);
+      post = Array.from({ length: POSTRE_BASE }, () => "");
+      rega = Array.from({ length: OTSUMAMI_REGALO }, () => "");
+      setOmakaseOtsumami(otsBase);
+      setOmakaseNigiri(nig);
+      setOmakasePostre(post);
+      setOmakaseOtsumamiRegalo(rega);
+    } else {
+      setMenuNigiriOnly(false);
+      const partes = partesDesdeMenuOmakaseGuardado(idsSinVacios);
+      otsBase = rellenarIdsPorSlot(partes.otsumami, OTSUMAMI_BASE);
+      nig = rellenarIdsPorSlot(partes.nigiri, NIGIRI_BASE);
+      post = rellenarIdsPorSlot(partes.postre, POSTRE_BASE);
+      rega = rellenarIdsPorSlot(partes.regalo, OTSUMAMI_REGALO);
+      setOmakaseOtsumami(otsBase);
+      setOmakaseNigiri(nig);
+      setOmakasePostre(post);
+      setOmakaseOtsumamiRegalo(rega);
+    }
+
+    const ext = (elegido.extensiones ?? []).map(String).filter((id) => id.trim());
+    setExtensionSlots(rellenarIdsPorSlot(ext, EXTENSION_SLOTS));
+    setFechaServicio(elegido.fecha);
+    setHoraServicio(horaEtiqueta);
+    setServicio(servicioRow);
+
+    const resumenArmado: ResumenServicio = esNigiriOnly
+      ? {
+          fecha: elegido.fecha,
+          hora: horaEtiqueta,
+          servicio: servicioRow,
+          menuTipo: "Nigiri only",
+          otsumamiBase: [],
+          nigiri: nig.filter((id) => id.trim().length > 0),
+          postre: [],
+          regalo: [],
+          extensiones: ext,
+        }
+      : {
+          fecha: elegido.fecha,
+          hora: horaEtiqueta,
+          servicio: servicioRow,
+          menuTipo: "Clasico",
+          otsumamiBase: otsBase.filter((id) => id.trim().length > 0),
+          nigiri: nig.filter((id) => id.trim().length > 0),
+          postre: post.filter((id) => id.trim().length > 0),
+          regalo: rega.filter((id) => id.trim().length > 0),
+          extensiones: ext,
+        };
+
+    setResumenServicio(resumenArmado);
+    setEditorOcultoTrasGuardar(false);
+    setSuccess(
+      "Menú del día cargado desde el último guardado en la nube. Podés editar hasta finalizar el día y volver a guardar."
+    );
+    setError(null);
+  };
+
   const cargarDatos = async () => {
     setIsLoading(true);
     setError(null);
     try {
-      const [ingredientesResponse, platosResponse] = await Promise.all([
-        supabase
-          .from("ingredientes")
-          .select("id, nombre, disponible, rubro")
-          .order("nombre", { ascending: true }),
-        supabase
-          .from("platos")
-          .select("id, nombre, categoria, ingredientes_requeridos")
-          .order("nombre", { ascending: true }),
-      ]);
+      const fechaHoy = formatFechaLocalYYYYMMDD(new Date());
+      const servicioPreferidoInicial: Servicio =
+        new Date().getHours() < 17 ? "Mediodia" : "Noche";
+
+      const [ingredientesResponse, platosResponse, historialResponse] =
+        await Promise.all([
+          supabase
+            .from("ingredientes")
+            .select("id, nombre, disponible, rubro")
+            .order("nombre", { ascending: true }),
+          supabase
+            .from("platos")
+            .select("id, nombre, categoria, ingredientes_requeridos")
+            .order("nombre", { ascending: true }),
+          supabase
+            .from("historial_servicios")
+            .select("id, fecha, hora, servicio, menu_omakase, extensiones")
+            .eq("fecha", fechaHoy),
+        ]);
 
       if (ingredientesResponse.error) {
         setError(ingredientesResponse.error.message);
@@ -205,6 +374,16 @@ export default function Home() {
 
       setIngredientes((ingredientesResponse.data as Ingrediente[]) ?? []);
       setPlatos((platosResponse.data as Plato[]) ?? []);
+
+      if (!historialResponse.error && historialResponse.data?.length) {
+        const elegido = mejorRegistroDelDia(
+          historialResponse.data as RegistroHistorialRow[],
+          servicioPreferidoInicial
+        );
+        if (elegido) {
+          hidratarFormularioDesdeUltimoHistorialDelDia(elegido, fechaHoy, servicioPreferidoInicial);
+        }
+      }
     } catch (err) {
       setError(
         err instanceof Error ? err.message : "Error al conectar con Supabase."
