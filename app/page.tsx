@@ -1,7 +1,7 @@
 "use client";
 
 import { Dispatch, SetStateAction, useEffect, useMemo, useState } from "react";
-import { Check, Loader2, Lock, Pencil } from "lucide-react";
+import { Check, List, Loader2, Lock, Pencil } from "lucide-react";
 
 import { MenuGuardadoSecciones } from "@/app/components/menu-guardado-secciones";
 import { formatPostgrestError } from "@/src/lib/supabase-errors";
@@ -155,7 +155,7 @@ export default function Home() {
   const [resumenServicio, setResumenServicio] = useState<ResumenServicio | null>(
     null
   );
-  /** Tras guardar, el formulario se pliega para priorizar el resumen; "Editar menú" lo vuelve a mostrar. */
+  /** Con menú del día activo: true = sólo visualización arriba; false = formulario de edición visible. */
   const [editorOcultoTrasGuardar, setEditorOcultoTrasGuardar] = useState(false);
   const [menuNigiriOnly, setMenuNigiriOnly] = useState(false);
 
@@ -239,6 +239,30 @@ export default function Home() {
   const platosNoDisponibles = useMemo(() => {
     return platosConEstado.filter((plato) => !plato.disponible);
   }, [platosConEstado]);
+
+  const resumenDerivadoDelFormulario = useMemo((): ResumenServicio => {
+    return {
+      fecha: fechaServicio,
+      hora: horaServicio,
+      servicio,
+      menuTipo: menuNigiriOnly ? "Nigiri only" : "Clasico",
+      otsumamiBase: menuNigiriOnly ? [] : omakaseOtsumami.filter((id) => id.trim().length > 0),
+      nigiri: omakaseNigiri.filter((id) => id.trim().length > 0),
+      postre: menuNigiriOnly ? [] : omakasePostre.filter((id) => id.trim().length > 0),
+      regalo: menuNigiriOnly ? [] : omakaseOtsumamiRegalo.filter((id) => id.trim().length > 0),
+      extensiones: extensionSlots.filter((id) => id.trim().length > 0),
+    };
+  }, [
+    fechaServicio,
+    horaServicio,
+    servicio,
+    menuNigiriOnly,
+    omakaseOtsumami,
+    omakaseNigiri,
+    omakasePostre,
+    omakaseOtsumamiRegalo,
+    extensionSlots,
+  ]);
 
   const hidratarFormularioDesdeUltimoHistorialDelDia = (
     elegido: RegistroHistorialRow,
@@ -331,9 +355,9 @@ export default function Home() {
         };
 
     setResumenServicio(resumenArmado);
-    setEditorOcultoTrasGuardar(false);
+    setEditorOcultoTrasGuardar(true);
     setSuccess(
-      "Menú del día cargado desde el último guardado en la nube. Podés editar hasta finalizar el día y volver a guardar."
+      "Menú del día cargado desde el último guardado en la nube. Usá Editar menú para cambios; podés volver a guardar durante el día."
     );
     setError(null);
   };
@@ -458,21 +482,7 @@ export default function Home() {
       extensiones: extensionesFinal,
     };
 
-    const resumen: ResumenServicio = {
-      fecha: fechaServicio,
-      hora: horaServicio,
-      servicio,
-      menuTipo: menuNigiriOnly ? "Nigiri only" : "Clasico",
-      otsumamiBase: menuNigiriOnly
-        ? []
-        : omakaseOtsumami.filter((id) => id.trim().length > 0),
-      nigiri: omakaseNigiri.filter((id) => id.trim().length > 0),
-      postre: menuNigiriOnly ? [] : omakasePostre.filter((id) => id.trim().length > 0),
-      regalo: menuNigiriOnly
-        ? []
-        : omakaseOtsumamiRegalo.filter((id) => id.trim().length > 0),
-      extensiones: extensionesFinal,
-    };
+    const resumen = resumenDerivadoDelFormulario;
 
     try {
       const { error: saveError } = await supabase
@@ -582,50 +592,61 @@ export default function Home() {
 
         {resumenServicio ? (
           <div className="sticky top-2 z-10 mb-6 min-w-0 rounded-lg border border-zinc-600 bg-zinc-950/95 p-3 shadow-lg shadow-black/40 backdrop-blur-sm sm:p-4">
-            <div className="mb-2 flex flex-col gap-2 border-b border-zinc-800 pb-2 sm:flex-row sm:flex-wrap sm:items-center sm:justify-between sm:gap-x-2">
+            <div className="mb-2 flex flex-col gap-2 border-b border-zinc-800 pb-2 sm:flex-row sm:flex-wrap sm:items-start sm:justify-between sm:gap-x-4">
               <div className="min-w-0">
                 <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-zinc-500">
-                  Menú en servicio
+                  Menú del día · {editorOcultoTrasGuardar ? "solo lectura" : "actualizándose"}
                 </p>
                 <p className="mt-0.5 flex flex-wrap gap-x-1 text-xs text-zinc-200">
-                  <span className="tabular-nums">{resumenServicio.fecha}</span>
+                  <span className="tabular-nums">{resumenDerivadoDelFormulario.fecha}</span>
                   <span className="text-zinc-600">·</span>
-                  <span className="tabular-nums">{resumenServicio.hora}</span>
+                  <span className="tabular-nums">{resumenDerivadoDelFormulario.hora}</span>
                   <span className="text-zinc-600">·</span>
-                  <span>{resumenServicio.servicio}</span>
+                  <span>{resumenDerivadoDelFormulario.servicio}</span>
                   <span className="text-zinc-600">·</span>
-                  <span>{resumenServicio.menuTipo}</span>
+                  <span>{resumenDerivadoDelFormulario.menuTipo}</span>
                 </p>
+                {!editorOcultoTrasGuardar ? (
+                  <p className="mt-1 max-w-xl text-[11px] leading-snug text-zinc-500">
+                    Los cambios en el menú se ven acá al instante. Usá Guardar más abajo para
+                    registrar en historial / nube.
+                  </p>
+                ) : (
+                  <p className="mt-1 max-w-xl text-[11px] leading-snug text-zinc-500">
+                    Esta vista permanece disponible durante el día. Editar para abrir el generador y
+                    ajustar platos u horarios.
+                  </p>
+                )}
               </div>
-              <div className="flex w-full min-w-0 flex-col gap-2 sm:w-auto sm:flex-row sm:flex-wrap sm:justify-end">
-                <button
-                  type="button"
-                  onClick={() => setEditorOcultoTrasGuardar(false)}
-                  className="inline-flex w-full items-center justify-center gap-1.5 rounded-md border border-zinc-600 bg-zinc-800/80 px-2.5 py-2 text-[11px] font-medium text-zinc-100 transition hover:border-zinc-500 hover:bg-zinc-800 sm:w-auto sm:py-1"
-                >
-                  <Pencil className="h-3 w-3 shrink-0" aria-hidden />
-                  Editar menú
-                </button>
-                <button
-                  type="button"
-                  onClick={() => {
-                    setResumenServicio(null);
-                    setSuccess(null);
-                    setEditorOcultoTrasGuardar(false);
-                  }}
-                  className="w-full rounded-md border border-zinc-700 bg-zinc-900 px-2.5 py-2 text-[11px] text-zinc-300 transition hover:border-zinc-500 hover:text-zinc-100 sm:w-auto sm:py-1"
-                >
-                  Ocultar resumen
-                </button>
+              <div className="flex w-full shrink-0 flex-col gap-2 sm:w-auto sm:min-w-[11rem] sm:flex-row">
+                {editorOcultoTrasGuardar ? (
+                  <button
+                    type="button"
+                    onClick={() => setEditorOcultoTrasGuardar(false)}
+                    className="inline-flex w-full items-center justify-center gap-1.5 rounded-md border border-zinc-600 bg-zinc-800/80 px-2.5 py-2 text-[11px] font-medium text-zinc-100 transition hover:border-zinc-500 hover:bg-zinc-800 sm:w-auto sm:py-2"
+                  >
+                    <Pencil className="h-3 w-3 shrink-0" aria-hidden />
+                    Editar menú
+                  </button>
+                ) : (
+                  <button
+                    type="button"
+                    onClick={() => setEditorOcultoTrasGuardar(true)}
+                    className="inline-flex w-full items-center justify-center gap-1.5 rounded-md border border-zinc-600 bg-zinc-900 px-2.5 py-2 text-[11px] font-medium text-zinc-200 transition hover:border-zinc-500 hover:bg-zinc-800/90 sm:w-auto sm:py-2"
+                  >
+                    <List className="h-3 w-3 shrink-0" aria-hidden />
+                    Ver sólo menú
+                  </button>
+                )}
               </div>
             </div>
             <div className="max-h-[min(70vh,32rem)] overflow-y-auto overscroll-contain">
               <MenuGuardadoSecciones
-                otsumami={resumenServicio.otsumamiBase}
-                nigiri={resumenServicio.nigiri}
-                postre={resumenServicio.postre}
-                regalo={resumenServicio.regalo}
-                extensiones={resumenServicio.extensiones}
+                otsumami={resumenDerivadoDelFormulario.otsumamiBase}
+                nigiri={resumenDerivadoDelFormulario.nigiri}
+                postre={resumenDerivadoDelFormulario.postre}
+                regalo={resumenDerivadoDelFormulario.regalo}
+                extensiones={resumenDerivadoDelFormulario.extensiones}
                 nombrePlato={nombrePlato}
               />
             </div>
@@ -641,8 +662,9 @@ export default function Home() {
           <>
             {editorOcultoTrasGuardar ? (
               <p className="mb-4 text-center text-xs text-zinc-500">
-                Formulario oculto. Tocá <span className="text-zinc-400">Editar menú</span> en el
-                resumen de arriba para cambios de último minuto.
+                Ahí va el menú del día. Abrí{" "}
+                <span className="text-zinc-400">Editar menú</span> cuando quieras cambiar fecha,
+                platos u hora.
               </p>
             ) : (
             <>
