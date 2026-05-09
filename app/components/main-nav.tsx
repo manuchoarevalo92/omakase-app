@@ -84,10 +84,10 @@ export function MainNav() {
 
   return (
     <nav className="sticky top-0 z-50 w-full max-w-full border-b border-zinc-800 bg-zinc-950/95 pt-[calc(env(safe-area-inset-top,0px)+2rem)] backdrop-blur sm:pt-[calc(env(safe-area-inset-top,0px)+0.5rem)]">
-      <div className="box-border flex w-full min-w-0 max-w-full flex-wrap items-center justify-center gap-x-2 gap-y-2 px-2 py-2 sm:mx-auto sm:max-w-6xl sm:justify-between sm:px-6 sm:py-3">
-        <div className="flex w-full min-w-0 flex-wrap items-center justify-center gap-1.5 sm:flex-1 sm:justify-end sm:gap-2">
+      <div className="box-border flex w-full min-w-0 max-w-full flex-wrap items-center justify-center gap-x-2 gap-y-2.5 px-3 py-3 sm:mx-auto sm:max-w-6xl sm:justify-between sm:gap-x-2 sm:gap-y-2 sm:px-6 sm:py-3">
+        <div className="flex w-full min-w-0 flex-wrap items-center justify-center gap-2 sm:flex-1 sm:justify-end sm:gap-2">
           {session === undefined ? (
-            <Loader2 className="h-5 w-5 animate-spin text-zinc-500" aria-label="Cargando menú" />
+            <Loader2 className="h-6 w-6 animate-spin text-zinc-500 sm:h-5 sm:w-5" aria-label="Cargando menú" />
           ) : (
             links.map((link) => {
               const isActive =
@@ -98,7 +98,7 @@ export function MainNav() {
                 <Link
                   key={link.href}
                   href={link.href}
-                  className={`inline-flex min-h-[2.25rem] shrink-0 items-center justify-center rounded-lg border px-2.5 py-1.5 text-xs font-medium leading-tight transition sm:min-h-0 sm:px-3 sm:py-1.5 sm:text-sm ${
+                  className={`inline-flex min-h-12 shrink-0 items-center justify-center rounded-xl border px-4 py-2.5 text-sm font-semibold leading-tight tracking-tight transition sm:min-h-0 sm:rounded-lg sm:px-3 sm:py-1.5 sm:text-sm sm:font-medium ${
                     isActive
                       ? "border-zinc-200 bg-zinc-100 text-zinc-900"
                       : "border-zinc-700 bg-zinc-900 text-zinc-300 hover:border-zinc-500 hover:text-zinc-100"
@@ -111,8 +111,8 @@ export function MainNav() {
           )}
         </div>
         {session ? (
-          <div className="flex shrink-0 items-center gap-2">
-            <span className="max-w-[10rem] truncate text-xs text-zinc-500 sm:max-w-none">
+          <div className="flex w-full shrink-0 flex-wrap items-center justify-center gap-2 sm:w-auto sm:justify-end">
+            <span className="max-w-[12rem] truncate text-sm text-zinc-500 sm:max-w-none sm:text-xs">
               {session.name}
               {session.role === "staff" ? (
                 <span className="text-zinc-600"> · equipo</span>
@@ -122,12 +122,12 @@ export function MainNav() {
               type="button"
               onClick={() => void logout()}
               disabled={loggingOut}
-              className="inline-flex items-center gap-1 rounded-lg border border-zinc-700 bg-zinc-900 px-2 py-1.5 text-xs text-zinc-300 transition hover:border-zinc-500 hover:text-zinc-100 disabled:opacity-50"
+              className="inline-flex min-h-12 items-center gap-1.5 rounded-xl border border-zinc-700 bg-zinc-900 px-4 py-2.5 text-sm font-medium text-zinc-300 transition hover:border-zinc-500 hover:text-zinc-100 disabled:opacity-50 sm:min-h-0 sm:rounded-lg sm:px-2 sm:py-1.5 sm:text-xs"
             >
               {loggingOut ? (
-                <Loader2 className="h-3.5 w-3.5 animate-spin" aria-hidden />
+                <Loader2 className="h-4 w-4 animate-spin sm:h-3.5 sm:w-3.5" aria-hidden />
               ) : (
-                <LogOut className="h-3.5 w-3.5" aria-hidden />
+                <LogOut className="h-4 w-4 sm:h-3.5 sm:w-3.5" aria-hidden />
               )}
               Salir
             </button>
