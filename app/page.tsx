@@ -572,8 +572,9 @@ export default function Home() {
           <p className="mt-2 text-pretty text-sm text-zinc-400">
             Si ya hay registros en historial, ves primero el{" "}
             <span className="text-zinc-300">último menú guardado</span> (solo lectura) con{" "}
-            <span className="text-zinc-300">Editar menú</span>. Si arrancás desde cero, sólo aparece el
-            generador.
+            <span className="text-zinc-300">Editar menú</span> (solo el generador) y{" "}
+            <span className="text-zinc-300">Ver sólo menú</span> para volver al visor. Sin historial,
+            sólo el generador.
           </p>
         </header>
 
@@ -596,13 +597,12 @@ export default function Home() {
           </div>
         ) : (
           <>
-            {resumenServicio ? (
+            {resumenServicio && editorOcultoTrasGuardar ? (
               <div className="sticky top-2 z-10 mb-6 min-w-0 rounded-xl border border-zinc-500/80 bg-zinc-950/95 p-3 shadow-[0_12px_48px_rgba(0,0,0,0.45)] backdrop-blur-sm ring-1 ring-zinc-500/20 sm:p-5">
                 <div className="mb-3 flex flex-col gap-2 border-b border-zinc-800 pb-3 sm:flex-row sm:flex-wrap sm:items-start sm:justify-between sm:gap-x-4">
                   <div className="min-w-0">
                     <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-zinc-400">
-                      Visor · último menú del historial
-                      {editorOcultoTrasGuardar ? " · solo lectura" : " · en edición"}
+                      Visor · último menú del historial · solo lectura
                     </p>
                     <p className="mt-1 flex flex-wrap gap-x-1 text-sm text-zinc-100">
                       <span className="tabular-nums">{resumenDerivadoDelFormulario.fecha}</span>
@@ -613,36 +613,21 @@ export default function Home() {
                       <span className="text-zinc-600">·</span>
                       <span>{resumenDerivadoDelFormulario.menuTipo}</span>
                     </p>
-                    {!editorOcultoTrasGuardar ? (
-                      <p className="mt-1.5 max-w-xl text-[11px] leading-snug text-zinc-500">
-                        Los cambios se reflejan aquí al instante; usá <span className="text-zinc-400">Cerrar Menú y Guardar</span> más abajo para registrar.
-                      </p>
-                    ) : (
-                      <p className="mt-1.5 max-w-xl text-[11px] leading-snug text-zinc-500">
-                        Tomado del registro más reciente en la nube. <span className="text-zinc-400">Editar menú</span> abre el armado completo.
-                      </p>
-                    )}
+                    <p className="mt-1.5 max-w-xl text-[11px] leading-snug text-zinc-500">
+                      Tomado del registro más reciente en la nube.{" "}
+                      <span className="text-zinc-400">Editar menú</span> oculta esta vista y abre el
+                      armado completo.
+                    </p>
                   </div>
                   <div className="flex w-full shrink-0 flex-col gap-2 sm:w-auto sm:min-w-[11rem] sm:flex-row">
-                    {editorOcultoTrasGuardar ? (
-                      <button
-                        type="button"
-                        onClick={() => setEditorOcultoTrasGuardar(false)}
-                        className="inline-flex w-full items-center justify-center gap-1.5 rounded-lg border border-emerald-900/50 bg-emerald-950/50 px-3 py-2.5 text-xs font-semibold text-emerald-50 transition hover:bg-emerald-900/40 sm:w-auto"
-                      >
-                        <Pencil className="h-3.5 w-3.5 shrink-0" aria-hidden />
-                        Editar menú
-                      </button>
-                    ) : (
-                      <button
-                        type="button"
-                        onClick={() => setEditorOcultoTrasGuardar(true)}
-                        className="inline-flex w-full items-center justify-center gap-1.5 rounded-lg border border-zinc-600 bg-zinc-900 px-3 py-2.5 text-xs font-medium text-zinc-200 transition hover:border-zinc-500 hover:bg-zinc-800/90 sm:w-auto"
-                      >
-                        <List className="h-3.5 w-3.5 shrink-0" aria-hidden />
-                        Ver sólo menú
-                      </button>
-                    )}
+                    <button
+                      type="button"
+                      onClick={() => setEditorOcultoTrasGuardar(false)}
+                      className="inline-flex w-full items-center justify-center gap-1.5 rounded-lg border border-emerald-900/50 bg-emerald-950/50 px-3 py-2.5 text-xs font-semibold text-emerald-50 transition hover:bg-emerald-900/40 sm:w-auto"
+                    >
+                      <Pencil className="h-3.5 w-3.5 shrink-0" aria-hidden />
+                      Editar menú
+                    </button>
                   </div>
                 </div>
                 <div className="max-h-[min(75vh,36rem)] overflow-y-auto overscroll-contain">
@@ -660,6 +645,24 @@ export default function Home() {
 
             {editorOcultoTrasGuardar ? null : (
             <>
+            {resumenServicio ? (
+              <div className="mb-4 flex flex-col gap-2 rounded-lg border border-zinc-800 bg-zinc-950/60 px-3 py-2.5 sm:flex-row sm:items-center sm:justify-between">
+                <p className="text-xs text-zinc-400">
+                  Editando menú del{" "}
+                  <span className="tabular-nums text-zinc-200">{resumenDerivadoDelFormulario.fecha}</span>
+                  {" · "}
+                  <span className="text-zinc-200">{resumenDerivadoDelFormulario.servicio}</span>
+                </p>
+                <button
+                  type="button"
+                  onClick={() => setEditorOcultoTrasGuardar(true)}
+                  className="inline-flex shrink-0 items-center justify-center gap-1.5 rounded-md border border-zinc-600 bg-zinc-900 px-3 py-2 text-[11px] font-medium text-zinc-200 transition hover:border-zinc-500 hover:bg-zinc-800/90"
+                >
+                  <List className="h-3.5 w-3.5 shrink-0" aria-hidden />
+                  Ver sólo menú
+                </button>
+              </div>
+            ) : null}
             <div className="grid min-w-0 gap-4 md:grid-cols-2">
               <section className="min-w-0 rounded-xl border border-zinc-800 bg-zinc-950/60 p-4">
                 <div className="mb-3 flex items-center justify-between gap-2">
