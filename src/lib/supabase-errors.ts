@@ -14,6 +14,15 @@ export function formatPostgrestError(error: {
   }
   const msg = error.message.toLowerCase();
   if (
+    msg.includes("pedidos_proveedores") &&
+    (msg.includes("pedidos_proveedores_proveedor_check") ||
+      msg.includes("proveedor_check"))
+  ) {
+    bits.push(
+      "El CHECK de la columna proveedor en Supabase está desactualizado (faltan proveedores nuevos en la lista permitida). En Dashboard → SQL Editor ejecutá el script del repo: supabase/pedidos-proveedores-extend-proveedores.sql y volvé a cargar la página."
+    );
+  }
+  if (
     msg.includes("row-level security") ||
     msg.includes("rls") ||
     msg.includes("violates row-level security") ||
