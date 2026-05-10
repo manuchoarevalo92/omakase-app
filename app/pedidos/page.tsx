@@ -1,6 +1,6 @@
 "use client";
 
-import { Clipboard, List, Pencil, Plus, Trash2 } from "lucide-react";
+import { Clipboard, List, ListPlus, Pencil, Plus, Trash2, X } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
 
 import { formatPostgrestError } from "@/src/lib/supabase-errors";
@@ -152,6 +152,114 @@ const esCantidadCeroOVacia = (cantidad: string): boolean => {
   if (t === "") return true;
   const n = parseFloat(t.replace(",", "."));
   return !Number.isNaN(n) && n === 0;
+};
+
+type LineaPedidoParseada = {
+  item: string;
+  cantidad: string;
+  unidad: UnidadMedida;
+};
+
+const normalizarUnidadDesdeTexto = (s: string): UnidadMedida | null => {
+  const t = s.trim();
+  if (UNIDADES.includes(t as UnidadMedida)) {
+    return t as UnidadMedida;
+  }
+  const lower = t.toLowerCase();
+  if (lower === "caja" || lower === "cajas") return "Caja";
+  if (lower === "kilo" || lower === "kg" || lower === "kilos") return "Kilo";
+  if (lower === "unidad" || lower === "unidades" || lower === "ud" || lower === "uds" || lower === "u.")
+    return "Unidad";
+  return null;
+};
+
+/**
+ * Parsea muchas líneas para pegar listas (vinos, sake, etc.).
+ * Formatos: una referencia por línea; `nombre: cantidad`; `nombre: cantidad Caja`;
+ * `nombre | cantidad | Unidad`; columnas con tab igual que pipes.
+ */
+const parsearLineasPedidoMasivo = (
+  texto: string,
+  unidadPorDefecto: UnidadMedida
+): LineaPedidoParseada[] => {
+  const out: LineaPedidoParseada[] = [];
+  for (const raw of texto.split(/\r?\n/)) {
+    const line = raw.trim();
+    if (!line) {
+      continue;
+    }
+
+    if (line.includes("|")) {
+      const parts = line.split("|").map((p) => p.trim());
+      const item = parts[0] ?? "";
+      if (!item) {
+        continue;
+      }
+      const cantidad = parts[1] ?? "";
+      const u = parts[2] ? normalizarUnidadDesdeTexto(parts[2]) : null;
+      out.push({ item, cantidad, unidad: u ?? unidadPorDefecto });
+      continue;
+    }
+
+    if (line.includes("\t")) {
+      const parts = line.split(/\t/).map((p) => p.trim());
+      const item = parts[0] ?? "";
+      if (!item) {
+        continue;
+      }
+      const cantidad = parts[1] ?? "";
+      const u = parts[2] ? normalizarUnidadDesdeTexto(parts[2]) : null;
+      out.push({ item, cantidad, unidad: u ?? unidadPorDefecto });
+      continue;
+    }
+
+    const colon = line.indexOf(":");
+    if (colon !== -1) {
+      const left = line.slice(0, colon).trim();
+      const rest = line.slice(colon + 1).trim();
+      if (!left) {
+        continue;
+      }
+      if (!rest) {
+        out.push({ item: left, cantidad: "", unidad: unidadPorDefecto });
+        continue;
+      }
+      const tokens = rest.split(/\s+/).filter(Boolean);
+      const lastTok = tokens[tokens.length - 1] ?? "";
+      const maybeUnit = normalizarUnidadDesdeTexto(lastTok);
+      if (maybeUnit && tokens.length >= 1) {
+        const qtyTokens = tokens.slice(0, -1);
+        out.push({
+          item: left,
+          cantidad: qtyTokens.join(" ").trim(),
+          unidad: maybeUnit,
+        });
+      } else {
+        out.push({
+          item: left,
+          cantidad: tokens.join(" ").trim(),
+          unidad: unidadPorDefecto,
+        });
+      }
+      continue;
+    }
+
+    out.push({ item: line, cantidad: "", unidad: unidadPorDefecto });
+  }
+  return out;
+};
+
+/** Quita filas totalmente vacías al final (deja al menos una si todo está vacío). */
+const quitarFilasVaciasAlFinal = (filas: PedidoItem[]): PedidoItem[] => {
+  const copy = [...filas];
+  while (
+    copy.length > 1 &&
+    !copy[copy.length - 1].item.trim() &&
+    !copy[copy.length - 1].cantidad.trim()
+  ) {
+    copy.pop();
+  }
+  return copy;
 };
 
 const segmentarFilasPedido = (filas: PedidoItem[]) => {
@@ -333,6 +441,9 @@ export default function PedidosPage() {
   const [copiadoProveedor, setCopiadoProveedor] = useState<Proveedor | null>(null);
   /** Id de fila recién añadida para enfocar el nombre (único en la página; no filtrar por proveedor). */
   const [focoFilaNuevaId, setFocoFilaNuevaId] = useState<string | null>(null);
+  const [bulkProveedor, setBulkProveedor] = useState<Proveedor | null>(null);
+  const [bulkText, setBulkText] = useState("");
+  const [bulkUnidadDefault, setBulkUnidadDefault] = useState<UnidadMedida>("Unidad");
   const copiadoTimerRef = useRef<number | null>(null);
   const cargadoRemotoRef = useRef(false);
   const timerSyncRef = useRef<number | null>(null);
@@ -386,6 +497,20 @@ export default function PedidosPage() {
   }, []);
 
   useEffect(() => {
+    if (!bulkProveedor) {
+      return;
+    }
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") {
+        setBulkProveedor(null);
+        setBulkText("");
+      }
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [bulkProveedor]);
+
+  useEffect(() => {
     if (!cargadoRemotoRef.current) {
       return;
     }
@@ -436,6 +561,13 @@ export default function PedidosPage() {
     );
   }, [pedidosPorProveedor]);
 
+  const lineasBulkPreview = useMemo(() => {
+    if (!bulkProveedor) {
+      return [] as LineaPedidoParseada[];
+    }
+    return parsearLineasPedidoMasivo(bulkText, bulkUnidadDefault);
+  }, [bulkProveedor, bulkText, bulkUnidadDefault]);
+
   const actualizarFila = (
     proveedor: (typeof PROVEEDORES)[number],
     itemId: string,
@@ -456,6 +588,43 @@ export default function PedidosPage() {
       [proveedor]: [...actual[proveedor], nuevo],
     }));
     setFocoFilaNuevaId(nuevo.id);
+  };
+
+  const abrirModalBulk = (proveedor: Proveedor) => {
+    setBulkProveedor(proveedor);
+    setBulkText("");
+    setBulkUnidadDefault("Unidad");
+  };
+
+  const cerrarModalBulk = () => {
+    setBulkProveedor(null);
+    setBulkText("");
+  };
+
+  const aplicarLineasMasivas = () => {
+    if (!bulkProveedor) {
+      return;
+    }
+    const lineas = parsearLineasPedidoMasivo(bulkText, bulkUnidadDefault);
+    const nuevos: PedidoItem[] = lineas
+      .filter((l) => l.item.trim().length > 0)
+      .map((l) => ({
+        id: crypto.randomUUID(),
+        item: l.item.trim(),
+        cantidad: l.cantidad.trim(),
+        unidad: l.unidad,
+      }));
+    if (nuevos.length === 0) {
+      return;
+    }
+    setPedidosPorProveedor((actual) => {
+      const base = quitarFilasVaciasAlFinal(actual[bulkProveedor]);
+      return {
+        ...actual,
+        [bulkProveedor]: [...base, ...nuevos, crearItem()],
+      };
+    });
+    cerrarModalBulk();
   };
 
   const quitarFila = (proveedor: (typeof PROVEEDORES)[number], itemId: string) => {
@@ -534,9 +703,10 @@ export default function PedidosPage() {
         <header className="mb-6">
           <h1 className="text-2xl font-semibold text-white">Pedidos</h1>
           <p className="mt-1 text-sm text-zinc-400">
-            Carga rápida de pedidos por proveedor: item, cantidad y unidad. Por proveedor podés
-            alternar entre vista editable y lista comprimida para copiar y enviar. Las líneas con cantidad vacía o 0 se agrupan abajo en Editar; desde ahí las podés
-            eliminar de una con <span className="text-zinc-300">Borrar todas</span>.
+            Carga rápida por proveedor, vista Lista para copiar, y en Editar{" "}
+            <span className="text-zinc-300">Agregar muchos</span> para pegar listas largas (vinos,
+            sake, referencias). Las líneas sin cantidad quedan abajo para completar o borrar en
+            bloque con <span className="text-zinc-300">Borrar todas</span>.
           </p>
           <p className="mt-1 text-xs text-zinc-500">
             Ítems cargados: <span className="font-medium text-zinc-300">{totalItemsCargados}</span>
@@ -598,14 +768,24 @@ export default function PedidosPage() {
                   </div>
                 </div>
                 {vistaPorProveedor[proveedor] === "editable" ? (
-                  <button
-                    type="button"
-                    onClick={() => agregarFila(proveedor)}
-                    className="inline-flex w-full items-center justify-center gap-1.5 rounded-lg border border-zinc-700 bg-zinc-900 px-2.5 py-1.5 text-xs text-zinc-200 transition hover:border-zinc-500 hover:text-white sm:w-auto"
-                  >
-                    <Plus className="h-3.5 w-3.5" />
-                    Añadir
-                  </button>
+                  <div className="flex w-full flex-wrap gap-2 sm:w-auto sm:justify-end">
+                    <button
+                      type="button"
+                      onClick={() => agregarFila(proveedor)}
+                      className="inline-flex min-w-[7rem] flex-1 items-center justify-center gap-1.5 rounded-lg border border-zinc-700 bg-zinc-900 px-2.5 py-1.5 text-xs text-zinc-200 transition hover:border-zinc-500 hover:text-white sm:flex-initial"
+                    >
+                      <Plus className="h-3.5 w-3.5" />
+                      Añadir
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => abrirModalBulk(proveedor)}
+                      className="inline-flex min-w-[7rem] flex-1 items-center justify-center gap-1.5 rounded-lg border border-emerald-900/50 bg-emerald-950/40 px-2.5 py-1.5 text-xs font-medium text-emerald-100 transition hover:border-emerald-700/60 hover:bg-emerald-900/35 sm:flex-initial"
+                    >
+                      <ListPlus className="h-3.5 w-3.5" aria-hidden />
+                      Agregar muchos
+                    </button>
+                  </div>
                 ) : null}
               </div>
 
@@ -754,6 +934,143 @@ export default function PedidosPage() {
             );
           })}
         </div>
+
+        {bulkProveedor ? (
+          <div
+            className="fixed inset-0 z-[100] flex items-end justify-center bg-black/70 p-0 sm:items-center sm:p-6"
+            role="presentation"
+            onClick={(e) => {
+              if (e.target === e.currentTarget) {
+                cerrarModalBulk();
+              }
+            }}
+          >
+            <div
+              role="dialog"
+              aria-modal="true"
+              aria-labelledby="bulk-pedidos-title"
+              className="flex max-h-[min(92dvh,40rem)] w-full max-w-lg flex-col rounded-t-2xl border border-zinc-700 bg-zinc-900 shadow-2xl sm:max-h-[min(85vh,36rem)] sm:rounded-2xl"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div className="flex shrink-0 items-start justify-between gap-3 border-b border-zinc-800 px-4 py-3">
+                <div className="min-w-0 pr-2">
+                  <h2 id="bulk-pedidos-title" className="text-sm font-semibold text-white">
+                    Agregar muchos · {bulkProveedor}
+                  </h2>
+                  <p className="mt-1 text-[11px] leading-relaxed text-zinc-500">
+                    Una referencia por línea (solo nombre → cantidad vacía, queda en la zona de abajo
+                    para completar). También{" "}
+                    <span className="font-mono text-zinc-400">nombre: 6</span>,{" "}
+                    <span className="font-mono text-zinc-400">nombre: 2 Caja</span> o{" "}
+                    <span className="font-mono text-zinc-400">nombre | 1 | Unidad</span> / tab.
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => cerrarModalBulk()}
+                  className="shrink-0 rounded-lg border border-zinc-700 p-2 text-zinc-400 transition hover:border-zinc-500 hover:text-zinc-100"
+                  aria-label="Cerrar"
+                >
+                  <X className="h-4 w-4" aria-hidden />
+                </button>
+              </div>
+
+              <div className="min-h-0 flex-1 space-y-3 overflow-y-auto overscroll-contain px-4 py-3">
+                <div>
+                  <label
+                    htmlFor="bulk-unidad-default"
+                    className="mb-1 block text-[11px] font-medium uppercase tracking-wide text-zinc-500"
+                  >
+                    Unidad por defecto (si la línea no la indica)
+                  </label>
+                  <select
+                    id="bulk-unidad-default"
+                    value={bulkUnidadDefault}
+                    onChange={(e) =>
+                      setBulkUnidadDefault(e.target.value as UnidadMedida)
+                    }
+                    className="w-full rounded-lg border border-zinc-700 bg-zinc-950 px-3 py-2 text-sm text-zinc-100 outline-none transition focus:border-zinc-500"
+                  >
+                    {UNIDADES.map((u) => (
+                      <option key={u} value={u}>
+                        {u}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+                <div>
+                  <label
+                    htmlFor="bulk-textarea"
+                    className="mb-1 block text-[11px] font-medium uppercase tracking-wide text-zinc-500"
+                  >
+                    Pegá o escribí la lista
+                  </label>
+                  <textarea
+                    id="bulk-textarea"
+                    value={bulkText}
+                    onChange={(e) => setBulkText(e.target.value)}
+                    rows={12}
+                    autoFocus
+                    spellCheck={false}
+                    className="w-full resize-y rounded-lg border border-zinc-700 bg-zinc-950 px-3 py-2 font-mono text-[13px] leading-relaxed text-zinc-100 outline-none transition placeholder:text-zinc-600 focus:border-zinc-500"
+                    placeholder={`Koshu Junmai 720ml\nOtros: 3\nSake nama | 2 | Unidad`}
+                  />
+                </div>
+                <p className="text-xs text-zinc-400">
+                  <span className="font-semibold text-zinc-200">{lineasBulkPreview.length}</span>{" "}
+                  línea(s) reconocida(s)
+                  {lineasBulkPreview.length === 0 ? " — pegá al menos una línea con texto" : ""}
+                </p>
+                {lineasBulkPreview.length > 0 ? (
+                  <div className="rounded-lg border border-zinc-800/90 bg-zinc-950/60 px-3 py-2">
+                    <p className="text-[10px] font-semibold uppercase tracking-[0.12em] text-zinc-500">
+                      Vista previa
+                    </p>
+                    <ul className="mt-1 max-h-36 space-y-0.5 overflow-y-auto text-[11px] text-zinc-300">
+                      {lineasBulkPreview.slice(0, 15).map((l, i) => (
+                        <li key={i} className="truncate">
+                          <span className="text-zinc-600">·</span>{" "}
+                          <span className="font-medium text-zinc-100">{l.item}</span>
+                          {l.cantidad.trim() ? (
+                            <span className="text-zinc-500">
+                              {" "}
+                              → {l.cantidad} {l.unidad}
+                            </span>
+                          ) : (
+                            <span className="text-zinc-600"> (sin cantidad · {l.unidad})</span>
+                          )}
+                        </li>
+                      ))}
+                    </ul>
+                    {lineasBulkPreview.length > 15 ? (
+                      <p className="mt-1.5 text-[10px] text-zinc-600">
+                        … y {lineasBulkPreview.length - 15} más
+                      </p>
+                    ) : null}
+                  </div>
+                ) : null}
+              </div>
+
+              <div className="flex shrink-0 flex-wrap gap-2 border-t border-zinc-800 bg-zinc-900/95 px-4 pb-[max(0.75rem,env(safe-area-inset-bottom,0px))] pt-3">
+                <button
+                  type="button"
+                  onClick={() => cerrarModalBulk()}
+                  className="inline-flex flex-1 items-center justify-center rounded-lg border border-zinc-600 bg-zinc-800 px-3 py-2.5 text-xs font-medium text-zinc-200 transition hover:border-zinc-500 sm:flex-initial sm:px-4"
+                >
+                  Cancelar
+                </button>
+                <button
+                  type="button"
+                  disabled={lineasBulkPreview.length === 0}
+                  onClick={() => aplicarLineasMasivas()}
+                  className="inline-flex flex-1 items-center justify-center rounded-lg border border-emerald-800/80 bg-emerald-900/50 px-3 py-2.5 text-xs font-semibold text-emerald-50 transition hover:bg-emerald-800/50 disabled:cursor-not-allowed disabled:opacity-40 sm:flex-initial sm:px-4"
+                >
+                  Agregar {lineasBulkPreview.length > 0 ? lineasBulkPreview.length : ""} al pedido
+                </button>
+              </div>
+            </div>
+          </div>
+        ) : null}
       </section>
     </main>
   );
