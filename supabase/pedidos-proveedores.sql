@@ -12,7 +12,9 @@ create table if not exists public.pedidos_proveedores (
         'Arrom',
         'García de Pou',
         'Verdulería',
-        'Supermercado'
+        'Supermercado',
+        'Vila Viniteca',
+        'Vinalia'
       )
     )
 );

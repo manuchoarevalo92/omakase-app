@@ -21,6 +21,8 @@ const PROVEEDORES = [
   "García de Pou",
   "Verdulería",
   "Supermercado",
+  "Vila Viniteca",
+  "Vinalia",
 ] as const;
 
 type Proveedor = (typeof PROVEEDORES)[number];
