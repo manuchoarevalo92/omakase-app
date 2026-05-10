@@ -598,8 +598,8 @@ export default function Home() {
         ) : (
           <>
             {resumenServicio && editorOcultoTrasGuardar ? (
-              <div className="sticky top-2 z-10 mb-6 min-w-0 rounded-xl border border-zinc-500/80 bg-zinc-950/95 p-3 shadow-[0_12px_48px_rgba(0,0,0,0.45)] backdrop-blur-sm ring-1 ring-zinc-500/20 sm:p-5">
-                <div className="mb-3 flex flex-col gap-2 border-b border-zinc-800 pb-3 sm:flex-row sm:flex-wrap sm:items-start sm:justify-between sm:gap-x-4">
+              <div className="relative z-10 mb-6 min-w-0 rounded-xl border border-zinc-500/80 bg-zinc-950/95 p-3 shadow-[0_12px_48px_rgba(0,0,0,0.45)] backdrop-blur-sm ring-1 ring-zinc-500/20 sm:sticky sm:top-2 sm:p-5">
+                <div className="mb-3 flex flex-col gap-2 border-b border-zinc-800/80 pb-3 max-sm:border-0 max-sm:pb-2 sm:flex-row sm:flex-wrap sm:items-start sm:justify-between sm:gap-x-4">
                   <div className="min-w-0">
                     <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-zinc-400">
                       Visor · último menú del historial · solo lectura
@@ -630,7 +630,8 @@ export default function Home() {
                     </button>
                   </div>
                 </div>
-                <div className="max-h-[min(75vh,36rem)] overflow-y-auto overscroll-contain">
+                {/* Móvil: una sola sábana (scroll del documento). Desktop: panel sticky con scroll interno. */}
+                <div className="min-w-0 max-sm:overflow-visible sm:max-h-[min(75vh,36rem)] sm:overflow-y-auto sm:overscroll-contain">
                   <MenuGuardadoSecciones
                     otsumami={resumenDerivadoDelFormulario.otsumamiBase}
                     nigiri={resumenDerivadoDelFormulario.nigiri}
