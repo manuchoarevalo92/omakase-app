@@ -1,7 +1,7 @@
 "use client";
 
 import { Dispatch, SetStateAction, useEffect, useMemo, useState } from "react";
-import { Check, FilePlus, List, Loader2, Lock, Pencil } from "lucide-react";
+import { Check, ChevronDown, ChevronUp, FilePlus, List, Loader2, Lock, Pencil } from "lucide-react";
 
 import { MenuGuardadoSecciones } from "@/app/components/menu-guardado-secciones";
 import { formatPostgrestError } from "@/src/lib/supabase-errors";
@@ -435,6 +435,20 @@ export default function Home() {
     );
   };
 
+  const intercambiarIndicesNigiri = (i: number, j: number) => {
+    if (i < 0 || j < 0 || i >= NIGIRI_BASE || j >= NIGIRI_BASE || i === j) {
+      return;
+    }
+    setError(null);
+    setOmakaseNigiri((prev) => {
+      const next = [...prev];
+      const t = next[i];
+      next[i] = next[j];
+      next[j] = t;
+      return next;
+    });
+  };
+
   const actualizarExtensionSlot = (index: number, platoId: string) => {
     setError(null);
     setExtensionSlots((actual) =>
@@ -854,49 +868,73 @@ export default function Home() {
 
                     <div>
                       <h3 className="mb-2 text-xs uppercase tracking-[0.14em] text-zinc-500">
-                        Nigiri (12)
+                        Nigiri (12) · orden con flechas
                       </h3>
                       <div className="grid gap-2 sm:grid-cols-2">
                         {omakaseNigiri.map((valor, index) => (
                           <div
                             key={`nigiri-${index + 1}`}
-                            className="rounded-lg border border-zinc-800 bg-zinc-900/60 px-3 py-2"
+                            className="flex gap-2 rounded-lg border border-zinc-800 bg-zinc-900/60 px-2 py-2 sm:px-3"
                           >
-                            <label
-                              htmlFor={`nigiri-${index + 1}`}
-                              className="mb-1 block text-[11px] uppercase tracking-[0.12em] text-zinc-500"
-                            >
-                              Nigiri {index + 1}
-                            </label>
-                            <select
-                              id={`nigiri-${index + 1}`}
-                              value={valor}
-                              onChange={(event) =>
-                                actualizarPasoOmakase(
-                                  index,
-                                  event.target.value,
-                                  setOmakaseNigiri
-                                )
-                              }
-                              className="w-full rounded-md border border-zinc-700 bg-zinc-950 px-2.5 py-2 text-sm text-zinc-100 outline-none transition focus:border-zinc-500"
-                            >
-                              <option value="">Seleccionar Nigiri...</option>
-                              {(omakaseOpcionesPorCategoria.get("Nigiri") ?? []).map(
-                                (plato) => (
-                                  <option
-                                    key={plato.id}
-                                    value={plato.id}
-                                    disabled={esOpcionDuplicadaEnSeccion(
-                                      omakaseNigiri,
-                                      index,
-                                      plato.id
-                                    )}
-                                  >
-                                    {plato.nombre}
-                                  </option>
-                                )
-                              )}
-                            </select>
+                            <div className="min-w-0 flex-1">
+                              <label
+                                htmlFor={`nigiri-${index + 1}`}
+                                className="mb-1 block text-[11px] uppercase tracking-[0.12em] text-zinc-500"
+                              >
+                                Nigiri {index + 1}
+                              </label>
+                              <select
+                                id={`nigiri-${index + 1}`}
+                                value={valor}
+                                onChange={(event) =>
+                                  actualizarPasoOmakase(
+                                    index,
+                                    event.target.value,
+                                    setOmakaseNigiri
+                                  )
+                                }
+                                className="w-full rounded-md border border-zinc-700 bg-zinc-950 px-2.5 py-2 text-sm text-zinc-100 outline-none transition focus:border-zinc-500"
+                              >
+                                <option value="">Seleccionar Nigiri...</option>
+                                {(omakaseOpcionesPorCategoria.get("Nigiri") ?? []).map(
+                                  (plato) => (
+                                    <option
+                                      key={plato.id}
+                                      value={plato.id}
+                                      disabled={esOpcionDuplicadaEnSeccion(
+                                        omakaseNigiri,
+                                        index,
+                                        plato.id
+                                      )}
+                                    >
+                                      {plato.nombre}
+                                    </option>
+                                  )
+                                )}
+                              </select>
+                            </div>
+                            <div className="flex shrink-0 flex-col justify-center gap-0.5 border-l border-zinc-800/80 pl-1.5">
+                              <button
+                                type="button"
+                                disabled={index === 0}
+                                onClick={() => intercambiarIndicesNigiri(index, index - 1)}
+                                title="Subir una posición (intercambia con el de arriba; si está vacío, queda como mover)"
+                                aria-label={`Subir Nigiri ${index + 1}`}
+                                className="inline-flex size-8 items-center justify-center rounded-md border border-zinc-700 bg-zinc-950 text-zinc-400 transition hover:border-zinc-500 hover:text-zinc-100 disabled:cursor-not-allowed disabled:opacity-30"
+                              >
+                                <ChevronUp className="h-4 w-4" aria-hidden />
+                              </button>
+                              <button
+                                type="button"
+                                disabled={index >= NIGIRI_BASE - 1}
+                                onClick={() => intercambiarIndicesNigiri(index, index + 1)}
+                                title="Bajar una posición"
+                                aria-label={`Bajar Nigiri ${index + 1}`}
+                                className="inline-flex size-8 items-center justify-center rounded-md border border-zinc-700 bg-zinc-950 text-zinc-400 transition hover:border-zinc-500 hover:text-zinc-100 disabled:cursor-not-allowed disabled:opacity-30"
+                              >
+                                <ChevronDown className="h-4 w-4" aria-hidden />
+                              </button>
+                            </div>
                           </div>
                         ))}
                       </div>
