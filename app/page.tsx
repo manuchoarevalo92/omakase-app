@@ -1,7 +1,7 @@
 "use client";
 
 import { Dispatch, SetStateAction, useEffect, useMemo, useState } from "react";
-import { Check, List, Loader2, Lock, Pencil } from "lucide-react";
+import { Check, FilePlus, List, Loader2, Lock, Pencil } from "lucide-react";
 
 import { MenuGuardadoSecciones } from "@/app/components/menu-guardado-secciones";
 import { formatPostgrestError } from "@/src/lib/supabase-errors";
@@ -450,6 +450,46 @@ export default function Home() {
     return seccion.some((id, i) => i !== indexActual && id === platoId);
   };
 
+  const hayBorradorEnFormulario = (): boolean => {
+    if (menuNigiriOnly) {
+      return omakaseNigiri.some((id) => id.trim().length > 0);
+    }
+    return (
+      omakaseOtsumami.some((id) => id.trim().length > 0) ||
+      omakaseNigiri.some((id) => id.trim().length > 0) ||
+      omakasePostre.some((id) => id.trim().length > 0) ||
+      omakaseOtsumamiRegalo.some((id) => id.trim().length > 0) ||
+      extensionSlots.some((id) => id.trim().length > 0)
+    );
+  };
+
+  const iniciarNuevoMenu = () => {
+    if (hayBorradorEnFormulario()) {
+      const ok = window.confirm(
+        "¿Empezar un menú nuevo desde cero? Se vaciarán los platos y extras del generador que no hayas guardado en historial."
+      );
+      if (!ok) {
+        return;
+      }
+    }
+    const d = new Date();
+    setOmakaseOtsumami(Array.from({ length: OTSUMAMI_BASE }, () => ""));
+    setOmakaseOtsumamiRegalo(Array.from({ length: OTSUMAMI_REGALO }, () => ""));
+    setOmakaseNigiri(Array.from({ length: NIGIRI_BASE }, () => ""));
+    setOmakasePostre(Array.from({ length: POSTRE_BASE }, () => ""));
+    setExtensionSlots(Array.from({ length: EXTENSION_SLOTS }, () => ""));
+    setFechaServicio(formatFechaLocalYYYYMMDD(d));
+    setHoraServicio(horaLocalHHmm(d));
+    setServicio(d.getHours() < 17 ? "Mediodia" : "Noche");
+    setMenuNigiriOnly(false);
+    setResumenServicio(null);
+    setEditorOcultoTrasGuardar(false);
+    setError(null);
+    setSuccess(
+      "Menú nuevo en blanco: fecha y hora puestas a hoy. Cuando lo cierres, se guarda en historial."
+    );
+  };
+
   const cerrarYGuardarMenu = async () => {
     setIsSaving(true);
     setError(null);
@@ -572,9 +612,10 @@ export default function Home() {
           <p className="mt-2 text-pretty text-sm text-zinc-400">
             Si ya hay registros en historial, ves primero el{" "}
             <span className="text-zinc-300">último menú guardado</span> (solo lectura) con{" "}
-            <span className="text-zinc-300">Editar menú</span> (solo el generador) y{" "}
-            <span className="text-zinc-300">Ver sólo menú</span> para volver al visor. Sin historial,
-            sólo el generador.
+            <span className="text-zinc-300">Editar menú</span> o{" "}
+            <span className="text-zinc-300">Nuevo menú</span> para otro día.{" "}
+            <span className="text-zinc-300">Ver sólo menú</span> vuelve al visor mientras editás.
+            Sin historial, sólo el generador.
           </p>
         </header>
 
@@ -615,11 +656,11 @@ export default function Home() {
                     </p>
                     <p className="mt-1.5 max-w-xl text-[11px] leading-snug text-zinc-500">
                       Tomado del registro más reciente en la nube.{" "}
-                      <span className="text-zinc-400">Editar menú</span> oculta esta vista y abre el
-                      armado completo.
+                      <span className="text-zinc-400">Editar menú</span> para retocar ese cierre;{" "}
+                      <span className="text-zinc-400">Nuevo menú</span> para arrancar otro día en blanco.
                     </p>
                   </div>
-                  <div className="flex w-full shrink-0 flex-col gap-2 sm:w-auto sm:min-w-[11rem] sm:flex-row">
+                  <div className="flex w-full shrink-0 flex-col gap-2 sm:w-auto sm:min-w-[11rem] sm:flex-row sm:flex-wrap sm:justify-end">
                     <button
                       type="button"
                       onClick={() => setEditorOcultoTrasGuardar(false)}
@@ -627,6 +668,14 @@ export default function Home() {
                     >
                       <Pencil className="h-3.5 w-3.5 shrink-0" aria-hidden />
                       Editar menú
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => iniciarNuevoMenu()}
+                      className="inline-flex w-full items-center justify-center gap-1.5 rounded-lg border border-zinc-600 bg-zinc-900 px-3 py-2.5 text-xs font-medium text-zinc-100 transition hover:border-zinc-500 hover:bg-zinc-800 sm:w-auto"
+                    >
+                      <FilePlus className="h-3.5 w-3.5 shrink-0" aria-hidden />
+                      Nuevo menú
                     </button>
                   </div>
                 </div>
@@ -647,21 +696,31 @@ export default function Home() {
             {editorOcultoTrasGuardar ? null : (
             <>
             {resumenServicio ? (
-              <div className="mb-4 flex flex-col gap-2 rounded-lg border border-zinc-800 bg-zinc-950/60 px-3 py-2.5 sm:flex-row sm:items-center sm:justify-between">
+              <div className="mb-4 flex flex-col gap-2 rounded-lg border border-zinc-800 bg-zinc-950/60 px-3 py-2.5 sm:flex-row sm:flex-wrap sm:items-center sm:justify-between">
                 <p className="text-xs text-zinc-400">
                   Editando menú del{" "}
                   <span className="tabular-nums text-zinc-200">{resumenDerivadoDelFormulario.fecha}</span>
                   {" · "}
                   <span className="text-zinc-200">{resumenDerivadoDelFormulario.servicio}</span>
                 </p>
-                <button
-                  type="button"
-                  onClick={() => setEditorOcultoTrasGuardar(true)}
-                  className="inline-flex shrink-0 items-center justify-center gap-1.5 rounded-md border border-zinc-600 bg-zinc-900 px-3 py-2 text-[11px] font-medium text-zinc-200 transition hover:border-zinc-500 hover:bg-zinc-800/90"
-                >
-                  <List className="h-3.5 w-3.5 shrink-0" aria-hidden />
-                  Ver sólo menú
-                </button>
+                <div className="flex flex-wrap gap-2 sm:justify-end">
+                  <button
+                    type="button"
+                    onClick={() => iniciarNuevoMenu()}
+                    className="inline-flex shrink-0 items-center justify-center gap-1.5 rounded-md border border-zinc-600 bg-zinc-900 px-3 py-2 text-[11px] font-medium text-zinc-200 transition hover:border-zinc-500 hover:bg-zinc-800/90"
+                  >
+                    <FilePlus className="h-3.5 w-3.5 shrink-0" aria-hidden />
+                    Nuevo menú
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setEditorOcultoTrasGuardar(true)}
+                    className="inline-flex shrink-0 items-center justify-center gap-1.5 rounded-md border border-zinc-600 bg-zinc-900 px-3 py-2 text-[11px] font-medium text-zinc-200 transition hover:border-zinc-500 hover:bg-zinc-800/90"
+                  >
+                    <List className="h-3.5 w-3.5 shrink-0" aria-hidden />
+                    Ver sólo menú
+                  </button>
+                </div>
               </div>
             ) : null}
             <div className="grid min-w-0 gap-4 md:grid-cols-2">
