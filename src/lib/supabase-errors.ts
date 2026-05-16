@@ -42,9 +42,15 @@ export function formatPostgrestError(error: {
         "RLS en pedidos_proveedores: hacen falta políticas SELECT, INSERT y UPDATE para anon (ver supabase/pedidos-proveedores-rls-anon.sql en el repo)."
       );
     } else if (msg.includes("bebidas_asientos")) {
-      bits.push(
-        "RLS en bebidas_asientos: hacen falta políticas SELECT, INSERT y UPDATE para anon (ver supabase/bebidas-asientos-rls-anon.sql en el repo)."
-      );
+      if (msg.includes("historial_servicio_id")) {
+        bits.push(
+          "Falta la columna historial_servicio_id en bebidas_asientos. Ejecutá supabase/bebidas-asientos-historial-servicio.sql en el SQL Editor."
+        );
+      } else {
+        bits.push(
+          "RLS en bebidas_asientos: hacen falta políticas SELECT, INSERT y UPDATE para anon (ver supabase/bebidas-asientos-rls-anon.sql en el repo)."
+        );
+      }
     } else if (msg.includes("historial_servicios")) {
       bits.push(
         "RLS en historial_servicios: hace falta INSERT y SELECT para anon si guardás menú y ves el historial."
