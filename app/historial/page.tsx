@@ -3,7 +3,12 @@
 import { useEffect, useMemo, useState } from "react";
 import { Loader2 } from "lucide-react";
 
+import { BebidasServicioResumen } from "@/app/components/bebidas-servicio-resumen";
 import { MenuGuardadoSecciones } from "@/app/components/menu-guardado-secciones";
+import {
+  fetchBebidasPorHistorial,
+  type BebidaAsientoResumen,
+} from "@/src/lib/bebidas-asientos";
 import { partesDesdeMenuOmakaseGuardado } from "@/src/lib/menu-omakase-guardado";
 import { formatPostgrestError } from "@/src/lib/supabase-errors";
 import { supabase } from "@/src/lib/supabase";
@@ -32,8 +37,12 @@ export default function HistorialPage() {
   const [fechaDesde, setFechaDesde] = useState("");
   const [fechaHasta, setFechaHasta] = useState("");
   const [filtroServicio, setFiltroServicio] = useState<"Todos" | Servicio>("Todos");
+  const [bebidasPorServicio, setBebidasPorServicio] = useState<
+    Map<string, BebidaAsientoResumen[]>
+  >(() => new Map());
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [advertenciaBebidas, setAdvertenciaBebidas] = useState<string | null>(null);
 
   const platosMap = useMemo(() => {
     return new Map(platos.map((plato) => [plato.id, plato.nombre]));
@@ -106,6 +115,19 @@ export default function HistorialPage() {
 
       setHistorial((historialResponse.data as RegistroHistorial[]) ?? []);
       setPlatos((platosResponse.data as PlatoLite[]) ?? []);
+
+      try {
+        const bebidasMap = await fetchBebidasPorHistorial();
+        setBebidasPorServicio(bebidasMap);
+        setAdvertenciaBebidas(null);
+      } catch (bebidasErr) {
+        setBebidasPorServicio(new Map());
+        setAdvertenciaBebidas(
+          formatPostgrestError(
+            bebidasErr as { message: string; code?: string; details?: string; hint?: string }
+          )
+        );
+      }
     } catch (err) {
       setError(
         err instanceof Error ? err.message : "Error al conectar con Supabase."
@@ -178,6 +200,12 @@ export default function HistorialPage() {
           </p>
         ) : null}
 
+        {advertenciaBebidas ? (
+          <p className="mb-5 rounded-lg border border-amber-900/70 bg-amber-950/40 px-3 py-2 text-sm text-amber-200">
+            No se pudieron cargar las bebidas: {advertenciaBebidas}
+          </p>
+        ) : null}
+
         {isLoading ? (
           <div className="flex items-center gap-2 text-sm text-zinc-400">
             <Loader2 className="h-4 w-4 animate-spin" />
@@ -238,6 +266,14 @@ export default function HistorialPage() {
                           nombrePlato={(id) =>
                             platosMap.get(id) ?? `Plato ${id.slice(0, 6)}…`
                           }
+                        />
+                      </div>
+                      <div className="mt-3 border-t border-zinc-800/80 pt-3">
+                        <p className="mb-2 text-[10px] font-semibold uppercase tracking-[0.14em] text-zinc-500">
+                          Bebidas
+                        </p>
+                        <BebidasServicioResumen
+                          asientos={bebidasPorServicio.get(registro.id) ?? []}
                         />
                       </div>
                     </article>
