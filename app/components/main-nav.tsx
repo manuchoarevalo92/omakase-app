@@ -13,6 +13,7 @@ const ALL_LINKS = [
   { href: "/inventario", label: "Ingredientes" },
   { href: "/receta", label: "Receta" },
   { href: "/historial", label: "Historial" },
+  { href: "/estadisticas", label: "Stats" },
 ] as const;
 
 const STAFF_HREFS = new Set<string>([
@@ -69,7 +70,7 @@ export function MainNav() {
   }, [session]);
 
   /**
-   * Misma lógica de rejilla en móvil y laptop: 7→4+3, 5–6→3 celdas, ≤4→2.
+   * Misma lógica de rejilla en móvil y laptop: 7–8→4 celdas, 5–6→3 celdas, ≤4→2.
    * En pantallas muy anchas (xl) todas las pestañas en una fila con admin.
    */
   const navGridColsClass = useMemo(() => {
@@ -83,7 +84,10 @@ export function MainNav() {
     if (n === 6) {
       return "grid-cols-3 lg:grid-cols-6";
     }
-    return "grid-cols-4 xl:grid-cols-7";
+    if (n === 7) {
+      return "grid-cols-4 xl:grid-cols-7";
+    }
+    return "grid-cols-4 xl:grid-cols-8";
   }, [links.length]);
 
   /** Acerca la pestaña activa en el viewport (scroll horizontal dentro de la grilla si hace falta). */

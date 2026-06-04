@@ -36,7 +36,9 @@ export async function proxy(request: NextRequest) {
 
   if (
     session.role === "staff" &&
-    (pathname.startsWith("/platos") || pathname.startsWith("/receta"))
+    (pathname.startsWith("/platos") ||
+      pathname.startsWith("/receta") ||
+      pathname.startsWith("/estadisticas"))
   ) {
     return NextResponse.redirect(new URL("/", request.url));
   }
