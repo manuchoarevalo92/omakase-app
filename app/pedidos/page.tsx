@@ -30,11 +30,13 @@ type Proveedor = (typeof PROVEEDORES)[number];
 type PedidoProveedorRow = {
   proveedor: Proveedor;
   items: PedidoItem[] | null;
+  updated_at?: string | null;
 };
 
 const UNIDADES: UnidadMedida[] = ["Caja", "Kilo", "Unidad"];
 const STORAGE_KEY = "omakase_pedidos_v1";
 const STORAGE_VISTAS_KEY = "omakase_pedidos_vistas_v1";
+const STORAGE_EDITADO_KEY = "omakase_pedidos_editado_v1";
 
 type VistaProveedor = "editable" | "lista";
 
@@ -118,6 +120,54 @@ const mergeDesdeNube = (
     },
     {} as Record<(typeof PROVEEDORES)[number], PedidoItem[]>
   );
+};
+
+const crearEditadoVacio = (): Record<Proveedor, string | null> =>
+  PROVEEDORES.reduce(
+    (acc, proveedor) => {
+      acc[proveedor] = null;
+      return acc;
+    },
+    {} as Record<Proveedor, string | null>
+  );
+
+const cargarEditadoPorProveedor = (): Record<Proveedor, string | null> => {
+  const base = crearEditadoVacio();
+  if (typeof window === "undefined") {
+    return base;
+  }
+  try {
+    const raw = window.localStorage.getItem(STORAGE_EDITADO_KEY);
+    if (!raw) {
+      return base;
+    }
+    const parsed = JSON.parse(raw) as Partial<Record<Proveedor, string | null>>;
+    PROVEEDORES.forEach((p) => {
+      if (typeof parsed[p] === "string") {
+        base[p] = parsed[p] as string;
+      }
+    });
+  } catch {
+    // Ignorar.
+  }
+  return base;
+};
+
+/** Fecha + hora legible para “última edición”; null si no hay/ es inválida. */
+const formatearFechaEdicion = (iso: string | null): string | null => {
+  if (!iso) {
+    return null;
+  }
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) {
+    return null;
+  }
+  return d.toLocaleString("es-ES", {
+    day: "numeric",
+    month: "short",
+    hour: "2-digit",
+    minute: "2-digit",
+  });
 };
 
 const cargarVistasPorProveedor = (): Record<Proveedor, VistaProveedor> => {
@@ -264,16 +314,39 @@ const quitarFilasVaciasAlFinal = (filas: PedidoItem[]): PedidoItem[] => {
   return copy;
 };
 
-const segmentarFilasPedido = (filas: PedidoItem[]) => {
+type SegmentoPedido = "conCantidad" | "sinCantidad" | "borrador";
+
+/** A qué grupo pertenece una fila según su contenido (nombre + cantidad). */
+const segmentoDeFila = (f: PedidoItem): SegmentoPedido => {
+  if (!f.item.trim()) {
+    return "borrador";
+  }
+  if (esCantidadCeroOVacia(f.cantidad)) {
+    return "sinCantidad";
+  }
+  return "conCantidad";
+};
+
+/**
+ * Reparte las filas en tres grupos. `filaCongelada` mantiene una fila en el
+ * grupo que tenía al empezar a editarla, para que no “salte” mientras se tipea
+ * la cantidad (se reubica recién al salir del campo).
+ */
+const segmentarFilasPedido = (
+  filas: PedidoItem[],
+  filaCongelada?: { id: string; segmento: SegmentoPedido } | null
+) => {
   const conNombreYcantidad: PedidoItem[] = [];
   const conNombreSinCantidad: PedidoItem[] = [];
   const borradorVacio: PedidoItem[] = [];
   for (const f of filas) {
-    if (!f.item.trim()) {
+    const seg =
+      filaCongelada && filaCongelada.id === f.id
+        ? filaCongelada.segmento
+        : segmentoDeFila(f);
+    if (seg === "borrador") {
       borradorVacio.push(f);
-      continue;
-    }
-    if (esCantidadCeroOVacia(f.cantidad)) {
+    } else if (seg === "sinCantidad") {
       conNombreSinCantidad.push(f);
     } else {
       conNombreYcantidad.push(f);
@@ -351,6 +424,10 @@ function PedidoFilaEditableRow(props: {
   /** Añadir fila: enfoca nombre y hace scroll; se consume al aplicar. */
   enfocarNombre?: boolean;
   onEnfocarNombreConsumido?: () => void;
+  /** Avisa cuando la fila toma el foco (para congelar su grupo). */
+  onFilaEnfocada?: (fila: PedidoItem) => void;
+  /** Avisa cuando el foco sale de la fila por completo (para reubicarla). */
+  onFilaDesenfocada?: () => void;
 }) {
   const {
     proveedor,
@@ -359,6 +436,8 @@ function PedidoFilaEditableRow(props: {
     solicitarEliminarFila,
     enfocarNombre,
     onEnfocarNombreConsumido,
+    onFilaEnfocada,
+    onFilaDesenfocada,
   } = props;
   const itemRef = useRef<HTMLInputElement>(null);
   const cantidadRef = useRef<HTMLInputElement>(null);
@@ -378,7 +457,15 @@ function PedidoFilaEditableRow(props: {
   }, [enfocarNombre, fila.id]);
 
   return (
-    <div className="flex flex-wrap items-center gap-2 rounded-lg border border-zinc-800 bg-zinc-900/50 px-2 py-2">
+    <div
+      className="flex flex-wrap items-center gap-2 rounded-lg border border-zinc-800 bg-zinc-900/50 px-2 py-2"
+      onFocus={() => onFilaEnfocada?.(fila)}
+      onBlur={(e) => {
+        if (!e.currentTarget.contains(e.relatedTarget as Node | null)) {
+          onFilaDesenfocada?.();
+        }
+      }}
+    >
       <input
         ref={itemRef}
         value={fila.item}
@@ -440,6 +527,11 @@ export default function PedidosPage() {
   const [lastSyncLabel, setLastSyncLabel] = useState<string | null>(null);
   const [vistaPorProveedor, setVistaPorProveedor] =
     useState<Record<Proveedor, VistaProveedor>>(cargarVistasPorProveedor);
+  const [editadoPorProveedor, setEditadoPorProveedor] =
+    useState<Record<Proveedor, string | null>>(cargarEditadoPorProveedor);
+  /** Fila que se está editando: queda fija en su grupo hasta perder el foco. */
+  const [filaCongelada, setFilaCongelada] =
+    useState<{ id: string; segmento: SegmentoPedido } | null>(null);
   const [copiadoProveedor, setCopiadoProveedor] = useState<Proveedor | null>(null);
   /** Id de fila recién añadida para enfocar el nombre (único en la página; no filtrar por proveedor). */
   const [focoFilaNuevaId, setFocoFilaNuevaId] = useState<string | null>(null);
@@ -454,7 +546,7 @@ export default function PedidosPage() {
     const cargarDesdeNube = async () => {
       const { data, error } = await supabase
         .from("pedidos_proveedores")
-        .select("proveedor, items")
+        .select("proveedor, items, updated_at")
         .in("proveedor", [...PROVEEDORES]);
 
       if (error) {
@@ -466,6 +558,18 @@ export default function PedidosPage() {
       const rows = (data ?? []) as PedidoProveedorRow[];
       if (rows.length > 0) {
         setPedidosPorProveedor(mergeDesdeNube(rows));
+        setEditadoPorProveedor((prev) => {
+          const next = { ...prev };
+          rows.forEach((r) => {
+            if (
+              PROVEEDORES.includes(r.proveedor) &&
+              typeof r.updated_at === "string"
+            ) {
+              next[r.proveedor] = r.updated_at;
+            }
+          });
+          return next;
+        });
       }
       setSyncError(null);
       cargadoRemotoRef.current = true;
@@ -489,6 +593,17 @@ export default function PedidosPage() {
       // Ignora.
     }
   }, [vistaPorProveedor]);
+
+  useEffect(() => {
+    try {
+      window.localStorage.setItem(
+        STORAGE_EDITADO_KEY,
+        JSON.stringify(editadoPorProveedor)
+      );
+    } catch {
+      // Ignora.
+    }
+  }, [editadoPorProveedor]);
 
   useEffect(() => {
     return () => {
@@ -527,7 +642,8 @@ export default function PedidosPage() {
         const payload = PROVEEDORES.map((proveedor) => ({
           proveedor,
           items: pedidosPorProveedor[proveedor],
-          updated_at: new Date().toISOString(),
+          updated_at:
+            editadoPorProveedor[proveedor] ?? new Date().toISOString(),
         }));
         const { error } = await supabase
           .from("pedidos_proveedores")
@@ -570,6 +686,25 @@ export default function PedidosPage() {
     return parsearLineasPedidoMasivo(bulkText, bulkUnidadDefault);
   }, [bulkProveedor, bulkText, bulkUnidadDefault]);
 
+  const marcarEditado = (proveedor: Proveedor) => {
+    setEditadoPorProveedor((prev) => ({
+      ...prev,
+      [proveedor]: new Date().toISOString(),
+    }));
+  };
+
+  const congelarFila = (fila: PedidoItem) => {
+    setFilaCongelada((prev) =>
+      prev?.id === fila.id
+        ? prev
+        : { id: fila.id, segmento: segmentoDeFila(fila) }
+    );
+  };
+
+  const descongelarFila = () => {
+    setFilaCongelada(null);
+  };
+
   const actualizarFila = (
     proveedor: (typeof PROVEEDORES)[number],
     itemId: string,
@@ -581,6 +716,7 @@ export default function PedidosPage() {
         fila.id === itemId ? { ...fila, ...patch } : fila
       ),
     }));
+    marcarEditado(proveedor);
   };
 
   const agregarFila = (proveedor: (typeof PROVEEDORES)[number]) => {
@@ -590,6 +726,7 @@ export default function PedidosPage() {
       [proveedor]: [...actual[proveedor], nuevo],
     }));
     setFocoFilaNuevaId(nuevo.id);
+    marcarEditado(proveedor);
   };
 
   const abrirModalBulk = (proveedor: Proveedor) => {
@@ -626,6 +763,7 @@ export default function PedidosPage() {
         [bulkProveedor]: [...base, ...nuevos, crearItem()],
       };
     });
+    marcarEditado(bulkProveedor);
     cerrarModalBulk();
   };
 
@@ -637,6 +775,7 @@ export default function PedidosPage() {
         [proveedor]: filas.length <= 1 ? [crearItem()] : filas.filter((f) => f.id !== itemId),
       };
     });
+    marcarEditado(proveedor);
   };
 
   const solicitarEliminarFila = (
@@ -676,6 +815,7 @@ export default function PedidosPage() {
         [proveedor]: purgado.length > 0 ? purgado : [crearItem()],
       };
     });
+    marcarEditado(proveedor);
   };
 
   const setVistaProveedor = (proveedor: Proveedor, vista: VistaProveedor) => {
@@ -731,7 +871,8 @@ export default function PedidosPage() {
         <div className="grid gap-4 sm:grid-cols-2">
           {PROVEEDORES.map((proveedor) => {
             const { conNombreYcantidad, conNombreSinCantidad, borradorVacio } =
-              segmentarFilasPedido(pedidosPorProveedor[proveedor]);
+              segmentarFilasPedido(pedidosPorProveedor[proveedor], filaCongelada);
+            const ultimaEdicion = formatearFechaEdicion(editadoPorProveedor[proveedor]);
             return (
             <section
               key={proveedor}
@@ -791,6 +932,12 @@ export default function PedidosPage() {
                 ) : null}
               </div>
 
+              <p className="-mt-1 mb-3 text-[10px] text-zinc-600">
+                {ultimaEdicion
+                  ? `Última edición: ${ultimaEdicion}`
+                  : "Sin ediciones todavía"}
+              </p>
+
               {vistaPorProveedor[proveedor] === "editable" ? (
                 <div className="space-y-2">
                   {conNombreYcantidad.map((fila) => (
@@ -802,6 +949,8 @@ export default function PedidosPage() {
                       solicitarEliminarFila={solicitarEliminarFila}
                       enfocarNombre={focoFilaNuevaId === fila.id}
                       onEnfocarNombreConsumido={() => setFocoFilaNuevaId(null)}
+                      onFilaEnfocada={congelarFila}
+                      onFilaDesenfocada={descongelarFila}
                     />
                   ))}
                   {conNombreSinCantidad.length > 0 ? (
@@ -827,6 +976,8 @@ export default function PedidosPage() {
                           solicitarEliminarFila={solicitarEliminarFila}
                           enfocarNombre={focoFilaNuevaId === fila.id}
                           onEnfocarNombreConsumido={() => setFocoFilaNuevaId(null)}
+                          onFilaEnfocada={congelarFila}
+                          onFilaDesenfocada={descongelarFila}
                         />
                       ))}
                     </>
@@ -840,6 +991,8 @@ export default function PedidosPage() {
                       solicitarEliminarFila={solicitarEliminarFila}
                       enfocarNombre={focoFilaNuevaId === fila.id}
                       onEnfocarNombreConsumido={() => setFocoFilaNuevaId(null)}
+                      onFilaEnfocada={congelarFila}
+                      onFilaDesenfocada={descongelarFila}
                     />
                   ))}
                 </div>
