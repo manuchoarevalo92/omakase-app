@@ -243,6 +243,25 @@ export default function Home() {
     return platosConEstado.filter((plato) => !plato.disponible);
   }, [platosConEstado]);
 
+  /** Platos ya elegidos en el menú servido; no deben poder repetirse en los extras. */
+  const idsEnMenuSeleccionado = useMemo(() => {
+    const ids = menuNigiriOnly
+      ? omakaseNigiri
+      : [
+          ...omakaseOtsumami,
+          ...omakaseOtsumamiRegalo,
+          ...omakaseNigiri,
+          ...omakasePostre,
+        ];
+    return new Set(ids.filter((id) => id.trim().length > 0));
+  }, [
+    menuNigiriOnly,
+    omakaseOtsumami,
+    omakaseOtsumamiRegalo,
+    omakaseNigiri,
+    omakasePostre,
+  ]);
+
   const resumenDerivadoDelFormulario = useMemo((): ResumenServicio => {
     return {
       fecha: fechaServicio,
@@ -1033,19 +1052,27 @@ export default function Home() {
                           {CATEGORIAS_EXTRAS.map((categoria) => (
                             <optgroup key={categoria} label={categoria}>
                               {(extrasDisponiblesPorCategoria.get(categoria) ?? []).map(
-                                (plato) => (
-                                  <option
-                                    key={plato.id}
-                                    value={plato.id}
-                                    disabled={esOpcionDuplicadaEnSeccion(
-                                      extensionSlots,
-                                      index,
-                                      plato.id
-                                    )}
-                                  >
-                                    {plato.nombre}
-                                  </option>
-                                )
+                                (plato) => {
+                                  const yaEnMenu = idsEnMenuSeleccionado.has(plato.id);
+                                  const yaEnExtras = esOpcionDuplicadaEnSeccion(
+                                    extensionSlots,
+                                    index,
+                                    plato.id
+                                  );
+                                  // Nunca deshabilitar el valor ya elegido en este slot.
+                                  const deshabilitado =
+                                    (yaEnMenu || yaEnExtras) && plato.id !== valor;
+                                  return (
+                                    <option
+                                      key={plato.id}
+                                      value={plato.id}
+                                      disabled={deshabilitado}
+                                    >
+                                      {plato.nombre}
+                                      {yaEnMenu ? " · ya en el menú" : ""}
+                                    </option>
+                                  );
+                                }
                               )}
                             </optgroup>
                           ))}
