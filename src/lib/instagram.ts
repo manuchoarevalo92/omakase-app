@@ -5,7 +5,8 @@ import { supabase } from "@/src/lib/supabase";
 const GRAPH_BASE = "https://graph.instagram.com";
 /** El token de larga duración vive 60 días; lo renovamos cuando supera los 7. */
 const REFRESH_AFTER_MS = 7 * 24 * 60 * 60 * 1000;
-const POSTS_LIMIT = 10;
+/** 12 posts: desktop muestra 4 filas de 3; móvil oculta los 2 últimos (5 filas de 2). */
+const POSTS_LIMIT = 12;
 
 export type InstagramPost = {
   id: string;
@@ -148,6 +149,8 @@ async function fetchFeed(): Promise<InstagramFeed> {
  * en cada carga (límite de ~200 llamadas/hora) y las URLs firmadas del CDN de
  * Instagram se refrescan antes de caducar.
  */
-export const getInstagramFeed = unstable_cache(fetchFeed, ["instagram-feed"], {
-  revalidate: 3600,
-});
+export const getInstagramFeed = unstable_cache(
+  fetchFeed,
+  ["instagram-feed", String(POSTS_LIMIT)],
+  { revalidate: 3600 }
+);
