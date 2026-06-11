@@ -18,6 +18,11 @@ export async function proxy(request: NextRequest) {
     return NextResponse.next();
   }
 
+  // Widgets públicos embebibles (p. ej. feed de Instagram en Wix): sin sesión.
+  if (pathname.startsWith("/widget")) {
+    return NextResponse.next();
+  }
+
   const token = request.cookies.get("omakase_session")?.value;
   const session = await verifySessionToken(token);
 

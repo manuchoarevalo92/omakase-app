@@ -34,7 +34,7 @@ export function MainNav() {
   const [loggingOut, setLoggingOut] = useState(false);
 
   const loadSession = useCallback(async () => {
-    if (pathname === "/login") {
+    if (pathname === "/login" || pathname.startsWith("/widget")) {
       setSession(null);
       return;
     }
@@ -110,7 +110,7 @@ export function MainNav() {
     }
   };
 
-  if (pathname === "/login") {
+  if (pathname === "/login" || pathname.startsWith("/widget")) {
     return null;
   }
 
