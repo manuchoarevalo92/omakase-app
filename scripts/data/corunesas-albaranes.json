@@ -1,0 +1,116 @@
+[
+  {"fecha":"2026-04-04","producto":"Sepia","cantidad":6,"precio":17.9,"importe":107.4,"unidad":"Kilo"},
+  {"fecha":"2026-04-04","producto":"Caballa","cantidad":2.7,"precio":9.9,"importe":26.73,"unidad":"Kilo"},
+  {"fecha":"2026-04-04","producto":"Gamba roja","cantidad":0.5,"precio":85,"importe":42.5,"unidad":"Kilo"},
+
+  {"fecha":"2026-04-08","producto":"Rey","cantidad":0.6,"precio":24,"importe":14.4,"unidad":"Kilo"},
+  {"fecha":"2026-04-08","producto":"Caballa","cantidad":3,"precio":9.9,"importe":29.7,"unidad":"Kilo"},
+  {"fecha":"2026-04-08","producto":"Gamba roja","cantidad":1,"precio":85,"importe":85,"unidad":"Kilo"},
+
+  {"fecha":"2026-04-10","producto":"Virrey","cantidad":1.5,"precio":72.5,"importe":108.75,"unidad":"Kilo"},
+  {"fecha":"2026-04-10","producto":"Caballa","cantidad":1.6,"precio":9.9,"importe":15.84,"unidad":"Kilo"},
+
+  {"fecha":"2026-04-15","producto":"Caballa","cantidad":2.5,"precio":9.9,"importe":24.75,"unidad":"Kilo"},
+  {"fecha":"2026-04-15","producto":"Gamba roja","cantidad":1,"precio":85,"importe":85,"unidad":"Kilo"},
+  {"fecha":"2026-04-15","producto":"Rey","cantidad":1,"precio":30.8,"importe":30.8,"unidad":"Kilo"},
+
+  {"fecha":"2026-04-16","producto":"Sepia","cantidad":3.3,"precio":17.9,"importe":59.07,"unidad":"Kilo"},
+  {"fecha":"2026-04-16","producto":"Caballa","cantidad":1.95,"precio":9.9,"importe":19.31,"unidad":"Kilo"},
+  {"fecha":"2026-04-16","producto":"Gamba roja","cantidad":1,"precio":85,"importe":85,"unidad":"Kilo"},
+
+  {"fecha":"2026-04-18","producto":"Caballa","cantidad":2.1,"precio":9.9,"importe":20.79,"unidad":"Kilo"},
+  {"fecha":"2026-04-18","producto":"Besugo","cantidad":0.8,"precio":42.5,"importe":34,"unidad":"Kilo"},
+
+  {"fecha":"2026-04-22","producto":"Gamba roja","cantidad":1,"precio":85,"importe":85,"unidad":"Kilo"},
+  {"fecha":"2026-04-22","producto":"Rey","cantidad":0.85,"precio":26.5,"importe":22.53,"unidad":"Kilo"},
+
+  {"fecha":"2026-04-23","producto":"Rape hígado","cantidad":1.8,"precio":12.9,"importe":23.22,"unidad":"Kilo"},
+
+  {"fecha":"2026-04-24","producto":"Bonito","cantidad":2.6,"precio":15,"importe":39,"unidad":"Kilo"},
+
+  {"fecha":"2026-04-29","producto":"Salmón","cantidad":11.95,"precio":13.8,"importe":164.91,"unidad":"Kilo"},
+
+  {"fecha":"2026-04-30","producto":"Chipirón","cantidad":0.5,"precio":22.5,"importe":11.25,"unidad":"Kilo"},
+
+  {"fecha":"2026-05-05","producto":"Rape hígado","cantidad":2.2,"precio":12.9,"importe":28.38,"unidad":"Kilo"},
+
+  {"fecha":"2026-05-06","producto":"Chipirón","cantidad":0.5,"precio":22.5,"importe":11.25,"unidad":"Kilo"},
+  {"fecha":"2026-05-06","producto":"Caballa","cantidad":2,"precio":9.9,"importe":19.8,"unidad":"Kilo"},
+  {"fecha":"2026-05-06","producto":"Virrey","cantidad":1.1,"precio":72.5,"importe":79.75,"unidad":"Kilo"},
+  {"fecha":"2026-05-06","producto":"Gamba roja","cantidad":1,"precio":85,"importe":85,"unidad":"Kilo"},
+  {"fecha":"2026-05-06","producto":"Sepia","cantidad":3.8,"precio":17.9,"importe":68.02,"unidad":"Kilo"},
+
+  {"fecha":"2026-05-07","producto":"Erizo de mar","cantidad":1.1,"precio":26.5,"importe":29.15,"unidad":"Kilo"},
+  {"fecha":"2026-05-07","producto":"Dorada","cantidad":1.2,"precio":32.5,"importe":39,"unidad":"Kilo"},
+  {"fecha":"2026-05-07","producto":"Caballa","cantidad":1.7,"precio":9.9,"importe":16.83,"unidad":"Kilo"},
+  {"fecha":"2026-05-07","producto":"Besugo","cantidad":1.85,"precio":41.8,"importe":77.33,"unidad":"Kilo"},
+  {"fecha":"2026-05-07","producto":"Vieira","cantidad":8,"precio":4.4,"importe":35.2,"unidad":"Unidad"},
+  {"fecha":"2026-05-07","producto":"Sepia","cantidad":3.45,"precio":17.9,"importe":61.76,"unidad":"Kilo"},
+  {"fecha":"2026-05-07","producto":"Varios pescado","cantidad":2.75,"precio":25.5,"importe":70.13,"unidad":"Kilo"},
+
+  {"fecha":"2026-05-14","producto":"Sepia","cantidad":4.5,"precio":17.9,"importe":80.55,"unidad":"Kilo"},
+  {"fecha":"2026-05-14","producto":"Rape hígado","cantidad":1.5,"precio":12.9,"importe":19.35,"unidad":"Kilo"},
+  {"fecha":"2026-05-14","producto":"Chipirón","cantidad":0.5,"precio":22.5,"importe":11.25,"unidad":"Kilo"},
+
+  {"fecha":"2026-05-16","producto":"Sepia","cantidad":4.3,"precio":17.9,"importe":76.97,"unidad":"Kilo"},
+  {"fecha":"2026-05-16","producto":"Ventresca","cantidad":2.2,"precio":49.8,"importe":109.56,"unidad":"Kilo"},
+  {"fecha":"2026-05-16","producto":"Besugo","cantidad":1.2,"precio":42.5,"importe":51,"unidad":"Kilo"},
+  {"fecha":"2026-05-16","producto":"Chipirón","cantidad":0.5,"precio":22.5,"importe":11.25,"unidad":"Kilo"},
+  {"fecha":"2026-05-16","producto":"Erizo de mar","cantidad":1.1,"precio":26.5,"importe":29.15,"unidad":"Kilo"},
+  {"fecha":"2026-05-16","producto":"Gamba roja","cantidad":0.5,"precio":85,"importe":42.5,"unidad":"Kilo"},
+
+  {"fecha":"2026-05-20","producto":"Gamba roja","cantidad":1,"precio":85,"importe":85,"unidad":"Kilo"},
+  {"fecha":"2026-05-20","producto":"Caballa","cantidad":1.6,"precio":9.9,"importe":15.84,"unidad":"Kilo"},
+  {"fecha":"2026-05-20","producto":"Bonito","cantidad":1.2,"precio":12.5,"importe":15,"unidad":"Kilo"},
+
+  {"fecha":"2026-05-21","producto":"Sepia","cantidad":6.2,"precio":17.9,"importe":110.98,"unidad":"Kilo"},
+
+  {"fecha":"2026-05-22","producto":"Chipirón","cantidad":0.5,"precio":22.5,"importe":11.25,"unidad":"Kilo"},
+  {"fecha":"2026-05-22","producto":"Sepia","cantidad":7.1,"precio":17.9,"importe":127.09,"unidad":"Kilo"},
+
+  {"fecha":"2026-05-26","producto":"Besugo","cantidad":1.5,"precio":45.9,"importe":68.85,"unidad":"Kilo"},
+  {"fecha":"2026-05-26","producto":"Chipirón","cantidad":1,"precio":22.5,"importe":22.5,"unidad":"Kilo"},
+  {"fecha":"2026-05-26","producto":"Dorada","cantidad":1.6,"precio":36.9,"importe":59.04,"unidad":"Kilo"},
+
+  {"fecha":"2026-05-27","producto":"Gamba roja","cantidad":1,"precio":85,"importe":85,"unidad":"Kilo"},
+  {"fecha":"2026-05-27","producto":"Rape hígado","cantidad":1.9,"precio":12.9,"importe":24.51,"unidad":"Kilo"},
+  {"fecha":"2026-05-27","producto":"Chipirón","cantidad":1,"precio":22.5,"importe":22.5,"unidad":"Kilo"},
+  {"fecha":"2026-05-27","producto":"Salmón","cantidad":5.8,"precio":13.8,"importe":80.04,"unidad":"Kilo"},
+
+  {"fecha":"2026-05-28","producto":"Sepia","cantidad":4.85,"precio":17.9,"importe":86.82,"unidad":"Kilo"},
+
+  {"fecha":"2026-06-01","producto":"Sepia","cantidad":3.3,"precio":17.9,"importe":59.07,"unidad":"Kilo"},
+
+  {"fecha":"2026-06-03","producto":"Gamba roja","cantidad":1,"precio":78,"importe":78,"unidad":"Kilo"},
+  {"fecha":"2026-06-03","producto":"Sepia","cantidad":5.2,"precio":17.9,"importe":93.08,"unidad":"Kilo"},
+
+  {"fecha":"2026-06-05","producto":"Sepia","cantidad":5.2,"precio":17.9,"importe":93.08,"unidad":"Kilo"},
+  {"fecha":"2026-06-05","producto":"Bonito","cantidad":6.3,"precio":11.5,"importe":72.45,"unidad":"Kilo"},
+
+  {"fecha":"2026-06-08","producto":"Sepia","cantidad":1.9,"precio":17.9,"importe":34.01,"unidad":"Kilo"},
+
+  {"fecha":"2026-06-09","producto":"Rey","cantidad":0.9,"precio":35.9,"importe":32.31,"unidad":"Kilo"},
+  {"fecha":"2026-06-09","producto":"Gamba roja","cantidad":1,"precio":78,"importe":78,"unidad":"Kilo"},
+  {"fecha":"2026-06-09","producto":"Sepia","cantidad":4.3,"precio":17.9,"importe":76.97,"unidad":"Kilo"},
+
+  {"fecha":"2026-06-11","producto":"Sepia","cantidad":4,"precio":17.9,"importe":71.6,"unidad":"Kilo"},
+
+  {"fecha":"2026-06-13","producto":"Bonito","cantidad":7.1,"precio":11.5,"importe":81.65,"unidad":"Kilo"},
+  {"fecha":"2026-06-13","producto":"Sepia","cantidad":4.9,"precio":17.9,"importe":87.71,"unidad":"Kilo"},
+  {"fecha":"2026-06-13","producto":"Gamba roja","cantidad":1.2,"precio":78,"importe":93.6,"unidad":"Kilo"},
+  {"fecha":"2026-06-13","producto":"Rey","cantidad":1.1,"precio":35.9,"importe":39.49,"unidad":"Kilo"},
+
+  {"fecha":"2026-06-17","producto":"Bonito","cantidad":7.45,"precio":11.5,"importe":85.68,"unidad":"Kilo"},
+  {"fecha":"2026-06-17","producto":"Sepia","cantidad":5.2,"precio":17.9,"importe":93.08,"unidad":"Kilo"},
+  {"fecha":"2026-06-17","producto":"Gamba roja","cantidad":1,"precio":78,"importe":78,"unidad":"Kilo"},
+  {"fecha":"2026-06-17","producto":"Rey","cantidad":0.7,"precio":35.9,"importe":25.13,"unidad":"Kilo"},
+
+  {"fecha":"2026-06-19","producto":"Sepia","cantidad":5,"precio":17.9,"importe":89.5,"unidad":"Kilo"},
+  {"fecha":"2026-06-19","producto":"Bonito","cantidad":4.8,"precio":11.5,"importe":55.2,"unidad":"Kilo"},
+
+  {"fecha":"2026-06-20","producto":"Sepia","cantidad":5.4,"precio":17.9,"importe":96.66,"unidad":"Kilo"},
+  {"fecha":"2026-06-20","producto":"Chipirón","cantidad":0.5,"precio":22.5,"importe":11.25,"unidad":"Kilo"},
+
+  {"fecha":"2026-06-27","producto":"Sepia","cantidad":2.2,"precio":17.9,"importe":39.38,"unidad":"Kilo"},
+  {"fecha":"2026-06-27","producto":"Chipirón","cantidad":0.5,"precio":22.5,"importe":11.25,"unidad":"Kilo"}
+]

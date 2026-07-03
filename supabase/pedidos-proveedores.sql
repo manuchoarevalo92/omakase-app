@@ -8,9 +8,10 @@ create table if not exists public.pedidos_proveedores (
   constraint pedidos_proveedores_proveedor_check
     check (
       proveedor in (
-        'Cominport',
-        'Arrom',
-        'García de Pou',
+      'Cominport',
+      'Arrom',
+      'Pescaderías Coruñesas',
+      'García de Pou',
         'Verdulería',
         'Supermercado',
         'Vila Viniteca',

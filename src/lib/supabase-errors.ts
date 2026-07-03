@@ -19,7 +19,7 @@ export function formatPostgrestError(error: {
       msg.includes("proveedor_check"))
   ) {
     bits.push(
-      "El CHECK de la columna proveedor en Supabase está desactualizado (faltan proveedores nuevos en la lista permitida). En Dashboard → SQL Editor ejecutá el script del repo: supabase/pedidos-proveedores-extend-proveedores.sql y volvé a cargar la página."
+      "El CHECK de la columna proveedor en Supabase está desactualizado (faltan proveedores nuevos en la lista permitida). En Dashboard → SQL Editor ejecutá: supabase/proveedores-pescaderias-corunesas.sql (o supabase/pedidos-proveedores-extend-proveedores.sql) y volvé a cargar la página."
     );
   }
   if (
@@ -59,6 +59,14 @@ export function formatPostgrestError(error: {
       bits.push(
         "RLS en ingredientes: la app usa la anon key. Hacen falta políticas SELECT, INSERT, UPDATE y DELETE para anon (ver supabase/ingredientes-rls-anon.sql en el repo)."
       );
+    } else if (msg.includes("compras_historial")) {
+      bits.push(
+        "RLS en compras_historial: hacen falta políticas SELECT, INSERT, UPDATE y DELETE para anon (ver supabase/compras-historial-rls-anon.sql en el repo)."
+      );
+    } else if (msg.includes("stock_items")) {
+      bits.push(
+        "RLS en stock_items: hacen falta políticas SELECT, INSERT, UPDATE y DELETE para anon (ver supabase/stock-items-rls-anon.sql en el repo)."
+      );
     } else {
       bits.push(
         "Error de permisos / RLS en Supabase: revisá las políticas de la tabla indicada en el mensaje para el rol anon (clave pública del cliente)."
@@ -83,6 +91,28 @@ export function formatPostgrestError(error: {
         "Ejemplo: supabase/ingredientes-rubro.sql (columna rubro en public.ingredientes)."
       );
     }
+    if (msg.includes("stock_items")) {
+      bits.push(
+        "Ejecutá supabase/stock-items.sql en el SQL Editor para crear la tabla stock_items."
+      );
+    }
+    if (msg.includes("compras_historial") && (msg.includes("precio") || msg.includes("importe"))) {
+      bits.push(
+        "Ejecutá supabase/compras-historial-precio.sql en el SQL Editor (columnas precio_unitario e importe_total)."
+      );
+    } else if (msg.includes("compras_historial")) {
+      bits.push(
+        "Ejecutá supabase/compras-historial.sql en el SQL Editor para crear la tabla compras_historial."
+      );
+    }
+  }
+  if (
+    msg.includes("stock_items") &&
+    (msg.includes("stock_items_proveedor_check") || msg.includes("proveedor_check"))
+  ) {
+    bits.push(
+      "El CHECK de la columna proveedor en stock_items no incluye ese valor. Revisá supabase/stock-items.sql y agregá el proveedor nuevo a la lista permitida."
+    );
   }
   return bits.filter(Boolean).join(" ");
 }

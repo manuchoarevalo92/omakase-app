@@ -10,6 +10,7 @@ alter table public.pedidos_proveedores
     proveedor in (
       'Cominport',
       'Arrom',
+      'Pescaderías Coruñesas',
       'García de Pou',
       'Verdulería',
       'Supermercado',

@@ -5,8 +5,13 @@ import { useEffect, useMemo, useRef, useState } from "react";
 
 import { formatPostgrestError } from "@/src/lib/supabase-errors";
 import { supabase } from "@/src/lib/supabase";
-
-type UnidadMedida = "Caja" | "Kilo" | "Unidad";
+import {
+  PROVEEDORES,
+  UNIDADES,
+  type Proveedor,
+  type UnidadMedida,
+} from "@/src/lib/proveedores";
+import { parsearLineasMasivo, type LineaParseada } from "@/src/lib/parseo-lineas";
 
 type PedidoItem = {
   id: string;
@@ -15,25 +20,12 @@ type PedidoItem = {
   unidad: UnidadMedida;
 };
 
-const PROVEEDORES = [
-  "Cominport",
-  "Arrom",
-  "García de Pou",
-  "Verdulería",
-  "Supermercado",
-  "Vila Viniteca",
-  "Vinalia",
-] as const;
-
-type Proveedor = (typeof PROVEEDORES)[number];
-
 type PedidoProveedorRow = {
   proveedor: Proveedor;
   items: PedidoItem[] | null;
   updated_at?: string | null;
 };
 
-const UNIDADES: UnidadMedida[] = ["Caja", "Kilo", "Unidad"];
 const STORAGE_KEY = "omakase_pedidos_v1";
 const STORAGE_VISTAS_KEY = "omakase_pedidos_vistas_v1";
 const STORAGE_EDITADO_KEY = "omakase_pedidos_editado_v1";
@@ -204,101 +196,6 @@ const esCantidadCeroOVacia = (cantidad: string): boolean => {
   if (t === "") return true;
   const n = parseFloat(t.replace(",", "."));
   return !Number.isNaN(n) && n === 0;
-};
-
-type LineaPedidoParseada = {
-  item: string;
-  cantidad: string;
-  unidad: UnidadMedida;
-};
-
-const normalizarUnidadDesdeTexto = (s: string): UnidadMedida | null => {
-  const t = s.trim();
-  if (UNIDADES.includes(t as UnidadMedida)) {
-    return t as UnidadMedida;
-  }
-  const lower = t.toLowerCase();
-  if (lower === "caja" || lower === "cajas") return "Caja";
-  if (lower === "kilo" || lower === "kg" || lower === "kilos") return "Kilo";
-  if (lower === "unidad" || lower === "unidades" || lower === "ud" || lower === "uds" || lower === "u.")
-    return "Unidad";
-  return null;
-};
-
-/**
- * Parsea muchas líneas para pegar listas (vinos, sake, etc.).
- * Formatos: una referencia por línea; `nombre: cantidad`; `nombre: cantidad Caja`;
- * `nombre | cantidad | Unidad`; columnas con tab igual que pipes.
- */
-const parsearLineasPedidoMasivo = (
-  texto: string,
-  unidadPorDefecto: UnidadMedida
-): LineaPedidoParseada[] => {
-  const out: LineaPedidoParseada[] = [];
-  for (const raw of texto.split(/\r?\n/)) {
-    const line = raw.trim();
-    if (!line) {
-      continue;
-    }
-
-    if (line.includes("|")) {
-      const parts = line.split("|").map((p) => p.trim());
-      const item = parts[0] ?? "";
-      if (!item) {
-        continue;
-      }
-      const cantidad = parts[1] ?? "";
-      const u = parts[2] ? normalizarUnidadDesdeTexto(parts[2]) : null;
-      out.push({ item, cantidad, unidad: u ?? unidadPorDefecto });
-      continue;
-    }
-
-    if (line.includes("\t")) {
-      const parts = line.split(/\t/).map((p) => p.trim());
-      const item = parts[0] ?? "";
-      if (!item) {
-        continue;
-      }
-      const cantidad = parts[1] ?? "";
-      const u = parts[2] ? normalizarUnidadDesdeTexto(parts[2]) : null;
-      out.push({ item, cantidad, unidad: u ?? unidadPorDefecto });
-      continue;
-    }
-
-    const colon = line.indexOf(":");
-    if (colon !== -1) {
-      const left = line.slice(0, colon).trim();
-      const rest = line.slice(colon + 1).trim();
-      if (!left) {
-        continue;
-      }
-      if (!rest) {
-        out.push({ item: left, cantidad: "", unidad: unidadPorDefecto });
-        continue;
-      }
-      const tokens = rest.split(/\s+/).filter(Boolean);
-      const lastTok = tokens[tokens.length - 1] ?? "";
-      const maybeUnit = normalizarUnidadDesdeTexto(lastTok);
-      if (maybeUnit && tokens.length >= 1) {
-        const qtyTokens = tokens.slice(0, -1);
-        out.push({
-          item: left,
-          cantidad: qtyTokens.join(" ").trim(),
-          unidad: maybeUnit,
-        });
-      } else {
-        out.push({
-          item: left,
-          cantidad: tokens.join(" ").trim(),
-          unidad: unidadPorDefecto,
-        });
-      }
-      continue;
-    }
-
-    out.push({ item: line, cantidad: "", unidad: unidadPorDefecto });
-  }
-  return out;
 };
 
 /** Quita filas totalmente vacías al final (deja al menos una si todo está vacío). */
@@ -681,9 +578,9 @@ export default function PedidosPage() {
 
   const lineasBulkPreview = useMemo(() => {
     if (!bulkProveedor) {
-      return [] as LineaPedidoParseada[];
+      return [] as LineaParseada[];
     }
-    return parsearLineasPedidoMasivo(bulkText, bulkUnidadDefault);
+    return parsearLineasMasivo(bulkText, bulkUnidadDefault);
   }, [bulkProveedor, bulkText, bulkUnidadDefault]);
 
   const marcarEditado = (proveedor: Proveedor) => {
@@ -744,7 +641,7 @@ export default function PedidosPage() {
     if (!bulkProveedor) {
       return;
     }
-    const lineas = parsearLineasPedidoMasivo(bulkText, bulkUnidadDefault);
+    const lineas = parsearLineasMasivo(bulkText, bulkUnidadDefault);
     const nuevos: PedidoItem[] = lineas
       .filter((l) => l.item.trim().length > 0)
       .map((l) => ({

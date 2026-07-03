@@ -11,9 +11,12 @@ const ALL_LINKS = [
   { href: "/pedidos", label: "Pedidos" },
   { href: "/platos", label: "Platos" },
   { href: "/inventario", label: "Ingredientes" },
+  { href: "/stock", label: "Stock" },
   { href: "/receta", label: "Receta" },
   { href: "/historial", label: "Historial" },
   { href: "/estadisticas", label: "Stats" },
+  { href: "/compras", label: "Compras" },
+  { href: "/gasto", label: "Gasto" },
 ] as const;
 
 const STAFF_HREFS = new Set<string>([
@@ -21,6 +24,7 @@ const STAFF_HREFS = new Set<string>([
   "/bebidas",
   "/pedidos",
   "/inventario",
+  "/stock",
   "/historial",
 ]);
 
