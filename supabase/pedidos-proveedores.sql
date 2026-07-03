@@ -12,7 +12,8 @@ create table if not exists public.pedidos_proveedores (
       'Arrom',
       'Pescaderías Coruñesas',
       'García de Pou',
-        'Verdulería',
+      'Nishikidori',
+      'Verdulería',
         'Supermercado',
         'Vila Viniteca',
         'Vinalia'

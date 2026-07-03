@@ -18,8 +18,9 @@ create table if not exists public.compras_historial (
         'Cominport',
         'Arrom',
         'Pescaderías Coruñesas',
-        'García de Pou',
-        'Verdulería',
+      'García de Pou',
+      'Nishikidori',
+      'Verdulería',
         'Supermercado',
         'Vila Viniteca',
         'Vinalia'

@@ -43,7 +43,17 @@ function InstagramGlyph({ className }: { className?: string }) {
 }
 
 export default async function InstagramWidgetPage() {
-  const { username, posts } = await getInstagramFeed();
+  let username: string | null = null;
+  let posts: InstagramPost[] = [];
+
+  try {
+    const feed = await getInstagramFeed();
+    username = feed.username;
+    posts = feed.posts;
+  } catch (error) {
+    console.error("[instagram] widget:", error);
+  }
+
   const profileUrl = username
     ? `https://www.instagram.com/${username}/`
     : "https://www.instagram.com/";

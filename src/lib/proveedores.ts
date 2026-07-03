@@ -10,6 +10,7 @@ export const PROVEEDORES = [
   "Arrom",
   "Pescaderías Coruñesas",
   "García de Pou",
+  "Nishikidori",
   "Verdulería",
   "Supermercado",
   "Vila Viniteca",

@@ -276,10 +276,24 @@ const PREAMBLE_TEXTO_LISTA_PEDIDO_COMINPORT = [
   "",
 ].join("\n");
 
-const preambleListaPedidoPorProveedor = (proveedor: Proveedor): string =>
-  proveedor === "Cominport"
-    ? PREAMBLE_TEXTO_LISTA_PEDIDO_COMINPORT
-    : PREAMBLE_TEXTO_LISTA_PEDIDO_DEFECTO;
+const PREAMBLE_TEXTO_LISTA_PEDIDO_NISHIKIDORI = [
+  "Bonjour, je vous passe commande :",
+  "Client YUKU MADRID — CIF ESB56825342",
+  "Livraison : Alfonso X 6, Chamberí, 28010 Madrid",
+  "Tél. si absent : +34 664 63 56 69",
+  "",
+  "",
+].join("\n");
+
+const preambleListaPedidoPorProveedor = (proveedor: Proveedor): string => {
+  if (proveedor === "Cominport") {
+    return PREAMBLE_TEXTO_LISTA_PEDIDO_COMINPORT;
+  }
+  if (proveedor === "Nishikidori") {
+    return PREAMBLE_TEXTO_LISTA_PEDIDO_NISHIKIDORI;
+  }
+  return PREAMBLE_TEXTO_LISTA_PEDIDO_DEFECTO;
+};
 
 const textoPedidoComprimido = (
   filas: PedidoItem[]

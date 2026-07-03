@@ -1,0 +1,306 @@
+[
+  {
+    "fecha": "2026-03-02",
+    "producto": "KIRIWARISHOU, 10-20 cm, Ø 2,0-4,0 cm, 1/2 ou 1/4 de lune, colis 15 kg",
+    "cantidad": 1,
+    "precio": 84,
+    "importe": 84,
+    "unidad": "Caja"
+  },
+  {
+    "fecha": "2026-03-02",
+    "producto": "Sauce soja au sel truffé 180 ml",
+    "cantidad": 1,
+    "precio": 0,
+    "importe": 0,
+    "unidad": "Unidad"
+  },
+  {
+    "fecha": "2026-03-27",
+    "producto": "Fécule d'arrow-root Hon Kuzu (100% hon'kuzu) en poudre 100g",
+    "cantidad": 1,
+    "precio": 7.3,
+    "importe": 7.3,
+    "unidad": "Unidad"
+  },
+  {
+    "fecha": "2026-03-27",
+    "producto": "Feuilles de cerisier sakura en fleur salées x50",
+    "cantidad": 2,
+    "precio": 8.15,
+    "importe": 16.3,
+    "unidad": "Unidad"
+  },
+  {
+    "fecha": "2026-03-27",
+    "producto": "Feuilles de cerisier sakura salées x 10, dim. 12/13 cm * 5,5/6,5 cm",
+    "cantidad": 1,
+    "precio": 4.65,
+    "importe": 4.65,
+    "unidad": "Unidad"
+  },
+  {
+    "fecha": "2026-03-27",
+    "producto": "Miso blanc SHIRO MISO 100g",
+    "cantidad": 3,
+    "precio": 3.4,
+    "importe": 10.2,
+    "unidad": "Unidad"
+  },
+  {
+    "fecha": "2026-03-27",
+    "producto": "Miso blanc vinaigré et moutardé karashimiso 300g",
+    "cantidad": 3,
+    "precio": 6.9,
+    "importe": 20.7,
+    "unidad": "Unidad"
+  },
+  {
+    "fecha": "2026-03-27",
+    "producto": "Miso blanc vinaigré sumiso 300g",
+    "cantidad": 3,
+    "precio": 6.9,
+    "importe": 20.7,
+    "unidad": "Unidad"
+  },
+  {
+    "fecha": "2026-03-27",
+    "producto": "Sauce soja au sel truffé 180 ml",
+    "cantidad": 1,
+    "precio": 0,
+    "importe": 0,
+    "unidad": "Unidad"
+  },
+  {
+    "fecha": "2026-03-27",
+    "producto": "Vinaigre de riz Junmai Fujisu Supérieur 1800ml",
+    "cantidad": 3,
+    "precio": 28.7,
+    "importe": 86.1,
+    "unidad": "Unidad"
+  },
+  {
+    "fecha": "2026-03-27",
+    "producto": "Vinaigre noir de riz Genmai 500ml",
+    "cantidad": 1,
+    "precio": 21.9,
+    "importe": 21.9,
+    "unidad": "Unidad"
+  },
+  {
+    "fecha": "2026-03-27",
+    "producto": "Vinaigre rouge Kohaku 1800 ml",
+    "cantidad": 4,
+    "precio": 17.65,
+    "importe": 70.6,
+    "unidad": "Unidad"
+  },
+  {
+    "fecha": "2026-04-08",
+    "producto": "Honden Tohi Akazaké 12%, 300ml",
+    "cantidad": 1,
+    "precio": 7,
+    "importe": 7,
+    "unidad": "Unidad"
+  },
+  {
+    "fecha": "2026-04-08",
+    "producto": "Mirin blanc Shiro, vol. 14%, 1800 ml",
+    "cantidad": 1,
+    "precio": 37.05,
+    "importe": 37.05,
+    "unidad": "Unidad"
+  },
+  {
+    "fecha": "2026-04-08",
+    "producto": "Saké à cuisiner IZUMO JIDENSHU 13% - 720 ml",
+    "cantidad": 1,
+    "precio": 15.5,
+    "importe": 15.5,
+    "unidad": "Unidad"
+  },
+  {
+    "fecha": "2026-04-16",
+    "producto": "Honden Tohi Akazaké 12%, 300ml",
+    "cantidad": 1,
+    "precio": 8.75,
+    "importe": 8.75,
+    "unidad": "Unidad"
+  },
+  {
+    "fecha": "2026-04-16",
+    "producto": "Mirin blanc Shiro, vol. 14%, 1800 ml",
+    "cantidad": 1,
+    "precio": 40.75,
+    "importe": 40.75,
+    "unidad": "Unidad"
+  },
+  {
+    "fecha": "2026-04-16",
+    "producto": "Okasumiso ciboule de Toyama 300g",
+    "cantidad": 1,
+    "precio": 0,
+    "importe": 0,
+    "unidad": "Unidad"
+  },
+  {
+    "fecha": "2026-04-16",
+    "producto": "Ponzu Pon de Dore aux ciboules longues 200 ml",
+    "cantidad": 1,
+    "precio": 0,
+    "importe": 0,
+    "unidad": "Unidad"
+  },
+  {
+    "fecha": "2026-04-16",
+    "producto": "Rishiri kombu de Hokkaido 40g",
+    "cantidad": 2,
+    "precio": 5.35,
+    "importe": 10.7,
+    "unidad": "Unidad"
+  },
+  {
+    "fecha": "2026-04-16",
+    "producto": "Rishiri kombu de Hokkaido 40g",
+    "cantidad": 7,
+    "precio": 5.35,
+    "importe": 37.45,
+    "unidad": "Unidad"
+  },
+  {
+    "fecha": "2026-04-16",
+    "producto": "Rishiri kombu de Hokkaido 40g",
+    "cantidad": 16,
+    "precio": 5.35,
+    "importe": 85.6,
+    "unidad": "Unidad"
+  },
+  {
+    "fecha": "2026-04-16",
+    "producto": "Saké à cuisiner IZUMO JIDENSHU 13% - 720 ml",
+    "cantidad": 1,
+    "precio": 19.58,
+    "importe": 19.58,
+    "unidad": "Unidad"
+  },
+  {
+    "fecha": "2026-04-16",
+    "producto": "Sauce tare Bannou vegan aux ciboules de Toyama 200 ml",
+    "cantidad": 1,
+    "precio": 0,
+    "importe": 0,
+    "unidad": "Unidad"
+  },
+  {
+    "fecha": "2026-05-04",
+    "producto": "Fécule d'arrow-root Hon Kuzu (100% hon'kuzu) en poudre 1 kg",
+    "cantidad": 1,
+    "precio": 51,
+    "importe": 51,
+    "unidad": "Unidad"
+  },
+  {
+    "fecha": "2026-05-04",
+    "producto": "Fécule de pomme de terre katakuriko 500g",
+    "cantidad": 2,
+    "precio": 6.55,
+    "importe": 13.1,
+    "unidad": "Unidad"
+  },
+  {
+    "fecha": "2026-05-04",
+    "producto": "Prunes umeboshi 100g",
+    "cantidad": 1,
+    "precio": 5.9,
+    "importe": 5.9,
+    "unidad": "Unidad"
+  },
+  {
+    "fecha": "2026-05-04",
+    "producto": "Prunes umeboshi bio, 120 g",
+    "cantidad": 4,
+    "precio": 6.2,
+    "importe": 24.8,
+    "unidad": "Unidad"
+  },
+  {
+    "fecha": "2026-05-04",
+    "producto": "Vinaigre de riz Junmai Fujisu Supérieur 1800ml",
+    "cantidad": 5,
+    "precio": 28.7,
+    "importe": 143.5,
+    "unidad": "Unidad"
+  },
+  {
+    "fecha": "2026-05-04",
+    "producto": "Vinaigre rouge Kohaku 1800 ml",
+    "cantidad": 3,
+    "precio": 17.65,
+    "importe": 52.95,
+    "unidad": "Unidad"
+  },
+  {
+    "fecha": "2026-05-20",
+    "producto": "Ma kombu de Shirokuchihama (Hokkaido) 22,5*10 cm 300g",
+    "cantidad": 4,
+    "precio": 21,
+    "importe": 84,
+    "unidad": "Unidad"
+  },
+  {
+    "fecha": "2026-05-20",
+    "producto": "Prunes umeboshi 1000g",
+    "cantidad": 2,
+    "precio": 35.95,
+    "importe": 71.9,
+    "unidad": "Unidad"
+  },
+  {
+    "fecha": "2026-05-20",
+    "producto": "Rishiri kombu de Hokkaido 40g",
+    "cantidad": 12,
+    "precio": 5.35,
+    "importe": 64.2,
+    "unidad": "Unidad"
+  },
+  {
+    "fecha": "2026-05-20",
+    "producto": "Rishiri kombu de Hokkaido 40g",
+    "cantidad": 13,
+    "precio": 5.35,
+    "importe": 69.55,
+    "unidad": "Unidad"
+  },
+  {
+    "fecha": "2026-05-20",
+    "producto": "Vinaigre de riz Junmai Fujisu Supérieur 900ml",
+    "cantidad": 12,
+    "precio": 15.95,
+    "importe": 191.4,
+    "unidad": "Unidad"
+  },
+  {
+    "fecha": "2026-06-24",
+    "producto": "Algue Ma kombu premium pour kombu-Jime 1kg",
+    "cantidad": 1,
+    "precio": 65,
+    "importe": 65,
+    "unidad": "Unidad"
+  },
+  {
+    "fecha": "2026-06-24",
+    "producto": "Miso blanc vinaigré sumiso 300g",
+    "cantidad": 4,
+    "precio": 6.9,
+    "importe": 27.6,
+    "unidad": "Unidad"
+  },
+  {
+    "fecha": "2026-06-24",
+    "producto": "Vinaigre de riz Junmai Fujisu Supérieur 900ml",
+    "cantidad": 12,
+    "precio": 15.95,
+    "importe": 191.4,
+    "unidad": "Unidad"
+  }
+]

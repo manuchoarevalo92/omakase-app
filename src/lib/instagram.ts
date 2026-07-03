@@ -62,6 +62,7 @@ async function getAccessToken(): Promise<string | null> {
 
     const res = await fetch(url, { cache: "no-store" });
     if (!res.ok) {
+      console.error("[instagram] refresh falló:", res.status, await res.text());
       return data.access_token;
     }
     const json = (await res.json()) as { access_token?: string };
@@ -86,7 +87,7 @@ async function getAccessToken(): Promise<string | null> {
 async function fetchFeed(): Promise<InstagramFeed> {
   const token = await getAccessToken();
   if (!token) {
-    return { username: null, posts: [] };
+    throw new Error("[instagram] token no disponible en Supabase");
   }
 
   const profileUrl = new URL(`${GRAPH_BASE}/me`);
@@ -111,12 +112,15 @@ async function fetchFeed(): Promise<InstagramFeed> {
     const profile = (await profileRes.json()) as { username?: string };
     username = profile.username ?? null;
   } else {
-    console.error("[instagram] error al pedir perfil:", profileRes.status, await profileRes.text());
+    const body = await profileRes.text();
+    console.error("[instagram] error al pedir perfil:", profileRes.status, body);
+    throw new Error(`[instagram] perfil ${profileRes.status}: ${body}`);
   }
 
   if (!mediaRes.ok) {
-    console.error("[instagram] error al pedir media:", mediaRes.status, await mediaRes.text());
-    return { username, posts: [] };
+    const body = await mediaRes.text();
+    console.error("[instagram] error al pedir media:", mediaRes.status, body);
+    throw new Error(`[instagram] media ${mediaRes.status}: ${body}`);
   }
 
   const media = (await mediaRes.json()) as { data?: MediaItem[] };

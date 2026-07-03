@@ -16,6 +16,7 @@ const ALL_LINKS = [
   { href: "/historial", label: "Historial" },
   { href: "/estadisticas", label: "Stats" },
   { href: "/compras", label: "Compras" },
+  { href: "/produccion", label: "Producción" },
   { href: "/gasto", label: "Gasto" },
 ] as const;
 

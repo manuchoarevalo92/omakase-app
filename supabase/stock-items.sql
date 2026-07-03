@@ -17,8 +17,9 @@ create table if not exists public.stock_items (
         'Cominport',
         'Arrom',
         'Pescaderías Coruñesas',
-        'García de Pou',
-        'Verdulería',
+      'García de Pou',
+      'Nishikidori',
+      'Verdulería',
         'Supermercado',
         'Vila Viniteca',
         'Vinalia'
