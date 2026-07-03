@@ -9,6 +9,8 @@ import {
   ListPlus,
   Loader2,
   Plus,
+  TrendingDown,
+  TrendingUp,
   X,
 } from "lucide-react";
 
@@ -26,6 +28,13 @@ import {
   type PrediccionCompra,
 } from "@/src/lib/compras-prediccion";
 import { parsearLineasMasivo, type LineaParseada } from "@/src/lib/parseo-lineas";
+import {
+  cambiosPrecioDesde,
+  detectarCambiosPrecio,
+  fechaHaceDias,
+  formatearFechaCorta,
+  formatearPrecioUnitario,
+} from "@/src/lib/precio-alertas";
 import {
   PROVEEDORES,
   UNIDADES,
@@ -178,6 +187,18 @@ export default function ComprasPage() {
     });
     return base;
   }, [itemsConPrediccion]);
+
+  const cambiosPrecio = useMemo(() => detectarCambiosPrecio(compras), [compras]);
+
+  const cambiosPrecioRecientes = useMemo(
+    () => cambiosPrecioDesde(compras, fechaHaceDias(90)),
+    [compras]
+  );
+
+  const subidasRecientes = useMemo(
+    () => cambiosPrecioRecientes.filter((c) => c.variacionPct > 0).length,
+    [cambiosPrecioRecientes]
+  );
 
   const gruposPorProveedor = useMemo(() => {
     const grupos = new Map<string, ItemConPrediccion[]>();
@@ -404,7 +425,7 @@ export default function ComprasPage() {
           </div>
         ) : (
           <>
-            <div className="mb-8 grid grid-cols-2 gap-3 sm:grid-cols-4">
+            <div className="mb-8 grid grid-cols-2 gap-3 sm:grid-cols-5">
               <KpiCard
                 icono={<AlertTriangle className="h-4 w-4" aria-hidden />}
                 titulo="Atrasados"
@@ -429,7 +450,82 @@ export default function ComprasPage() {
                 valor={kpis["Sin datos"]}
                 tono="text-zinc-400"
               />
+              <KpiCard
+                icono={<TrendingUp className="h-4 w-4" aria-hidden />}
+                titulo="Subidas 90 días"
+                valor={subidasRecientes}
+                tono="text-orange-300"
+              />
             </div>
+
+            {cambiosPrecio.length > 0 ? (
+              <section className="mb-8 rounded-xl border border-zinc-800 bg-zinc-950/60 p-4">
+                <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
+                  <h2 className="text-sm uppercase tracking-[0.14em] text-zinc-400">
+                    Cambios de precio
+                  </h2>
+                  <p className="text-xs text-zinc-500">
+                    {cambiosPrecioRecientes.length} en los últimos 90 días ·{" "}
+                    {cambiosPrecio.length} en total
+                  </p>
+                </div>
+                <p className="mb-4 text-xs text-zinc-500">
+                  Comparación del precio por kg, caja o unidad entre albaranes consecutivos del
+                  mismo ítem y proveedor. Solo se muestran variaciones de al menos 0,5 % o 2 céntimos.
+                </p>
+                <div className="max-h-72 overflow-y-auto rounded-lg border border-zinc-800/80">
+                  <table className="w-full min-w-[32rem] text-left text-sm">
+                    <thead className="sticky top-0 bg-zinc-900/95 text-[10px] uppercase tracking-[0.12em] text-zinc-500">
+                      <tr>
+                        <th className="px-3 py-2 font-medium">Fecha</th>
+                        <th className="px-3 py-2 font-medium">Ítem</th>
+                        <th className="px-3 py-2 font-medium">Proveedor</th>
+                        <th className="px-3 py-2 font-medium text-right">Antes</th>
+                        <th className="px-3 py-2 font-medium text-right">Ahora</th>
+                        <th className="px-3 py-2 font-medium text-right">Cambio</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-zinc-800/80">
+                      {cambiosPrecio.map((c, i) => {
+                        const subio = c.variacionPct > 0;
+                        const pct = `${subio ? "+" : ""}${c.variacionPct.toLocaleString("es-ES", {
+                          maximumFractionDigits: 1,
+                        })} %`;
+                        return (
+                          <tr key={`${c.fecha}-${c.nombre}-${c.proveedor}-${i}`} className="text-zinc-200">
+                            <td className="whitespace-nowrap px-3 py-2 text-zinc-400">
+                              {formatearFechaCorta(c.fecha)}
+                            </td>
+                            <td className="px-3 py-2 font-medium text-white">{c.nombre}</td>
+                            <td className="px-3 py-2 text-zinc-400">{c.proveedor ?? "—"}</td>
+                            <td className="whitespace-nowrap px-3 py-2 text-right tabular-nums text-zinc-400">
+                              {formatearPrecioUnitario(c.precioAnterior, c.unidad)}
+                            </td>
+                            <td className="whitespace-nowrap px-3 py-2 text-right tabular-nums text-white">
+                              {formatearPrecioUnitario(c.precioNuevo, c.unidad)}
+                            </td>
+                            <td className="px-3 py-2 text-right">
+                              <span
+                                className={`inline-flex items-center justify-end gap-1 tabular-nums text-xs font-medium ${
+                                  subio ? "text-red-300" : "text-emerald-300"
+                                }`}
+                              >
+                                {subio ? (
+                                  <TrendingUp className="h-3.5 w-3.5 shrink-0" aria-hidden />
+                                ) : (
+                                  <TrendingDown className="h-3.5 w-3.5 shrink-0" aria-hidden />
+                                )}
+                                {pct}
+                              </span>
+                            </td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+              </section>
+            ) : null}
 
             {itemsConPrediccion.length === 0 ? (
               <p className="text-sm text-zinc-500">

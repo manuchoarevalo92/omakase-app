@@ -1,0 +1,40 @@
+[
+  {"fecha":"2026-02-17","cod":"167.19","cantidad":1,"precio":53.465,"importe":53.47,"unidad":"Caja"},
+  {"fecha":"2026-02-17","cod":"225.46","cantidad":6,"precio":7.3525,"importe":44.12,"unidad":"Caja"},
+  {"fecha":"2026-02-17","cod":"256.62","cantidad":1,"precio":63.9413,"importe":63.94,"unidad":"Caja"},
+  {"fecha":"2026-02-17","cod":"268.88","cantidad":1,"precio":81.855,"importe":81.86,"unidad":"Caja"},
+  {"fecha":"2026-02-17","cod":"268.94","cantidad":1,"precio":77.265,"importe":77.27,"unidad":"Caja"},
+  {"fecha":"2026-02-17","cod":"274.30","cantidad":1,"precio":113.3348,"importe":113.33,"unidad":"Caja"},
+
+  {"fecha":"2026-03-12","cod":"225.46","cantidad":2,"precio":7.3525,"importe":14.71,"unidad":"Caja"},
+  {"fecha":"2026-03-12","cod":"256.62","cantidad":1,"precio":63.9413,"importe":63.94,"unidad":"Caja"},
+  {"fecha":"2026-03-12","cod":"256.63","cantidad":1,"precio":79.4856,"importe":79.49,"unidad":"Caja"},
+  {"fecha":"2026-03-12","cod":"268.88","cantidad":1,"precio":81.855,"importe":81.86,"unidad":"Caja"},
+  {"fecha":"2026-03-12","cod":"268.94","cantidad":1,"precio":77.265,"importe":77.27,"unidad":"Caja"},
+  {"fecha":"2026-03-12","cod":"274.30","cantidad":1,"precio":113.3348,"importe":113.33,"unidad":"Caja"},
+
+  {"fecha":"2026-04-15","cod":"134.01","cantidad":1,"precio":29.92,"importe":29.92,"unidad":"Caja"},
+  {"fecha":"2026-04-15","cod":"225.46","cantidad":4,"precio":7.3525,"importe":29.41,"unidad":"Caja"},
+  {"fecha":"2026-04-15","cod":"230.60","cantidad":1,"precio":57.5875,"importe":57.59,"unidad":"Caja"},
+  {"fecha":"2026-04-15","cod":"256.62","cantidad":2,"precio":63.9413,"importe":127.88,"unidad":"Caja"},
+  {"fecha":"2026-04-15","cod":"256.63","cantidad":1,"precio":79.4856,"importe":79.49,"unidad":"Caja"},
+  {"fecha":"2026-04-15","cod":"268.80","cantidad":1,"precio":67.66,"importe":67.66,"unidad":"Caja"},
+  {"fecha":"2026-04-15","cod":"268.88","cantidad":2,"precio":81.855,"importe":163.71,"unidad":"Caja"},
+  {"fecha":"2026-04-15","cod":"268.90","cantidad":1,"precio":53.04,"importe":53.04,"unidad":"Caja"},
+  {"fecha":"2026-04-15","cod":"268.94","cantidad":2,"precio":77.265,"importe":154.53,"unidad":"Caja"},
+  {"fecha":"2026-04-15","cod":"274.30","cantidad":1,"precio":113.3348,"importe":113.33,"unidad":"Caja"},
+
+  {"fecha":"2026-05-19","cod":"134.01","cantidad":1,"precio":29.92,"importe":29.92,"unidad":"Caja"},
+  {"fecha":"2026-05-19","cod":"225.46","cantidad":6,"precio":8.6275,"importe":51.77,"unidad":"Caja"},
+
+  {"fecha":"2026-06-01","cod":"141.45","cantidad":10,"precio":1.105,"importe":11.05,"unidad":"Unidad"},
+  {"fecha":"2026-06-01","cod":"225.46","cantidad":4,"precio":8.6275,"importe":34.51,"unidad":"Caja"},
+  {"fecha":"2026-06-01","cod":"268.88","cantidad":1,"precio":81.855,"importe":81.86,"unidad":"Caja"},
+  {"fecha":"2026-06-01","cod":"268.94","cantidad":1,"precio":77.265,"importe":77.27,"unidad":"Caja"},
+  {"fecha":"2026-06-01","cod":"274.30","cantidad":1,"precio":114.597,"importe":114.6,"unidad":"Caja"},
+
+  {"fecha":"2026-06-17","cod":"134.01","cantidad":1,"precio":29.92,"importe":29.92,"unidad":"Caja"},
+  {"fecha":"2026-06-17","cod":"225.46","cantidad":2,"precio":8.6275,"importe":17.26,"unidad":"Caja"},
+  {"fecha":"2026-06-17","cod":"268.88","cantidad":1,"precio":81.855,"importe":81.86,"unidad":"Caja"},
+  {"fecha":"2026-06-17","cod":"268.94","cantidad":1,"precio":77.265,"importe":77.27,"unidad":"Caja"}
+]
