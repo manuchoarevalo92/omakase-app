@@ -67,6 +67,10 @@ export function formatPostgrestError(error: {
       bits.push(
         "RLS en stock_items: hacen falta políticas SELECT, INSERT, UPDATE y DELETE para anon (ver supabase/stock-items-rls-anon.sql en el repo)."
       );
+    } else if (msg.includes("preparaciones")) {
+      bits.push(
+        "RLS en preparaciones: ejecutá supabase/preparaciones-rls-anon.sql en el SQL Editor."
+      );
     } else {
       bits.push(
         "Error de permisos / RLS en Supabase: revisá las políticas de la tabla indicada en el mensaje para el rol anon (clave pública del cliente)."
@@ -105,6 +109,21 @@ export function formatPostgrestError(error: {
         "Ejecutá supabase/compras-historial.sql en el SQL Editor para crear la tabla compras_historial."
       );
     }
+    if (msg.includes("preparaciones")) {
+      bits.push(
+        "Ejecutá supabase/preparaciones.sql y luego supabase/preparaciones-rls-anon.sql en el SQL Editor."
+      );
+    }
+  }
+  if (
+    msg.includes("could not find") &&
+    msg.includes("schema cache") &&
+    msg.includes("preparaciones") &&
+    !msg.includes("column")
+  ) {
+    bits.push(
+      "Falta la tabla preparaciones. Ejecutá supabase/preparaciones.sql y luego supabase/preparaciones-rls-anon.sql en el SQL Editor."
+    );
   }
   if (
     msg.includes("stock_items") &&

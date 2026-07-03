@@ -1,4 +1,5 @@
 import { BUFFER_PCT_DEFECTO } from "@/src/lib/compras-prediccion";
+import { formatPostgrestError } from "@/src/lib/supabase-errors";
 import { supabase } from "@/src/lib/supabase";
 
 export const AREAS_PRODUCCION = ["delivery", "barra"] as const;
@@ -105,7 +106,7 @@ export async function fetchPreparaciones(): Promise<Preparacion[]> {
     .order("nombre", { ascending: true });
 
   if (error) {
-    throw error;
+    throw new Error(formatPostgrestError(error));
   }
 
   return ((data ?? []) as PreparacionDbRow[]).map(preparacionDesdeFila);
