@@ -4,6 +4,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import {
   AlertTriangle,
   CalendarClock,
+  CalendarPlus,
   CheckCircle2,
   ChevronDown,
   ChevronRight,
@@ -196,6 +197,16 @@ export default function ComprasPage() {
   const [importTexto, setImportTexto] = useState("");
   const [importIsSaving, setImportIsSaving] = useState(false);
   const [importError, setImportError] = useState<string | null>(null);
+
+  const [registrarItem, setRegistrarItem] = useState<StockItem | null>(null);
+  const [registrarFecha, setRegistrarFecha] = useState(hoyISO());
+  const [registrarCantidad, setRegistrarCantidad] = useState("");
+  const [registrarPrecio, setRegistrarPrecio] = useState("");
+  const [registrarTipoPrecio, setRegistrarTipoPrecio] = useState<"unitario" | "total">(
+    "unitario"
+  );
+  const [registrarIsSaving, setRegistrarIsSaving] = useState(false);
+  const [registrarError, setRegistrarError] = useState<string | null>(null);
 
   const buscadorRef = useRef<HTMLInputElement>(null);
 
@@ -513,6 +524,61 @@ export default function ComprasPage() {
     }
   };
 
+  const abrirRegistrar = (item: StockItem) => {
+    setRegistrarItem(item);
+    setRegistrarFecha(hoyISO());
+    setRegistrarCantidad(cantidadPorId[item.id] ?? "");
+    setRegistrarPrecio("");
+    setRegistrarTipoPrecio("unitario");
+    setRegistrarError(null);
+  };
+
+  const cerrarRegistrar = () => {
+    setRegistrarItem(null);
+  };
+
+  const confirmarRegistrar = async () => {
+    if (!registrarItem) {
+      return;
+    }
+    if (!registrarFecha) {
+      setRegistrarError("Elegí la fecha de la última compra.");
+      return;
+    }
+    const cantidad = parseCantidad(registrarCantidad);
+    if (cantidad == null) {
+      setRegistrarError("Indicá una cantidad mayor que 0.");
+      return;
+    }
+
+    setRegistrarIsSaving(true);
+    setRegistrarError(null);
+    try {
+      const precio = registrarPrecio.trim() ? parseCantidad(registrarPrecio) : null;
+      await insertarComprasHistorial([
+        {
+          stockItemId: registrarItem.id,
+          stockItemNombre: registrarItem.nombre,
+          proveedor: registrarItem.proveedor,
+          cantidad,
+          unidad: registrarItem.unidadCompra,
+          fecha: registrarFecha,
+          origen: "manual",
+          precioUnitario: registrarTipoPrecio === "unitario" ? precio : null,
+          importeTotal: registrarTipoPrecio === "total" ? precio : null,
+        },
+      ]);
+      await cargarDatos();
+      cerrarRegistrar();
+    } catch (err) {
+      setRegistrarError(
+        err instanceof Error ? err.message : "No se pudo registrar la compra."
+      );
+    } finally {
+      setRegistrarIsSaving(false);
+    }
+  };
+
   /** Trae el array actual de items del pedido de un proveedor. */
   const obtenerItemsPedido = async (proveedor: Proveedor): Promise<PedidoItemDraft[]> => {
     const { data, error: fetchError } = await supabase
@@ -693,6 +759,15 @@ export default function ComprasPage() {
           <span className="w-14 shrink-0 text-xs text-zinc-500">{item.unidadCompra}</span>
           <button
             type="button"
+            onClick={() => abrirRegistrar(item)}
+            aria-label={`Registrar última compra de ${item.nombre}`}
+            title="Registrar última compra (fecha + cantidad) a mano"
+            className="inline-flex size-11 shrink-0 items-center justify-center rounded-xl border border-dashed border-zinc-700 bg-zinc-900/60 text-zinc-400 transition hover:border-zinc-500 hover:text-zinc-200"
+          >
+            <CalendarPlus className="h-4 w-4" aria-hidden />
+          </button>
+          <button
+            type="button"
             disabled={busy || !puedeAgregar}
             onClick={() => void agregarAPedido(item.proveedor as Proveedor, entry)}
             title={
@@ -766,6 +841,15 @@ export default function ComprasPage() {
             aria-label={`Cantidad de ${item.nombre}`}
             className="w-16 rounded-lg border border-zinc-700 bg-zinc-900 px-2 py-1.5 text-center text-xs tabular-nums text-white"
           />
+          <button
+            type="button"
+            onClick={() => abrirRegistrar(item)}
+            title="Registrar última compra (fecha + cantidad) a mano"
+            className="inline-flex items-center gap-1.5 rounded-lg border border-dashed border-zinc-700 bg-zinc-900/60 px-2.5 py-1.5 text-xs font-medium text-zinc-400 transition hover:border-zinc-500 hover:text-zinc-200"
+          >
+            <CalendarPlus className="h-3.5 w-3.5" aria-hidden />
+            Registrar
+          </button>
           <button
             type="button"
             disabled={busy || !puedeAgregar}
@@ -1332,6 +1416,147 @@ export default function ComprasPage() {
                   {importIsSaving ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : null}
                   Importar {importLineasPreview.length > 0 ? importLineasPreview.length : ""}{" "}
                   línea(s)
+                </button>
+              </div>
+            </div>
+          </div>
+        ) : null}
+
+        {registrarItem ? (
+          <div
+            className="fixed inset-0 z-[100] flex items-end justify-center bg-black/70 p-0 sm:items-center sm:p-6"
+            role="presentation"
+            onClick={(e) => {
+              if (e.target === e.currentTarget) {
+                cerrarRegistrar();
+              }
+            }}
+          >
+            <div
+              role="dialog"
+              aria-modal="true"
+              aria-labelledby="registrar-compra-title"
+              className="flex max-h-[min(92dvh,32rem)] w-full max-w-md flex-col rounded-t-2xl border border-zinc-700 bg-zinc-900 shadow-2xl sm:max-h-[min(88vh,30rem)] sm:rounded-2xl"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div className="flex shrink-0 items-start justify-between gap-3 border-b border-zinc-800 px-4 py-3">
+                <div className="min-w-0 pr-2">
+                  <h2 id="registrar-compra-title" className="text-sm font-semibold text-white">
+                    Registrar última compra
+                  </h2>
+                  <p className="mt-1 text-[11px] leading-relaxed text-zinc-500">
+                    Para <span className="text-zinc-300">{registrarItem.nombre}</span>, sin
+                    albarán: cargá cuánto y cuándo se compró por última vez para que la
+                    predicción de urgencia tenga con qué calcular.
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => cerrarRegistrar()}
+                  className="shrink-0 rounded-lg border border-zinc-700 p-2 text-zinc-400 transition hover:border-zinc-500 hover:text-zinc-100"
+                  aria-label="Cerrar"
+                >
+                  <X className="h-4 w-4" aria-hidden />
+                </button>
+              </div>
+
+              <div className="min-h-0 flex-1 space-y-3 overflow-y-auto overscroll-contain px-4 py-3">
+                <div className="grid grid-cols-2 gap-2">
+                  <div>
+                    <label
+                      htmlFor="registrar-fecha"
+                      className="mb-1 block text-[11px] font-medium uppercase tracking-wide text-zinc-500"
+                    >
+                      Fecha de la compra
+                    </label>
+                    <input
+                      id="registrar-fecha"
+                      type="date"
+                      value={registrarFecha}
+                      onChange={(e) => setRegistrarFecha(e.target.value)}
+                      className="w-full rounded-lg border border-zinc-700 bg-zinc-950 px-3 py-2 text-sm text-zinc-100 outline-none transition focus:border-zinc-500"
+                    />
+                  </div>
+                  <div>
+                    <label
+                      htmlFor="registrar-cantidad"
+                      className="mb-1 block text-[11px] font-medium uppercase tracking-wide text-zinc-500"
+                    >
+                      Cantidad ({registrarItem.unidadCompra})
+                    </label>
+                    <input
+                      id="registrar-cantidad"
+                      type="text"
+                      inputMode="decimal"
+                      value={registrarCantidad}
+                      onChange={(e) => setRegistrarCantidad(e.target.value)}
+                      placeholder="0"
+                      className="w-full rounded-lg border border-zinc-700 bg-zinc-950 px-3 py-2 text-sm tabular-nums text-zinc-100 outline-none transition placeholder:text-zinc-600 focus:border-zinc-500"
+                    />
+                  </div>
+                </div>
+                <div className="grid grid-cols-2 gap-2">
+                  <div>
+                    <label
+                      htmlFor="registrar-precio"
+                      className="mb-1 block text-[11px] font-medium uppercase tracking-wide text-zinc-500"
+                    >
+                      Precio (opcional)
+                    </label>
+                    <input
+                      id="registrar-precio"
+                      type="text"
+                      inputMode="decimal"
+                      value={registrarPrecio}
+                      onChange={(e) => setRegistrarPrecio(e.target.value)}
+                      placeholder="0.00"
+                      className="w-full rounded-lg border border-zinc-700 bg-zinc-950 px-3 py-2 text-sm tabular-nums text-zinc-100 outline-none transition placeholder:text-zinc-600 focus:border-zinc-500"
+                    />
+                  </div>
+                  <div>
+                    <label
+                      htmlFor="registrar-tipo-precio"
+                      className="mb-1 block text-[11px] font-medium uppercase tracking-wide text-zinc-500"
+                    >
+                      Ese precio es
+                    </label>
+                    <select
+                      id="registrar-tipo-precio"
+                      value={registrarTipoPrecio}
+                      onChange={(e) =>
+                        setRegistrarTipoPrecio(e.target.value as "unitario" | "total")
+                      }
+                      disabled={!registrarPrecio.trim()}
+                      className="w-full rounded-lg border border-zinc-700 bg-zinc-950 px-3 py-2 text-sm text-zinc-100 outline-none transition focus:border-zinc-500 disabled:opacity-50"
+                    >
+                      <option value="unitario">Precio unitario</option>
+                      <option value="total">Total de la compra</option>
+                    </select>
+                  </div>
+                </div>
+                {registrarError ? (
+                  <p className="rounded-lg border border-red-900/70 bg-red-950/50 px-3 py-2 text-xs text-red-200">
+                    {registrarError}
+                  </p>
+                ) : null}
+              </div>
+
+              <div className="flex shrink-0 flex-wrap gap-2 border-t border-zinc-800 bg-zinc-900/95 px-4 pb-[max(0.75rem,env(safe-area-inset-bottom,0px))] pt-3">
+                <button
+                  type="button"
+                  onClick={() => cerrarRegistrar()}
+                  className="inline-flex flex-1 items-center justify-center rounded-lg border border-zinc-600 bg-zinc-800 px-3 py-2.5 text-xs font-medium text-zinc-200 transition hover:border-zinc-500 sm:flex-initial sm:px-4"
+                >
+                  Cancelar
+                </button>
+                <button
+                  type="button"
+                  disabled={registrarIsSaving}
+                  onClick={() => void confirmarRegistrar()}
+                  className="inline-flex flex-1 items-center justify-center gap-1.5 rounded-lg border border-emerald-800/80 bg-emerald-900/50 px-3 py-2.5 text-xs font-semibold text-emerald-50 transition hover:bg-emerald-800/50 disabled:cursor-not-allowed disabled:opacity-40 sm:flex-initial sm:px-4"
+                >
+                  {registrarIsSaving ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : null}
+                  Guardar
                 </button>
               </div>
             </div>
