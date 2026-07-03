@@ -1,16 +1,21 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import {
   AlertTriangle,
   CalendarClock,
   CheckCircle2,
+  ChevronDown,
+  ChevronRight,
   HelpCircle,
+  Layers,
   ListPlus,
   Loader2,
   Plus,
+  Search,
   TrendingDown,
   TrendingUp,
+  Undo2,
   X,
 } from "lucide-react";
 
@@ -18,6 +23,7 @@ import {
   agruparComprasPorStockItem,
   fetchComprasHistorial,
   insertarComprasHistorial,
+  ultimoPrecioUnitarioPorStockItem,
   type CompraHistorialRow,
 } from "@/src/lib/compras-historial";
 import {
@@ -65,6 +71,12 @@ type PedidoItemDraft = {
   unidad: UnidadMedida;
 };
 
+type SnapshotAgregado = {
+  proveedor: Proveedor;
+  itemsAnteriores: PedidoItemDraft[];
+  etiqueta: string;
+};
+
 const ESTADO_ICONO: Record<EstadoCompra, React.ReactNode> = {
   Atrasado: <AlertTriangle className="h-3.5 w-3.5" aria-hidden />,
   "Pedir pronto": <CalendarClock className="h-3.5 w-3.5" aria-hidden />,
@@ -72,7 +84,15 @@ const ESTADO_ICONO: Record<EstadoCompra, React.ReactNode> = {
   "Sin datos": <HelpCircle className="h-3.5 w-3.5" aria-hidden />,
 };
 
+const ESTADOS_URGENTES: EstadoCompra[] = ["Atrasado", "Pedir pronto"];
+
+function esUrgente(estado: EstadoCompra): boolean {
+  return ESTADOS_URGENTES.includes(estado);
+}
+
 const SIN_PROVEEDOR = "Sin proveedor asignado";
+const UNDO_AGREGADO_MS = 8000;
+const STORAGE_SOLO_URGENTES = "omakase-compras-solo-urgentes";
 
 function hoyISO(): string {
   const d = new Date();
@@ -90,16 +110,51 @@ function parseCantidad(s: string): number | null {
   return Number.isFinite(n) && n > 0 ? n : null;
 }
 
-function KpiCard(props: { icono: React.ReactNode; titulo: string; valor: number; tono: string }) {
-  const { icono, titulo, valor, tono } = props;
+function normalizarBusqueda(s: string): string {
+  return s
+    .trim()
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "");
+}
+
+function leerSoloUrgentesGuardado(): boolean {
+  if (typeof window === "undefined") {
+    return false;
+  }
+  try {
+    return window.localStorage.getItem(STORAGE_SOLO_URGENTES) === "1";
+  } catch {
+    return false;
+  }
+}
+
+function KpiCard(props: {
+  icono: React.ReactNode;
+  titulo: string;
+  valor: number;
+  tono: string;
+  activo?: boolean;
+  onClick?: () => void;
+}) {
+  const { icono, titulo, valor, tono, activo, onClick } = props;
+  const Comp = onClick ? "button" : "div";
   return (
-    <div className="rounded-xl border border-zinc-800 bg-zinc-950/60 p-4">
+    <Comp
+      type={onClick ? "button" : undefined}
+      onClick={onClick}
+      className={`rounded-xl border p-4 text-left transition ${
+        activo
+          ? "border-zinc-500 bg-zinc-900"
+          : "border-zinc-800 bg-zinc-950/60"
+      } ${onClick ? "hover:border-zinc-600" : ""}`}
+    >
       <div className={`flex items-center gap-2 ${tono}`}>
         {icono}
         <p className="text-[10px] font-semibold uppercase tracking-[0.14em]">{titulo}</p>
       </div>
       <p className="mt-2 text-2xl font-semibold tabular-nums text-white">{valor}</p>
-    </div>
+    </Comp>
   );
 }
 
@@ -123,6 +178,15 @@ export default function ComprasPage() {
 
   const [agregandoId, setAgregandoId] = useState<string | null>(null);
   const [agregadoOkId, setAgregadoOkId] = useState<string | null>(null);
+  const [agregandoLoteProveedor, setAgregandoLoteProveedor] = useState<string | null>(null);
+  const [undoAgregado, setUndoAgregado] = useState<SnapshotAgregado | null>(null);
+
+  const [cantidadPorId, setCantidadPorId] = useState<Record<string, string>>({});
+  const [busqueda, setBusqueda] = useState("");
+  const [soloUrgentes, setSoloUrgentes] = useState(() => leerSoloUrgentesGuardado());
+  const [alDiaExpandido, setAlDiaExpandido] = useState(false);
+  const [sinDatosExpandido, setSinDatosExpandido] = useState(false);
+  const [cambiosPrecioExpandido, setCambiosPrecioExpandido] = useState(false);
 
   const [importAbierto, setImportAbierto] = useState(false);
   const [importProveedor, setImportProveedor] = useState<Proveedor | "">("");
@@ -132,6 +196,8 @@ export default function ComprasPage() {
   const [importTexto, setImportTexto] = useState("");
   const [importIsSaving, setImportIsSaving] = useState(false);
   const [importError, setImportError] = useState<string | null>(null);
+
+  const buscadorRef = useRef<HTMLInputElement>(null);
 
   const cargarDatos = async () => {
     setIsLoading(true);
@@ -153,6 +219,14 @@ export default function ComprasPage() {
   };
 
   useEffect(() => {
+    try {
+      window.localStorage.setItem(STORAGE_SOLO_URGENTES, soloUrgentes ? "1" : "0");
+    } catch {
+      // ignore
+    }
+  }, [soloUrgentes]);
+
+  useEffect(() => {
     const timer = window.setTimeout(() => {
       void cargarDatos();
     }, 0);
@@ -161,6 +235,11 @@ export default function ComprasPage() {
 
   const comprasPorStockItem = useMemo(
     () => agruparComprasPorStockItem(compras),
+    [compras]
+  );
+
+  const ultimoPrecioPorItem = useMemo(
+    () => ultimoPrecioUnitarioPorStockItem(compras),
     [compras]
   );
 
@@ -176,6 +255,18 @@ export default function ComprasPage() {
         return { item, prediccion };
       });
   }, [stockItems, comprasPorStockItem]);
+
+  useEffect(() => {
+    setCantidadPorId((prev) => {
+      const next = { ...prev };
+      itemsConPrediccion.forEach(({ item, prediccion }) => {
+        if (next[item.id] === undefined && prediccion.cantidadSugerida != null) {
+          next[item.id] = String(prediccion.cantidadSugerida);
+        }
+      });
+      return next;
+    });
+  }, [itemsConPrediccion]);
 
   const kpis = useMemo(() => {
     const base = { Atrasado: 0, "Pedir pronto": 0, OK: 0, "Sin datos": 0 } as Record<
@@ -200,22 +291,35 @@ export default function ComprasPage() {
     [cambiosPrecioRecientes]
   );
 
-  const gruposPorProveedor = useMemo(() => {
+  const busquedaNormalizada = normalizarBusqueda(busqueda);
+
+  const itemsFiltrados = useMemo(() => {
+    if (!busquedaNormalizada) {
+      return itemsConPrediccion;
+    }
+    return itemsConPrediccion.filter((entry) =>
+      normalizarBusqueda(entry.item.nombre).includes(busquedaNormalizada)
+    );
+  }, [itemsConPrediccion, busquedaNormalizada]);
+
+  const agruparPorProveedor = (
+    lista: ItemConPrediccion[]
+  ): [string, ItemConPrediccion[]][] => {
     const grupos = new Map<string, ItemConPrediccion[]>();
-    itemsConPrediccion.forEach((entry) => {
+    lista.forEach((entry) => {
       const clave = entry.item.proveedor ?? SIN_PROVEEDOR;
-      const lista = grupos.get(clave) ?? [];
-      lista.push(entry);
-      grupos.set(clave, lista);
+      const l = grupos.get(clave) ?? [];
+      l.push(entry);
+      grupos.set(clave, l);
     });
-    grupos.forEach((lista) => {
-      lista.sort((a, b) => compararPorUrgencia(a.prediccion, b.prediccion));
+    grupos.forEach((l) => {
+      l.sort((a, b) => compararPorUrgencia(a.prediccion, b.prediccion));
     });
     const ordenados: [string, ItemConPrediccion[]][] = [];
     PROVEEDORES.forEach((p) => {
-      const lista = grupos.get(p);
-      if (lista && lista.length > 0) {
-        ordenados.push([p, lista]);
+      const l = grupos.get(p);
+      if (l && l.length > 0) {
+        ordenados.push([p, l]);
       }
     });
     const sinProveedor = grupos.get(SIN_PROVEEDOR);
@@ -223,7 +327,81 @@ export default function ComprasPage() {
       ordenados.push([SIN_PROVEEDOR, sinProveedor]);
     }
     return ordenados;
-  }, [itemsConPrediccion]);
+  };
+
+  const urgentesPorProveedor = useMemo(
+    () => agruparPorProveedor(itemsFiltrados.filter((e) => esUrgente(e.prediccion.estado))),
+    [itemsFiltrados]
+  );
+  const alDiaPorProveedor = useMemo(
+    () => agruparPorProveedor(itemsFiltrados.filter((e) => e.prediccion.estado === "OK")),
+    [itemsFiltrados]
+  );
+  const sinDatosPorProveedor = useMemo(
+    () =>
+      agruparPorProveedor(itemsFiltrados.filter((e) => e.prediccion.estado === "Sin datos")),
+    [itemsFiltrados]
+  );
+
+  const totalUrgentes = kpis.Atrasado + kpis["Pedir pronto"];
+  const hayBusqueda = busquedaNormalizada.length > 0;
+
+  useEffect(() => {
+    if (itemsConPrediccion.length === 0) {
+      return;
+    }
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (e.key.toLowerCase() !== "u" || e.metaKey || e.ctrlKey || e.altKey) {
+        return;
+      }
+      const target = e.target;
+      if (
+        target instanceof HTMLInputElement ||
+        target instanceof HTMLTextAreaElement ||
+        target instanceof HTMLSelectElement
+      ) {
+        return;
+      }
+      e.preventDefault();
+      setSoloUrgentes((v) => !v);
+    };
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, [itemsConPrediccion.length]);
+
+  useEffect(() => {
+    if (!undoAgregado) {
+      return;
+    }
+    const snap = undoAgregado;
+    const timer = window.setTimeout(() => {
+      setUndoAgregado((current) => (current === snap ? null : current));
+    }, UNDO_AGREGADO_MS);
+
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (e.key.toLowerCase() !== "z" || e.metaKey || e.ctrlKey || e.altKey) {
+        return;
+      }
+      const target = e.target;
+      if (
+        target instanceof HTMLInputElement ||
+        target instanceof HTMLTextAreaElement ||
+        target instanceof HTMLSelectElement
+      ) {
+        return;
+      }
+      e.preventDefault();
+      void deshacerAgregado();
+    };
+    window.addEventListener("keydown", onKeyDown);
+    return () => {
+      window.clearTimeout(timer);
+      window.removeEventListener("keydown", onKeyDown);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [undoAgregado]);
+
+  const cambiosPrecioVisibles = soloUrgentes ? [] : cambiosPrecio;
 
   const importLineasPreview = useMemo(() => {
     if (!importAbierto) {
@@ -335,58 +513,280 @@ export default function ComprasPage() {
     }
   };
 
+  /** Trae el array actual de items del pedido de un proveedor. */
+  const obtenerItemsPedido = async (proveedor: Proveedor): Promise<PedidoItemDraft[]> => {
+    const { data, error: fetchError } = await supabase
+      .from("pedidos_proveedores")
+      .select("items")
+      .eq("proveedor", proveedor)
+      .maybeSingle();
+
+    if (fetchError) {
+      throw new Error(formatPostgrestError(fetchError));
+    }
+
+    return Array.isArray((data as { items?: unknown } | null)?.items)
+      ? ((data as { items: PedidoItemDraft[] }).items ?? [])
+      : [];
+  };
+
+  const guardarItemsPedido = async (
+    proveedor: Proveedor,
+    items: PedidoItemDraft[]
+  ): Promise<void> => {
+    const { error: upsertError } = await supabase.from("pedidos_proveedores").upsert(
+      {
+        proveedor,
+        items,
+        updated_at: new Date().toISOString(),
+      },
+      { onConflict: "proveedor" }
+    );
+    if (upsertError) {
+      throw new Error(formatPostgrestError(upsertError));
+    }
+  };
+
   const agregarAPedido = async (proveedor: Proveedor, entry: ItemConPrediccion) => {
     setAgregandoId(entry.item.id);
     setError(null);
     try {
-      const { data, error: fetchError } = await supabase
-        .from("pedidos_proveedores")
-        .select("items")
-        .eq("proveedor", proveedor)
-        .maybeSingle();
+      const itemsAnteriores = await obtenerItemsPedido(proveedor);
 
-      if (fetchError) {
-        throw new Error(formatPostgrestError(fetchError));
-      }
-
-      const itemsActuales: PedidoItemDraft[] = Array.isArray(
-        (data as { items?: unknown } | null)?.items
-      )
-        ? ((data as { items: PedidoItemDraft[] }).items ?? [])
-        : [];
+      const cantidadDraft = cantidadPorId[entry.item.id];
+      const cantidad =
+        cantidadDraft !== undefined && cantidadDraft.trim() !== ""
+          ? cantidadDraft
+          : entry.prediccion.cantidadSugerida != null
+            ? String(entry.prediccion.cantidadSugerida)
+            : "";
 
       const nuevoItem: PedidoItemDraft = {
         id: crypto.randomUUID(),
         item: entry.item.nombre,
-        cantidad:
-          entry.prediccion.cantidadSugerida != null
-            ? String(entry.prediccion.cantidadSugerida)
-            : "",
+        cantidad,
         unidad: entry.item.unidadCompra,
       };
 
-      const { error: upsertError } = await supabase.from("pedidos_proveedores").upsert(
-        {
-          proveedor,
-          items: [...itemsActuales, nuevoItem],
-          updated_at: new Date().toISOString(),
-        },
-        { onConflict: "proveedor" }
-      );
-
-      if (upsertError) {
-        throw new Error(formatPostgrestError(upsertError));
-      }
+      await guardarItemsPedido(proveedor, [...itemsAnteriores, nuevoItem]);
 
       setAgregadoOkId(entry.item.id);
       window.setTimeout(() => {
         setAgregadoOkId((current) => (current === entry.item.id ? null : current));
       }, 2200);
+      setUndoAgregado({
+        proveedor,
+        itemsAnteriores,
+        etiqueta: entry.item.nombre,
+      });
     } catch (err) {
       setError(err instanceof Error ? err.message : "No se pudo agregar al pedido.");
     } finally {
       setAgregandoId(null);
     }
+  };
+
+  const agregarLoteAPedido = async (proveedor: Proveedor, lista: ItemConPrediccion[]) => {
+    setAgregandoLoteProveedor(proveedor);
+    setError(null);
+    try {
+      const itemsAnteriores = await obtenerItemsPedido(proveedor);
+
+      const nuevos: PedidoItemDraft[] = lista.map((entry) => {
+        const cantidadDraft = cantidadPorId[entry.item.id];
+        const cantidad =
+          cantidadDraft !== undefined && cantidadDraft.trim() !== ""
+            ? cantidadDraft
+            : entry.prediccion.cantidadSugerida != null
+              ? String(entry.prediccion.cantidadSugerida)
+              : "";
+        return {
+          id: crypto.randomUUID(),
+          item: entry.item.nombre,
+          cantidad,
+          unidad: entry.item.unidadCompra,
+        };
+      });
+
+      await guardarItemsPedido(proveedor, [...itemsAnteriores, ...nuevos]);
+
+      lista.forEach((entry) => {
+        setAgregadoOkId(entry.item.id);
+      });
+      window.setTimeout(() => {
+        setAgregadoOkId(null);
+      }, 2200);
+      setUndoAgregado({
+        proveedor,
+        itemsAnteriores,
+        etiqueta: `${nuevos.length} ítems de ${proveedor}`,
+      });
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "No se pudo agregar el lote al pedido.");
+    } finally {
+      setAgregandoLoteProveedor(null);
+    }
+  };
+
+  const deshacerAgregado = async () => {
+    if (!undoAgregado) {
+      return;
+    }
+    const snap = undoAgregado;
+    setUndoAgregado(null);
+    try {
+      await guardarItemsPedido(snap.proveedor, snap.itemsAnteriores);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "No se pudo deshacer.");
+    }
+  };
+
+  const renderFilaCompacta = (proveedor: string, entry: ItemConPrediccion) => {
+    const { item, prediccion } = entry;
+    const busy = agregandoId === item.id;
+    const puedeAgregar = proveedor !== SIN_PROVEEDOR;
+    const ultimoPrecio = ultimoPrecioPorItem.get(item.id);
+
+    return (
+      <li
+        key={item.id}
+        className="flex flex-col gap-2 px-3 py-2.5 sm:flex-row sm:items-center sm:gap-3"
+      >
+        <div className="min-w-0 flex-1">
+          <div className="flex flex-wrap items-center gap-1.5">
+            <span className="truncate text-sm font-medium text-white">{item.nombre}</span>
+            <EstadoBadge estado={prediccion.estado} />
+          </div>
+          <p className="mt-0.5 text-[11px] text-zinc-500">
+            {prediccion.diasParaProxima != null ? (
+              prediccion.diasParaProxima <= 0 ? (
+                <span className="text-red-300">
+                  Atrasado {Math.abs(prediccion.diasParaProxima)} día
+                  {Math.abs(prediccion.diasParaProxima) === 1 ? "" : "s"}
+                </span>
+              ) : (
+                <>En {prediccion.diasParaProxima} día{prediccion.diasParaProxima === 1 ? "" : "s"}</>
+              )
+            ) : (
+              "Sin historial suficiente"
+            )}
+            {ultimoPrecio != null ? (
+              <span className="text-zinc-600">
+                {" "}
+                · {formatearPrecioUnitario(ultimoPrecio, item.unidadCompra)}
+              </span>
+            ) : null}
+          </p>
+        </div>
+        <div className="flex items-center gap-2">
+          <input
+            type="text"
+            inputMode="decimal"
+            value={cantidadPorId[item.id] ?? ""}
+            disabled={busy}
+            onChange={(e) =>
+              setCantidadPorId((prev) => ({ ...prev, [item.id]: e.target.value }))
+            }
+            aria-label={`Cantidad de ${item.nombre}`}
+            className="w-16 rounded-lg border border-zinc-700 bg-zinc-900 px-2 py-2 text-center text-sm tabular-nums text-white"
+          />
+          <span className="w-14 shrink-0 text-xs text-zinc-500">{item.unidadCompra}</span>
+          <button
+            type="button"
+            disabled={busy || !puedeAgregar}
+            onClick={() => void agregarAPedido(item.proveedor as Proveedor, entry)}
+            title={
+              puedeAgregar
+                ? undefined
+                : "Asigná un proveedor en /stock para poder agregarlo a un pedido"
+            }
+            aria-label={`Agregar ${item.nombre} al pedido`}
+            className="inline-flex size-11 shrink-0 items-center justify-center rounded-xl border border-emerald-700/80 bg-emerald-800/60 text-emerald-50 transition active:scale-95 hover:bg-emerald-700/70 disabled:cursor-not-allowed disabled:opacity-40"
+          >
+            {busy ? (
+              <Loader2 className="h-5 w-5 animate-spin" aria-hidden />
+            ) : agregadoOkId === item.id ? (
+              <CheckCircle2 className="h-5 w-5" aria-hidden />
+            ) : (
+              <Plus className="h-5 w-5" aria-hidden />
+            )}
+          </button>
+        </div>
+      </li>
+    );
+  };
+
+  const renderFilaAlDia = (proveedor: string, entry: ItemConPrediccion) => {
+    const { item, prediccion } = entry;
+    const busy = agregandoId === item.id;
+    const puedeAgregar = proveedor !== SIN_PROVEEDOR;
+    const ultimoPrecio = ultimoPrecioPorItem.get(item.id);
+
+    return (
+      <li
+        key={item.id}
+        className="flex flex-col gap-2 rounded-lg border border-zinc-800 bg-zinc-900/50 px-3 py-2.5 sm:flex-row sm:items-center sm:justify-between"
+      >
+        <div className="min-w-0 flex-1">
+          <div className="flex flex-wrap items-center gap-2">
+            <span className="text-sm font-medium text-zinc-100">{item.nombre}</span>
+            <EstadoBadge estado={prediccion.estado} />
+          </div>
+          <p className="mt-1 text-[11px] text-zinc-500">
+            {prediccion.ultimaCompra ? (
+              <>
+                Última compra: {prediccion.ultimaCompra}
+                {prediccion.intervaloTipicoDias != null ? (
+                  <> · Ciclo típico: {prediccion.intervaloTipicoDias} días</>
+                ) : null}
+                {prediccion.proximaFechaSugerida ? (
+                  <> · Próxima sugerida: {prediccion.proximaFechaSugerida}</>
+                ) : null}
+              </>
+            ) : (
+              "Sin compras registradas todavía."
+            )}
+            {ultimoPrecio != null ? (
+              <span className="text-zinc-600">
+                {" "}
+                · {formatearPrecioUnitario(ultimoPrecio, item.unidadCompra)}
+              </span>
+            ) : null}
+          </p>
+        </div>
+        <div className="flex shrink-0 items-center gap-2">
+          <input
+            type="text"
+            inputMode="decimal"
+            value={cantidadPorId[item.id] ?? ""}
+            disabled={busy}
+            onChange={(e) =>
+              setCantidadPorId((prev) => ({ ...prev, [item.id]: e.target.value }))
+            }
+            aria-label={`Cantidad de ${item.nombre}`}
+            className="w-16 rounded-lg border border-zinc-700 bg-zinc-900 px-2 py-1.5 text-center text-xs tabular-nums text-white"
+          />
+          <button
+            type="button"
+            disabled={busy || !puedeAgregar}
+            onClick={() => void agregarAPedido(item.proveedor as Proveedor, entry)}
+            title={
+              puedeAgregar
+                ? undefined
+                : "Asigná un proveedor en /stock para poder agregarlo a un pedido"
+            }
+            className="inline-flex items-center gap-1.5 rounded-lg border border-zinc-600 bg-zinc-800 px-2.5 py-1.5 text-xs font-medium text-zinc-100 transition hover:border-zinc-500 hover:bg-zinc-700 disabled:cursor-not-allowed disabled:opacity-40"
+          >
+            {busy ? (
+              <Loader2 className="h-3.5 w-3.5 animate-spin" aria-hidden />
+            ) : (
+              <Plus className="h-3.5 w-3.5" aria-hidden />
+            )}
+            {agregadoOkId === item.id ? "Agregado" : "Agregar"}
+          </button>
+        </div>
+      </li>
+    );
   };
 
   return (
@@ -425,105 +825,167 @@ export default function ComprasPage() {
           </div>
         ) : (
           <>
-            <div className="mb-8 grid grid-cols-2 gap-3 sm:grid-cols-5">
-              <KpiCard
-                icono={<AlertTriangle className="h-4 w-4" aria-hidden />}
-                titulo="Atrasados"
-                valor={kpis.Atrasado}
-                tono="text-red-300"
-              />
-              <KpiCard
-                icono={<CalendarClock className="h-4 w-4" aria-hidden />}
-                titulo="Pedir pronto"
-                valor={kpis["Pedir pronto"]}
-                tono="text-amber-300"
-              />
-              <KpiCard
-                icono={<CheckCircle2 className="h-4 w-4" aria-hidden />}
-                titulo="OK"
-                valor={kpis.OK}
-                tono="text-emerald-300"
-              />
-              <KpiCard
-                icono={<HelpCircle className="h-4 w-4" aria-hidden />}
-                titulo="Sin datos"
-                valor={kpis["Sin datos"]}
-                tono="text-zinc-400"
-              />
-              <KpiCard
-                icono={<TrendingUp className="h-4 w-4" aria-hidden />}
-                titulo="Subidas 90 días"
-                valor={subidasRecientes}
-                tono="text-orange-300"
-              />
+            <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+              <div className="relative flex-1 sm:max-w-xs">
+                <Search
+                  className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-zinc-500"
+                  aria-hidden
+                />
+                <input
+                  ref={buscadorRef}
+                  type="text"
+                  value={busqueda}
+                  onChange={(e) => setBusqueda(e.target.value)}
+                  placeholder="Buscar ítem..."
+                  aria-label="Buscar ítem"
+                  className="w-full rounded-lg border border-zinc-700 bg-zinc-950 py-2 pl-9 pr-8 text-sm text-zinc-100 outline-none transition placeholder:text-zinc-600 focus:border-zinc-500"
+                />
+                {busqueda ? (
+                  <button
+                    type="button"
+                    onClick={() => setBusqueda("")}
+                    aria-label="Limpiar búsqueda"
+                    className="absolute right-2 top-1/2 -translate-y-1/2 rounded p-1 text-zinc-500 hover:text-zinc-200"
+                  >
+                    <X className="h-3.5 w-3.5" aria-hidden />
+                  </button>
+                ) : null}
+              </div>
+              <label className="inline-flex shrink-0 items-center gap-2 text-xs font-medium text-zinc-400">
+                <input
+                  type="checkbox"
+                  checked={soloUrgentes}
+                  onChange={(e) => setSoloUrgentes(e.target.checked)}
+                  className="size-4 rounded border-zinc-600 bg-zinc-900 accent-orange-600"
+                />
+                Solo urgentes
+                <kbd className="hidden rounded border border-zinc-700 bg-zinc-900 px-1.5 py-0.5 text-[10px] text-zinc-500 sm:inline">
+                  U
+                </kbd>
+              </label>
             </div>
 
-            {cambiosPrecio.length > 0 ? (
+            {!soloUrgentes ? (
+              <div className="mb-8 grid grid-cols-2 gap-3 sm:grid-cols-5">
+                <KpiCard
+                  icono={<AlertTriangle className="h-4 w-4" aria-hidden />}
+                  titulo="Atrasados"
+                  valor={kpis.Atrasado}
+                  tono="text-red-300"
+                />
+                <KpiCard
+                  icono={<CalendarClock className="h-4 w-4" aria-hidden />}
+                  titulo="Pedir pronto"
+                  valor={kpis["Pedir pronto"]}
+                  tono="text-amber-300"
+                />
+                <KpiCard
+                  icono={<CheckCircle2 className="h-4 w-4" aria-hidden />}
+                  titulo="OK"
+                  valor={kpis.OK}
+                  tono="text-emerald-300"
+                />
+                <KpiCard
+                  icono={<HelpCircle className="h-4 w-4" aria-hidden />}
+                  titulo="Sin datos"
+                  valor={kpis["Sin datos"]}
+                  tono="text-zinc-400"
+                />
+                <KpiCard
+                  icono={<TrendingUp className="h-4 w-4" aria-hidden />}
+                  titulo="Subidas 90 días"
+                  valor={subidasRecientes}
+                  tono="text-orange-300"
+                />
+              </div>
+            ) : null}
+
+            {cambiosPrecioVisibles.length > 0 ? (
               <section className="mb-8 rounded-xl border border-zinc-800 bg-zinc-950/60 p-4">
-                <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
-                  <h2 className="text-sm uppercase tracking-[0.14em] text-zinc-400">
-                    Cambios de precio
-                  </h2>
-                  <p className="text-xs text-zinc-500">
-                    {cambiosPrecioRecientes.length} en los últimos 90 días ·{" "}
-                    {cambiosPrecio.length} en total
-                  </p>
-                </div>
-                <p className="mb-4 text-xs text-zinc-500">
-                  Comparación del precio por kg, caja o unidad entre albaranes consecutivos del
-                  mismo ítem y proveedor. Solo se muestran variaciones de al menos 0,5 % o 2 céntimos.
-                </p>
-                <div className="max-h-72 overflow-y-auto rounded-lg border border-zinc-800/80">
-                  <table className="w-full min-w-[32rem] text-left text-sm">
-                    <thead className="sticky top-0 bg-zinc-900/95 text-[10px] uppercase tracking-[0.12em] text-zinc-500">
-                      <tr>
-                        <th className="px-3 py-2 font-medium">Fecha</th>
-                        <th className="px-3 py-2 font-medium">Ítem</th>
-                        <th className="px-3 py-2 font-medium">Proveedor</th>
-                        <th className="px-3 py-2 font-medium text-right">Antes</th>
-                        <th className="px-3 py-2 font-medium text-right">Ahora</th>
-                        <th className="px-3 py-2 font-medium text-right">Cambio</th>
-                      </tr>
-                    </thead>
-                    <tbody className="divide-y divide-zinc-800/80">
-                      {cambiosPrecio.map((c, i) => {
-                        const subio = c.variacionPct > 0;
-                        const pct = `${subio ? "+" : ""}${c.variacionPct.toLocaleString("es-ES", {
-                          maximumFractionDigits: 1,
-                        })} %`;
-                        return (
-                          <tr key={`${c.fecha}-${c.nombre}-${c.proveedor}-${i}`} className="text-zinc-200">
-                            <td className="whitespace-nowrap px-3 py-2 text-zinc-400">
-                              {formatearFechaCorta(c.fecha)}
-                            </td>
-                            <td className="px-3 py-2 font-medium text-white">{c.nombre}</td>
-                            <td className="px-3 py-2 text-zinc-400">{c.proveedor ?? "—"}</td>
-                            <td className="whitespace-nowrap px-3 py-2 text-right tabular-nums text-zinc-400">
-                              {formatearPrecioUnitario(c.precioAnterior, c.unidad)}
-                            </td>
-                            <td className="whitespace-nowrap px-3 py-2 text-right tabular-nums text-white">
-                              {formatearPrecioUnitario(c.precioNuevo, c.unidad)}
-                            </td>
-                            <td className="px-3 py-2 text-right">
-                              <span
-                                className={`inline-flex items-center justify-end gap-1 tabular-nums text-xs font-medium ${
-                                  subio ? "text-red-300" : "text-emerald-300"
-                                }`}
-                              >
-                                {subio ? (
-                                  <TrendingUp className="h-3.5 w-3.5 shrink-0" aria-hidden />
-                                ) : (
-                                  <TrendingDown className="h-3.5 w-3.5 shrink-0" aria-hidden />
-                                )}
-                                {pct}
-                              </span>
-                            </td>
+                <button
+                  type="button"
+                  onClick={() => setCambiosPrecioExpandido((v) => !v)}
+                  className="flex w-full items-center gap-2 text-left text-sm uppercase tracking-[0.14em] text-zinc-400 transition hover:text-zinc-200"
+                >
+                  {cambiosPrecioExpandido ? (
+                    <ChevronDown className="h-4 w-4 shrink-0" aria-hidden />
+                  ) : (
+                    <ChevronRight className="h-4 w-4 shrink-0" aria-hidden />
+                  )}
+                  Cambios de precio
+                  <span className="rounded-full border border-zinc-700 bg-zinc-900 px-2 py-0.5 text-[11px] font-bold tabular-nums text-zinc-400">
+                    {cambiosPrecio.length}
+                  </span>
+                  {subidasRecientes > 0 ? (
+                    <span className="inline-flex items-center gap-1 rounded-full border border-orange-900/60 bg-orange-950/40 px-2 py-0.5 text-[11px] font-medium text-orange-300">
+                      <TrendingUp className="h-3 w-3" aria-hidden />
+                      {subidasRecientes} subidas · 90 días
+                    </span>
+                  ) : null}
+                </button>
+                {cambiosPrecioExpandido ? (
+                  <>
+                    <p className="mb-4 mt-3 text-xs text-zinc-500">
+                      Comparación del precio por kg, caja o unidad entre albaranes consecutivos
+                      del mismo ítem y proveedor. Solo se muestran variaciones de al menos 0,5 % o
+                      2 céntimos.
+                    </p>
+                    <div className="max-h-72 overflow-y-auto rounded-lg border border-zinc-800/80">
+                      <table className="w-full min-w-[32rem] text-left text-sm">
+                        <thead className="sticky top-0 bg-zinc-900/95 text-[10px] uppercase tracking-[0.12em] text-zinc-500">
+                          <tr>
+                            <th className="px-3 py-2 font-medium">Fecha</th>
+                            <th className="px-3 py-2 font-medium">Ítem</th>
+                            <th className="px-3 py-2 font-medium">Proveedor</th>
+                            <th className="px-3 py-2 font-medium text-right">Antes</th>
+                            <th className="px-3 py-2 font-medium text-right">Ahora</th>
+                            <th className="px-3 py-2 font-medium text-right">Cambio</th>
                           </tr>
-                        );
-                      })}
-                    </tbody>
-                  </table>
-                </div>
+                        </thead>
+                        <tbody className="divide-y divide-zinc-800/80">
+                          {cambiosPrecio.map((c, i) => {
+                            const subio = c.variacionPct > 0;
+                            const pct = `${subio ? "+" : ""}${c.variacionPct.toLocaleString("es-ES", {
+                              maximumFractionDigits: 1,
+                            })} %`;
+                            return (
+                              <tr
+                                key={`${c.fecha}-${c.nombre}-${c.proveedor}-${i}`}
+                                className="text-zinc-200"
+                              >
+                                <td className="whitespace-nowrap px-3 py-2 text-zinc-400">
+                                  {formatearFechaCorta(c.fecha)}
+                                </td>
+                                <td className="px-3 py-2 font-medium text-white">{c.nombre}</td>
+                                <td className="px-3 py-2 text-zinc-400">{c.proveedor ?? "—"}</td>
+                                <td className="whitespace-nowrap px-3 py-2 text-right tabular-nums text-zinc-400">
+                                  {formatearPrecioUnitario(c.precioAnterior, c.unidad)}
+                                </td>
+                                <td className="whitespace-nowrap px-3 py-2 text-right tabular-nums text-white">
+                                  {formatearPrecioUnitario(c.precioNuevo, c.unidad)}
+                                </td>
+                                <td className="px-3 py-2 text-right">
+                                  <span
+                                    className={`inline-flex items-center justify-end gap-1 tabular-nums text-xs font-medium ${
+                                      subio ? "text-red-300" : "text-emerald-300"
+                                    }`}
+                                  >
+                                    {subio ? (
+                                      <TrendingUp className="h-3.5 w-3.5 shrink-0" aria-hidden />
+                                    ) : (
+                                      <TrendingDown className="h-3.5 w-3.5 shrink-0" aria-hidden />
+                                    )}
+                                    {pct}
+                                  </span>
+                                </td>
+                              </tr>
+                            );
+                          })}
+                        </tbody>
+                      </table>
+                    </div>
+                  </>
+                ) : null}
               </section>
             ) : null}
 
@@ -533,102 +995,146 @@ export default function ComprasPage() {
                 catálogo en <span className="text-zinc-300">/stock</span> e importá algún albarán
                 acá para empezar.
               </p>
+            ) : hayBusqueda &&
+              urgentesPorProveedor.length === 0 &&
+              alDiaPorProveedor.length === 0 &&
+              sinDatosPorProveedor.length === 0 ? (
+              <p className="text-sm text-zinc-500">
+                Ningún ítem coincide con “{busqueda}”.
+              </p>
             ) : (
-              <div className="space-y-6">
-                {gruposPorProveedor.map(([proveedor, lista]) => (
-                  <section
-                    key={proveedor}
-                    className="rounded-xl border border-zinc-800 bg-zinc-950/60 p-4"
-                  >
-                    <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
-                      <h2 className="text-sm uppercase tracking-[0.14em] text-zinc-400">
-                        {proveedor}
-                      </h2>
-                      {proveedor !== SIN_PROVEEDOR ? (
-                        <button
-                          type="button"
-                          onClick={() => abrirImport(proveedor as Proveedor)}
-                          className="inline-flex items-center gap-1.5 rounded-lg border border-zinc-700 bg-zinc-900 px-2.5 py-1.5 text-xs text-zinc-200 transition hover:border-zinc-500 hover:text-white"
-                        >
-                          <ListPlus className="h-3.5 w-3.5" aria-hidden />
-                          Importar para {proveedor}
-                        </button>
-                      ) : null}
+              <>
+                {totalUrgentes === 0 && !hayBusqueda ? (
+                  <div className="mb-6 flex flex-col gap-2 rounded-xl border border-emerald-900/50 bg-emerald-950/30 px-4 py-3 text-sm text-emerald-200">
+                    <div className="flex items-center gap-2">
+                      <CheckCircle2 className="h-4 w-4 shrink-0" aria-hidden />
+                      Nada urgente para pedir.
                     </div>
+                    {soloUrgentes && (kpis.OK > 0 || kpis["Sin datos"] > 0) ? (
+                      <p className="text-xs text-emerald-300/80">
+                        Desactivá <span className="text-emerald-100">Solo urgentes</span> para ver{" "}
+                        {kpis.OK + kpis["Sin datos"]} ítem
+                        {kpis.OK + kpis["Sin datos"] === 1 ? "" : "s"} al día.
+                      </p>
+                    ) : null}
+                  </div>
+                ) : null}
 
-                    <ul className="space-y-2" role="list">
-                      {lista.map(({ item, prediccion }) => (
-                        <li
-                          key={item.id}
-                          className="flex flex-col gap-2 rounded-lg border border-zinc-800 bg-zinc-900/50 px-3 py-2.5 sm:flex-row sm:items-center sm:justify-between"
+                {urgentesPorProveedor.length > 0 ? (
+                  <section className="mb-6">
+                    <h2 className="mb-3 flex items-center gap-2 text-sm font-semibold uppercase tracking-[0.14em] text-orange-300">
+                      <AlertTriangle className="h-4 w-4" aria-hidden />
+                      Para pedir
+                      <span className="rounded-full bg-orange-900/60 px-2 py-0.5 text-[11px] font-bold tabular-nums text-orange-100">
+                        {totalUrgentes}
+                      </span>
+                    </h2>
+                    <div className="space-y-4">
+                      {urgentesPorProveedor.map(([proveedor, lista]) => (
+                        <div
+                          key={proveedor}
+                          className="overflow-hidden rounded-xl border border-zinc-800"
                         >
-                          <div className="min-w-0 flex-1">
-                            <div className="flex flex-wrap items-center gap-2">
-                              <span className="text-sm font-medium text-zinc-100">
-                                {item.nombre}
-                              </span>
-                              <EstadoBadge estado={prediccion.estado} />
-                            </div>
-                            <p className="mt-1 text-[11px] text-zinc-500">
-                              {prediccion.ultimaCompra ? (
-                                <>
-                                  Última compra: {prediccion.ultimaCompra}
-                                  {prediccion.intervaloTipicoDias != null ? (
-                                    <> · Ciclo típico: {prediccion.intervaloTipicoDias} días</>
-                                  ) : null}
-                                  {prediccion.proximaFechaSugerida ? (
-                                    <>
-                                      {" "}
-                                      · Próxima sugerida: {prediccion.proximaFechaSugerida} (
-                                      {prediccion.diasParaProxima != null &&
-                                      prediccion.diasParaProxima <= 0
-                                        ? "atrasado"
-                                        : `en ${prediccion.diasParaProxima} días`}
-                                      )
-                                    </>
-                                  ) : null}
-                                </>
-                              ) : (
-                                "Sin compras registradas todavía."
-                              )}
-                            </p>
+                          <div className="flex flex-wrap items-center justify-between gap-2 border-b border-zinc-800/80 bg-zinc-950/60 px-3 py-2">
+                            <h3 className="text-xs font-semibold uppercase tracking-[0.12em] text-zinc-400">
+                              {proveedor}
+                              <span className="ml-1.5 text-zinc-600">({lista.length})</span>
+                            </h3>
+                            {proveedor !== SIN_PROVEEDOR ? (
+                              <button
+                                type="button"
+                                disabled={agregandoLoteProveedor === proveedor}
+                                onClick={() =>
+                                  void agregarLoteAPedido(proveedor as Proveedor, lista)
+                                }
+                                className="inline-flex items-center gap-1.5 rounded-lg border border-emerald-800/70 bg-emerald-900/40 px-2.5 py-1 text-[11px] font-medium text-emerald-200 transition hover:bg-emerald-800/40 disabled:cursor-not-allowed disabled:opacity-40"
+                              >
+                                {agregandoLoteProveedor === proveedor ? (
+                                  <Loader2 className="h-3.5 w-3.5 animate-spin" aria-hidden />
+                                ) : (
+                                  <Layers className="h-3.5 w-3.5" aria-hidden />
+                                )}
+                                Agregar los {lista.length} al pedido
+                              </button>
+                            ) : null}
                           </div>
-                          <div className="flex shrink-0 items-center gap-2">
-                            <span className="text-xs tabular-nums text-zinc-400">
-                              {prediccion.cantidadSugerida != null
-                                ? `${prediccion.cantidadSugerida} ${item.unidadCompra}`
-                                : "—"}
-                            </span>
-                            <button
-                              type="button"
-                              disabled={agregandoId === item.id || proveedor === SIN_PROVEEDOR}
-                              onClick={() =>
-                                void agregarAPedido(item.proveedor as Proveedor, {
-                                  item,
-                                  prediccion,
-                                })
-                              }
-                              title={
-                                proveedor === SIN_PROVEEDOR
-                                  ? "Asigná un proveedor en /stock para poder agregarlo a un pedido"
-                                  : undefined
-                              }
-                              className="inline-flex items-center gap-1.5 rounded-lg border border-zinc-600 bg-zinc-800 px-2.5 py-1.5 text-xs font-medium text-zinc-100 transition hover:border-zinc-500 hover:bg-zinc-700 disabled:cursor-not-allowed disabled:opacity-40"
-                            >
-                              {agregandoId === item.id ? (
-                                <Loader2 className="h-3.5 w-3.5 animate-spin" aria-hidden />
-                              ) : (
-                                <Plus className="h-3.5 w-3.5" aria-hidden />
-                              )}
-                              {agregadoOkId === item.id ? "Agregado" : "Agregar a pedido"}
-                            </button>
-                          </div>
-                        </li>
+                          <ul className="divide-y divide-zinc-800/90 bg-zinc-950/30">
+                            {lista.map((entry) => renderFilaCompacta(proveedor, entry))}
+                          </ul>
+                        </div>
                       ))}
-                    </ul>
+                    </div>
                   </section>
-                ))}
-              </div>
+                ) : null}
+
+                {!soloUrgentes && alDiaPorProveedor.length > 0 ? (
+                  <section className="mb-6">
+                    <button
+                      type="button"
+                      onClick={() => setAlDiaExpandido((v) => !v)}
+                      className="mb-3 flex w-full items-center gap-2 rounded-lg py-1 text-left text-sm font-semibold uppercase tracking-[0.14em] text-zinc-500 transition hover:text-zinc-300"
+                    >
+                      {alDiaExpandido || hayBusqueda ? (
+                        <ChevronDown className="h-4 w-4 shrink-0" aria-hidden />
+                      ) : (
+                        <ChevronRight className="h-4 w-4 shrink-0" aria-hidden />
+                      )}
+                      Al día
+                      <span className="rounded-full border border-zinc-700 bg-zinc-900 px-2 py-0.5 text-[11px] font-bold tabular-nums text-zinc-400">
+                        {kpis.OK}
+                      </span>
+                    </button>
+                    {alDiaExpandido || hayBusqueda ? (
+                      <div className="space-y-4 opacity-90">
+                        {alDiaPorProveedor.map(([proveedor, lista]) => (
+                          <div key={proveedor}>
+                            <h3 className="mb-2 text-xs font-semibold uppercase tracking-[0.12em] text-zinc-500">
+                              {proveedor}
+                            </h3>
+                            <ul className="space-y-2" role="list">
+                              {lista.map((entry) => renderFilaAlDia(proveedor, entry))}
+                            </ul>
+                          </div>
+                        ))}
+                      </div>
+                    ) : null}
+                  </section>
+                ) : null}
+
+                {!soloUrgentes && sinDatosPorProveedor.length > 0 ? (
+                  <section className="mb-6">
+                    <button
+                      type="button"
+                      onClick={() => setSinDatosExpandido((v) => !v)}
+                      className="mb-3 flex w-full items-center gap-2 rounded-lg py-1 text-left text-sm uppercase tracking-[0.14em] text-zinc-500 transition hover:text-zinc-300"
+                    >
+                      {sinDatosExpandido || hayBusqueda ? (
+                        <ChevronDown className="h-4 w-4 shrink-0" aria-hidden />
+                      ) : (
+                        <ChevronRight className="h-4 w-4 shrink-0" aria-hidden />
+                      )}
+                      Sin datos
+                      <span className="rounded-full border border-zinc-700 bg-zinc-900 px-2 py-0.5 text-[11px] font-bold tabular-nums text-zinc-400">
+                        {kpis["Sin datos"]}
+                      </span>
+                    </button>
+                    {sinDatosExpandido || hayBusqueda ? (
+                      <div className="space-y-4 opacity-80">
+                        {sinDatosPorProveedor.map(([proveedor, lista]) => (
+                          <div key={proveedor}>
+                            <h3 className="mb-2 text-xs font-semibold uppercase tracking-[0.12em] text-zinc-500">
+                              {proveedor}
+                            </h3>
+                            <ul className="space-y-2" role="list">
+                              {lista.map((entry) => renderFilaAlDia(proveedor, entry))}
+                            </ul>
+                          </div>
+                        ))}
+                      </div>
+                    ) : null}
+                  </section>
+                ) : null}
+              </>
             )}
           </>
         )}
@@ -832,6 +1338,31 @@ export default function ComprasPage() {
           </div>
         ) : null}
       </section>
+
+      {undoAgregado ? (
+        <div
+          className="fixed inset-x-4 bottom-4 z-50 mx-auto flex max-w-3xl items-center gap-3 rounded-xl border border-zinc-700 bg-zinc-900/95 px-4 py-3 shadow-xl backdrop-blur-sm sm:inset-x-6"
+          role="status"
+          aria-live="polite"
+        >
+          <CheckCircle2 className="h-5 w-5 shrink-0 text-emerald-400" aria-hidden />
+          <p className="min-w-0 flex-1 text-sm text-zinc-200">
+            <span className="font-medium text-white">{undoAgregado.etiqueta}</span> agregado a{" "}
+            {undoAgregado.proveedor}
+          </p>
+          <button
+            type="button"
+            onClick={() => void deshacerAgregado()}
+            className="inline-flex shrink-0 items-center gap-1.5 rounded-lg border border-zinc-600 bg-zinc-800 px-3 py-1.5 text-sm font-semibold text-white transition hover:bg-zinc-700"
+          >
+            <Undo2 className="h-4 w-4" aria-hidden />
+            Deshacer
+            <kbd className="hidden rounded border border-zinc-600 bg-zinc-900 px-1.5 py-0.5 text-[10px] font-medium text-zinc-400 sm:inline">
+              Z
+            </kbd>
+          </button>
+        </div>
+      ) : null}
     </main>
   );
 }
