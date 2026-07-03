@@ -11,6 +11,7 @@ export const PROVEEDORES = [
   "Pescaderías Coruñesas",
   "García de Pou",
   "Nishikidori",
+  "Amazon",
   "Verdulería",
   "Supermercado",
   "Vila Viniteca",
