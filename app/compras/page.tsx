@@ -22,6 +22,7 @@ import {
 
 import {
   agruparComprasPorStockItem,
+  completarPrecio,
   fetchComprasHistorial,
   insertarComprasHistorial,
   ultimoPrecioUnitarioPorStockItem,
@@ -72,11 +73,18 @@ type PedidoItemDraft = {
   unidad: UnidadMedida;
 };
 
-type SnapshotAgregado = {
-  proveedor: Proveedor;
-  itemsAnteriores: PedidoItemDraft[];
-  etiqueta: string;
-};
+type SnapshotAccion =
+  | {
+      tipo: "pedido";
+      proveedor: Proveedor;
+      itemsAnteriores: PedidoItemDraft[];
+      etiqueta: string;
+    }
+  | {
+      tipo: "registro";
+      compraId: string;
+      etiqueta: string;
+    };
 
 const ESTADO_ICONO: Record<EstadoCompra, React.ReactNode> = {
   Atrasado: <AlertTriangle className="h-3.5 w-3.5" aria-hidden />,
@@ -180,14 +188,15 @@ export default function ComprasPage() {
   const [agregandoId, setAgregandoId] = useState<string | null>(null);
   const [agregadoOkId, setAgregadoOkId] = useState<string | null>(null);
   const [agregandoLoteProveedor, setAgregandoLoteProveedor] = useState<string | null>(null);
-  const [undoAgregado, setUndoAgregado] = useState<SnapshotAgregado | null>(null);
+  const [undoAccion, setUndoAccion] = useState<SnapshotAccion | null>(null);
 
   const [cantidadPorId, setCantidadPorId] = useState<Record<string, string>>({});
   const [busqueda, setBusqueda] = useState("");
   const [soloUrgentes, setSoloUrgentes] = useState(() => leerSoloUrgentesGuardado());
   const [alDiaExpandido, setAlDiaExpandido] = useState(false);
-  const [sinDatosExpandido, setSinDatosExpandido] = useState(false);
+  const [sinDatosExpandido, setSinDatosExpandido] = useState(true);
   const [cambiosPrecioExpandido, setCambiosPrecioExpandido] = useState(false);
+  const [gruposColapsados, setGruposColapsados] = useState<Set<string>>(() => new Set());
 
   const [importAbierto, setImportAbierto] = useState(false);
   const [importProveedor, setImportProveedor] = useState<Proveedor | "">("");
@@ -357,6 +366,26 @@ export default function ComprasPage() {
   const totalUrgentes = kpis.Atrasado + kpis["Pedir pronto"];
   const hayBusqueda = busquedaNormalizada.length > 0;
 
+  const toggleGrupo = (clave: string) => {
+    setGruposColapsados((prev) => {
+      const next = new Set(prev);
+      if (next.has(clave)) {
+        next.delete(clave);
+      } else {
+        next.add(clave);
+      }
+      return next;
+    });
+  };
+
+  const todoExpandido = alDiaExpandido && sinDatosExpandido && gruposColapsados.size === 0;
+  const alternarExpandirTodo = () => {
+    const nuevoValor = !todoExpandido;
+    setAlDiaExpandido(nuevoValor);
+    setSinDatosExpandido(nuevoValor);
+    setGruposColapsados(new Set());
+  };
+
   useEffect(() => {
     if (itemsConPrediccion.length === 0) {
       return;
@@ -381,12 +410,12 @@ export default function ComprasPage() {
   }, [itemsConPrediccion.length]);
 
   useEffect(() => {
-    if (!undoAgregado) {
+    if (!undoAccion) {
       return;
     }
-    const snap = undoAgregado;
+    const snap = undoAccion;
     const timer = window.setTimeout(() => {
-      setUndoAgregado((current) => (current === snap ? null : current));
+      setUndoAccion((current) => (current === snap ? null : current));
     }, UNDO_AGREGADO_MS);
 
     const onKeyDown = (e: KeyboardEvent) => {
@@ -402,7 +431,7 @@ export default function ComprasPage() {
         return;
       }
       e.preventDefault();
-      void deshacerAgregado();
+      void deshacerAccion();
     };
     window.addEventListener("keydown", onKeyDown);
     return () => {
@@ -410,7 +439,7 @@ export default function ComprasPage() {
       window.removeEventListener("keydown", onKeyDown);
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [undoAgregado]);
+  }, [undoAccion]);
 
   const cambiosPrecioVisibles = soloUrgentes ? [] : cambiosPrecio;
 
@@ -554,22 +583,41 @@ export default function ComprasPage() {
     setRegistrarIsSaving(true);
     setRegistrarError(null);
     try {
-      const precio = registrarPrecio.trim() ? parseCantidad(registrarPrecio) : null;
-      await insertarComprasHistorial([
-        {
-          stockItemId: registrarItem.id,
-          stockItemNombre: registrarItem.nombre,
+      const precioIngresado = registrarPrecio.trim() ? parseCantidad(registrarPrecio) : null;
+      const { precioUnitario, importeTotal } = completarPrecio(
+        cantidad,
+        registrarTipoPrecio === "unitario" ? precioIngresado : null,
+        registrarTipoPrecio === "total" ? precioIngresado : null
+      );
+
+      const { data, error: insertError } = await supabase
+        .from("compras_historial")
+        .insert({
+          stock_item_id: registrarItem.id,
+          stock_item_nombre: registrarItem.nombre,
           proveedor: registrarItem.proveedor,
           cantidad,
           unidad: registrarItem.unidadCompra,
           fecha: registrarFecha,
           origen: "manual",
-          precioUnitario: registrarTipoPrecio === "unitario" ? precio : null,
-          importeTotal: registrarTipoPrecio === "total" ? precio : null,
-        },
-      ]);
+          precio_unitario: precioUnitario,
+          importe_total: importeTotal,
+        })
+        .select("id")
+        .single();
+
+      if (insertError) {
+        throw new Error(formatPostgrestError(insertError));
+      }
+
+      const nombreItem = registrarItem.nombre;
       await cargarDatos();
       cerrarRegistrar();
+      setUndoAccion({
+        tipo: "registro",
+        compraId: (data as { id: string }).id,
+        etiqueta: `Compra de ${nombreItem} (${formatearFechaCorta(registrarFecha)})`,
+      });
     } catch (err) {
       setRegistrarError(
         err instanceof Error ? err.message : "No se pudo registrar la compra."
@@ -640,7 +688,8 @@ export default function ComprasPage() {
       window.setTimeout(() => {
         setAgregadoOkId((current) => (current === entry.item.id ? null : current));
       }, 2200);
-      setUndoAgregado({
+      setUndoAccion({
+        tipo: "pedido",
         proveedor,
         itemsAnteriores,
         etiqueta: entry.item.nombre,
@@ -682,7 +731,8 @@ export default function ComprasPage() {
       window.setTimeout(() => {
         setAgregadoOkId(null);
       }, 2200);
-      setUndoAgregado({
+      setUndoAccion({
+        tipo: "pedido",
         proveedor,
         itemsAnteriores,
         etiqueta: `${nuevos.length} ítems de ${proveedor}`,
@@ -694,14 +744,25 @@ export default function ComprasPage() {
     }
   };
 
-  const deshacerAgregado = async () => {
-    if (!undoAgregado) {
+  const deshacerAccion = async () => {
+    if (!undoAccion) {
       return;
     }
-    const snap = undoAgregado;
-    setUndoAgregado(null);
+    const snap = undoAccion;
+    setUndoAccion(null);
     try {
-      await guardarItemsPedido(snap.proveedor, snap.itemsAnteriores);
+      if (snap.tipo === "pedido") {
+        await guardarItemsPedido(snap.proveedor, snap.itemsAnteriores);
+      } else {
+        const { error: deleteError } = await supabase
+          .from("compras_historial")
+          .delete()
+          .eq("id", snap.compraId);
+        if (deleteError) {
+          throw new Error(formatPostgrestError(deleteError));
+        }
+        await cargarDatos();
+      }
     } catch (err) {
       setError(err instanceof Error ? err.message : "No se pudo deshacer.");
     }
@@ -813,13 +874,20 @@ export default function ComprasPage() {
                 Última compra: {prediccion.ultimaCompra}
                 {prediccion.intervaloTipicoDias != null ? (
                   <> · Ciclo típico: {prediccion.intervaloTipicoDias} días</>
-                ) : null}
+                ) : (
+                  <span className="text-indigo-300">
+                    {" "}
+                    · Registrá otra fecha para poder estimar el ciclo
+                  </span>
+                )}
                 {prediccion.proximaFechaSugerida ? (
                   <> · Próxima sugerida: {prediccion.proximaFechaSugerida}</>
                 ) : null}
               </>
             ) : (
-              "Sin compras registradas todavía."
+              <span className="text-indigo-300">
+                Sin compras registradas todavía. Tocá Registrar para cargar la última.
+              </span>
             )}
             {ultimoPrecio != null ? (
               <span className="text-zinc-600">
@@ -935,18 +1003,34 @@ export default function ComprasPage() {
                   </button>
                 ) : null}
               </div>
-              <label className="inline-flex shrink-0 items-center gap-2 text-xs font-medium text-zinc-400">
-                <input
-                  type="checkbox"
-                  checked={soloUrgentes}
-                  onChange={(e) => setSoloUrgentes(e.target.checked)}
-                  className="size-4 rounded border-zinc-600 bg-zinc-900 accent-orange-600"
-                />
-                Solo urgentes
-                <kbd className="hidden rounded border border-zinc-700 bg-zinc-900 px-1.5 py-0.5 text-[10px] text-zinc-500 sm:inline">
-                  U
-                </kbd>
-              </label>
+              <div className="flex shrink-0 items-center gap-3">
+                {!soloUrgentes ? (
+                  <button
+                    type="button"
+                    onClick={alternarExpandirTodo}
+                    className="inline-flex items-center gap-1.5 text-xs font-medium text-zinc-400 transition hover:text-zinc-200"
+                  >
+                    {todoExpandido ? (
+                      <ChevronDown className="h-3.5 w-3.5" aria-hidden />
+                    ) : (
+                      <ChevronRight className="h-3.5 w-3.5" aria-hidden />
+                    )}
+                    {todoExpandido ? "Colapsar todo" : "Expandir todo"}
+                  </button>
+                ) : null}
+                <label className="inline-flex items-center gap-2 text-xs font-medium text-zinc-400">
+                  <input
+                    type="checkbox"
+                    checked={soloUrgentes}
+                    onChange={(e) => setSoloUrgentes(e.target.checked)}
+                    className="size-4 rounded border-zinc-600 bg-zinc-900 accent-orange-600"
+                  />
+                  Solo urgentes
+                  <kbd className="hidden rounded border border-zinc-700 bg-zinc-900 px-1.5 py-0.5 text-[10px] text-zinc-500 sm:inline">
+                    U
+                  </kbd>
+                </label>
+              </div>
             </div>
 
             {!soloUrgentes ? (
@@ -973,7 +1057,15 @@ export default function ComprasPage() {
                   icono={<HelpCircle className="h-4 w-4" aria-hidden />}
                   titulo="Sin datos"
                   valor={kpis["Sin datos"]}
-                  tono="text-zinc-400"
+                  tono="text-indigo-300"
+                  onClick={
+                    kpis["Sin datos"] > 0
+                      ? () => {
+                          setSoloUrgentes(false);
+                          setSinDatosExpandido(true);
+                        }
+                      : undefined
+                  }
                 />
                 <KpiCard
                   icono={<TrendingUp className="h-4 w-4" aria-hidden />}
@@ -1114,39 +1206,54 @@ export default function ComprasPage() {
                       </span>
                     </h2>
                     <div className="space-y-4">
-                      {urgentesPorProveedor.map(([proveedor, lista]) => (
-                        <div
-                          key={proveedor}
-                          className="overflow-hidden rounded-xl border border-zinc-800"
-                        >
-                          <div className="flex flex-wrap items-center justify-between gap-2 border-b border-zinc-800/80 bg-zinc-950/60 px-3 py-2">
-                            <h3 className="text-xs font-semibold uppercase tracking-[0.12em] text-zinc-400">
-                              {proveedor}
-                              <span className="ml-1.5 text-zinc-600">({lista.length})</span>
-                            </h3>
-                            {proveedor !== SIN_PROVEEDOR ? (
+                      {urgentesPorProveedor.map(([proveedor, lista]) => {
+                        const clave = `urgentes:${proveedor}`;
+                        const colapsado = gruposColapsados.has(clave);
+                        return (
+                          <div
+                            key={proveedor}
+                            className="overflow-hidden rounded-xl border border-zinc-800"
+                          >
+                            <div className="flex flex-wrap items-center justify-between gap-2 border-b border-zinc-800/80 bg-zinc-950/60 px-3 py-2">
                               <button
                                 type="button"
-                                disabled={agregandoLoteProveedor === proveedor}
-                                onClick={() =>
-                                  void agregarLoteAPedido(proveedor as Proveedor, lista)
-                                }
-                                className="inline-flex items-center gap-1.5 rounded-lg border border-emerald-800/70 bg-emerald-900/40 px-2.5 py-1 text-[11px] font-medium text-emerald-200 transition hover:bg-emerald-800/40 disabled:cursor-not-allowed disabled:opacity-40"
+                                onClick={() => toggleGrupo(clave)}
+                                className="flex items-center gap-1.5 text-xs font-semibold uppercase tracking-[0.12em] text-zinc-400 transition hover:text-zinc-200"
                               >
-                                {agregandoLoteProveedor === proveedor ? (
-                                  <Loader2 className="h-3.5 w-3.5 animate-spin" aria-hidden />
+                                {colapsado ? (
+                                  <ChevronRight className="h-3.5 w-3.5 shrink-0" aria-hidden />
                                 ) : (
-                                  <Layers className="h-3.5 w-3.5" aria-hidden />
+                                  <ChevronDown className="h-3.5 w-3.5 shrink-0" aria-hidden />
                                 )}
-                                Agregar los {lista.length} al pedido
+                                {proveedor}
+                                <span className="text-zinc-600">({lista.length})</span>
                               </button>
+                              {proveedor !== SIN_PROVEEDOR ? (
+                                <button
+                                  type="button"
+                                  disabled={agregandoLoteProveedor === proveedor}
+                                  onClick={() =>
+                                    void agregarLoteAPedido(proveedor as Proveedor, lista)
+                                  }
+                                  className="inline-flex items-center gap-1.5 rounded-lg border border-emerald-800/70 bg-emerald-900/40 px-2.5 py-1 text-[11px] font-medium text-emerald-200 transition hover:bg-emerald-800/40 disabled:cursor-not-allowed disabled:opacity-40"
+                                >
+                                  {agregandoLoteProveedor === proveedor ? (
+                                    <Loader2 className="h-3.5 w-3.5 animate-spin" aria-hidden />
+                                  ) : (
+                                    <Layers className="h-3.5 w-3.5" aria-hidden />
+                                  )}
+                                  Agregar los {lista.length} al pedido
+                                </button>
+                              ) : null}
+                            </div>
+                            {!colapsado ? (
+                              <ul className="divide-y divide-zinc-800/90 bg-zinc-950/30">
+                                {lista.map((entry) => renderFilaCompacta(proveedor, entry))}
+                              </ul>
                             ) : null}
                           </div>
-                          <ul className="divide-y divide-zinc-800/90 bg-zinc-950/30">
-                            {lista.map((entry) => renderFilaCompacta(proveedor, entry))}
-                          </ul>
-                        </div>
-                      ))}
+                        );
+                      })}
                     </div>
                   </section>
                 ) : null}
@@ -1170,51 +1277,91 @@ export default function ComprasPage() {
                     </button>
                     {alDiaExpandido || hayBusqueda ? (
                       <div className="space-y-4 opacity-90">
-                        {alDiaPorProveedor.map(([proveedor, lista]) => (
-                          <div key={proveedor}>
-                            <h3 className="mb-2 text-xs font-semibold uppercase tracking-[0.12em] text-zinc-500">
-                              {proveedor}
-                            </h3>
-                            <ul className="space-y-2" role="list">
-                              {lista.map((entry) => renderFilaAlDia(proveedor, entry))}
-                            </ul>
-                          </div>
-                        ))}
+                        {alDiaPorProveedor.map(([proveedor, lista]) => {
+                          const clave = `alDia:${proveedor}`;
+                          const colapsado = gruposColapsados.has(clave);
+                          return (
+                            <div key={proveedor}>
+                              <button
+                                type="button"
+                                onClick={() => toggleGrupo(clave)}
+                                className="mb-2 flex items-center gap-1.5 text-xs font-semibold uppercase tracking-[0.12em] text-zinc-500 transition hover:text-zinc-300"
+                              >
+                                {colapsado ? (
+                                  <ChevronRight className="h-3.5 w-3.5 shrink-0" aria-hidden />
+                                ) : (
+                                  <ChevronDown className="h-3.5 w-3.5 shrink-0" aria-hidden />
+                                )}
+                                {proveedor}
+                                <span className="text-zinc-600">({lista.length})</span>
+                              </button>
+                              {!colapsado ? (
+                                <ul className="space-y-2" role="list">
+                                  {lista.map((entry) => renderFilaAlDia(proveedor, entry))}
+                                </ul>
+                              ) : null}
+                            </div>
+                          );
+                        })}
                       </div>
                     ) : null}
                   </section>
                 ) : null}
 
                 {!soloUrgentes && sinDatosPorProveedor.length > 0 ? (
-                  <section className="mb-6">
+                  <section className="mb-6 rounded-xl border border-indigo-900/40 bg-indigo-950/10 p-3">
                     <button
                       type="button"
                       onClick={() => setSinDatosExpandido((v) => !v)}
-                      className="mb-3 flex w-full items-center gap-2 rounded-lg py-1 text-left text-sm uppercase tracking-[0.14em] text-zinc-500 transition hover:text-zinc-300"
+                      className="flex w-full items-center gap-2 rounded-lg py-1 text-left text-sm font-semibold uppercase tracking-[0.14em] text-indigo-300 transition hover:text-indigo-200"
                     >
                       {sinDatosExpandido || hayBusqueda ? (
                         <ChevronDown className="h-4 w-4 shrink-0" aria-hidden />
                       ) : (
                         <ChevronRight className="h-4 w-4 shrink-0" aria-hidden />
                       )}
+                      <CalendarPlus className="h-4 w-4 shrink-0" aria-hidden />
                       Sin datos
-                      <span className="rounded-full border border-zinc-700 bg-zinc-900 px-2 py-0.5 text-[11px] font-bold tabular-nums text-zinc-400">
+                      <span className="rounded-full bg-indigo-900/60 px-2 py-0.5 text-[11px] font-bold tabular-nums text-indigo-100">
                         {kpis["Sin datos"]}
                       </span>
                     </button>
                     {sinDatosExpandido || hayBusqueda ? (
-                      <div className="space-y-4 opacity-80">
-                        {sinDatosPorProveedor.map(([proveedor, lista]) => (
-                          <div key={proveedor}>
-                            <h3 className="mb-2 text-xs font-semibold uppercase tracking-[0.12em] text-zinc-500">
-                              {proveedor}
-                            </h3>
-                            <ul className="space-y-2" role="list">
-                              {lista.map((entry) => renderFilaAlDia(proveedor, entry))}
-                            </ul>
-                          </div>
-                        ))}
-                      </div>
+                      <>
+                        <p className="mb-3 mt-2 text-[11px] leading-relaxed text-indigo-200/70">
+                          Sin albarán todavía. Tocá <span className="text-indigo-200">Registrar</span>{" "}
+                          para cargar a mano cuándo y cuánto se compró — con 2 fechas cargadas ya se
+                          puede estimar el ciclo y el ítem pasa a Al día / Para pedir.
+                        </p>
+                        <div className="space-y-4">
+                          {sinDatosPorProveedor.map(([proveedor, lista]) => {
+                            const clave = `sinDatos:${proveedor}`;
+                            const colapsado = gruposColapsados.has(clave);
+                            return (
+                              <div key={proveedor}>
+                                <button
+                                  type="button"
+                                  onClick={() => toggleGrupo(clave)}
+                                  className="mb-2 flex items-center gap-1.5 text-xs font-semibold uppercase tracking-[0.12em] text-indigo-300/80 transition hover:text-indigo-200"
+                                >
+                                  {colapsado ? (
+                                    <ChevronRight className="h-3.5 w-3.5 shrink-0" aria-hidden />
+                                  ) : (
+                                    <ChevronDown className="h-3.5 w-3.5 shrink-0" aria-hidden />
+                                  )}
+                                  {proveedor}
+                                  <span className="text-indigo-400/60">({lista.length})</span>
+                                </button>
+                                {!colapsado ? (
+                                  <ul className="space-y-2" role="list">
+                                    {lista.map((entry) => renderFilaAlDia(proveedor, entry))}
+                                  </ul>
+                                ) : null}
+                              </div>
+                            );
+                          })}
+                        </div>
+                      </>
                     ) : null}
                   </section>
                 ) : null}
@@ -1564,7 +1711,7 @@ export default function ComprasPage() {
         ) : null}
       </section>
 
-      {undoAgregado ? (
+      {undoAccion ? (
         <div
           className="fixed inset-x-4 bottom-4 z-50 mx-auto flex max-w-3xl items-center gap-3 rounded-xl border border-zinc-700 bg-zinc-900/95 px-4 py-3 shadow-xl backdrop-blur-sm sm:inset-x-6"
           role="status"
@@ -1572,12 +1719,18 @@ export default function ComprasPage() {
         >
           <CheckCircle2 className="h-5 w-5 shrink-0 text-emerald-400" aria-hidden />
           <p className="min-w-0 flex-1 text-sm text-zinc-200">
-            <span className="font-medium text-white">{undoAgregado.etiqueta}</span> agregado a{" "}
-            {undoAgregado.proveedor}
+            {undoAccion.tipo === "pedido" ? (
+              <>
+                <span className="font-medium text-white">{undoAccion.etiqueta}</span> agregado a{" "}
+                {undoAccion.proveedor}
+              </>
+            ) : (
+              <span className="font-medium text-white">{undoAccion.etiqueta} registrada</span>
+            )}
           </p>
           <button
             type="button"
-            onClick={() => void deshacerAgregado()}
+            onClick={() => void deshacerAccion()}
             className="inline-flex shrink-0 items-center gap-1.5 rounded-lg border border-zinc-600 bg-zinc-800 px-3 py-1.5 text-sm font-semibold text-white transition hover:bg-zinc-700"
           >
             <Undo2 className="h-4 w-4" aria-hidden />
