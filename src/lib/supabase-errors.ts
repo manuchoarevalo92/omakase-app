@@ -95,7 +95,11 @@ export function formatPostgrestError(error: {
         "Ejemplo: supabase/ingredientes-rubro.sql (columna rubro en public.ingredientes)."
       );
     }
-    if (msg.includes("stock_items")) {
+    if (msg.includes("stock_items") && msg.includes("intervalo_estimado")) {
+      bits.push(
+        "Ejecutá supabase/stock-items-intervalo-estimado.sql en el SQL Editor (columna intervalo_estimado_dias)."
+      );
+    } else if (msg.includes("stock_items")) {
       bits.push(
         "Ejecutá supabase/stock-items.sql en el SQL Editor para crear la tabla stock_items."
       );

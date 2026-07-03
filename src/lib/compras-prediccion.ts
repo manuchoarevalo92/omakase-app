@@ -42,6 +42,9 @@ export type PrediccionCompra = {
   diasParaProxima: number | null;
   cantidadSugerida: number | null;
   estado: EstadoCompra;
+  /** true si intervaloTipicoDias viene de un valor cargado a mano (intervaloEstimadoDias),
+   * no de 2+ compras reales. Se usa para aclarar en la UI que es una estimación. */
+  esEstimado: boolean;
 };
 
 export const MS_POR_DIA = 24 * 60 * 60 * 1000;
@@ -77,6 +80,7 @@ function promedio(valores: number[]): number {
 export function calcularPrediccionCompra(
   compras: PuntoCompra[],
   bufferPct: number = BUFFER_PCT_DEFECTO,
+  intervaloEstimadoDias: number | null = null,
   hoy: Date = new Date()
 ): PrediccionCompra {
   const ordenadas = [...compras]
@@ -92,6 +96,7 @@ export function calcularPrediccionCompra(
       diasParaProxima: null,
       cantidadSugerida: null,
       estado: "Sin datos",
+      esEstimado: false,
     };
   }
 
@@ -102,7 +107,37 @@ export function calcularPrediccionCompra(
     .filter((c): c is number => c != null && Number.isFinite(c) && c > 0);
   const cantidadSugerida = cantidades.length > 0 ? promedio(cantidades) : null;
 
+  const hoyEpoch = Date.UTC(hoy.getFullYear(), hoy.getMonth(), hoy.getDate());
+  const bufferSeguro = Math.min(Math.max(bufferPct, 0), 90) / 100;
+
+  // Con una sola compra registrada no hay ciclo real que medir. Si se cargó a
+  // mano una frecuencia estimada (para ítems sin albarán, ej. Amazon), se usa
+  // esa como aproximación en vez de dejar el ítem sin estado indefinidamente.
   if (ordenadas.length < 2) {
+    if (intervaloEstimadoDias != null && intervaloEstimadoDias > 0) {
+      const intervaloObjetivo = intervaloEstimadoDias * (1 - bufferSeguro);
+      const proximaEpoch =
+        fechaISOaEpoch(ultima.fecha) + Math.round(intervaloObjetivo) * MS_POR_DIA;
+      const diasParaProxima = Math.round((proximaEpoch - hoyEpoch) / MS_POR_DIA);
+      let estado: EstadoCompra;
+      if (diasParaProxima <= 0) {
+        estado = "Atrasado";
+      } else if (diasParaProxima <= DIAS_UMBRAL_PEDIR_PRONTO) {
+        estado = "Pedir pronto";
+      } else {
+        estado = "OK";
+      }
+      return {
+        ultimaCompra: ultima.fecha,
+        cantidadCompras: ordenadas.length,
+        intervaloTipicoDias: intervaloEstimadoDias,
+        proximaFechaSugerida: epochAFechaISO(proximaEpoch),
+        diasParaProxima,
+        cantidadSugerida,
+        estado,
+        esEstimado: true,
+      };
+    }
     return {
       ultimaCompra: ultima.fecha,
       cantidadCompras: ordenadas.length,
@@ -111,6 +146,7 @@ export function calcularPrediccionCompra(
       diasParaProxima: null,
       cantidadSugerida,
       estado: "Sin datos",
+      esEstimado: false,
     };
   }
 
@@ -133,15 +169,14 @@ export function calcularPrediccionCompra(
       diasParaProxima: null,
       cantidadSugerida,
       estado: "Sin datos",
+      esEstimado: false,
     };
   }
 
   const intervaloTipico = mediana(intervalosDias.slice(-MAX_INTERVALOS_CONSIDERADOS));
-  const bufferSeguro = Math.min(Math.max(bufferPct, 0), 90) / 100;
   const intervaloObjetivo = intervaloTipico * (1 - bufferSeguro);
   const proximaEpoch =
     fechaISOaEpoch(ultima.fecha) + Math.round(intervaloObjetivo) * MS_POR_DIA;
-  const hoyEpoch = Date.UTC(hoy.getFullYear(), hoy.getMonth(), hoy.getDate());
   const diasParaProxima = Math.round((proximaEpoch - hoyEpoch) / MS_POR_DIA);
 
   let estado: EstadoCompra;
@@ -161,6 +196,7 @@ export function calcularPrediccionCompra(
     diasParaProxima,
     cantidadSugerida: cantidadSugerida != null ? Math.round(cantidadSugerida * 10) / 10 : null,
     estado,
+    esEstimado: false,
   };
 }
 
@@ -179,9 +215,10 @@ export function proyectarProximasCompras(
   compras: PuntoCompra[],
   bufferPct: number = BUFFER_PCT_DEFECTO,
   horizonteDias: number = 90,
-  hoy: Date = new Date()
+  hoy: Date = new Date(),
+  intervaloEstimadoDias: number | null = null
 ): EventoCompraProyectado[] {
-  const prediccion = calcularPrediccionCompra(compras, bufferPct, hoy);
+  const prediccion = calcularPrediccionCompra(compras, bufferPct, intervaloEstimadoDias, hoy);
   if (!prediccion.proximaFechaSugerida || prediccion.intervaloTipicoDias == null) {
     return [];
   }

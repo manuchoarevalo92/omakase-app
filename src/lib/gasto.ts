@@ -265,7 +265,13 @@ export function proyectarGastoPorPeriodo(
         fecha: c.fecha,
         cantidad: c.cantidad,
       }));
-      const eventos = proyectarProximasCompras(puntos, item.bufferPct, horizonteDias, hoy);
+      const eventos = proyectarProximasCompras(
+        puntos,
+        item.bufferPct,
+        horizonteDias,
+        hoy,
+        item.intervaloEstimadoDias
+      );
       eventos
         .filter((ev) => fechaISOaEpoch(ev.fecha) > hoyEpoch)
         .forEach((ev) => {

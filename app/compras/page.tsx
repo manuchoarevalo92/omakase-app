@@ -14,6 +14,7 @@ import {
   Loader2,
   Plus,
   Search,
+  Trash2,
   TrendingDown,
   TrendingUp,
   Undo2,
@@ -214,8 +215,18 @@ export default function ComprasPage() {
   const [registrarTipoPrecio, setRegistrarTipoPrecio] = useState<"unitario" | "total">(
     "unitario"
   );
+  const [registrarFrecuencia, setRegistrarFrecuencia] = useState("");
   const [registrarIsSaving, setRegistrarIsSaving] = useState(false);
   const [registrarError, setRegistrarError] = useState<string | null>(null);
+
+  const [borrarItem, setBorrarItem] = useState<StockItem | null>(null);
+  const [borrandoId, setBorrandoId] = useState<string | null>(null);
+  const [borrarError, setBorrarError] = useState<string | null>(null);
+
+  const [frecuenciaItem, setFrecuenciaItem] = useState<StockItem | null>(null);
+  const [frecuenciaValor, setFrecuenciaValor] = useState("");
+  const [frecuenciaIsSaving, setFrecuenciaIsSaving] = useState(false);
+  const [frecuenciaError, setFrecuenciaError] = useState<string | null>(null);
 
   const buscadorRef = useRef<HTMLInputElement>(null);
 
@@ -271,7 +282,11 @@ export default function ComprasPage() {
           fecha: c.fecha,
           cantidad: c.cantidad,
         }));
-        const prediccion = calcularPrediccionCompra(puntos, item.bufferPct);
+        const prediccion = calcularPrediccionCompra(
+          puntos,
+          item.bufferPct,
+          item.intervaloEstimadoDias
+        );
         return { item, prediccion };
       });
   }, [stockItems, comprasPorStockItem]);
@@ -559,6 +574,9 @@ export default function ComprasPage() {
     setRegistrarCantidad(cantidadPorId[item.id] ?? "");
     setRegistrarPrecio("");
     setRegistrarTipoPrecio("unitario");
+    setRegistrarFrecuencia(
+      item.intervaloEstimadoDias != null ? String(item.intervaloEstimadoDias) : ""
+    );
     setRegistrarError(null);
   };
 
@@ -580,6 +598,17 @@ export default function ComprasPage() {
       return;
     }
 
+    const frecuenciaTrim = registrarFrecuencia.trim();
+    let frecuenciaDias: number | null = null;
+    if (frecuenciaTrim) {
+      const n = parseCantidad(frecuenciaTrim);
+      if (n == null) {
+        setRegistrarError("La frecuencia estimada tiene que ser un número mayor que 0.");
+        return;
+      }
+      frecuenciaDias = Math.round(n);
+    }
+
     setRegistrarIsSaving(true);
     setRegistrarError(null);
     try {
@@ -589,6 +618,16 @@ export default function ComprasPage() {
         registrarTipoPrecio === "unitario" ? precioIngresado : null,
         registrarTipoPrecio === "total" ? precioIngresado : null
       );
+
+      if (frecuenciaDias !== registrarItem.intervaloEstimadoDias) {
+        const { error: updateError } = await supabase
+          .from("stock_items")
+          .update({ intervalo_estimado_dias: frecuenciaDias })
+          .eq("id", registrarItem.id);
+        if (updateError) {
+          throw new Error(formatPostgrestError(updateError));
+        }
+      }
 
       const { data, error: insertError } = await supabase
         .from("compras_historial")
@@ -624,6 +663,86 @@ export default function ComprasPage() {
       );
     } finally {
       setRegistrarIsSaving(false);
+    }
+  };
+
+  const abrirBorrar = (item: StockItem) => {
+    setBorrarItem(item);
+    setBorrarError(null);
+  };
+
+  const cerrarBorrar = () => {
+    setBorrarItem(null);
+    setBorrarError(null);
+  };
+
+  const confirmarBorrar = async () => {
+    if (!borrarItem) {
+      return;
+    }
+    setBorrandoId(borrarItem.id);
+    setBorrarError(null);
+    try {
+      const { error: deleteError } = await supabase
+        .from("stock_items")
+        .delete()
+        .eq("id", borrarItem.id);
+      if (deleteError) {
+        throw new Error(formatPostgrestError(deleteError));
+      }
+      setStockItems((prev) => prev.filter((it) => it.id !== borrarItem.id));
+      setBorrarItem(null);
+    } catch (err) {
+      setBorrarError(err instanceof Error ? err.message : "No se pudo borrar el ítem.");
+    } finally {
+      setBorrandoId(null);
+    }
+  };
+
+  const abrirFrecuencia = (item: StockItem) => {
+    setFrecuenciaItem(item);
+    setFrecuenciaValor(item.intervaloEstimadoDias != null ? String(item.intervaloEstimadoDias) : "");
+    setFrecuenciaError(null);
+  };
+
+  const cerrarFrecuencia = () => {
+    setFrecuenciaItem(null);
+    setFrecuenciaError(null);
+  };
+
+  const confirmarFrecuencia = async () => {
+    if (!frecuenciaItem) {
+      return;
+    }
+    const trim = frecuenciaValor.trim();
+    let dias: number | null = null;
+    if (trim) {
+      const n = parseCantidad(trim);
+      if (n == null) {
+        setFrecuenciaError("Tiene que ser un número mayor que 0.");
+        return;
+      }
+      dias = Math.round(n);
+    }
+
+    setFrecuenciaIsSaving(true);
+    setFrecuenciaError(null);
+    try {
+      const { error: updateError } = await supabase
+        .from("stock_items")
+        .update({ intervalo_estimado_dias: dias })
+        .eq("id", frecuenciaItem.id);
+      if (updateError) {
+        throw new Error(formatPostgrestError(updateError));
+      }
+      await cargarDatos();
+      setFrecuenciaItem(null);
+    } catch (err) {
+      setFrecuenciaError(
+        err instanceof Error ? err.message : "No se pudo guardar la frecuencia estimada."
+      );
+    } finally {
+      setFrecuenciaIsSaving(false);
     }
   };
 
@@ -797,6 +916,9 @@ export default function ComprasPage() {
             ) : (
               "Sin historial suficiente"
             )}
+            {prediccion.esEstimado ? (
+              <span className="text-indigo-300"> (estimado)</span>
+            ) : null}
             {ultimoPrecio != null ? (
               <span className="text-zinc-600">
                 {" "}
@@ -847,6 +969,15 @@ export default function ComprasPage() {
               <Plus className="h-5 w-5" aria-hidden />
             )}
           </button>
+          <button
+            type="button"
+            onClick={() => abrirBorrar(item)}
+            aria-label={`Borrar ${item.nombre} de Stock`}
+            title="Borrar este ítem de Stock (se cargó sin querer)"
+            className="inline-flex size-11 shrink-0 items-center justify-center rounded-xl border border-transparent text-zinc-600 transition hover:border-red-900/60 hover:bg-red-950/40 hover:text-red-300"
+          >
+            <Trash2 className="h-4 w-4" aria-hidden />
+          </button>
         </div>
       </li>
     );
@@ -873,12 +1004,36 @@ export default function ComprasPage() {
               <>
                 Última compra: {prediccion.ultimaCompra}
                 {prediccion.intervaloTipicoDias != null ? (
-                  <> · Ciclo típico: {prediccion.intervaloTipicoDias} días</>
-                ) : (
-                  <span className="text-indigo-300">
+                  <>
                     {" "}
-                    · Registrá otra fecha para poder estimar el ciclo
-                  </span>
+                    · Ciclo {prediccion.esEstimado ? "estimado" : "típico"}:{" "}
+                    {prediccion.intervaloTipicoDias} días
+                    {prediccion.esEstimado ? (
+                      <button
+                        type="button"
+                        onClick={() => abrirFrecuencia(item)}
+                        className="ml-1 text-indigo-300 underline decoration-dotted hover:text-indigo-200"
+                      >
+                        editar
+                      </button>
+                    ) : null}
+                  </>
+                ) : (
+                  <>
+                    {" "}
+                    ·{" "}
+                    <span className="text-indigo-300">
+                      Registrá otra fecha o{" "}
+                      <button
+                        type="button"
+                        onClick={() => abrirFrecuencia(item)}
+                        className="underline decoration-dotted hover:text-indigo-200"
+                      >
+                        cargá una frecuencia estimada
+                      </button>{" "}
+                      para calcular el ciclo
+                    </span>
+                  </>
                 )}
                 {prediccion.proximaFechaSugerida ? (
                   <> · Próxima sugerida: {prediccion.proximaFechaSugerida}</>
@@ -935,6 +1090,15 @@ export default function ComprasPage() {
               <Plus className="h-3.5 w-3.5" aria-hidden />
             )}
             {agregadoOkId === item.id ? "Agregado" : "Agregar"}
+          </button>
+          <button
+            type="button"
+            onClick={() => abrirBorrar(item)}
+            aria-label={`Borrar ${item.nombre} de Stock`}
+            title="Borrar este ítem de Stock (se cargó sin querer)"
+            className="inline-flex items-center justify-center rounded-lg border border-transparent p-1.5 text-zinc-600 transition hover:border-red-900/60 hover:bg-red-950/40 hover:text-red-300"
+          >
+            <Trash2 className="h-3.5 w-3.5" aria-hidden />
           </button>
         </div>
       </li>
@@ -1681,6 +1845,28 @@ export default function ComprasPage() {
                     </select>
                   </div>
                 </div>
+                <div>
+                  <label
+                    htmlFor="registrar-frecuencia"
+                    className="mb-1 block text-[11px] font-medium uppercase tracking-wide text-zinc-500"
+                  >
+                    Cada cuántos días aprox. se repite (opcional)
+                  </label>
+                  <input
+                    id="registrar-frecuencia"
+                    type="text"
+                    inputMode="numeric"
+                    value={registrarFrecuencia}
+                    onChange={(e) => setRegistrarFrecuencia(e.target.value)}
+                    placeholder="Ej: 30"
+                    className="w-full rounded-lg border border-zinc-700 bg-zinc-950 px-3 py-2 text-sm tabular-nums text-zinc-100 outline-none transition placeholder:text-zinc-600 focus:border-zinc-500"
+                  />
+                  <p className="mt-1 text-[11px] text-zinc-600">
+                    Solo hace falta si es la primera compra que cargás de este ítem: con una
+                    estimación tuya ya se puede calcular la urgencia, sin esperar a una 2da
+                    compra real.
+                  </p>
+                </div>
                 {registrarError ? (
                   <p className="rounded-lg border border-red-900/70 bg-red-950/50 px-3 py-2 text-xs text-red-200">
                     {registrarError}
@@ -1703,6 +1889,161 @@ export default function ComprasPage() {
                   className="inline-flex flex-1 items-center justify-center gap-1.5 rounded-lg border border-emerald-800/80 bg-emerald-900/50 px-3 py-2.5 text-xs font-semibold text-emerald-50 transition hover:bg-emerald-800/50 disabled:cursor-not-allowed disabled:opacity-40 sm:flex-initial sm:px-4"
                 >
                   {registrarIsSaving ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : null}
+                  Guardar
+                </button>
+              </div>
+            </div>
+          </div>
+        ) : null}
+
+        {borrarItem ? (
+          <div
+            className="fixed inset-0 z-[100] flex items-end justify-center bg-black/70 p-0 sm:items-center sm:p-6"
+            role="presentation"
+            onClick={(e) => {
+              if (e.target === e.currentTarget) {
+                cerrarBorrar();
+              }
+            }}
+          >
+            <div
+              role="dialog"
+              aria-modal="true"
+              aria-labelledby="borrar-item-title"
+              className="flex w-full max-w-sm flex-col rounded-t-2xl border border-zinc-700 bg-zinc-900 shadow-2xl sm:rounded-2xl"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div className="flex items-start justify-between gap-3 border-b border-zinc-800 px-4 py-3">
+                <div className="min-w-0 pr-2">
+                  <h2 id="borrar-item-title" className="text-sm font-semibold text-white">
+                    Borrar ítem de Stock
+                  </h2>
+                  <p className="mt-1 text-[11px] leading-relaxed text-zinc-500">
+                    Vas a borrar <span className="text-zinc-300">{borrarItem.nombre}</span> del
+                    catálogo de Stock. Ya no va a aparecer en Compras ni en Pedidos. Esta acción
+                    no se puede deshacer (el historial de compras que ya tenía queda guardado,
+                    solo se desvincula del ítem).
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => cerrarBorrar()}
+                  className="shrink-0 rounded-lg border border-zinc-700 p-2 text-zinc-400 transition hover:border-zinc-500 hover:text-zinc-100"
+                  aria-label="Cerrar"
+                >
+                  <X className="h-4 w-4" aria-hidden />
+                </button>
+              </div>
+              {borrarError ? (
+                <p className="mx-4 mt-3 rounded-lg border border-red-900/70 bg-red-950/50 px-3 py-2 text-xs text-red-200">
+                  {borrarError}
+                </p>
+              ) : null}
+              <div className="flex flex-wrap gap-2 px-4 pb-[max(0.75rem,env(safe-area-inset-bottom,0px))] pt-3">
+                <button
+                  type="button"
+                  onClick={() => cerrarBorrar()}
+                  className="inline-flex flex-1 items-center justify-center rounded-lg border border-zinc-600 bg-zinc-800 px-3 py-2.5 text-xs font-medium text-zinc-200 transition hover:border-zinc-500 sm:flex-initial sm:px-4"
+                >
+                  Cancelar
+                </button>
+                <button
+                  type="button"
+                  disabled={borrandoId === borrarItem.id}
+                  onClick={() => void confirmarBorrar()}
+                  className="inline-flex flex-1 items-center justify-center gap-1.5 rounded-lg border border-red-900/70 bg-red-950/50 px-3 py-2.5 text-xs font-semibold text-red-200 transition hover:bg-red-900/50 disabled:cursor-not-allowed disabled:opacity-40 sm:flex-initial sm:px-4"
+                >
+                  {borrandoId === borrarItem.id ? (
+                    <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                  ) : (
+                    <Trash2 className="h-3.5 w-3.5" aria-hidden />
+                  )}
+                  Borrar
+                </button>
+              </div>
+            </div>
+          </div>
+        ) : null}
+
+        {frecuenciaItem ? (
+          <div
+            className="fixed inset-0 z-[100] flex items-end justify-center bg-black/70 p-0 sm:items-center sm:p-6"
+            role="presentation"
+            onClick={(e) => {
+              if (e.target === e.currentTarget) {
+                cerrarFrecuencia();
+              }
+            }}
+          >
+            <div
+              role="dialog"
+              aria-modal="true"
+              aria-labelledby="frecuencia-title"
+              className="flex w-full max-w-sm flex-col rounded-t-2xl border border-zinc-700 bg-zinc-900 shadow-2xl sm:rounded-2xl"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div className="flex items-start justify-between gap-3 border-b border-zinc-800 px-4 py-3">
+                <div className="min-w-0 pr-2">
+                  <h2 id="frecuencia-title" className="text-sm font-semibold text-white">
+                    Frecuencia estimada
+                  </h2>
+                  <p className="mt-1 text-[11px] leading-relaxed text-zinc-500">
+                    Para <span className="text-zinc-300">{frecuenciaItem.nombre}</span>: cada
+                    cuántos días aprox. volvés a comprarlo. Con esto se puede calcular la
+                    urgencia aunque todavía tenga una sola compra registrada.
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => cerrarFrecuencia()}
+                  className="shrink-0 rounded-lg border border-zinc-700 p-2 text-zinc-400 transition hover:border-zinc-500 hover:text-zinc-100"
+                  aria-label="Cerrar"
+                >
+                  <X className="h-4 w-4" aria-hidden />
+                </button>
+              </div>
+              <div className="px-4 py-3">
+                <label
+                  htmlFor="frecuencia-dias"
+                  className="mb-1 block text-[11px] font-medium uppercase tracking-wide text-zinc-500"
+                >
+                  Días aprox.
+                </label>
+                <input
+                  id="frecuencia-dias"
+                  type="text"
+                  inputMode="numeric"
+                  autoFocus
+                  value={frecuenciaValor}
+                  onChange={(e) => setFrecuenciaValor(e.target.value)}
+                  placeholder="Ej: 30"
+                  className="w-full rounded-lg border border-zinc-700 bg-zinc-950 px-3 py-2 text-sm tabular-nums text-zinc-100 outline-none transition placeholder:text-zinc-600 focus:border-zinc-500"
+                />
+                <p className="mt-1 text-[11px] text-zinc-600">
+                  Dejalo vacío para borrar la estimación (vuelve a quedar en Sin datos hasta la
+                  próxima compra real).
+                </p>
+                {frecuenciaError ? (
+                  <p className="mt-2 rounded-lg border border-red-900/70 bg-red-950/50 px-3 py-2 text-xs text-red-200">
+                    {frecuenciaError}
+                  </p>
+                ) : null}
+              </div>
+              <div className="flex flex-wrap gap-2 border-t border-zinc-800 px-4 pb-[max(0.75rem,env(safe-area-inset-bottom,0px))] pt-3">
+                <button
+                  type="button"
+                  onClick={() => cerrarFrecuencia()}
+                  className="inline-flex flex-1 items-center justify-center rounded-lg border border-zinc-600 bg-zinc-800 px-3 py-2.5 text-xs font-medium text-zinc-200 transition hover:border-zinc-500 sm:flex-initial sm:px-4"
+                >
+                  Cancelar
+                </button>
+                <button
+                  type="button"
+                  disabled={frecuenciaIsSaving}
+                  onClick={() => void confirmarFrecuencia()}
+                  className="inline-flex flex-1 items-center justify-center gap-1.5 rounded-lg border border-emerald-800/80 bg-emerald-900/50 px-3 py-2.5 text-xs font-semibold text-emerald-50 transition hover:bg-emerald-800/50 disabled:cursor-not-allowed disabled:opacity-40 sm:flex-initial sm:px-4"
+                >
+                  {frecuenciaIsSaving ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : null}
                   Guardar
                 </button>
               </div>

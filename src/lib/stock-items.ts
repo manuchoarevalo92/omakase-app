@@ -9,6 +9,7 @@ import {
   type Proveedor,
   type UnidadMedida,
 } from "@/src/lib/proveedores";
+import { formatPostgrestError } from "@/src/lib/supabase-errors";
 import { supabase } from "@/src/lib/supabase";
 
 /** Catálogo de materia prima que se compra a proveedores ("Stock"), separado
@@ -21,6 +22,9 @@ export type StockItem = {
   unidadCompra: UnidadMedida;
   bufferPct: number;
   activo: boolean;
+  /** Frecuencia estimada a mano (días) para poder calcular urgencia con una
+   * sola compra registrada, cuando todavía no hay 2+ compras reales. */
+  intervaloEstimadoDias: number | null;
 };
 
 export type StockItemDbRow = {
@@ -31,6 +35,7 @@ export type StockItemDbRow = {
   unidad_compra?: string | null;
   buffer_pct?: number | null;
   activo?: boolean | null;
+  intervalo_estimado_dias?: number | null;
 };
 
 function normalizarUnidadCompra(valor: string | null | undefined): UnidadMedida {
@@ -49,20 +54,42 @@ export function stockItemDesdeFila(row: StockItemDbRow): StockItem {
     unidadCompra: normalizarUnidadCompra(row.unidad_compra),
     bufferPct: row.buffer_pct != null ? row.buffer_pct : BUFFER_PCT_DEFECTO,
     activo: row.activo !== false,
+    intervaloEstimadoDias:
+      row.intervalo_estimado_dias != null && row.intervalo_estimado_dias > 0
+        ? row.intervalo_estimado_dias
+        : null,
   };
 }
 
+// No incluye intervalo_estimado_dias: la usan también los .select() después de
+// insert/update en /stock y /compras, que no deben romperse si todavía no se
+// corrió supabase/stock-items-intervalo-estimado.sql en ese proyecto.
 export const STOCK_ITEM_SELECT =
   "id, nombre, rubro, proveedor, unidad_compra, buffer_pct, activo";
+
+const STOCK_ITEM_SELECT_CON_INTERVALO = `${STOCK_ITEM_SELECT}, intervalo_estimado_dias`;
 
 export async function fetchStockItems(): Promise<StockItem[]> {
   const { data, error } = await supabase
     .from("stock_items")
-    .select(STOCK_ITEM_SELECT)
+    .select(STOCK_ITEM_SELECT_CON_INTERVALO)
     .order("nombre", { ascending: true });
 
   if (error) {
-    throw error;
+    const msg = error.message.toLowerCase();
+    // Fallback si todavía no se corrió la migración de intervalo_estimado_dias:
+    // se sigue funcionando igual que antes, solo sin esa columna.
+    if (msg.includes("intervalo_estimado_dias") && msg.includes("does not exist")) {
+      const fallback = await supabase
+        .from("stock_items")
+        .select(STOCK_ITEM_SELECT)
+        .order("nombre", { ascending: true });
+      if (fallback.error) {
+        throw new Error(formatPostgrestError(fallback.error));
+      }
+      return ((fallback.data ?? []) as StockItemDbRow[]).map(stockItemDesdeFila);
+    }
+    throw new Error(formatPostgrestError(error));
   }
 
   return ((data ?? []) as StockItemDbRow[]).map(stockItemDesdeFila);
