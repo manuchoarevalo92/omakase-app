@@ -12,6 +12,7 @@ import {
   Layers,
   ListPlus,
   Loader2,
+  Pencil,
   Plus,
   Search,
   Trash2,
@@ -36,6 +37,11 @@ import {
   type EstadoCompra,
   type PrediccionCompra,
 } from "@/src/lib/compras-prediccion";
+import {
+  normalizarRubro,
+  RUBROS_INGREDIENTE,
+  type RubroIngrediente,
+} from "@/src/lib/ingredientes-rubro";
 import { parsearLineasMasivo, type LineaParseada } from "@/src/lib/parseo-lineas";
 import {
   cambiosPrecioDesde,
@@ -72,6 +78,15 @@ type PedidoItemDraft = {
   item: string;
   cantidad: string;
   unidad: UnidadMedida;
+};
+
+type FilaHistorialEditable = {
+  id: string;
+  fecha: string;
+  cantidad: string;
+  unidad: UnidadMedida;
+  precioUnitario: string;
+  origen: CompraHistorialRow["origen"];
 };
 
 type SnapshotAccion =
@@ -227,6 +242,17 @@ export default function ComprasPage() {
   const [frecuenciaValor, setFrecuenciaValor] = useState("");
   const [frecuenciaIsSaving, setFrecuenciaIsSaving] = useState(false);
   const [frecuenciaError, setFrecuenciaError] = useState<string | null>(null);
+
+  const [editarItem, setEditarItem] = useState<StockItem | null>(null);
+  const [editarNombre, setEditarNombre] = useState("");
+  const [editarProveedor, setEditarProveedor] = useState<Proveedor | "">("");
+  const [editarRubro, setEditarRubro] = useState<RubroIngrediente>("Despensa/Prep");
+  const [editarUnidad, setEditarUnidad] = useState<UnidadMedida>("Unidad");
+  const [editarBuffer, setEditarBuffer] = useState("15");
+  const [editarHistorial, setEditarHistorial] = useState<FilaHistorialEditable[]>([]);
+  const [editarIsSaving, setEditarIsSaving] = useState(false);
+  const [editarError, setEditarError] = useState<string | null>(null);
+  const [editarBorrandoFilaId, setEditarBorrandoFilaId] = useState<string | null>(null);
 
   const buscadorRef = useRef<HTMLInputElement>(null);
 
@@ -746,6 +772,174 @@ export default function ComprasPage() {
     }
   };
 
+  const abrirEditar = (item: StockItem) => {
+    setEditarItem(item);
+    setEditarNombre(item.nombre);
+    setEditarProveedor(item.proveedor ?? "");
+    setEditarRubro(item.rubro);
+    setEditarUnidad(item.unidadCompra);
+    setEditarBuffer(String(item.bufferPct));
+    const filas = compras
+      .filter((c) => c.stockItemId === item.id)
+      .slice()
+      .sort((a, b) => (a.fecha < b.fecha ? 1 : a.fecha > b.fecha ? -1 : 0))
+      .map(
+        (c): FilaHistorialEditable => ({
+          id: c.id,
+          fecha: c.fecha,
+          cantidad: c.cantidad != null ? String(c.cantidad) : "",
+          unidad: c.unidad,
+          precioUnitario: c.precioUnitario != null ? String(c.precioUnitario) : "",
+          origen: c.origen,
+        })
+      );
+    setEditarHistorial(filas);
+    setEditarError(null);
+  };
+
+  const cerrarEditar = () => {
+    setEditarItem(null);
+    setEditarError(null);
+  };
+
+  const actualizarFilaHistorialEditar = (
+    id: string,
+    patch: Partial<FilaHistorialEditable>
+  ) => {
+    setEditarHistorial((prev) => prev.map((f) => (f.id === id ? { ...f, ...patch } : f)));
+  };
+
+  const borrarFilaHistorialEditar = async (fila: FilaHistorialEditable) => {
+    const ok = window.confirm(
+      `¿Borrar la compra del ${formatearFechaCorta(fila.fecha)}? No se puede deshacer.`
+    );
+    if (!ok) {
+      return;
+    }
+    setEditarBorrandoFilaId(fila.id);
+    setEditarError(null);
+    try {
+      const { error: deleteError } = await supabase
+        .from("compras_historial")
+        .delete()
+        .eq("id", fila.id);
+      if (deleteError) {
+        throw new Error(formatPostgrestError(deleteError));
+      }
+      setEditarHistorial((prev) => prev.filter((f) => f.id !== fila.id));
+      setCompras((prev) => prev.filter((c) => c.id !== fila.id));
+    } catch (err) {
+      setEditarError(err instanceof Error ? err.message : "No se pudo borrar la compra.");
+    } finally {
+      setEditarBorrandoFilaId(null);
+    }
+  };
+
+  const guardarEditar = async () => {
+    if (!editarItem) {
+      return;
+    }
+    const nombre = editarNombre.trim();
+    if (!nombre) {
+      setEditarError("El nombre no puede quedar vacío.");
+      return;
+    }
+    const bufferNum = Number(editarBuffer);
+    if (!Number.isFinite(bufferNum) || bufferNum < 0 || bufferNum > 90) {
+      setEditarError("El buffer tiene que ser un número entre 0 y 90.");
+      return;
+    }
+    for (const fila of editarHistorial) {
+      if (!fila.fecha) {
+        setEditarError("Cada compra necesita una fecha.");
+        return;
+      }
+      if (parseCantidad(fila.cantidad) == null) {
+        setEditarError(`Cantidad inválida en la compra del ${formatearFechaCorta(fila.fecha)}.`);
+        return;
+      }
+      if (fila.precioUnitario.trim() && parseCantidad(fila.precioUnitario) == null) {
+        setEditarError(`Precio inválido en la compra del ${formatearFechaCorta(fila.fecha)}.`);
+        return;
+      }
+    }
+
+    setEditarIsSaving(true);
+    setEditarError(null);
+    try {
+      const proveedorFinal = (editarProveedor || null) as Proveedor | null;
+      const bufferRedondeado = Math.round(bufferNum);
+      const cambioNombre = nombre !== editarItem.nombre;
+      const patchItem: Record<string, unknown> = {};
+      if (cambioNombre) patchItem.nombre = nombre;
+      if (proveedorFinal !== editarItem.proveedor) patchItem.proveedor = proveedorFinal;
+      if (editarRubro !== editarItem.rubro) patchItem.rubro = editarRubro;
+      if (editarUnidad !== editarItem.unidadCompra) patchItem.unidad_compra = editarUnidad;
+      if (bufferRedondeado !== editarItem.bufferPct) patchItem.buffer_pct = bufferRedondeado;
+
+      if (Object.keys(patchItem).length > 0) {
+        const { error: updateError } = await supabase
+          .from("stock_items")
+          .update(patchItem)
+          .eq("id", editarItem.id);
+        if (updateError) {
+          throw new Error(formatPostgrestError(updateError));
+        }
+      }
+
+      const originalPorId = new Map(compras.map((c) => [c.id, c]));
+      for (const fila of editarHistorial) {
+        const original = originalPorId.get(fila.id);
+        if (!original) {
+          continue;
+        }
+        const cantidad = parseCantidad(fila.cantidad);
+        const precioIngresado = fila.precioUnitario.trim()
+          ? parseCantidad(fila.precioUnitario)
+          : null;
+        const { precioUnitario, importeTotal } = completarPrecio(cantidad, precioIngresado, null);
+
+        const sinCambios =
+          fila.fecha === original.fecha &&
+          cantidad === original.cantidad &&
+          fila.unidad === original.unidad &&
+          precioUnitario === original.precioUnitario &&
+          !cambioNombre;
+        if (sinCambios) {
+          continue;
+        }
+
+        const patchFila: Record<string, unknown> = {
+          fecha: fila.fecha,
+          cantidad,
+          unidad: fila.unidad,
+          precio_unitario: precioUnitario,
+          importe_total: importeTotal,
+        };
+        if (cambioNombre) {
+          patchFila.stock_item_nombre = nombre;
+        }
+
+        const { error: updateFilaError } = await supabase
+          .from("compras_historial")
+          .update(patchFila)
+          .eq("id", fila.id);
+        if (updateFilaError) {
+          throw new Error(formatPostgrestError(updateFilaError));
+        }
+      }
+
+      await cargarDatos();
+      cerrarEditar();
+    } catch (err) {
+      setEditarError(
+        err instanceof Error ? err.message : "No se pudieron guardar los cambios."
+      );
+    } finally {
+      setEditarIsSaving(false);
+    }
+  };
+
   /** Trae el array actual de items del pedido de un proveedor. */
   const obtenerItemsPedido = async (proveedor: Proveedor): Promise<PedidoItemDraft[]> => {
     const { data, error: fetchError } = await supabase
@@ -971,6 +1165,15 @@ export default function ComprasPage() {
           </button>
           <button
             type="button"
+            onClick={() => abrirEditar(item)}
+            aria-label={`Editar ${item.nombre}`}
+            title="Editar nombre, proveedor, unidad o precios de compras pasadas"
+            className="inline-flex size-11 shrink-0 items-center justify-center rounded-xl border border-transparent text-zinc-600 transition hover:border-zinc-600 hover:bg-zinc-800 hover:text-zinc-200"
+          >
+            <Pencil className="h-4 w-4" aria-hidden />
+          </button>
+          <button
+            type="button"
             onClick={() => abrirBorrar(item)}
             aria-label={`Borrar ${item.nombre} de Stock`}
             title="Borrar este ítem de Stock (se cargó sin querer)"
@@ -1090,6 +1293,15 @@ export default function ComprasPage() {
               <Plus className="h-3.5 w-3.5" aria-hidden />
             )}
             {agregadoOkId === item.id ? "Agregado" : "Agregar"}
+          </button>
+          <button
+            type="button"
+            onClick={() => abrirEditar(item)}
+            aria-label={`Editar ${item.nombre}`}
+            title="Editar nombre, proveedor, unidad o precios de compras pasadas"
+            className="inline-flex items-center justify-center rounded-lg border border-transparent p-1.5 text-zinc-600 transition hover:border-zinc-600 hover:bg-zinc-800 hover:text-zinc-200"
+          >
+            <Pencil className="h-3.5 w-3.5" aria-hidden />
           </button>
           <button
             type="button"
@@ -2045,6 +2257,255 @@ export default function ComprasPage() {
                 >
                   {frecuenciaIsSaving ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : null}
                   Guardar
+                </button>
+              </div>
+            </div>
+          </div>
+        ) : null}
+
+        {editarItem ? (
+          <div
+            className="fixed inset-0 z-[100] flex items-end justify-center bg-black/70 p-0 sm:items-center sm:p-6"
+            role="presentation"
+            onClick={(e) => {
+              if (e.target === e.currentTarget) {
+                cerrarEditar();
+              }
+            }}
+          >
+            <div
+              role="dialog"
+              aria-modal="true"
+              aria-labelledby="editar-item-title"
+              className="flex max-h-[min(92dvh,42rem)] w-full max-w-lg flex-col rounded-t-2xl border border-zinc-700 bg-zinc-900 shadow-2xl sm:max-h-[min(88vh,38rem)] sm:rounded-2xl"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div className="flex shrink-0 items-start justify-between gap-3 border-b border-zinc-800 px-4 py-3">
+                <div className="min-w-0 pr-2">
+                  <h2 id="editar-item-title" className="text-sm font-semibold text-white">
+                    Editar ítem
+                  </h2>
+                  <p className="mt-1 text-[11px] leading-relaxed text-zinc-500">
+                    Cambiá nombre, proveedor o unidad, y corregí cantidades o precios de compras
+                    ya cargadas (por errores de importación o de carga manual).
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => cerrarEditar()}
+                  className="shrink-0 rounded-lg border border-zinc-700 p-2 text-zinc-400 transition hover:border-zinc-500 hover:text-zinc-100"
+                  aria-label="Cerrar"
+                >
+                  <X className="h-4 w-4" aria-hidden />
+                </button>
+              </div>
+
+              <div className="min-h-0 flex-1 space-y-4 overflow-y-auto overscroll-contain px-4 py-3">
+                <div>
+                  <label
+                    htmlFor="editar-nombre"
+                    className="mb-1 block text-[11px] font-medium uppercase tracking-wide text-zinc-500"
+                  >
+                    Nombre
+                  </label>
+                  <input
+                    id="editar-nombre"
+                    type="text"
+                    value={editarNombre}
+                    onChange={(e) => setEditarNombre(e.target.value)}
+                    className="w-full rounded-lg border border-zinc-700 bg-zinc-950 px-3 py-2 text-sm text-zinc-100 outline-none transition focus:border-zinc-500"
+                  />
+                </div>
+
+                <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+                  <div>
+                    <label
+                      htmlFor="editar-proveedor"
+                      className="mb-1 block text-[11px] font-medium uppercase tracking-wide text-zinc-500"
+                    >
+                      Proveedor
+                    </label>
+                    <select
+                      id="editar-proveedor"
+                      value={editarProveedor}
+                      onChange={(e) => setEditarProveedor(e.target.value as Proveedor | "")}
+                      className="w-full rounded-lg border border-zinc-700 bg-zinc-950 px-2 py-2 text-xs text-zinc-100 outline-none transition focus:border-zinc-500"
+                    >
+                      <option value="">Sin proveedor</option>
+                      {PROVEEDORES.map((p) => (
+                        <option key={p} value={p}>
+                          {p}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                  <div>
+                    <label
+                      htmlFor="editar-rubro"
+                      className="mb-1 block text-[11px] font-medium uppercase tracking-wide text-zinc-500"
+                    >
+                      Rubro
+                    </label>
+                    <select
+                      id="editar-rubro"
+                      value={editarRubro}
+                      onChange={(e) => setEditarRubro(normalizarRubro(e.target.value))}
+                      className="w-full rounded-lg border border-zinc-700 bg-zinc-950 px-2 py-2 text-xs text-zinc-100 outline-none transition focus:border-zinc-500"
+                    >
+                      {RUBROS_INGREDIENTE.map((r) => (
+                        <option key={r} value={r}>
+                          {r}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                  <div>
+                    <label
+                      htmlFor="editar-unidad"
+                      className="mb-1 block text-[11px] font-medium uppercase tracking-wide text-zinc-500"
+                    >
+                      Unidad
+                    </label>
+                    <select
+                      id="editar-unidad"
+                      value={editarUnidad}
+                      onChange={(e) => setEditarUnidad(e.target.value as UnidadMedida)}
+                      className="w-full rounded-lg border border-zinc-700 bg-zinc-950 px-2 py-2 text-xs text-zinc-100 outline-none transition focus:border-zinc-500"
+                    >
+                      {UNIDADES.map((u) => (
+                        <option key={u} value={u}>
+                          {u}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                  <div>
+                    <label
+                      htmlFor="editar-buffer"
+                      className="mb-1 block text-[11px] font-medium uppercase tracking-wide text-zinc-500"
+                    >
+                      Buffer %
+                    </label>
+                    <input
+                      id="editar-buffer"
+                      type="number"
+                      min={0}
+                      max={90}
+                      value={editarBuffer}
+                      onChange={(e) => setEditarBuffer(e.target.value)}
+                      className="w-full rounded-lg border border-zinc-700 bg-zinc-950 px-2 py-2 text-xs tabular-nums text-zinc-100 outline-none transition focus:border-zinc-500"
+                    />
+                  </div>
+                </div>
+
+                <div className="border-t border-zinc-800/80 pt-3">
+                  <p className="mb-2 text-[11px] font-semibold uppercase tracking-[0.12em] text-zinc-500">
+                    Historial de compras{" "}
+                    {editarHistorial.length > 0 ? `(${editarHistorial.length})` : ""}
+                  </p>
+                  {editarHistorial.length === 0 ? (
+                    <p className="text-xs italic text-zinc-600">
+                      Sin compras registradas todavía para este ítem.
+                    </p>
+                  ) : (
+                    <ul className="space-y-2">
+                      {editarHistorial.map((fila) => (
+                        <li
+                          key={fila.id}
+                          className="flex flex-wrap items-center gap-1.5 rounded-lg border border-zinc-800 bg-zinc-950/60 px-2 py-2"
+                        >
+                          <input
+                            type="date"
+                            value={fila.fecha}
+                            onChange={(e) =>
+                              actualizarFilaHistorialEditar(fila.id, { fecha: e.target.value })
+                            }
+                            aria-label={`Fecha de la compra del ${formatearFechaCorta(fila.fecha)}`}
+                            className="min-w-0 flex-1 rounded-md border border-zinc-700 bg-zinc-900 px-2 py-1.5 text-xs text-zinc-200 outline-none focus:border-zinc-500"
+                          />
+                          <input
+                            type="text"
+                            inputMode="decimal"
+                            value={fila.cantidad}
+                            onChange={(e) =>
+                              actualizarFilaHistorialEditar(fila.id, { cantidad: e.target.value })
+                            }
+                            aria-label="Cantidad"
+                            placeholder="Cant."
+                            className="w-16 shrink-0 rounded-md border border-zinc-700 bg-zinc-900 px-2 py-1.5 text-center text-xs tabular-nums text-zinc-200 outline-none focus:border-zinc-500"
+                          />
+                          <select
+                            value={fila.unidad}
+                            onChange={(e) =>
+                              actualizarFilaHistorialEditar(fila.id, {
+                                unidad: e.target.value as UnidadMedida,
+                              })
+                            }
+                            aria-label="Unidad"
+                            className="shrink-0 rounded-md border border-zinc-700 bg-zinc-900 px-1.5 py-1.5 text-xs text-zinc-200 outline-none focus:border-zinc-500"
+                          >
+                            {UNIDADES.map((u) => (
+                              <option key={u} value={u}>
+                                {u}
+                              </option>
+                            ))}
+                          </select>
+                          <input
+                            type="text"
+                            inputMode="decimal"
+                            value={fila.precioUnitario}
+                            onChange={(e) =>
+                              actualizarFilaHistorialEditar(fila.id, {
+                                precioUnitario: e.target.value,
+                              })
+                            }
+                            aria-label="Precio unitario"
+                            placeholder="Precio/u"
+                            className="w-20 shrink-0 rounded-md border border-zinc-700 bg-zinc-900 px-2 py-1.5 text-center text-xs tabular-nums text-zinc-200 outline-none focus:border-zinc-500"
+                          />
+                          <button
+                            type="button"
+                            disabled={editarBorrandoFilaId === fila.id}
+                            onClick={() => void borrarFilaHistorialEditar(fila)}
+                            aria-label={`Borrar compra del ${formatearFechaCorta(fila.fecha)}`}
+                            title="Borrar esta compra del historial"
+                            className="inline-flex shrink-0 items-center justify-center rounded-md border border-transparent p-1.5 text-zinc-600 transition hover:border-red-900/60 hover:bg-red-950/40 hover:text-red-300 disabled:opacity-40"
+                          >
+                            {editarBorrandoFilaId === fila.id ? (
+                              <Loader2 className="h-3.5 w-3.5 animate-spin" aria-hidden />
+                            ) : (
+                              <Trash2 className="h-3.5 w-3.5" aria-hidden />
+                            )}
+                          </button>
+                        </li>
+                      ))}
+                    </ul>
+                  )}
+                </div>
+
+                {editarError ? (
+                  <p className="rounded-lg border border-red-900/70 bg-red-950/50 px-3 py-2 text-xs text-red-200">
+                    {editarError}
+                  </p>
+                ) : null}
+              </div>
+
+              <div className="flex shrink-0 flex-wrap gap-2 border-t border-zinc-800 bg-zinc-900/95 px-4 pb-[max(0.75rem,env(safe-area-inset-bottom,0px))] pt-3">
+                <button
+                  type="button"
+                  onClick={() => cerrarEditar()}
+                  className="inline-flex flex-1 items-center justify-center rounded-lg border border-zinc-600 bg-zinc-800 px-3 py-2.5 text-xs font-medium text-zinc-200 transition hover:border-zinc-500 sm:flex-initial sm:px-4"
+                >
+                  Cancelar
+                </button>
+                <button
+                  type="button"
+                  disabled={editarIsSaving}
+                  onClick={() => void guardarEditar()}
+                  className="inline-flex flex-1 items-center justify-center gap-1.5 rounded-lg border border-emerald-800/80 bg-emerald-900/50 px-3 py-2.5 text-xs font-semibold text-emerald-50 transition hover:bg-emerald-800/50 disabled:cursor-not-allowed disabled:opacity-40 sm:flex-initial sm:px-4"
+                >
+                  {editarIsSaving ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : null}
+                  Guardar cambios
                 </button>
               </div>
             </div>
