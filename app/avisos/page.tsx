@@ -44,6 +44,21 @@ function tiempoDesde(iso: string): string {
   return `hace ${dias} d`;
 }
 
+/** Fecha y hora absolutas de cuándo se cargó el aviso (ej. "sáb 4 jul, 18:25"). */
+function fechaHoraCarga(iso: string): string {
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) {
+    return "";
+  }
+  return d.toLocaleString("es-ES", {
+    weekday: "short",
+    day: "numeric",
+    month: "short",
+    hour: "2-digit",
+    minute: "2-digit",
+  });
+}
+
 function ProveedorBadge(props: { proveedor: Proveedor | null }) {
   const { proveedor } = props;
   return (
@@ -381,9 +396,12 @@ export default function AvisosPage() {
                       >
                         <div className="min-w-0 flex-1">
                           <p className="truncate font-medium text-white">{aviso.nombre}</p>
-                          <p className="truncate text-xs text-zinc-500">
-                            {aviso.nota ? `${aviso.nota} · ` : ""}
-                            {tiempoDesde(aviso.createdAt)}
+                          {aviso.nota ? (
+                            <p className="truncate text-xs text-zinc-300">{aviso.nota}</p>
+                          ) : null}
+                          <p className="truncate text-[11px] text-zinc-500">
+                            {fechaHoraCarga(aviso.createdAt)}
+                            <span className="text-zinc-600"> · {tiempoDesde(aviso.createdAt)}</span>
                           </p>
                         </div>
                         <button
