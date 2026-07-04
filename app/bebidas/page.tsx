@@ -17,8 +17,12 @@ type BebidaItem = {
   cantidad: string;
 };
 
-const TOTAL_ASIENTOS = 8;
-const STORAGE_KEY = "omakase_bebidas_v2";
+/** Números de asiento en orden de visualización. Los dos primeros (-2, -1) son
+ * los asientos extra habilitados; luego siguen 1..8. Se usan como valor real de
+ * la columna `asiento` en la base. */
+const ASIENTOS_NUMEROS = [-2, -1, 1, 2, 3, 4, 5, 6, 7, 8] as const;
+const TOTAL_ASIENTOS = ASIENTOS_NUMEROS.length;
+const STORAGE_KEY = "omakase_bebidas_v3";
 
 type BebidaAsientoRow = {
   historial_servicio_id: string;
@@ -77,7 +81,7 @@ export default function BebidasPage() {
 
     const rows = (data ?? []) as BebidaAsientoRow[];
     return Array.from({ length: TOTAL_ASIENTOS }, (_, i) => {
-      const row = rows.find((r) => r.asiento === i + 1);
+      const row = rows.find((r) => r.asiento === ASIENTOS_NUMEROS[i]);
       return normalizarConsumos(row?.consumos);
     });
   }, []);
@@ -175,7 +179,7 @@ export default function BebidasPage() {
         setIsSyncing(true);
         const payload = bebidasPorAsiento.map((consumos, index) => ({
           historial_servicio_id: historialId,
-          asiento: index + 1,
+          asiento: ASIENTOS_NUMEROS[index],
           consumos,
           updated_at: new Date().toISOString(),
         }));
@@ -401,13 +405,13 @@ export default function BebidasPage() {
               >
                 <div className="mb-3 flex items-center justify-between">
                   <h2 className="text-sm uppercase tracking-[0.14em] text-zinc-400">
-                    Asiento {asientoIndex + 1}
+                    Asiento {ASIENTOS_NUMEROS[asientoIndex]}
                   </h2>
                   <button
                     type="button"
                     onClick={() => agregarItem(asientoIndex)}
                     className="inline-flex items-center gap-1.5 rounded-lg border border-zinc-700 bg-zinc-900 px-2.5 py-1.5 text-xs text-zinc-200 transition hover:border-zinc-500 hover:text-white"
-                    aria-label={`Agregar bebida en asiento ${asientoIndex + 1}`}
+                    aria-label={`Agregar bebida en asiento ${ASIENTOS_NUMEROS[asientoIndex]}`}
                   >
                     <Plus className="h-3.5 w-3.5" />
                     Añadir
