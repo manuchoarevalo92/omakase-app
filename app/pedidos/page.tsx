@@ -12,6 +12,7 @@ import {
   type UnidadMedida,
 } from "@/src/lib/proveedores";
 import { parsearLineasMasivo, type LineaParseada } from "@/src/lib/parseo-lineas";
+import { registrarPedidoEnviado } from "@/src/lib/pedidos-log";
 
 type PedidoItem = {
   id: string;
@@ -734,9 +735,15 @@ export default function PedidosPage() {
   };
 
   const copiarTextoProveedor = async (proveedor: Proveedor) => {
+    const filasParaLog = filasPedidoParaCopiar(pedidosPorProveedor[proveedor]).map((f) => ({
+      item: f.item.trim(),
+      cantidad: f.cantidad.trim(),
+      unidad: f.unidad,
+    }));
     const texto = textoListaParaPortapapeles(proveedor, pedidosPorProveedor[proveedor]);
     try {
       await navigator.clipboard.writeText(texto);
+      void registrarPedidoEnviado(proveedor, filasParaLog);
       setCopiadoProveedor(proveedor);
       if (copiadoTimerRef.current) {
         window.clearTimeout(copiadoTimerRef.current);

@@ -75,6 +75,10 @@ export function formatPostgrestError(error: {
       bits.push(
         "RLS en pedido_avisos: ejecutá supabase/pedido-avisos-rls-anon.sql en el SQL Editor."
       );
+    } else if (msg.includes("pedidos_log")) {
+      bits.push(
+        "RLS en pedidos_log: ejecutá supabase/pedidos-log-rls-anon.sql en el SQL Editor."
+      );
     } else {
       bits.push(
         "Error de permisos / RLS en Supabase: revisá las políticas de la tabla indicada en el mensaje para el rol anon (clave pública del cliente)."
@@ -127,6 +131,11 @@ export function formatPostgrestError(error: {
         "Ejecutá supabase/pedido-avisos.sql y luego supabase/pedido-avisos-rls-anon.sql en el SQL Editor."
       );
     }
+    if (msg.includes("pedidos_log")) {
+      bits.push(
+        "Ejecutá supabase/pedidos-log.sql y luego supabase/pedidos-log-rls-anon.sql en el SQL Editor."
+      );
+    }
   }
   if (
     msg.includes("could not find") &&
@@ -146,6 +155,16 @@ export function formatPostgrestError(error: {
   ) {
     bits.push(
       "Falta la tabla pedido_avisos. Ejecutá supabase/pedido-avisos.sql y luego supabase/pedido-avisos-rls-anon.sql en el SQL Editor."
+    );
+  }
+  if (
+    msg.includes("could not find") &&
+    msg.includes("schema cache") &&
+    msg.includes("pedidos_log") &&
+    !msg.includes("column")
+  ) {
+    bits.push(
+      "Falta la tabla pedidos_log. Ejecutá supabase/pedidos-log.sql y luego supabase/pedidos-log-rls-anon.sql en el SQL Editor."
     );
   }
   if (
