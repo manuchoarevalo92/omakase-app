@@ -8,13 +8,16 @@ import { ChevronDown, Loader2, LogOut, Menu, X } from "lucide-react";
 const ALL_LINKS = [
   { href: "/", label: "Menú" },
   { href: "/bebidas", label: "Bebidas" },
+  { href: "/mep-deli", label: "MEP Deli" },
   { href: "/pedidos", label: "Pedidos" },
   { href: "/avisos", label: "Avisos" },
   { href: "/platos", label: "Platos" },
+  { href: "/mep-cortes", label: "MEP Cortes" },
   { href: "/inventario", label: "Ingredientes" },
   { href: "/stock", label: "Stock" },
   { href: "/receta", label: "Receta" },
   { href: "/historial", label: "Historial" },
+  { href: "/mep-historial", label: "MEP Historial" },
   { href: "/estadisticas", label: "Stats" },
   { href: "/compras", label: "Compras" },
   { href: "/produccion", label: "Producción" },
@@ -26,7 +29,7 @@ type Href = (typeof ALL_LINKS)[number]["href"];
 
 /** Agrupación de las páginas en el menú desplegable. */
 const GRUPOS: { titulo: string; hrefs: Href[] }[] = [
-  { titulo: "Servicio", hrefs: ["/", "/bebidas", "/platos", "/receta", "/historial"] },
+  { titulo: "Servicio", hrefs: ["/", "/bebidas", "/mep-deli", "/mep-historial", "/platos", "/mep-cortes", "/receta", "/historial"] },
   { titulo: "Compras", hrefs: ["/pedidos", "/avisos", "/compras", "/stock", "/inventario"] },
   { titulo: "Análisis", hrefs: ["/consumo", "/gasto", "/estadisticas", "/produccion"] },
 ];
@@ -34,6 +37,9 @@ const GRUPOS: { titulo: string; hrefs: Href[] }[] = [
 const STAFF_HREFS = new Set<string>([
   "/",
   "/bebidas",
+  "/mep-deli",
+  "/mep-cortes",
+  "/mep-historial",
   "/pedidos",
   "/avisos",
   "/inventario",

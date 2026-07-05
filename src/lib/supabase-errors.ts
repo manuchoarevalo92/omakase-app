@@ -79,6 +79,14 @@ export function formatPostgrestError(error: {
       bits.push(
         "RLS en pedidos_log: ejecutá supabase/pedidos-log-rls-anon.sql en el SQL Editor."
       );
+    } else if (msg.includes("mep_cortes")) {
+      bits.push(
+        "RLS en mep_cortes: ejecutá supabase/mep-cortes-rls-anon.sql en el SQL Editor."
+      );
+    } else if (msg.includes("mep_deli_cargas")) {
+      bits.push(
+        "RLS en mep_deli_cargas: ejecutá supabase/mep-deli-cargas-rls-anon.sql en el SQL Editor."
+      );
     } else {
       bits.push(
         "Error de permisos / RLS en Supabase: revisá las políticas de la tabla indicada en el mensaje para el rol anon (clave pública del cliente)."
