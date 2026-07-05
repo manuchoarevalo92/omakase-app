@@ -7,6 +7,9 @@ import { supabase } from "@/src/lib/supabase";
 
 export type UnidadMep = "g" | "kg" | "ud" | "porciones";
 
+/** MEP Deli es solo delivery nocturno; la barra usa mediodía y noche en historial_servicios. */
+export const MEP_DELI_SERVICIO: ServicioHistorial = "Noche";
+
 export type MepCorte = {
   id: string;
   categoria: string;
@@ -335,7 +338,11 @@ export async function fetchUltimoHistorialParaMep(): Promise<HistorialServicioRo
     throw error;
   }
 
-  return registroMasRecienteEnHistorial((data ?? []) as HistorialServicioRow[]);
+  const rows = ((data ?? []) as HistorialServicioRow[]).filter(
+    (r) => r.servicio === MEP_DELI_SERVICIO
+  );
+
+  return registroMasRecienteEnHistorial(rows);
 }
 
 export function agruparCortesPorCategoria(
@@ -456,8 +463,12 @@ export function compararCargasMasReciente(a: MepDeliCarga, b: MepDeliCarga): num
 
 export function etiquetaCargaMep(carga: MepDeliCarga): string {
   const hora = carga.hora?.trim() ? ` · ${carga.hora}` : "";
-  const serv = carga.servicio ?? "Servicio";
-  return `${carga.fecha} · ${serv}${hora}`;
+  const serv = carga.servicio;
+  if (serv && serv !== MEP_DELI_SERVICIO) {
+    const etiqueta = serv === "Mediodia" ? "Mediodía" : serv;
+    return `${carga.fecha} · ${etiqueta}${hora}`;
+  }
+  return `${carga.fecha}${hora}`;
 }
 
 export type MepLineaCierreEnriquecida = MepLineaCierre & {
@@ -582,7 +593,7 @@ export function etiquetaServicioMep(servicio: ServicioHistorial | null): string 
 export function buscarMepMismoDiaSemana(
   cargas: MepDeliCarga[],
   fecha: string,
-  servicio: ServicioHistorial
+  servicio: ServicioHistorial = MEP_DELI_SERVICIO
 ): MepDeliCarga | null {
   const diaObjetivo = diaSemanaDesdeFechaISO(fecha);
   const candidatas = cargas.filter(

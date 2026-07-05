@@ -6,7 +6,6 @@ import Link from "next/link";
 
 import { MepCierrePanel } from "@/app/components/mep-cierre-panel";
 import { formatPostgrestError } from "@/src/lib/supabase-errors";
-import type { ServicioHistorial } from "@/src/lib/historial-servicios";
 import {
   agruparCortesPorCategoria,
   buscarMepMismoDiaSemana,
@@ -14,7 +13,6 @@ import {
   cantidadesDesdeLineas,
   etiquetaCargaMep,
   etiquetaDiaSemana,
-  etiquetaServicioMep,
   etiquetaUnidadMep,
   formatearCantidadSugerida,
   fetchMepCargasSinCerrarRecientes,
@@ -26,14 +24,13 @@ import {
   hayCantidadesCargadas,
   lineasDesdeCantidades,
   MEP_CARGA_SELECT,
+  MEP_DELI_SERVICIO,
   cargaDesdeFila,
   tieneCierre,
   type MepCorte,
   type MepDeliCarga,
 } from "@/src/lib/mep-deli";
 import { supabase } from "@/src/lib/supabase";
-
-type Servicio = ServicioHistorial;
 
 function formatFechaLocalYYYYMMDD(d: Date): string {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(
@@ -51,7 +48,6 @@ export default function MepDeliPage() {
   const [cantidades, setCantidades] = useState<Map<string, string>>(() => new Map());
   const [fechaServicio, setFechaServicio] = useState(() => formatFechaLocalYYYYMMDD(now));
   const [horaServicio, setHoraServicio] = useState(() => horaLocalHHmm(now));
-  const [servicio, setServicio] = useState<Servicio>(now.getHours() < 17 ? "Mediodia" : "Noche");
   const [ultimaCarga, setUltimaCarga] = useState<MepDeliCarga | null>(null);
   const [resumenGuardado, setResumenGuardado] = useState<MepDeliCarga | null>(null);
   const [editorOculto, setEditorOculto] = useState(false);
@@ -95,21 +91,19 @@ export default function MepDeliPage() {
   );
 
   const plantillaMismoDia = useMemo(
-    () => buscarMepMismoDiaSemana(historialCargas, fechaServicio, servicio),
-    [historialCargas, fechaServicio, servicio]
+    () => buscarMepMismoDiaSemana(historialCargas, fechaServicio),
+    [historialCargas, fechaServicio]
   );
 
   const etiquetaPlantillaMismoDia = useMemo(() => {
     const dia = etiquetaDiaSemana(fechaServicio);
-    const serv = etiquetaServicioMep(servicio);
-    return `Cargar último ${dia} ${serv}`;
-  }, [fechaServicio, servicio]);
+    return `Cargar último ${dia}`;
+  }, [fechaServicio]);
 
   const hidratarDesdeCarga = useCallback(
     (carga: MepDeliCarga, opts?: { mostrarResumen?: boolean }) => {
       setFechaServicio(carga.fecha);
       setHoraServicio(carga.hora?.trim() || horaLocalHHmm(new Date()));
-      setServicio(carga.servicio ?? (new Date().getHours() < 17 ? "Mediodia" : "Noche"));
       setCantidades(cantidadesDesdeLineas(carga.lineas));
       setNotaRelevo(carga.nota_relevo ?? "");
       if (opts?.mostrarResumen) {
@@ -146,7 +140,6 @@ export default function MepDeliPage() {
       } else if (historial) {
         setFechaServicio(historial.fecha);
         setHoraServicio(historial.hora?.trim() || horaLocalHHmm(new Date()));
-        setServicio(historial.servicio ?? servicio);
       }
     } catch (err) {
       setError(
@@ -190,7 +183,6 @@ export default function MepDeliPage() {
     setCantidades(new Map());
     setFechaServicio(formatFechaLocalYYYYMMDD(d));
     setHoraServicio(horaLocalHHmm(d));
-    setServicio(d.getHours() < 17 ? "Mediodia" : "Noche");
     setResumenGuardado(null);
     setEditorOculto(false);
     setNotaRelevo("");
@@ -218,7 +210,7 @@ export default function MepDeliPage() {
 
   const cargarMismoDiaSemana = () => {
     if (!plantillaMismoDia) {
-      setError(`No hay MEP guardada para un ${etiquetaDiaSemana(fechaServicio)} ${etiquetaServicioMep(servicio)} anterior.`);
+      setError(`No hay MEP guardada para un ${etiquetaDiaSemana(fechaServicio)} anterior.`);
       return;
     }
     if (hayCantidadesCargadas(cantidades)) {
@@ -274,7 +266,7 @@ export default function MepDeliPage() {
       if (
         historial &&
         historial.fecha === fechaServicio &&
-        historial.servicio === servicio
+        historial.servicio === MEP_DELI_SERVICIO
       ) {
         historialId = historial.id;
       }
@@ -285,7 +277,7 @@ export default function MepDeliPage() {
     const payload = {
       fecha: fechaServicio,
       hora: horaServicio,
-      servicio,
+      servicio: MEP_DELI_SERVICIO,
       historial_servicio_id: historialId,
       lineas,
       nota_relevo: notaRelevo.trim() || null,
@@ -322,7 +314,7 @@ export default function MepDeliPage() {
         tieneCierre(guardada) ? prev.filter((c) => c.id !== guardada.id) : [guardada, ...prev.filter((c) => c.id !== guardada.id)]
       );
       setSuccess(
-        `MEP guardada para ${fechaServicio} (${servicio} · ${horaServicio})${
+        `MEP guardada para ${fechaServicio} (${horaServicio})${
           guardada.cargado_por_nombre ? ` · ${guardada.cargado_por_nombre}` : ""
         }.`
       );
@@ -351,7 +343,7 @@ export default function MepDeliPage() {
           <div>
             <h1 className="text-2xl font-semibold text-white">MEP Deli</h1>
             <p className="mt-1 text-sm text-zinc-400">
-              Cargá la mise en place del delivery por categoría e ítem.
+              Cargá la mise en place del delivery (servicio noche).
             </p>
           </div>
           <div className="flex flex-wrap gap-2">
@@ -459,7 +451,7 @@ export default function MepDeliPage() {
             title={
               plantillaMismoDia
                 ? `Basado en ${etiquetaCargaMep(plantillaMismoDia)}`
-                : "Sin historial para este día y servicio"
+                : "Sin historial para este día"
             }
             className="inline-flex items-center gap-2 rounded-xl border border-zinc-700 bg-zinc-950 px-4 py-2 text-sm text-zinc-200 transition hover:border-zinc-500 disabled:cursor-not-allowed disabled:opacity-40"
           >
@@ -479,7 +471,7 @@ export default function MepDeliPage() {
 
         {(!editorOculto || !resumenGuardado) && (
           <>
-            <div className="mb-6 grid gap-3 sm:grid-cols-3">
+            <div className="mb-6 grid gap-3 sm:grid-cols-2">
               <label className="block">
                 <span className="mb-1 block text-xs uppercase tracking-wide text-zinc-500">
                   Fecha
@@ -501,19 +493,6 @@ export default function MepDeliPage() {
                   onChange={(e) => setHoraServicio(e.target.value)}
                   className="w-full rounded-xl border border-zinc-700 bg-zinc-950 px-4 py-2.5 text-sm text-zinc-100 outline-none focus:border-zinc-500"
                 />
-              </label>
-              <label className="block">
-                <span className="mb-1 block text-xs uppercase tracking-wide text-zinc-500">
-                  Servicio
-                </span>
-                <select
-                  value={servicio}
-                  onChange={(e) => setServicio(e.target.value as Servicio)}
-                  className="w-full rounded-xl border border-zinc-700 bg-zinc-950 px-4 py-2.5 text-sm text-zinc-100 outline-none focus:border-zinc-500"
-                >
-                  <option value="Mediodia">Mediodía</option>
-                  <option value="Noche">Noche</option>
-                </select>
               </label>
             </div>
 

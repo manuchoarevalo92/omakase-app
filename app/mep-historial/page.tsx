@@ -6,12 +6,12 @@ import Link from "next/link";
 
 import { MepCompararPanel } from "@/app/components/mep-comparar-panel";
 import { formatPostgrestError } from "@/src/lib/supabase-errors";
-import type { ServicioHistorial } from "@/src/lib/historial-servicios";
 import {
   agruparCargasPorFecha,
   calcularRecuentoMep,
   enriquecerCierreLineas,
   enriquecerLineasMep,
+  etiquetaCargaMep,
   etiquetaResultadoCierre,
   etiquetaUnidadMep,
   fetchMepCortesTodos,
@@ -23,8 +23,6 @@ import {
   type MepCorte,
   type MepDeliCarga,
 } from "@/src/lib/mep-deli";
-
-type Servicio = ServicioHistorial;
 
 function fechaHoraCarga(iso: string): string {
   const d = new Date(iso);
@@ -44,7 +42,6 @@ export default function MepHistorialPage() {
   const [cortes, setCortes] = useState<MepCorte[]>([]);
   const [fechaDesde, setFechaDesde] = useState("");
   const [fechaHasta, setFechaHasta] = useState("");
-  const [filtroServicio, setFiltroServicio] = useState<"Todos" | Servicio>("Todos");
   const [filtroPersona, setFiltroPersona] = useState<string>("todos");
   const [compararAbierto, setCompararAbierto] = useState(false);
   const [compararIdA, setCompararIdA] = useState("");
@@ -72,10 +69,7 @@ export default function MepHistorialPage() {
   }, [filtroPersona]);
 
   const cargasFiltradas = useMemo(() => {
-    const porFechaServicio = cargas.filter((carga) => {
-      if (filtroServicio !== "Todos" && carga.servicio !== filtroServicio) {
-        return false;
-      }
+    const porFecha = cargas.filter((carga) => {
       if (fechaDesde && carga.fecha < fechaDesde) {
         return false;
       }
@@ -84,8 +78,8 @@ export default function MepHistorialPage() {
       }
       return true;
     });
-    return filtrarCargasPorPersona(porFechaServicio, filtroPersonaMep);
-  }, [cargas, filtroServicio, fechaDesde, fechaHasta, filtroPersonaMep]);
+    return filtrarCargasPorPersona(porFecha, filtroPersonaMep);
+  }, [cargas, fechaDesde, fechaHasta, filtroPersonaMep]);
 
   const cargasAgrupadas = useMemo(
     () => agruparCargasPorFecha(cargasFiltradas),
@@ -142,7 +136,7 @@ export default function MepHistorialPage() {
           <div>
             <h1 className="text-2xl font-semibold text-white">Historial MEP Deli</h1>
             <p className="mt-1 text-sm text-zinc-400">
-              Cargas, quién las hizo y cierres de servicio (faltó / sobró).
+              Cargas del delivery nocturno, quién las hizo y cierres (faltó / sobró).
             </p>
           </div>
           <Link
@@ -153,7 +147,7 @@ export default function MepHistorialPage() {
           </Link>
         </header>
 
-        <section className="mb-6 grid gap-2 rounded-xl border border-zinc-800 bg-zinc-950/60 p-3 sm:grid-cols-2 lg:grid-cols-4">
+        <section className="mb-6 grid gap-2 rounded-xl border border-zinc-800 bg-zinc-950/60 p-3 sm:grid-cols-2 lg:grid-cols-3">
           <input
             type="date"
             value={fechaDesde}
@@ -169,19 +163,9 @@ export default function MepHistorialPage() {
             aria-label="Fecha hasta"
           />
           <select
-            value={filtroServicio}
-            onChange={(e) => setFiltroServicio(e.target.value as "Todos" | Servicio)}
-            className="rounded-lg border border-zinc-700 bg-zinc-900 px-3 py-2 text-sm text-zinc-100 outline-none transition focus:border-zinc-500"
-            aria-label="Filtrar por servicio"
-          >
-            <option value="Todos">Todos los servicios</option>
-            <option value="Mediodia">Mediodía</option>
-            <option value="Noche">Noche</option>
-          </select>
-          <select
             value={filtroPersona}
             onChange={(e) => setFiltroPersona(e.target.value)}
-            className="rounded-lg border border-zinc-700 bg-zinc-900 px-3 py-2 text-sm text-zinc-100 outline-none transition focus:border-zinc-500"
+            className="rounded-lg border border-zinc-700 bg-zinc-900 px-3 py-2 text-sm text-zinc-100 outline-none transition focus:border-zinc-500 sm:col-span-2 lg:col-span-1"
             aria-label="Filtrar por persona"
           >
             <option value="todos">Todas las personas</option>
@@ -209,10 +193,9 @@ export default function MepHistorialPage() {
             onClick={() => {
               setFechaDesde("");
               setFechaHasta("");
-              setFiltroServicio("Todos");
               setFiltroPersona("todos");
             }}
-            className="rounded-lg border border-zinc-700 bg-zinc-900 px-3 py-2 text-sm text-zinc-200 transition hover:border-zinc-500 hover:text-zinc-100 sm:col-span-2 lg:col-span-4"
+            className="rounded-lg border border-zinc-700 bg-zinc-900 px-3 py-2 text-sm text-zinc-200 transition hover:border-zinc-500 hover:text-zinc-100 sm:col-span-2 lg:col-span-3"
           >
             Limpiar filtros
           </button>
@@ -220,7 +203,7 @@ export default function MepHistorialPage() {
             <button
               type="button"
               onClick={() => setCompararAbierto((v) => !v)}
-              className="rounded-lg border border-violet-800/50 bg-violet-950/25 px-3 py-2 text-sm text-violet-200 transition hover:border-violet-600 sm:col-span-2 lg:col-span-4"
+              className="rounded-lg border border-violet-800/50 bg-violet-950/25 px-3 py-2 text-sm text-violet-200 transition hover:border-violet-600 sm:col-span-2 lg:col-span-3"
             >
               {compararAbierto ? "Ocultar comparación" : "Comparar servicios"}
             </button>
@@ -335,10 +318,7 @@ export default function MepHistorialPage() {
                       >
                         <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
                           <p className="text-sm font-medium text-zinc-100">
-                            {carga.servicio === "Mediodia" ? "Mediodía" : carga.servicio ?? "Servicio"}
-                            {carga.hora?.trim() ? (
-                              <span className="text-zinc-500"> · {carga.hora}</span>
-                            ) : null}
+                            {etiquetaCargaMep(carga)}
                           </p>
                           <span className="text-xs text-zinc-500">
                             Guardado {fechaHoraCarga(carga.created_at)}
