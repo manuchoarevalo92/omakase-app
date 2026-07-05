@@ -45,6 +45,10 @@ alter table public.mep_deli_cargas
 create index if not exists mep_deli_cargas_fecha_idx
   on public.mep_deli_cargas (fecha desc);
 
+create unique index if not exists mep_deli_cargas_fecha_noche_unq
+  on public.mep_deli_cargas (fecha)
+  where servicio is null or servicio = 'Noche';
+
 create index if not exists mep_deli_cargas_historial_idx
   on public.mep_deli_cargas (historial_servicio_id);
 

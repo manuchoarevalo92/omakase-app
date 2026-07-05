@@ -8,7 +8,7 @@ import { ChevronDown, Loader2, LogOut, Menu, X } from "lucide-react";
 import { fetchMepCargasSinCerrarRecientes } from "@/src/lib/mep-deli";
 
 const ALL_LINKS = [
-  { href: "/", label: "Menú" },
+  { href: "/", label: "Omakase" },
   { href: "/bebidas", label: "Bebidas" },
   { href: "/mep-deli", label: "MEP Deli" },
   { href: "/pedidos", label: "Pedidos" },
@@ -149,7 +149,7 @@ export function MainNav() {
     const match = ALL_LINKS.filter((l) => esActivo(l.href)).sort(
       (a, b) => b.href.length - a.href.length
     )[0];
-    return match ? match.label : "Menú";
+    return match ? match.label : "Omakase";
   }, [esActivo]);
 
   // Cerrar el menú al navegar.

@@ -127,6 +127,14 @@ function errorColumnaFaltante(error: PostgrestishError): boolean {
   );
 }
 
+function errorFechaDuplicada(error: PostgrestishError): boolean {
+  if (error.code === "23505") {
+    return true;
+  }
+  const msg = error.message.toLowerCase();
+  return msg.includes("unique") && msg.includes("fecha");
+}
+
 async function ejecutarSelectMepCargas(
   build: (
     select: string
@@ -359,12 +367,35 @@ export async function fetchUltimaMepDeliCarga(): Promise<MepDeliCarga | null> {
       .limit(40)
   );
 
-  const deli = filtrarCargasMepDeli(rows.map(cargaDesdeFila));
-  if (!deli.length) {
-    return null;
-  }
+  const deli = deduplicarCargasPorFecha(rows.map(cargaDesdeFila));
+  return deli[0] ?? null;
+}
 
-  return [...deli].sort(compararCargasMasReciente)[0] ?? null;
+export async function fetchMepDeliCargaPorFecha(
+  fecha: string
+): Promise<MepDeliCarga | null> {
+  const rows = await ejecutarSelectMepCargas((select) =>
+    supabase
+      .from("mep_deli_cargas")
+      .select(select)
+      .eq("fecha", fecha)
+      .order("created_at", { ascending: false })
+      .limit(5)
+  );
+
+  const deli = deduplicarCargasPorFecha(rows.map(cargaDesdeFila));
+  return deli.find((c) => c.fecha === fecha) ?? null;
+}
+
+export function deduplicarCargasPorFecha(cargas: MepDeliCarga[]): MepDeliCarga[] {
+  const porFecha = new Map<string, MepDeliCarga>();
+  for (const c of filtrarCargasMepDeli(cargas)) {
+    const prev = porFecha.get(c.fecha);
+    if (!prev || compararCargasMasReciente(c, prev) < 0) {
+      porFecha.set(c.fecha, c);
+    }
+  }
+  return [...porFecha.values()].sort(compararCargasMasReciente);
 }
 
 export async function fetchUltimoHistorialParaMep(): Promise<HistorialServicioRow | null> {
@@ -421,7 +452,7 @@ export async function fetchMepDeliCargasHistorial(): Promise<MepDeliCarga[]> {
       .order("created_at", { ascending: false })
   );
 
-  return filtrarCargasMepDeli(rows.map(cargaDesdeFila));
+  return deduplicarCargasPorFecha(rows.map(cargaDesdeFila));
 }
 
 export type MepLineaEnriquecida = MepLineaCarga & {
@@ -631,13 +662,23 @@ export async function actualizarMepDeliCarga(
   id: string,
   patch: Record<string, unknown>
 ): Promise<MepDeliCarga> {
-  const intentos = [
-    patch,
-    {
+  const intentos: Record<string, unknown>[] = [patch];
+
+  const sinAutor = { ...patch };
+  delete sinAutor.cargado_por_id;
+  delete sinAutor.cargado_por_nombre;
+  if (Object.keys(sinAutor).length) {
+    intentos.push(sinAutor);
+  }
+
+  if (patch.cierre_lineas !== undefined || patch.cierre_at !== undefined) {
+    intentos.push({
       cierre_lineas: patch.cierre_lineas,
       cierre_at: patch.cierre_at,
-    },
-  ];
+      cerrado_por_id: patch.cerrado_por_id,
+      cerrado_por_nombre: patch.cerrado_por_nombre,
+    });
+  }
 
   let lastError: PostgrestishError | null = null;
   for (const body of intentos) {
@@ -711,6 +752,49 @@ export async function insertMepDeliCarga(
   }
 
   throw lastError ?? new Error("No se pudo guardar la MEP.");
+}
+
+export async function guardarMepDeliCarga(
+  payload: Record<string, unknown>,
+  idExistente?: string | null
+): Promise<MepDeliCarga> {
+  const fecha = String(payload.fecha ?? "");
+  let id = idExistente ?? null;
+
+  if (!id && fecha) {
+    const existente = await fetchMepDeliCargaPorFecha(fecha);
+    id = existente?.id ?? null;
+  }
+
+  if (id) {
+    return actualizarMepDeliCarga(id, {
+      hora: payload.hora,
+      servicio: payload.servicio,
+      historial_servicio_id: payload.historial_servicio_id,
+      lineas: payload.lineas,
+      cargado_por_id: payload.cargado_por_id,
+      cargado_por_nombre: payload.cargado_por_nombre,
+    });
+  }
+
+  try {
+    return await insertMepDeliCarga(payload);
+  } catch (err) {
+    if (errorFechaDuplicada(err as PostgrestishError) && fecha) {
+      const existente = await fetchMepDeliCargaPorFecha(fecha);
+      if (existente) {
+        return guardarMepDeliCarga(payload, existente.id);
+      }
+    }
+    throw err;
+  }
+}
+
+export async function deleteMepDeliCarga(id: string): Promise<void> {
+  const { error } = await supabase.from("mep_deli_cargas").delete().eq("id", id);
+  if (error) {
+    throw error;
+  }
 }
 
 export async function fetchMepCargasSinCerrarRecientes(): Promise<MepDeliCarga[]> {

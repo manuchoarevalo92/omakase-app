@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { FilePlus, Loader2, Lock, Pencil, Save, Sparkles } from "lucide-react";
+import { FilePlus, List, Loader2, Pencil, RefreshCw, Save, Sparkles } from "lucide-react";
 import Link from "next/link";
 
 import { MepCierrePanel } from "@/app/components/mep-cierre-panel";
@@ -11,19 +11,21 @@ import {
   buscarMepMismoDiaSemana,
   calcularSugerenciasCantidades,
   cantidadesDesdeLineas,
+  deduplicarCargasPorFecha,
   etiquetaCargaMep,
   etiquetaDiaSemana,
   etiquetaUnidadMep,
+  enriquecerLineasMep,
   formatearCantidadSugerida,
   fetchMepCargasSinCerrarRecientes,
   fetchMepCortesActivos,
+  fetchMepDeliCargaPorFecha,
   fetchMepDeliCargasHistorial,
-  fetchUltimaMepDeliCarga,
   fetchUltimoHistorialParaMep,
   fetchSessionMepUsuario,
+  guardarMepDeliCarga,
   hayCantidadesCargadas,
   lineasDesdeCantidades,
-  insertMepDeliCarga,
   MEP_DELI_SERVICIO,
   tieneCierre,
   type MepCorte,
@@ -46,7 +48,6 @@ export default function MepDeliPage() {
   const [cantidades, setCantidades] = useState<Map<string, string>>(() => new Map());
   const [fechaServicio, setFechaServicio] = useState(() => formatFechaLocalYYYYMMDD(now));
   const [horaServicio, setHoraServicio] = useState(() => horaLocalHHmm(now));
-  const [ultimaCarga, setUltimaCarga] = useState<MepDeliCarga | null>(null);
   const [resumenGuardado, setResumenGuardado] = useState<MepDeliCarga | null>(null);
   const [editorOculto, setEditorOculto] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
@@ -77,6 +78,13 @@ export default function MepDeliPage() {
       .sort((a, b) => a.categoria.localeCompare(b.categoria, "es") || a.nombre.localeCompare(b.nombre, "es"));
   }, [cantidades, cortesPorId]);
 
+  const lineasResumen = useMemo(() => {
+    if (!resumenGuardado) {
+      return [];
+    }
+    return enriquecerLineasMep(resumenGuardado.lineas, cortesPorId);
+  }, [resumenGuardado, cortesPorId]);
+
   const sugerencias = useMemo(
     () => calcularSugerenciasCantidades(historialCargas, cortes, cantidades),
     [historialCargas, cortes, cantidades]
@@ -98,8 +106,10 @@ export default function MepDeliPage() {
   }, [fechaServicio]);
 
   const hidratarDesdeCarga = useCallback(
-    (carga: MepDeliCarga, opts?: { mostrarResumen?: boolean }) => {
-      setFechaServicio(carga.fecha);
+    (carga: MepDeliCarga, opts?: { mostrarResumen?: boolean; conservarFecha?: boolean }) => {
+      if (!opts?.conservarFecha) {
+        setFechaServicio(carga.fecha);
+      }
       setHoraServicio(carga.hora?.trim() || horaLocalHHmm(new Date()));
       setCantidades(cantidadesDesdeLineas(carga.lineas));
       if (opts?.mostrarResumen) {
@@ -112,6 +122,25 @@ export default function MepDeliPage() {
       setError(null);
     },
     []
+  );
+
+  const aplicarMepDeFecha = useCallback(
+    async (fecha: string, opts?: { conservarHoraSiVacia?: boolean }) => {
+      const carga = await fetchMepDeliCargaPorFecha(fecha);
+      if (carga) {
+        setHoraServicio(carga.hora?.trim() || horaLocalHHmm(new Date()));
+        hidratarDesdeCarga(carga, { mostrarResumen: true });
+      } else {
+        setResumenGuardado(null);
+        setEditorOculto(false);
+        setCantidades(new Map());
+        if (!opts?.conservarHoraSiVacia) {
+          setHoraServicio(horaLocalHHmm(new Date()));
+        }
+      }
+      return carga;
+    },
+    [hidratarDesdeCarga]
   );
 
   const cargarDatos = async () => {
@@ -131,19 +160,12 @@ export default function MepDeliPage() {
       }
     };
 
-    let carga: MepDeliCarga | null = null;
+    let cargaHoy: MepDeliCarga | null = null;
 
     try {
       setCortes(await fetchMepCortesActivos());
     } catch (err) {
       registrarFallo("Catálogo de cortes", err);
-    }
-
-    try {
-      carga = await fetchUltimaMepDeliCarga();
-      setUltimaCarga(carga);
-    } catch (err) {
-      registrarFallo("Última MEP", err);
     }
 
     try {
@@ -158,16 +180,22 @@ export default function MepDeliPage() {
       registrarFallo("MEP sin cerrar", err);
     }
 
+    const fechaInicial = formatFechaLocalYYYYMMDD(new Date());
+    setFechaServicio(fechaInicial);
+
     try {
-      const historial = await fetchUltimoHistorialParaMep();
-      if (carga) {
-        hidratarDesdeCarga(carga);
-      } else if (historial) {
-        setFechaServicio(historial.fecha);
-        setHoraServicio(historial.hora?.trim() || horaLocalHHmm(new Date()));
-      }
+      cargaHoy = await aplicarMepDeFecha(fechaInicial, { conservarHoraSiVacia: true });
     } catch (err) {
-      if (!carga) {
+      registrarFallo("MEP del día", err);
+    }
+
+    if (!cargaHoy) {
+      try {
+        const historial = await fetchUltimoHistorialParaMep();
+        if (historial?.fecha === fechaInicial) {
+          setHoraServicio(historial.hora?.trim() || horaLocalHHmm(new Date()));
+        }
+      } catch (err) {
         registrarFallo("Fecha del servicio", err);
       }
     }
@@ -186,6 +214,51 @@ export default function MepDeliPage() {
     return () => window.clearTimeout(timer);
   }, []);
 
+  useEffect(() => {
+    const refrescarSiVisible = () => {
+      if (document.visibilityState !== "visible" || isLoading) {
+        return;
+      }
+      void aplicarMepDeFecha(fechaServicio, { conservarHoraSiVacia: true }).catch(() => {
+        // silencioso al volver a la pestaña
+      });
+    };
+    document.addEventListener("visibilitychange", refrescarSiVisible);
+    return () => document.removeEventListener("visibilitychange", refrescarSiVisible);
+  }, [fechaServicio, isLoading, aplicarMepDeFecha]);
+
+  const onCambioFecha = (fecha: string) => {
+    setFechaServicio(fecha);
+    setSuccess(null);
+    void aplicarMepDeFecha(fecha).catch((err) => {
+      setError(
+        err && typeof err === "object" && "message" in err
+          ? formatPostgrestError(err as Parameters<typeof formatPostgrestError>[0])
+          : "No se pudo cargar la MEP de ese día."
+      );
+    });
+  };
+
+  const refrescarMepDelDia = () => {
+    setSuccess(null);
+    void aplicarMepDeFecha(fechaServicio, { conservarHoraSiVacia: true })
+      .then((carga) => {
+        if (carga) {
+          setSuccess(`MEP del ${fechaServicio} actualizada.`);
+        } else {
+          setSuccess(`No hay MEP guardada para el ${fechaServicio}.`);
+        }
+        setError(null);
+      })
+      .catch((err) => {
+        setError(
+          err && typeof err === "object" && "message" in err
+            ? formatPostgrestError(err as Parameters<typeof formatPostgrestError>[0])
+            : "No se pudo refrescar."
+        );
+      });
+  };
+
   const actualizarCantidad = (corteId: string, valor: string) => {
     setError(null);
     setCantidades((prev) => {
@@ -199,40 +272,12 @@ export default function MepDeliPage() {
     });
   };
 
-  const iniciarNuevaMep = () => {
-    if (hayCantidadesCargadas(cantidades)) {
-      const ok = window.confirm(
-        "¿Empezar una MEP nueva desde cero? Se vaciarán las cantidades que no hayas guardado."
-      );
-      if (!ok) {
-        return;
-      }
-    }
+  const irAHoy = () => {
     const d = new Date();
-    setCantidades(new Map());
-    setFechaServicio(formatFechaLocalYYYYMMDD(d));
+    const hoy = formatFechaLocalYYYYMMDD(d);
     setHoraServicio(horaLocalHHmm(d));
-    setResumenGuardado(null);
-    setEditorOculto(false);
-    setSuccess("MEP nueva en blanco: fecha y hora puestas a hoy.");
-    setError(null);
-  };
-
-  const cargarUltimaMep = () => {
-    if (!ultimaCarga) {
-      setError("No hay ninguna MEP guardada todavía.");
-      return;
-    }
-    if (hayCantidadesCargadas(cantidades)) {
-      const ok = window.confirm(
-        "¿Cargar la última MEP guardada? Se reemplazarán las cantidades actuales."
-      );
-      if (!ok) {
-        return;
-      }
-    }
-    hidratarDesdeCarga(ultimaCarga);
-    setSuccess(`Cargada la MEP de ${etiquetaCargaMep(ultimaCarga)}.`);
+    onCambioFecha(hoy);
+    setSuccess("Mostrando la MEP de hoy.");
     setError(null);
   };
 
@@ -241,16 +286,18 @@ export default function MepDeliPage() {
       setError(`No hay MEP guardada para un ${etiquetaDiaSemana(fechaServicio)} anterior.`);
       return;
     }
-    if (hayCantidadesCargadas(cantidades)) {
+    if (hayCantidadesCargadas(cantidades) && !resumenGuardado) {
       const ok = window.confirm(
-        `¿Cargar la MEP del ${etiquetaCargaMep(plantillaMismoDia)}? Se reemplazarán las cantidades actuales.`
+        `¿Copiar cantidades del ${etiquetaCargaMep(plantillaMismoDia)} al ${fechaServicio}?`
       );
       if (!ok) {
         return;
       }
     }
-    hidratarDesdeCarga(plantillaMismoDia);
-    setSuccess(`Plantilla cargada: ${etiquetaCargaMep(plantillaMismoDia)}.`);
+    setCantidades(cantidadesDesdeLineas(plantillaMismoDia.lineas));
+    setResumenGuardado(null);
+    setEditorOculto(false);
+    setSuccess(`Plantilla del ${etiquetaCargaMep(plantillaMismoDia)} aplicada al ${fechaServicio}.`);
     setError(null);
   };
 
@@ -318,17 +365,19 @@ export default function MepDeliPage() {
     }
 
     try {
-      const guardada = await insertMepDeliCarga(payload);
+      const guardada = await guardarMepDeliCarga(payload, resumenGuardado?.id);
 
-      setUltimaCarga(guardada);
       setResumenGuardado(guardada);
       setEditorOculto(true);
-      setHistorialCargas((prev) => [guardada, ...prev.filter((c) => c.id !== guardada.id)]);
+      setHistorialCargas((prev) => {
+        const sinFecha = prev.filter((c) => c.fecha !== guardada.fecha);
+        return deduplicarCargasPorFecha([guardada, ...sinFecha]);
+      });
       setSinCerrar((prev) =>
         tieneCierre(guardada) ? prev.filter((c) => c.id !== guardada.id) : [guardada, ...prev.filter((c) => c.id !== guardada.id)]
       );
       setSuccess(
-        `MEP guardada para ${fechaServicio} (${horaServicio})${
+        `${resumenGuardado ? "MEP actualizada" : "MEP guardada"} para ${fechaServicio} (${horaServicio})${
           guardada.cargado_por_nombre ? ` · ${guardada.cargado_por_nombre}` : ""
         }.`
       );
@@ -347,9 +396,11 @@ export default function MepDeliPage() {
 
   const onCierreGuardado = (carga: MepDeliCarga) => {
     setResumenGuardado(carga);
-    setUltimaCarga(carga);
     setCantidades(cantidadesDesdeLineas(carga.lineas));
     setSinCerrar((prev) => prev.filter((c) => c.id !== carga.id));
+    setHistorialCargas((prev) =>
+      deduplicarCargasPorFecha(prev.map((c) => (c.id === carga.id ? carga : c)))
+    );
   };
 
   const sugerenciasActivas = sugerencias.length;
@@ -361,7 +412,9 @@ export default function MepDeliPage() {
           <div>
             <h1 className="text-2xl font-semibold text-white">MEP Deli</h1>
             <p className="mt-1 text-sm text-zinc-400">
-              Cargá la mise en place del delivery (servicio noche).
+              Una MEP por día — todo el equipo ve la misma. Con MEP guardada, usá{" "}
+              <span className="text-zinc-300">Ver sólo lista</span> o{" "}
+              <span className="text-zinc-300">Editar MEP</span> como en Omakase.
             </p>
           </div>
           <div className="flex flex-wrap gap-2">
@@ -397,32 +450,60 @@ export default function MepDeliPage() {
           </div>
         )}
 
-        {resumenGuardado && editorOculto && (
-          <div className="mb-6 rounded-2xl border border-emerald-900/50 bg-emerald-950/20 p-5">
-            <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
-              <div className="flex items-center gap-2 text-emerald-300">
-                <Lock className="h-4 w-4" />
-                <span className="text-sm font-medium">
-                  MEP guardada · {etiquetaCargaMep(resumenGuardado)}
-                </span>
+        {error ? (
+          <p className="mb-4 rounded-xl border border-red-900/60 bg-red-950/40 px-4 py-3 text-sm text-red-200">
+            {error}
+          </p>
+        ) : null}
+        {success && !error ? (
+          <p className="mb-4 rounded-xl border border-emerald-900/50 bg-emerald-950/30 px-4 py-3 text-sm text-emerald-200">
+            {success}
+          </p>
+        ) : null}
+
+        {resumenGuardado && editorOculto ? (
+          <div className="relative z-10 mb-6 min-w-0 rounded-xl border border-zinc-500/80 bg-zinc-950/95 p-3 shadow-[0_12px_48px_rgba(0,0,0,0.45)] backdrop-blur-sm ring-1 ring-zinc-500/20 sm:sticky sm:top-2 sm:p-5">
+            <div className="mb-3 flex flex-col gap-2 border-b border-zinc-800/80 pb-3 max-sm:border-0 max-sm:pb-2 sm:flex-row sm:flex-wrap sm:items-start sm:justify-between sm:gap-x-4">
+              <div className="min-w-0">
+                <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-zinc-400">
+                  Visor · MEP guardada · solo lectura
+                </p>
+                <p className="mt-1 flex flex-wrap gap-x-1 text-sm text-zinc-100">
+                  <span className="tabular-nums">{etiquetaCargaMep(resumenGuardado)}</span>
+                  {resumenGuardado.cargado_por_nombre ? (
+                    <>
+                      <span className="text-zinc-600">·</span>
+                      <span>{resumenGuardado.cargado_por_nombre}</span>
+                    </>
+                  ) : null}
+                </p>
+                <p className="mt-1.5 max-w-xl text-[11px] leading-snug text-zinc-500">
+                  La misma MEP ve todo el equipo para este día.{" "}
+                  <span className="text-zinc-400">Editar MEP</span> para cambiar cantidades;{" "}
+                  <span className="text-zinc-400">Refrescar</span> si alguien más guardó.
+                </p>
               </div>
-              <button
-                type="button"
-                onClick={() => setEditorOculto(false)}
-                className="inline-flex items-center gap-1.5 rounded-lg border border-zinc-700 px-3 py-1.5 text-xs text-zinc-300 transition hover:border-zinc-500 hover:text-white"
-              >
-                <Pencil className="h-3.5 w-3.5" />
-                Editar
-              </button>
+              <div className="flex w-full shrink-0 flex-col gap-2 sm:w-auto sm:min-w-[11rem] sm:flex-row sm:flex-wrap sm:justify-end">
+                <button
+                  type="button"
+                  onClick={() => setEditorOculto(false)}
+                  className="inline-flex w-full items-center justify-center gap-1.5 rounded-lg border border-emerald-900/50 bg-emerald-950/50 px-3 py-2.5 text-xs font-semibold text-emerald-50 transition hover:bg-emerald-900/40 sm:w-auto"
+                >
+                  <Pencil className="h-3.5 w-3.5 shrink-0" aria-hidden />
+                  Editar MEP
+                </button>
+                <button
+                  type="button"
+                  onClick={refrescarMepDelDia}
+                  className="inline-flex w-full items-center justify-center gap-1.5 rounded-lg border border-zinc-600 bg-zinc-900 px-3 py-2.5 text-xs font-medium text-zinc-100 transition hover:border-zinc-500 hover:bg-zinc-800 sm:w-auto"
+                >
+                  <RefreshCw className="h-3.5 w-3.5 shrink-0" aria-hidden />
+                  Refrescar
+                </button>
+              </div>
             </div>
-            {resumenGuardado.cargado_por_nombre ? (
-              <p className="mb-3 text-xs text-zinc-500">
-                Cargada por{" "}
-                <span className="text-zinc-300">{resumenGuardado.cargado_por_nombre}</span>
-              </p>
-            ) : null}
-            <ul className="grid gap-1.5 sm:grid-cols-2">
-              {lineasConDatos.map((l) => (
+            <ul className="mb-4 grid gap-1.5 sm:grid-cols-2">
+              {lineasResumen.map((l) => (
                 <li key={l.corte_id} className="text-sm text-zinc-200">
                   <span className="text-zinc-500">{l.categoria} ·</span> {l.nombre}:{" "}
                   <span className="font-medium text-white">
@@ -437,24 +518,48 @@ export default function MepDeliPage() {
               onCierreGuardado={onCierreGuardado}
             />
           </div>
-        )}
+        ) : null}
 
+        {resumenGuardado && !editorOculto ? (
+          <div className="mb-4 flex flex-col gap-2 rounded-lg border border-zinc-800 bg-zinc-950/60 px-3 py-2.5 sm:flex-row sm:flex-wrap sm:items-center sm:justify-between">
+            <p className="text-xs text-zinc-400">
+              Editando MEP del{" "}
+              <span className="tabular-nums text-zinc-200">{fechaServicio}</span>
+              {resumenGuardado.cargado_por_nombre ? (
+                <span className="text-zinc-500">
+                  {" "}
+                  · cargada por {resumenGuardado.cargado_por_nombre}
+                </span>
+              ) : null}
+            </p>
+            <button
+              type="button"
+              onClick={() => setEditorOculto(true)}
+              className="inline-flex shrink-0 items-center justify-center gap-1.5 rounded-md border border-zinc-600 bg-zinc-900 px-3 py-2 text-[11px] font-medium text-zinc-200 transition hover:border-zinc-500 hover:bg-zinc-800/90"
+            >
+              <List className="h-3.5 w-3.5 shrink-0" aria-hidden />
+              Ver sólo lista
+            </button>
+          </div>
+        ) : null}
+
+        {!(resumenGuardado && editorOculto) ? (
         <div className="mb-6 flex flex-wrap gap-2">
           <button
             type="button"
-            onClick={iniciarNuevaMep}
+            onClick={irAHoy}
             className="inline-flex items-center gap-2 rounded-xl border border-zinc-700 bg-zinc-950 px-4 py-2 text-sm text-zinc-200 transition hover:border-zinc-500"
           >
             <FilePlus className="h-4 w-4" />
-            Nueva MEP
+            Ir a hoy
           </button>
           <button
             type="button"
-            onClick={cargarUltimaMep}
-            disabled={!ultimaCarga}
-            className="inline-flex items-center gap-2 rounded-xl border border-zinc-700 bg-zinc-950 px-4 py-2 text-sm text-zinc-200 transition hover:border-zinc-500 disabled:cursor-not-allowed disabled:opacity-40"
+            onClick={refrescarMepDelDia}
+            className="inline-flex items-center gap-2 rounded-xl border border-zinc-700 bg-zinc-950 px-4 py-2 text-sm text-zinc-200 transition hover:border-zinc-500"
           >
-            Cargar última
+            <RefreshCw className="h-4 w-4" />
+            Refrescar
           </button>
           <button
             type="button"
@@ -480,6 +585,7 @@ export default function MepDeliPage() {
             </button>
           ) : null}
         </div>
+        ) : null}
 
         {(!editorOculto || !resumenGuardado) && (
           <>
@@ -491,7 +597,7 @@ export default function MepDeliPage() {
                 <input
                   type="date"
                   value={fechaServicio}
-                  onChange={(e) => setFechaServicio(e.target.value)}
+                  onChange={(e) => onCambioFecha(e.target.value)}
                   className="w-full rounded-xl border border-zinc-700 bg-zinc-950 px-4 py-2.5 text-sm text-zinc-100 outline-none focus:border-zinc-500"
                 />
               </label>
@@ -507,17 +613,6 @@ export default function MepDeliPage() {
                 />
               </label>
             </div>
-
-            {error && (
-              <p className="mb-4 rounded-xl border border-red-900/60 bg-red-950/40 px-4 py-3 text-sm text-red-200">
-                {error}
-              </p>
-            )}
-            {success && !error && (
-              <p className="mb-4 rounded-xl border border-emerald-900/50 bg-emerald-950/30 px-4 py-3 text-sm text-emerald-200">
-                {success}
-              </p>
-            )}
 
             {isLoading ? (
               <div className="flex items-center justify-center gap-2 py-12 text-zinc-400">
@@ -590,7 +685,7 @@ export default function MepDeliPage() {
                   ) : (
                     <Save className="h-4 w-4" />
                   )}
-                  Guardar MEP
+                  {resumenGuardado ? "Actualizar MEP" : "Guardar MEP"}
                 </button>
               </div>
             )}

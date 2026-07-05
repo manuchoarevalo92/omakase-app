@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { Loader2 } from "lucide-react";
+import { Loader2, Trash2 } from "lucide-react";
 import Link from "next/link";
 
 import { MepCompararPanel } from "@/app/components/mep-comparar-panel";
@@ -9,6 +9,7 @@ import { formatPostgrestError } from "@/src/lib/supabase-errors";
 import {
   agruparCargasPorFecha,
   calcularRecuentoMep,
+  deleteMepDeliCarga,
   enriquecerCierreLineas,
   enriquecerLineasMep,
   etiquetaCargaMep,
@@ -48,6 +49,7 @@ export default function MepHistorialPage() {
   const [compararIdB, setCompararIdB] = useState("");
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [borrandoId, setBorrandoId] = useState<string | null>(null);
 
   const cortesPorId = useMemo(() => new Map(cortes.map((c) => [c.id, c])), [cortes]);
 
@@ -128,6 +130,32 @@ export default function MepHistorialPage() {
     }, 0);
     return () => window.clearTimeout(timer);
   }, []);
+
+  const borrarCarga = async (carga: MepDeliCarga) => {
+    const ok = window.confirm(
+      `¿Borrar la MEP del ${etiquetaCargaMep(carga)}? No se puede deshacer.`
+    );
+    if (!ok) {
+      return;
+    }
+    setBorrandoId(carga.id);
+    setError(null);
+    try {
+      await deleteMepDeliCarga(carga.id);
+      setCargas((prev) => prev.filter((c) => c.id !== carga.id));
+      if (compararIdA === carga.id || compararIdB === carga.id) {
+        setCompararAbierto(false);
+      }
+    } catch (err) {
+      setError(
+        err && typeof err === "object" && "message" in err
+          ? formatPostgrestError(err as Parameters<typeof formatPostgrestError>[0])
+          : "No se pudo borrar la MEP."
+      );
+    } finally {
+      setBorrandoId(null);
+    }
+  };
 
   return (
     <main className="min-h-screen min-w-0 bg-zinc-950 px-4 py-6 text-zinc-100 sm:px-6 sm:py-10">
@@ -320,9 +348,25 @@ export default function MepHistorialPage() {
                           <p className="text-sm font-medium text-zinc-100">
                             {etiquetaCargaMep(carga)}
                           </p>
-                          <span className="text-xs text-zinc-500">
-                            Guardado {fechaHoraCarga(carga.created_at)}
-                          </span>
+                          <div className="flex items-center gap-2">
+                            <span className="text-xs text-zinc-500">
+                              Guardado {fechaHoraCarga(carga.created_at)}
+                            </span>
+                            <button
+                              type="button"
+                              onClick={() => void borrarCarga(carga)}
+                              disabled={borrandoId === carga.id}
+                              title="Borrar MEP"
+                              className="inline-flex items-center gap-1 rounded-lg border border-red-900/50 bg-red-950/30 px-2 py-1 text-xs text-red-300 transition hover:border-red-700 hover:text-red-200 disabled:opacity-50"
+                            >
+                              {borrandoId === carga.id ? (
+                                <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                              ) : (
+                                <Trash2 className="h-3.5 w-3.5" />
+                              )}
+                              Borrar
+                            </button>
+                          </div>
                         </div>
                         {carga.cargado_por_nombre ? (
                           <p className="mb-2 text-xs text-zinc-500">

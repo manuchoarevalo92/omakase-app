@@ -159,6 +159,14 @@ export function formatPostgrestError(error: {
         "Ejecutá supabase/mep-deli-cargas-autor-cierre.sql en el SQL Editor (autor y cierre en mep_deli_cargas)."
       );
     }
+    if (
+      msg.includes("mep_deli_cargas") &&
+      (msg.includes("mep_deli_cargas_fecha_noche_unq") || msg.includes("unique") && msg.includes("fecha"))
+    ) {
+      bits.push(
+        "Ya hay una MEP para esa fecha. Ejecutá supabase/mep-deli-cargas-una-por-dia.sql si migrás desde duplicados viejos."
+      );
+    }
   }
   if (
     msg.includes("could not find") &&
