@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { FilePlus, Loader2, Lock, Pencil, Save } from "lucide-react";
+import { FilePlus, Loader2, Lock, Pencil, Save, Sparkles } from "lucide-react";
 import Link from "next/link";
 
 import { MepCierrePanel } from "@/app/components/mep-cierre-panel";
@@ -9,10 +9,17 @@ import { formatPostgrestError } from "@/src/lib/supabase-errors";
 import type { ServicioHistorial } from "@/src/lib/historial-servicios";
 import {
   agruparCortesPorCategoria,
+  buscarMepMismoDiaSemana,
+  calcularSugerenciasCantidades,
   cantidadesDesdeLineas,
   etiquetaCargaMep,
+  etiquetaDiaSemana,
+  etiquetaServicioMep,
   etiquetaUnidadMep,
+  formatearCantidadSugerida,
+  fetchMepCargasSinCerrarRecientes,
   fetchMepCortesActivos,
+  fetchMepDeliCargasHistorial,
   fetchUltimaMepDeliCarga,
   fetchUltimoHistorialParaMep,
   fetchSessionMepUsuario,
@@ -20,6 +27,7 @@ import {
   lineasDesdeCantidades,
   MEP_CARGA_SELECT,
   cargaDesdeFila,
+  tieneCierre,
   type MepCorte,
   type MepDeliCarga,
 } from "@/src/lib/mep-deli";
@@ -51,6 +59,9 @@ export default function MepDeliPage() {
   const [isSaving, setIsSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
+  const [notaRelevo, setNotaRelevo] = useState("");
+  const [historialCargas, setHistorialCargas] = useState<MepDeliCarga[]>([]);
+  const [sinCerrar, setSinCerrar] = useState<MepDeliCarga[]>([]);
 
   const grupos = useMemo(() => agruparCortesPorCategoria(cortes), [cortes]);
 
@@ -73,12 +84,34 @@ export default function MepDeliPage() {
       .sort((a, b) => a.categoria.localeCompare(b.categoria, "es") || a.nombre.localeCompare(b.nombre, "es"));
   }, [cantidades, cortesPorId]);
 
+  const sugerencias = useMemo(
+    () => calcularSugerenciasCantidades(historialCargas, cortes, cantidades),
+    [historialCargas, cortes, cantidades]
+  );
+
+  const sugerenciasPorId = useMemo(
+    () => new Map(sugerencias.map((s) => [s.corte_id, s])),
+    [sugerencias]
+  );
+
+  const plantillaMismoDia = useMemo(
+    () => buscarMepMismoDiaSemana(historialCargas, fechaServicio, servicio),
+    [historialCargas, fechaServicio, servicio]
+  );
+
+  const etiquetaPlantillaMismoDia = useMemo(() => {
+    const dia = etiquetaDiaSemana(fechaServicio);
+    const serv = etiquetaServicioMep(servicio);
+    return `Cargar último ${dia} ${serv}`;
+  }, [fechaServicio, servicio]);
+
   const hidratarDesdeCarga = useCallback(
     (carga: MepDeliCarga, opts?: { mostrarResumen?: boolean }) => {
       setFechaServicio(carga.fecha);
       setHoraServicio(carga.hora?.trim() || horaLocalHHmm(new Date()));
       setServicio(carga.servicio ?? (new Date().getHours() < 17 ? "Mediodia" : "Noche"));
       setCantidades(cantidadesDesdeLineas(carga.lineas));
+      setNotaRelevo(carga.nota_relevo ?? "");
       if (opts?.mostrarResumen) {
         setResumenGuardado(carga);
         setEditorOculto(true);
@@ -95,14 +128,18 @@ export default function MepDeliPage() {
     setIsLoading(true);
     setError(null);
     try {
-      const [listaCortes, carga, historial] = await Promise.all([
+      const [listaCortes, carga, historial, listaHistorial, pendientes] = await Promise.all([
         fetchMepCortesActivos(),
         fetchUltimaMepDeliCarga(),
         fetchUltimoHistorialParaMep(),
+        fetchMepDeliCargasHistorial(),
+        fetchMepCargasSinCerrarRecientes(),
       ]);
 
       setCortes(listaCortes);
       setUltimaCarga(carga);
+      setHistorialCargas(listaHistorial);
+      setSinCerrar(pendientes);
 
       if (carga) {
         hidratarDesdeCarga(carga);
@@ -156,6 +193,7 @@ export default function MepDeliPage() {
     setServicio(d.getHours() < 17 ? "Mediodia" : "Noche");
     setResumenGuardado(null);
     setEditorOculto(false);
+    setNotaRelevo("");
     setSuccess("MEP nueva en blanco: fecha y hora puestas a hoy.");
     setError(null);
   };
@@ -175,6 +213,46 @@ export default function MepDeliPage() {
     }
     hidratarDesdeCarga(ultimaCarga);
     setSuccess(`Cargada la MEP de ${etiquetaCargaMep(ultimaCarga)}.`);
+    setError(null);
+  };
+
+  const cargarMismoDiaSemana = () => {
+    if (!plantillaMismoDia) {
+      setError(`No hay MEP guardada para un ${etiquetaDiaSemana(fechaServicio)} ${etiquetaServicioMep(servicio)} anterior.`);
+      return;
+    }
+    if (hayCantidadesCargadas(cantidades)) {
+      const ok = window.confirm(
+        `¿Cargar la MEP del ${etiquetaCargaMep(plantillaMismoDia)}? Se reemplazarán las cantidades actuales.`
+      );
+      if (!ok) {
+        return;
+      }
+    }
+    hidratarDesdeCarga(plantillaMismoDia);
+    setNotaRelevo("");
+    setSuccess(`Plantilla cargada: ${etiquetaCargaMep(plantillaMismoDia)}.`);
+    setError(null);
+  };
+
+  const aplicarSugerencias = () => {
+    if (!sugerencias.length) {
+      setError("No hay sugerencias con historial de cierres suficiente.");
+      return;
+    }
+    setCantidades((prev) => {
+      const next = new Map(prev);
+      for (const s of sugerencias) {
+        if (s.cantidad_sugerida !== null) {
+          next.set(
+            s.corte_id,
+            formatearCantidadSugerida(s.cantidad_sugerida, s.unidad)
+          );
+        }
+      }
+      return next;
+    });
+    setSuccess(`Sugerencias aplicadas (${sugerencias.length} ítems).`);
     setError(null);
   };
 
@@ -210,6 +288,7 @@ export default function MepDeliPage() {
       servicio,
       historial_servicio_id: historialId,
       lineas,
+      nota_relevo: notaRelevo.trim() || null,
       cargado_por_id: null as string | null,
       cargado_por_nombre: null as string | null,
     };
@@ -238,6 +317,10 @@ export default function MepDeliPage() {
       setUltimaCarga(guardada);
       setResumenGuardado(guardada);
       setEditorOculto(true);
+      setHistorialCargas((prev) => [guardada, ...prev.filter((c) => c.id !== guardada.id)]);
+      setSinCerrar((prev) =>
+        tieneCierre(guardada) ? prev.filter((c) => c.id !== guardada.id) : [guardada, ...prev.filter((c) => c.id !== guardada.id)]
+      );
       setSuccess(
         `MEP guardada para ${fechaServicio} (${servicio} · ${horaServicio})${
           guardada.cargado_por_nombre ? ` · ${guardada.cargado_por_nombre}` : ""
@@ -256,7 +339,10 @@ export default function MepDeliPage() {
     setResumenGuardado(carga);
     setUltimaCarga(carga);
     setCantidades(cantidadesDesdeLineas(carga.lineas));
+    setSinCerrar((prev) => prev.filter((c) => c.id !== carga.id));
   };
+
+  const sugerenciasActivas = sugerencias.length;
 
   return (
     <main className="min-h-screen min-w-0 bg-zinc-950 px-4 py-6 text-zinc-100 sm:px-6 sm:py-10">
@@ -284,6 +370,23 @@ export default function MepDeliPage() {
           </div>
         </header>
 
+        {sinCerrar.length > 0 && (
+          <div className="mb-6 rounded-xl border border-amber-900/50 bg-amber-950/25 px-4 py-3 text-sm text-amber-100">
+            <span className="font-medium">
+              {sinCerrar.length} MEP sin cerrar
+            </span>
+            <span className="text-amber-200/80">
+              {" "}
+              en los últimos 14 días:{" "}
+              {sinCerrar
+                .slice(0, 3)
+                .map((c) => etiquetaCargaMep(c))
+                .join(" · ")}
+              {sinCerrar.length > 3 ? "…" : ""}
+            </span>
+          </div>
+        )}
+
         {resumenGuardado && editorOculto && (
           <div className="mb-6 rounded-2xl border border-emerald-900/50 bg-emerald-950/20 p-5">
             <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
@@ -306,6 +409,12 @@ export default function MepDeliPage() {
               <p className="mb-3 text-xs text-zinc-500">
                 Cargada por{" "}
                 <span className="text-zinc-300">{resumenGuardado.cargado_por_nombre}</span>
+              </p>
+            ) : null}
+            {resumenGuardado.nota_relevo ? (
+              <p className="mb-3 rounded-lg border border-sky-900/40 bg-sky-950/20 px-3 py-2 text-xs text-sky-100">
+                <span className="font-medium text-sky-300">Nota de relevo: </span>
+                {resumenGuardado.nota_relevo}
               </p>
             ) : null}
             <ul className="grid gap-1.5 sm:grid-cols-2">
@@ -343,6 +452,29 @@ export default function MepDeliPage() {
           >
             Cargar última
           </button>
+          <button
+            type="button"
+            onClick={cargarMismoDiaSemana}
+            disabled={!plantillaMismoDia}
+            title={
+              plantillaMismoDia
+                ? `Basado en ${etiquetaCargaMep(plantillaMismoDia)}`
+                : "Sin historial para este día y servicio"
+            }
+            className="inline-flex items-center gap-2 rounded-xl border border-zinc-700 bg-zinc-950 px-4 py-2 text-sm text-zinc-200 transition hover:border-zinc-500 disabled:cursor-not-allowed disabled:opacity-40"
+          >
+            {etiquetaPlantillaMismoDia}
+          </button>
+          {sugerenciasActivas > 0 ? (
+            <button
+              type="button"
+              onClick={aplicarSugerencias}
+              className="inline-flex items-center gap-2 rounded-xl border border-violet-800/60 bg-violet-950/30 px-4 py-2 text-sm text-violet-200 transition hover:border-violet-600"
+            >
+              <Sparkles className="h-4 w-4" />
+              Sugerencias ({sugerenciasActivas})
+            </button>
+          ) : null}
         </div>
 
         {(!editorOculto || !resumenGuardado) && (
@@ -385,6 +517,19 @@ export default function MepDeliPage() {
               </label>
             </div>
 
+            <label className="mb-6 block">
+              <span className="mb-1 block text-xs uppercase tracking-wide text-zinc-500">
+                Nota de relevo (opcional)
+              </span>
+              <textarea
+                value={notaRelevo}
+                onChange={(e) => setNotaRelevo(e.target.value)}
+                rows={2}
+                placeholder="Ej: quedó poco salmón, pedir más mañana…"
+                className="w-full resize-y rounded-xl border border-zinc-700 bg-zinc-950 px-4 py-2.5 text-sm text-zinc-100 outline-none placeholder:text-zinc-600 focus:border-zinc-500"
+              />
+            </label>
+
             {error && (
               <p className="mb-4 rounded-xl border border-red-900/60 bg-red-950/40 px-4 py-3 text-sm text-red-200">
                 {error}
@@ -417,19 +562,30 @@ export default function MepDeliPage() {
                       {grupo.categoria}
                     </h2>
                     <ul className="divide-y divide-zinc-800 rounded-xl border border-zinc-800">
-                      {grupo.cortes.map((corte) => (
+                      {grupo.cortes.map((corte) => {
+                        const sug = sugerenciasPorId.get(corte.id);
+                        return (
                         <li
                           key={corte.id}
                           className="flex flex-wrap items-center justify-between gap-3 px-4 py-3"
                         >
-                          <span className="min-w-[8rem] font-medium text-zinc-100">
-                            {corte.nombre}
-                          </span>
+                          <div className="min-w-[8rem]">
+                            <span className="font-medium text-zinc-100">
+                              {corte.nombre}
+                            </span>
+                            {sug?.motivo ? (
+                              <p className="mt-0.5 text-[11px] text-violet-300/90">{sug.motivo}</p>
+                            ) : null}
+                          </div>
                           <div className="flex items-center gap-2">
                             <input
                               type="text"
                               inputMode="decimal"
-                              placeholder="—"
+                              placeholder={
+                                sug?.cantidad_sugerida != null
+                                  ? formatearCantidadSugerida(sug.cantidad_sugerida, corte.unidad)
+                                  : "—"
+                              }
                               value={cantidades.get(corte.id) ?? ""}
                               onChange={(e) => actualizarCantidad(corte.id, e.target.value)}
                               className="w-28 rounded-xl border border-zinc-700 bg-zinc-950 px-3 py-2 text-right text-sm text-zinc-100 outline-none focus:border-zinc-500"
@@ -439,7 +595,8 @@ export default function MepDeliPage() {
                             </span>
                           </div>
                         </li>
-                      ))}
+                        );
+                      })}
                     </ul>
                   </div>
                 ))}

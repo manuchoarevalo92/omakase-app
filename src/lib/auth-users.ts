@@ -8,7 +8,7 @@ export type AppUser = {
   passwordEnv: string;
 };
 
-/** Manu = todo; Javi, Santi, Andre = menú, ingredientes e historial solamente. */
+/** Manu = todo; Javi y Santi = menú, MEP, ingredientes, pedidos, etc. */
 export const APP_USERS: AppUser[] = [
   {
     id: "manu",
@@ -27,12 +27,6 @@ export const APP_USERS: AppUser[] = [
     displayName: "Santi",
     role: "staff",
     passwordEnv: "AUTH_PASSWORD_SANTI",
-  },
-  {
-    id: "andre",
-    displayName: "Andre",
-    role: "staff",
-    passwordEnv: "AUTH_PASSWORD_ANDRE",
   },
 ];
 

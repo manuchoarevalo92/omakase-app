@@ -53,6 +53,7 @@ export type MepDeliCarga = {
   cierre_at: string | null;
   cerrado_por_id: string | null;
   cerrado_por_nombre: string | null;
+  nota_relevo: string | null;
   created_at: string;
 };
 
@@ -69,6 +70,7 @@ export type MepDeliCargaDbRow = {
   cierre_at?: string | null;
   cerrado_por_id?: string | null;
   cerrado_por_nombre?: string | null;
+  nota_relevo?: string | null;
   created_at: string;
 };
 
@@ -82,8 +84,23 @@ export type RecuentoMepItem = {
   ok: number;
 };
 
+export type MepSugerenciaCantidad = {
+  corte_id: string;
+  categoria: string;
+  nombre: string;
+  unidad: UnidadMep;
+  cantidad_base: number | null;
+  cantidad_sugerida: number | null;
+  motivo: string | null;
+};
+
+export type FiltroPersonaMep =
+  | { tipo: "todos" }
+  | { tipo: "cargado"; nombre: string }
+  | { tipo: "cerrado"; nombre: string };
+
 export const MEP_CARGA_SELECT =
-  "id, fecha, hora, servicio, historial_servicio_id, lineas, cargado_por_id, cargado_por_nombre, cierre_lineas, cierre_at, cerrado_por_id, cerrado_por_nombre, created_at";
+  "id, fecha, hora, servicio, historial_servicio_id, lineas, cargado_por_id, cargado_por_nombre, cierre_lineas, cierre_at, cerrado_por_id, cerrado_por_nombre, nota_relevo, created_at";
 
 export const UNIDADES_MEP: UnidadMep[] = ["g", "kg", "ud", "porciones"];
 
@@ -209,6 +226,7 @@ export function cargaDesdeFila(row: MepDeliCargaDbRow): MepDeliCarga {
     cierre_at: row.cierre_at ?? null,
     cerrado_por_id: row.cerrado_por_id ?? null,
     cerrado_por_nombre: row.cerrado_por_nombre ?? null,
+    nota_relevo: row.nota_relevo?.trim() || null,
     created_at: row.created_at,
   };
 }
@@ -532,4 +550,233 @@ export async function fetchSessionMepUsuario(): Promise<SessionMepUsuario | null
     // sin sesión
   }
   return null;
+}
+
+const DIAS_SEMANA = [
+  "domingo",
+  "lunes",
+  "martes",
+  "miércoles",
+  "jueves",
+  "viernes",
+  "sábado",
+] as const;
+
+export function parseFechaLocalISO(fecha: string): Date {
+  const [y, m, d] = fecha.split("-").map(Number);
+  return new Date(y!, m! - 1, d!);
+}
+
+export function diaSemanaDesdeFechaISO(fecha: string): number {
+  return parseFechaLocalISO(fecha).getDay();
+}
+
+export function etiquetaDiaSemana(fecha: string): string {
+  return DIAS_SEMANA[diaSemanaDesdeFechaISO(fecha)] ?? "";
+}
+
+export function etiquetaServicioMep(servicio: ServicioHistorial | null): string {
+  return servicio === "Mediodia" ? "mediodía" : "noche";
+}
+
+export function buscarMepMismoDiaSemana(
+  cargas: MepDeliCarga[],
+  fecha: string,
+  servicio: ServicioHistorial
+): MepDeliCarga | null {
+  const diaObjetivo = diaSemanaDesdeFechaISO(fecha);
+  const candidatas = cargas.filter(
+    (c) =>
+      c.fecha !== fecha &&
+      c.servicio === servicio &&
+      diaSemanaDesdeFechaISO(c.fecha) === diaObjetivo
+  );
+  if (!candidatas.length) {
+    return null;
+  }
+  return [...candidatas].sort((a, b) => compararCargasMasReciente(a, b))[0] ?? null;
+}
+
+export async function fetchMepCargasSinCerrarRecientes(): Promise<MepDeliCarga[]> {
+  const hace = new Date();
+  hace.setDate(hace.getDate() - 14);
+  const desde = `${hace.getFullYear()}-${String(hace.getMonth() + 1).padStart(2, "0")}-${String(hace.getDate()).padStart(2, "0")}`;
+
+  const { data, error } = await supabase
+    .from("mep_deli_cargas")
+    .select(MEP_CARGA_SELECT)
+    .gte("fecha", desde)
+    .is("cierre_at", null)
+    .order("fecha", { ascending: false })
+    .order("created_at", { ascending: false });
+
+  if (error) {
+    throw error;
+  }
+
+  return ((data ?? []) as MepDeliCargaDbRow[])
+    .map(cargaDesdeFila)
+    .filter((c) => !tieneCierre(c));
+}
+
+export function personasEnCargas(cargas: MepDeliCarga[]): {
+  cargadores: string[];
+  cerradores: string[];
+} {
+  const cargadores = new Set<string>();
+  const cerradores = new Set<string>();
+  for (const c of cargas) {
+    if (c.cargado_por_nombre?.trim()) {
+      cargadores.add(c.cargado_por_nombre.trim());
+    }
+    if (c.cerrado_por_nombre?.trim()) {
+      cerradores.add(c.cerrado_por_nombre.trim());
+    }
+  }
+  return {
+    cargadores: [...cargadores].sort((a, b) => a.localeCompare(b, "es")),
+    cerradores: [...cerradores].sort((a, b) => a.localeCompare(b, "es")),
+  };
+}
+
+export function filtrarCargasPorPersona(
+  cargas: MepDeliCarga[],
+  filtro: FiltroPersonaMep
+): MepDeliCarga[] {
+  if (filtro.tipo === "todos") {
+    return cargas;
+  }
+  if (filtro.tipo === "cargado") {
+    return cargas.filter((c) => c.cargado_por_nombre === filtro.nombre);
+  }
+  return cargas.filter((c) => c.cerrado_por_nombre === filtro.nombre);
+}
+
+function parseCantidadMep(valor: string): number | null {
+  const n = Number(valor.replace(",", ".").trim());
+  return Number.isFinite(n) && n >= 0 ? n : null;
+}
+
+function formatearCantidadMep(valor: number, unidad: UnidadMep): string {
+  if (unidad === "ud" || unidad === "porciones") {
+    return String(Math.max(0, Math.round(valor)));
+  }
+  const redondeado = Math.round(valor * 10) / 10;
+  return Number.isInteger(redondeado) ? String(redondeado) : redondeado.toFixed(1);
+}
+
+export function formatearCantidadSugerida(valor: number, unidad: UnidadMep): string {
+  return formatearCantidadMep(valor, unidad);
+}
+
+function promedioCantidadHistorial(
+  cargas: MepDeliCarga[],
+  corteId: string
+): number | null {
+  const vals: number[] = [];
+  for (const c of cargas) {
+    const linea = c.lineas.find((l) => l.corte_id === corteId);
+    if (!linea) {
+      continue;
+    }
+    const n = parseCantidadMep(linea.cantidad);
+    if (n !== null) {
+      vals.push(n);
+    }
+  }
+  if (!vals.length) {
+    return null;
+  }
+  return vals.reduce((a, b) => a + b, 0) / vals.length;
+}
+
+export function calcularSugerenciasCantidades(
+  cargasHistorial: MepDeliCarga[],
+  cortes: MepCorte[],
+  cantidadesActuales: Map<string, string>
+): MepSugerenciaCantidad[] {
+  const recuento = calcularRecuentoMep(
+    cargasHistorial,
+    new Map(cortes.map((c) => [c.id, c]))
+  );
+  const recuentoPorId = new Map(recuento.map((r) => [r.corte_id, r]));
+  const ultimas = [...cargasHistorial]
+    .sort(compararCargasMasReciente)
+    .slice(0, 12);
+
+  return cortes
+    .map((corte) => {
+      const actual = parseCantidadMep(cantidadesActuales.get(corte.id) ?? "");
+      const promedio = promedioCantidadHistorial(ultimas, corte.id);
+      const base = actual ?? promedio;
+      const stats = recuentoPorId.get(corte.id);
+
+      if (base === null) {
+        return {
+          corte_id: corte.id,
+          categoria: corte.categoria,
+          nombre: corte.nombre,
+          unidad: corte.unidad,
+          cantidad_base: null,
+          cantidad_sugerida: null,
+          motivo: null,
+        };
+      }
+
+      if (!stats || stats.servicios_con_cierre < 2) {
+        return {
+          corte_id: corte.id,
+          categoria: corte.categoria,
+          nombre: corte.nombre,
+          unidad: corte.unidad,
+          cantidad_base: base,
+          cantidad_sugerida: null,
+          motivo: null,
+        };
+      }
+
+      const ratioFalto = stats.faltos / stats.servicios_con_cierre;
+      const ratioSobro = stats.sobraron / stats.servicios_con_cierre;
+      let factor = 1;
+      let motivo: string | null = null;
+
+      if (ratioFalto >= 0.5) {
+        factor = 1.15;
+        motivo = `Faltó en ${stats.faltos}/${stats.servicios_con_cierre} cierres → +15%`;
+      } else if (ratioFalto >= 0.3) {
+        factor = 1.1;
+        motivo = `Faltó a menudo (${stats.faltos}/${stats.servicios_con_cierre}) → +10%`;
+      } else if (ratioSobro >= 0.5) {
+        factor = 0.85;
+        motivo = `Sobró en ${stats.sobraron}/${stats.servicios_con_cierre} cierres → −15%`;
+      } else if (ratioSobro >= 0.3) {
+        factor = 0.9;
+        motivo = `Sobró a menudo (${stats.sobraron}/${stats.servicios_con_cierre}) → −10%`;
+      }
+
+      if (factor === 1) {
+        return {
+          corte_id: corte.id,
+          categoria: corte.categoria,
+          nombre: corte.nombre,
+          unidad: corte.unidad,
+          cantidad_base: base,
+          cantidad_sugerida: null,
+          motivo: null,
+        };
+      }
+
+      return {
+        corte_id: corte.id,
+        categoria: corte.categoria,
+        nombre: corte.nombre,
+        unidad: corte.unidad,
+        cantidad_base: base,
+        cantidad_sugerida: parseCantidadMep(
+          formatearCantidadMep(base * factor, corte.unidad)
+        ),
+        motivo,
+      };
+    })
+    .filter((s) => s.cantidad_sugerida !== null);
 }

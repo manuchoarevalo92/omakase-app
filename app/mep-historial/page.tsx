@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import { Loader2 } from "lucide-react";
 import Link from "next/link";
 
+import { MepCompararPanel } from "@/app/components/mep-comparar-panel";
 import { formatPostgrestError } from "@/src/lib/supabase-errors";
 import type { ServicioHistorial } from "@/src/lib/historial-servicios";
 import {
@@ -15,7 +16,10 @@ import {
   etiquetaUnidadMep,
   fetchMepCortesTodos,
   fetchMepDeliCargasHistorial,
+  filtrarCargasPorPersona,
+  personasEnCargas,
   tieneCierre,
+  type FiltroPersonaMep,
   type MepCorte,
   type MepDeliCarga,
 } from "@/src/lib/mep-deli";
@@ -41,13 +45,34 @@ export default function MepHistorialPage() {
   const [fechaDesde, setFechaDesde] = useState("");
   const [fechaHasta, setFechaHasta] = useState("");
   const [filtroServicio, setFiltroServicio] = useState<"Todos" | Servicio>("Todos");
+  const [filtroPersona, setFiltroPersona] = useState<string>("todos");
+  const [compararAbierto, setCompararAbierto] = useState(false);
+  const [compararIdA, setCompararIdA] = useState("");
+  const [compararIdB, setCompararIdB] = useState("");
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
   const cortesPorId = useMemo(() => new Map(cortes.map((c) => [c.id, c])), [cortes]);
 
+  const personas = useMemo(() => personasEnCargas(cargas), [cargas]);
+
+  const filtroPersonaMep = useMemo((): FiltroPersonaMep => {
+    if (filtroPersona === "todos") {
+      return { tipo: "todos" };
+    }
+    const [tipo, ...rest] = filtroPersona.split(":");
+    const nombre = rest.join(":");
+    if (tipo === "cargado" && nombre) {
+      return { tipo: "cargado", nombre };
+    }
+    if (tipo === "cerrado" && nombre) {
+      return { tipo: "cerrado", nombre };
+    }
+    return { tipo: "todos" };
+  }, [filtroPersona]);
+
   const cargasFiltradas = useMemo(() => {
-    return cargas.filter((carga) => {
+    const porFechaServicio = cargas.filter((carga) => {
       if (filtroServicio !== "Todos" && carga.servicio !== filtroServicio) {
         return false;
       }
@@ -59,7 +84,8 @@ export default function MepHistorialPage() {
       }
       return true;
     });
-  }, [cargas, filtroServicio, fechaDesde, fechaHasta]);
+    return filtrarCargasPorPersona(porFechaServicio, filtroPersonaMep);
+  }, [cargas, filtroServicio, fechaDesde, fechaHasta, filtroPersonaMep]);
 
   const cargasAgrupadas = useMemo(
     () => agruparCargasPorFecha(cargasFiltradas),
@@ -86,6 +112,13 @@ export default function MepHistorialPage() {
       ]);
       setCargas(listaCargas);
       setCortes(listaCortes);
+      if (listaCargas.length >= 2) {
+        setCompararIdA(listaCargas[0]!.id);
+        setCompararIdB(listaCargas[1]!.id);
+      } else if (listaCargas.length === 1) {
+        setCompararIdA(listaCargas[0]!.id);
+        setCompararIdB(listaCargas[0]!.id);
+      }
     } catch (err) {
       setError(
         err instanceof Error ? err.message : "Error al conectar con Supabase."
@@ -120,7 +153,7 @@ export default function MepHistorialPage() {
           </Link>
         </header>
 
-        <section className="mb-6 grid gap-2 rounded-xl border border-zinc-800 bg-zinc-950/60 p-3 sm:grid-cols-3">
+        <section className="mb-6 grid gap-2 rounded-xl border border-zinc-800 bg-zinc-950/60 p-3 sm:grid-cols-2 lg:grid-cols-4">
           <input
             type="date"
             value={fechaDesde}
@@ -145,18 +178,66 @@ export default function MepHistorialPage() {
             <option value="Mediodia">Mediodía</option>
             <option value="Noche">Noche</option>
           </select>
+          <select
+            value={filtroPersona}
+            onChange={(e) => setFiltroPersona(e.target.value)}
+            className="rounded-lg border border-zinc-700 bg-zinc-900 px-3 py-2 text-sm text-zinc-100 outline-none transition focus:border-zinc-500"
+            aria-label="Filtrar por persona"
+          >
+            <option value="todos">Todas las personas</option>
+            {personas.cargadores.length > 0 ? (
+              <optgroup label="Cargó">
+                {personas.cargadores.map((nombre) => (
+                  <option key={`c-${nombre}`} value={`cargado:${nombre}`}>
+                    {nombre}
+                  </option>
+                ))}
+              </optgroup>
+            ) : null}
+            {personas.cerradores.length > 0 ? (
+              <optgroup label="Cerró">
+                {personas.cerradores.map((nombre) => (
+                  <option key={`z-${nombre}`} value={`cerrado:${nombre}`}>
+                    {nombre}
+                  </option>
+                ))}
+              </optgroup>
+            ) : null}
+          </select>
           <button
             type="button"
             onClick={() => {
               setFechaDesde("");
               setFechaHasta("");
               setFiltroServicio("Todos");
+              setFiltroPersona("todos");
             }}
-            className="rounded-lg border border-zinc-700 bg-zinc-900 px-3 py-2 text-sm text-zinc-200 transition hover:border-zinc-500 hover:text-zinc-100 sm:col-span-3"
+            className="rounded-lg border border-zinc-700 bg-zinc-900 px-3 py-2 text-sm text-zinc-200 transition hover:border-zinc-500 hover:text-zinc-100 sm:col-span-2 lg:col-span-4"
           >
             Limpiar filtros
           </button>
+          {cargasFiltradas.length >= 2 ? (
+            <button
+              type="button"
+              onClick={() => setCompararAbierto((v) => !v)}
+              className="rounded-lg border border-violet-800/50 bg-violet-950/25 px-3 py-2 text-sm text-violet-200 transition hover:border-violet-600 sm:col-span-2 lg:col-span-4"
+            >
+              {compararAbierto ? "Ocultar comparación" : "Comparar servicios"}
+            </button>
+          ) : null}
         </section>
+
+        {compararAbierto && cargasFiltradas.length >= 2 ? (
+          <MepCompararPanel
+            cargas={cargasFiltradas}
+            cortesPorId={cortesPorId}
+            idA={compararIdA}
+            idB={compararIdB}
+            onCambiarA={setCompararIdA}
+            onCambiarB={setCompararIdB}
+            onCerrar={() => setCompararAbierto(false)}
+          />
+        ) : null}
 
         {!isLoading && cargasFiltradas.length > 0 && (
           <section className="mb-6 rounded-xl border border-zinc-800 bg-zinc-950/60 p-4">
@@ -267,6 +348,12 @@ export default function MepHistorialPage() {
                           <p className="mb-2 text-xs text-zinc-500">
                             Cargada por{" "}
                             <span className="text-zinc-300">{carga.cargado_por_nombre}</span>
+                          </p>
+                        ) : null}
+                        {carga.nota_relevo ? (
+                          <p className="mb-3 rounded-lg border border-sky-900/40 bg-sky-950/20 px-3 py-2 text-xs text-sky-100">
+                            <span className="font-medium text-sky-300">Nota de relevo: </span>
+                            {carga.nota_relevo}
                           </p>
                         ) : null}
 

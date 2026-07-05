@@ -5,6 +5,8 @@ import { usePathname, useRouter } from "next/navigation";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { ChevronDown, Loader2, LogOut, Menu, X } from "lucide-react";
 
+import { fetchMepCargasSinCerrarRecientes } from "@/src/lib/mep-deli";
+
 const ALL_LINKS = [
   { href: "/", label: "Menú" },
   { href: "/bebidas", label: "Bebidas" },
@@ -55,6 +57,7 @@ export function MainNav() {
   const [session, setSession] = useState<SessionInfo | null | undefined>(undefined);
   const [loggingOut, setLoggingOut] = useState(false);
   const [menuAbierto, setMenuAbierto] = useState(false);
+  const [mepSinCerrar, setMepSinCerrar] = useState(0);
 
   const loadSession = useCallback(async () => {
     if (pathname === "/login" || pathname.startsWith("/widget")) {
@@ -91,6 +94,35 @@ export function MainNav() {
     },
     [session]
   );
+
+  useEffect(() => {
+    if (pathname === "/login" || pathname.startsWith("/widget")) {
+      return;
+    }
+    if (session === undefined || session === null) {
+      setMepSinCerrar(0);
+      return;
+    }
+    if (!puedeVer("/mep-deli")) {
+      setMepSinCerrar(0);
+      return;
+    }
+    let cancelled = false;
+    void fetchMepCargasSinCerrarRecientes()
+      .then((lista) => {
+        if (!cancelled) {
+          setMepSinCerrar(lista.length);
+        }
+      })
+      .catch(() => {
+        if (!cancelled) {
+          setMepSinCerrar(0);
+        }
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [pathname, session, puedeVer]);
 
   const labelPorHref = useMemo(() => {
     const map = new Map<string, string>();
@@ -237,19 +269,33 @@ export function MainNav() {
                     <div className="grid grid-cols-2 gap-2 sm:grid-cols-1">
                       {grupo.hrefs.map((href) => {
                         const activo = esActivo(href);
+                        const badgeMep =
+                          href === "/mep-deli" && mepSinCerrar > 0 ? mepSinCerrar : null;
                         return (
                           <Link
                             key={href}
                             href={href}
                             onClick={() => setMenuAbierto(false)}
                             aria-current={activo ? "page" : undefined}
-                            className={`inline-flex min-h-11 items-center rounded-xl border px-3 py-2.5 text-sm font-semibold transition ${
+                            className={`inline-flex min-h-11 items-center justify-between gap-2 rounded-xl border px-3 py-2.5 text-sm font-semibold transition ${
                               activo
                                 ? "border-zinc-200 bg-zinc-100 text-zinc-900"
                                 : "border-zinc-800 bg-zinc-900 text-zinc-300 hover:border-zinc-600 hover:text-zinc-100"
                             }`}
                           >
-                            {labelPorHref.get(href) ?? href}
+                            <span>{labelPorHref.get(href) ?? href}</span>
+                            {badgeMep !== null ? (
+                              <span
+                                className={`inline-flex min-w-5 items-center justify-center rounded-full px-1.5 py-0.5 text-[10px] font-bold ${
+                                  activo
+                                    ? "bg-amber-500 text-zinc-900"
+                                    : "bg-amber-500/90 text-zinc-950"
+                                }`}
+                                title={`${badgeMep} MEP sin cerrar`}
+                              >
+                                {badgeMep}
+                              </span>
+                            ) : null}
                           </Link>
                         );
                       })}
