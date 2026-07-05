@@ -8,10 +8,14 @@ import { formatPostgrestError } from "@/src/lib/supabase-errors";
 import type { ServicioHistorial } from "@/src/lib/historial-servicios";
 import {
   agruparCargasPorFecha,
+  calcularRecuentoMep,
+  enriquecerCierreLineas,
   enriquecerLineasMep,
+  etiquetaResultadoCierre,
   etiquetaUnidadMep,
   fetchMepCortesTodos,
   fetchMepDeliCargasHistorial,
+  tieneCierre,
   type MepCorte,
   type MepDeliCarga,
 } from "@/src/lib/mep-deli";
@@ -62,6 +66,16 @@ export default function MepHistorialPage() {
     [cargasFiltradas]
   );
 
+  const recuento = useMemo(
+    () => calcularRecuentoMep(cargasFiltradas, cortesPorId),
+    [cargasFiltradas, cortesPorId]
+  );
+
+  const serviciosConCierre = useMemo(
+    () => cargasFiltradas.filter((c) => tieneCierre(c)).length,
+    [cargasFiltradas]
+  );
+
   const cargarHistorial = async () => {
     setIsLoading(true);
     setError(null);
@@ -95,7 +109,7 @@ export default function MepHistorialPage() {
           <div>
             <h1 className="text-2xl font-semibold text-white">Historial MEP Deli</h1>
             <p className="mt-1 text-sm text-zinc-400">
-              Registro de mise en place cargadas por el equipo.
+              Cargas, quién las hizo y cierres de servicio (faltó / sobró).
             </p>
           </div>
           <Link
@@ -144,6 +158,52 @@ export default function MepHistorialPage() {
           </button>
         </section>
 
+        {!isLoading && cargasFiltradas.length > 0 && (
+          <section className="mb-6 rounded-xl border border-zinc-800 bg-zinc-950/60 p-4">
+            <h2 className="mb-3 text-sm font-semibold uppercase tracking-wide text-zinc-500">
+              Recuento del período
+            </h2>
+            <p className="mb-3 text-xs text-zinc-500">
+              {serviciosConCierre} servicio{serviciosConCierre === 1 ? "" : "s"} con cierre
+              registrado
+              {cargasFiltradas.length > serviciosConCierre
+                ? ` · ${cargasFiltradas.length - serviciosConCierre} sin cerrar`
+                : ""}
+            </p>
+            {recuento.length === 0 ? (
+              <p className="text-sm text-zinc-500">
+                Todavía no hay faltantes ni sobrantes en el período filtrado.
+              </p>
+            ) : (
+              <div className="overflow-x-auto">
+                <table className="w-full min-w-[28rem] text-left text-sm">
+                  <thead>
+                    <tr className="border-b border-zinc-800 text-xs uppercase tracking-wide text-zinc-500">
+                      <th className="pb-2 pr-3 font-medium">Ítem</th>
+                      <th className="pb-2 pr-3 font-medium text-red-400">Faltó</th>
+                      <th className="pb-2 font-medium text-amber-400">Sobró</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {recuento.map((r) => (
+                      <tr key={r.corte_id} className="border-b border-zinc-800/60">
+                        <td className="py-2 pr-3 text-zinc-200">
+                          <span className="text-zinc-500">{r.categoria} ·</span> {r.nombre}
+                          <span className="ml-1 text-xs text-zinc-600">
+                            ({r.servicios_con_cierre} serv.)
+                          </span>
+                        </td>
+                        <td className="py-2 pr-3 text-red-300">{r.faltos || "—"}</td>
+                        <td className="py-2 text-amber-300">{r.sobraron || "—"}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </section>
+        )}
+
         {error ? (
           <p className="mb-5 rounded-lg border border-red-900/70 bg-red-950/40 px-3 py-2 text-sm text-red-200">
             {error}
@@ -164,8 +224,7 @@ export default function MepHistorialPage() {
                 <Link href="/mep-deli" className="text-zinc-300 underline">
                   MEP Deli
                 </Link>
-                , aparecerán acá. Si ya guardaste y sigue vacío, revisá que corriste{" "}
-                <code className="text-zinc-300">supabase/mep-deli-cargas-rls-anon.sql</code>.
+                , aparecerán acá.
               </p>
             </div>
           ) : (
@@ -183,6 +242,11 @@ export default function MepHistorialPage() {
                 <div className="space-y-2">
                   {grupo.cargas.map((carga) => {
                     const lineas = enriquecerLineasMep(carga.lineas, cortesPorId);
+                    const cierre = tieneCierre(carga)
+                      ? enriquecerCierreLineas(carga, cortesPorId)
+                      : [];
+                    const varianza = cierre.filter((l) => l.resultado !== "ok");
+
                     return (
                       <article
                         key={carga.id}
@@ -199,10 +263,20 @@ export default function MepHistorialPage() {
                             Guardado {fechaHoraCarga(carga.created_at)}
                           </span>
                         </div>
+                        {carga.cargado_por_nombre ? (
+                          <p className="mb-2 text-xs text-zinc-500">
+                            Cargada por{" "}
+                            <span className="text-zinc-300">{carga.cargado_por_nombre}</span>
+                          </p>
+                        ) : null}
+
+                        <p className="mb-2 text-[10px] font-semibold uppercase tracking-[0.14em] text-zinc-500">
+                          MEP cargada
+                        </p>
                         {lineas.length === 0 ? (
                           <p className="text-sm text-zinc-500">Sin líneas cargadas.</p>
                         ) : (
-                          <ul className="grid gap-1.5 sm:grid-cols-2">
+                          <ul className="mb-3 grid gap-1.5 sm:grid-cols-2">
                             {lineas.map((l) => (
                               <li key={`${carga.id}-${l.corte_id}`} className="text-sm text-zinc-200">
                                 <span className="text-zinc-500">{l.categoria} ·</span> {l.nombre}:{" "}
@@ -213,6 +287,54 @@ export default function MepHistorialPage() {
                             ))}
                           </ul>
                         )}
+
+                        <div className="border-t border-zinc-800/80 pt-3">
+                          <p className="mb-2 text-[10px] font-semibold uppercase tracking-[0.14em] text-zinc-500">
+                            Cierre
+                          </p>
+                          {!tieneCierre(carga) ? (
+                            <p className="text-sm text-zinc-500">Sin cerrar todavía.</p>
+                          ) : (
+                            <>
+                              {carga.cerrado_por_nombre ? (
+                                <p className="mb-2 text-xs text-zinc-500">
+                                  Cerrado por{" "}
+                                  <span className="text-zinc-300">{carga.cerrado_por_nombre}</span>
+                                  {carga.cierre_at ? (
+                                    <span> · {fechaHoraCarga(carga.cierre_at)}</span>
+                                  ) : null}
+                                </p>
+                              ) : null}
+                              {varianza.length === 0 ? (
+                                <p className="text-sm text-emerald-300/90">Todo OK.</p>
+                              ) : (
+                                <ul className="grid gap-1.5 sm:grid-cols-2">
+                                  {varianza.map((l) => (
+                                    <li
+                                      key={`${carga.id}-c-${l.corte_id}`}
+                                      className="text-sm text-zinc-200"
+                                    >
+                                      <span className="text-zinc-500">{l.categoria} ·</span>{" "}
+                                      {l.nombre}:{" "}
+                                      <span
+                                        className={
+                                          l.resultado === "falto"
+                                            ? "text-red-300"
+                                            : "text-amber-300"
+                                        }
+                                      >
+                                        {etiquetaResultadoCierre(l.resultado)}
+                                        {l.cantidad
+                                          ? ` (${l.cantidad} ${etiquetaUnidadMep(l.unidad)})`
+                                          : ""}
+                                      </span>
+                                    </li>
+                                  ))}
+                                </ul>
+                              )}
+                            </>
+                          )}
+                        </div>
                       </article>
                     );
                   })}

@@ -4,6 +4,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { FilePlus, Loader2, Lock, Pencil, Save } from "lucide-react";
 import Link from "next/link";
 
+import { MepCierrePanel } from "@/app/components/mep-cierre-panel";
 import { formatPostgrestError } from "@/src/lib/supabase-errors";
 import type { ServicioHistorial } from "@/src/lib/historial-servicios";
 import {
@@ -14,8 +15,11 @@ import {
   fetchMepCortesActivos,
   fetchUltimaMepDeliCarga,
   fetchUltimoHistorialParaMep,
+  fetchSessionMepUsuario,
   hayCantidadesCargadas,
   lineasDesdeCantidades,
+  MEP_CARGA_SELECT,
+  cargaDesdeFila,
   type MepCorte,
   type MepDeliCarga,
 } from "@/src/lib/mep-deli";
@@ -206,13 +210,21 @@ export default function MepDeliPage() {
       servicio,
       historial_servicio_id: historialId,
       lineas,
+      cargado_por_id: null as string | null,
+      cargado_por_nombre: null as string | null,
     };
+
+    const usuario = await fetchSessionMepUsuario();
+    if (usuario) {
+      payload.cargado_por_id = usuario.id;
+      payload.cargado_por_nombre = usuario.name;
+    }
 
     try {
       const { data, error: saveError } = await supabase
         .from("mep_deli_cargas")
         .insert(payload)
-        .select("id, fecha, hora, servicio, historial_servicio_id, lineas, created_at")
+        .select(MEP_CARGA_SELECT)
         .single();
 
       if (saveError) {
@@ -221,20 +233,16 @@ export default function MepDeliPage() {
         return;
       }
 
-      const guardada = {
-        id: data.id as string,
-        fecha: data.fecha as string,
-        hora: (data.hora as string | null) ?? null,
-        servicio: (data.servicio as Servicio | null) ?? null,
-        historial_servicio_id: (data.historial_servicio_id as string | null) ?? null,
-        lineas,
-        created_at: data.created_at as string,
-      };
+      const guardada = cargaDesdeFila(data);
 
       setUltimaCarga(guardada);
       setResumenGuardado(guardada);
       setEditorOculto(true);
-      setSuccess(`MEP guardada para ${fechaServicio} (${servicio} · ${horaServicio}).`);
+      setSuccess(
+        `MEP guardada para ${fechaServicio} (${servicio} · ${horaServicio})${
+          guardada.cargado_por_nombre ? ` · ${guardada.cargado_por_nombre}` : ""
+        }.`
+      );
     } catch (err) {
       setError(
         err instanceof Error ? err.message : "Error desconocido al guardar."
@@ -242,6 +250,12 @@ export default function MepDeliPage() {
     } finally {
       setIsSaving(false);
     }
+  };
+
+  const onCierreGuardado = (carga: MepDeliCarga) => {
+    setResumenGuardado(carga);
+    setUltimaCarga(carga);
+    setCantidades(cantidadesDesdeLineas(carga.lineas));
   };
 
   return (
@@ -288,6 +302,12 @@ export default function MepDeliPage() {
                 Editar
               </button>
             </div>
+            {resumenGuardado.cargado_por_nombre ? (
+              <p className="mb-3 text-xs text-zinc-500">
+                Cargada por{" "}
+                <span className="text-zinc-300">{resumenGuardado.cargado_por_nombre}</span>
+              </p>
+            ) : null}
             <ul className="grid gap-1.5 sm:grid-cols-2">
               {lineasConDatos.map((l) => (
                 <li key={l.corte_id} className="text-sm text-zinc-200">
@@ -298,6 +318,11 @@ export default function MepDeliPage() {
                 </li>
               ))}
             </ul>
+            <MepCierrePanel
+              carga={resumenGuardado}
+              cortesPorId={cortesPorId}
+              onCierreGuardado={onCierreGuardado}
+            />
           </div>
         )}
 

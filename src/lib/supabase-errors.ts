@@ -149,6 +149,11 @@ export function formatPostgrestError(error: {
         "Ejecutá supabase/mep-cortes-categoria.sql en el SQL Editor (columna categoria en mep_cortes)."
       );
     }
+    if (msg.includes("mep_deli_cargas") && msg.includes("cargado_por")) {
+      bits.push(
+        "Ejecutá supabase/mep-deli-cargas-autor-cierre.sql en el SQL Editor (autor y cierre en mep_deli_cargas)."
+      );
+    }
   }
   if (
     msg.includes("could not find") &&
