@@ -12,7 +12,7 @@ const ALL_LINKS = [
   { href: "/pedidos", label: "Pedidos" },
   { href: "/avisos", label: "Avisos" },
   { href: "/platos", label: "Platos" },
-  { href: "/mep-cortes", label: "MEP Cortes" },
+  { href: "/mep-cortes", label: "Catálogo MEP" },
   { href: "/inventario", label: "Ingredientes" },
   { href: "/stock", label: "Stock" },
   { href: "/receta", label: "Receta" },

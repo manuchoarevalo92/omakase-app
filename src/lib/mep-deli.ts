@@ -9,7 +9,7 @@ export type UnidadMep = "g" | "kg" | "ud" | "porciones";
 
 export type MepCorte = {
   id: string;
-  pescado: string;
+  categoria: string;
   nombre: string;
   unidad: UnidadMep;
   orden: number;
@@ -18,7 +18,8 @@ export type MepCorte = {
 
 export type MepCorteDbRow = {
   id: string;
-  pescado: string;
+  categoria?: string | null;
+  pescado?: string | null;
   nombre: string;
   unidad: string;
   orden: number;
@@ -52,11 +53,22 @@ export type MepDeliCargaDbRow = {
 
 export const UNIDADES_MEP: UnidadMep[] = ["g", "kg", "ud", "porciones"];
 
+const MEP_CORTES_SELECT = "id, categoria, pescado, nombre, unidad, orden, activo";
+
 export function etiquetaUnidadMep(unidad: UnidadMep): string {
   if (unidad === "porciones") {
     return "porc.";
   }
   return unidad;
+}
+
+export function categoriaDesdeFila(row: MepCorteDbRow): string {
+  const cat = row.categoria?.trim();
+  if (cat) {
+    return cat;
+  }
+  const legacy = row.pescado?.trim();
+  return legacy || "General";
 }
 
 export function corteDesdeFila(row: MepCorteDbRow): MepCorte {
@@ -65,12 +77,20 @@ export function corteDesdeFila(row: MepCorteDbRow): MepCorte {
     : "g";
   return {
     id: row.id,
-    pescado: row.pescado,
+    categoria: categoriaDesdeFila(row),
     nombre: row.nombre,
     unidad,
     orden: row.orden,
     activo: row.activo,
   };
+}
+
+export function categoriasExistentes(cortes: MepCorte[]): string[] {
+  const set = new Set<string>();
+  for (const c of cortes) {
+    set.add(c.categoria);
+  }
+  return [...set].sort((a, b) => a.localeCompare(b, "es"));
 }
 
 export function normalizarLineasMep(
@@ -136,10 +156,10 @@ export function hayCantidadesCargadas(cantidades: Map<string, string>): boolean 
 export async function fetchMepCortesActivos(): Promise<MepCorte[]> {
   const { data, error } = await supabase
     .from("mep_cortes")
-    .select("id, pescado, nombre, unidad, orden, activo")
+    .select(MEP_CORTES_SELECT)
     .eq("activo", true)
     .order("orden", { ascending: true })
-    .order("pescado", { ascending: true })
+    .order("categoria", { ascending: true })
     .order("nombre", { ascending: true });
 
   if (error) {
@@ -152,8 +172,8 @@ export async function fetchMepCortesActivos(): Promise<MepCorte[]> {
 export async function fetchMepCortesTodos(): Promise<MepCorte[]> {
   const { data, error } = await supabase
     .from("mep_cortes")
-    .select("id, pescado, nombre, unidad, orden, activo")
-    .order("pescado", { ascending: true })
+    .select(MEP_CORTES_SELECT)
+    .order("categoria", { ascending: true })
     .order("orden", { ascending: true })
     .order("nombre", { ascending: true });
 
@@ -206,22 +226,32 @@ export async function fetchUltimoHistorialParaMep(): Promise<HistorialServicioRo
   return registroMasRecienteEnHistorial((data ?? []) as HistorialServicioRow[]);
 }
 
-export function agruparCortesPorPescado(
+export function agruparCortesPorCategoria(
   cortes: MepCorte[]
-): { pescado: string; cortes: MepCorte[] }[] {
+): { categoria: string; cortes: MepCorte[] }[] {
   const map = new Map<string, MepCorte[]>();
   for (const c of cortes) {
-    const lista = map.get(c.pescado) ?? [];
+    const lista = map.get(c.categoria) ?? [];
     lista.push(c);
-    map.set(c.pescado, lista);
+    map.set(c.categoria, lista);
   }
   return [...map.entries()]
-    .sort(([a], [b]) => a.localeCompare(b, "es"))
-    .map(([pescado, lista]) => ({
-      pescado,
-      cortes: [...lista].sort((x, y) => x.orden - y.orden || x.nombre.localeCompare(y.nombre, "es")),
-    }));
+    .map(([categoria, lista]) => ({
+      categoria,
+      ordenMin: Math.min(...lista.map((c) => c.orden)),
+      cortes: [...lista].sort(
+        (x, y) => x.orden - y.orden || x.nombre.localeCompare(y.nombre, "es")
+      ),
+    }))
+    .sort(
+      (a, b) =>
+        a.ordenMin - b.ordenMin || a.categoria.localeCompare(b.categoria, "es")
+    )
+    .map(({ categoria, cortes: lista }) => ({ categoria, cortes: lista }));
 }
+
+/** @deprecated Usar agruparCortesPorCategoria */
+export const agruparCortesPorPescado = agruparCortesPorCategoria;
 
 export async function fetchMepDeliCargasHistorial(): Promise<MepDeliCarga[]> {
   const { data, error } = await supabase
@@ -238,7 +268,7 @@ export async function fetchMepDeliCargasHistorial(): Promise<MepDeliCarga[]> {
 }
 
 export type MepLineaEnriquecida = MepLineaCarga & {
-  pescado: string;
+  categoria: string;
   nombre: string;
   unidad: UnidadMep;
 };
@@ -253,21 +283,21 @@ export function enriquecerLineasMep(
       if (!corte) {
         return {
           ...l,
-          pescado: "—",
-          nombre: `Corte ${l.corte_id.slice(0, 6)}…`,
+          categoria: "—",
+          nombre: `Ítem ${l.corte_id.slice(0, 6)}…`,
           unidad: "g" as UnidadMep,
         };
       }
       return {
         ...l,
-        pescado: corte.pescado,
+        categoria: corte.categoria,
         nombre: corte.nombre,
         unidad: corte.unidad,
       };
     })
     .sort(
       (a, b) =>
-        a.pescado.localeCompare(b.pescado, "es") ||
+        a.categoria.localeCompare(b.categoria, "es") ||
         a.nombre.localeCompare(b.nombre, "es")
     );
 }

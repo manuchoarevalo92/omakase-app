@@ -205,7 +205,7 @@ export default function MepHistorialPage() {
                           <ul className="grid gap-1.5 sm:grid-cols-2">
                             {lineas.map((l) => (
                               <li key={`${carga.id}-${l.corte_id}`} className="text-sm text-zinc-200">
-                                <span className="text-zinc-500">{l.pescado} ·</span> {l.nombre}:{" "}
+                                <span className="text-zinc-500">{l.categoria} ·</span> {l.nombre}:{" "}
                                 <span className="font-medium text-white">
                                   {l.cantidad} {etiquetaUnidadMep(l.unidad)}
                                 </span>

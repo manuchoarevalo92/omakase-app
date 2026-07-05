@@ -7,7 +7,7 @@ import Link from "next/link";
 import { formatPostgrestError } from "@/src/lib/supabase-errors";
 import type { ServicioHistorial } from "@/src/lib/historial-servicios";
 import {
-  agruparCortesPorPescado,
+  agruparCortesPorCategoria,
   cantidadesDesdeLineas,
   etiquetaCargaMep,
   etiquetaUnidadMep,
@@ -48,7 +48,7 @@ export default function MepDeliPage() {
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
 
-  const grupos = useMemo(() => agruparCortesPorPescado(cortes), [cortes]);
+  const grupos = useMemo(() => agruparCortesPorCategoria(cortes), [cortes]);
 
   const cortesPorId = useMemo(() => new Map(cortes.map((c) => [c.id, c])), [cortes]);
 
@@ -59,14 +59,14 @@ export default function MepDeliPage() {
         return corte
           ? {
               ...l,
-              pescado: corte.pescado,
+              categoria: corte.categoria,
               nombre: corte.nombre,
               unidad: corte.unidad,
             }
           : null;
       })
       .filter((x): x is NonNullable<typeof x> => x !== null)
-      .sort((a, b) => a.pescado.localeCompare(b.pescado, "es") || a.nombre.localeCompare(b.nombre, "es"));
+      .sort((a, b) => a.categoria.localeCompare(b.categoria, "es") || a.nombre.localeCompare(b.nombre, "es"));
   }, [cantidades, cortesPorId]);
 
   const hidratarDesdeCarga = useCallback(
@@ -251,7 +251,7 @@ export default function MepDeliPage() {
           <div>
             <h1 className="text-2xl font-semibold text-white">MEP Deli</h1>
             <p className="mt-1 text-sm text-zinc-400">
-              Cargá la mise en place del delivery: cortes de pescado y cantidades.
+              Cargá la mise en place del delivery por categoría e ítem.
             </p>
           </div>
           <div className="flex flex-wrap gap-2">
@@ -265,7 +265,7 @@ export default function MepDeliPage() {
               href="/mep-cortes"
               className="rounded-xl border border-zinc-700 bg-zinc-950 px-3 py-2 text-sm text-zinc-300 transition hover:border-zinc-500 hover:text-white"
             >
-              Cortes →
+              Catálogo →
             </Link>
           </div>
         </header>
@@ -291,7 +291,7 @@ export default function MepDeliPage() {
             <ul className="grid gap-1.5 sm:grid-cols-2">
               {lineasConDatos.map((l) => (
                 <li key={l.corte_id} className="text-sm text-zinc-200">
-                  <span className="text-zinc-500">{l.pescado} ·</span> {l.nombre}:{" "}
+                  <span className="text-zinc-500">{l.categoria} ·</span> {l.nombre}:{" "}
                   <span className="font-medium text-white">
                     {l.cantidad} {etiquetaUnidadMep(l.unidad)}
                   </span>
@@ -387,9 +387,9 @@ export default function MepDeliPage() {
             ) : (
               <div className="space-y-6">
                 {grupos.map((grupo) => (
-                  <div key={grupo.pescado}>
+                  <div key={grupo.categoria}>
                     <h2 className="mb-3 text-sm font-medium uppercase tracking-wide text-zinc-400">
-                      {grupo.pescado}
+                      {grupo.categoria}
                     </h2>
                     <ul className="divide-y divide-zinc-800 rounded-xl border border-zinc-800">
                       {grupo.cortes.map((corte) => (

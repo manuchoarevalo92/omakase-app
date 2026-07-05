@@ -144,6 +144,11 @@ export function formatPostgrestError(error: {
         "Ejecutá supabase/pedidos-log.sql y luego supabase/pedidos-log-rls-anon.sql en el SQL Editor."
       );
     }
+    if (msg.includes("mep_cortes") && msg.includes("categoria")) {
+      bits.push(
+        "Ejecutá supabase/mep-cortes-categoria.sql en el SQL Editor (columna categoria en mep_cortes)."
+      );
+    }
   }
   if (
     msg.includes("could not find") &&

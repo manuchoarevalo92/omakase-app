@@ -7,7 +7,8 @@ import Link from "next/link";
 import { formatPostgrestError } from "@/src/lib/supabase-errors";
 import {
   UNIDADES_MEP,
-  agruparCortesPorPescado,
+  agruparCortesPorCategoria,
+  categoriasExistentes,
   etiquetaUnidadMep,
   fetchMepCortesTodos,
   type MepCorte,
@@ -17,7 +18,7 @@ import { supabase } from "@/src/lib/supabase";
 
 export default function MepCortesPage() {
   const [cortes, setCortes] = useState<MepCorte[]>([]);
-  const [pescado, setPescado] = useState("");
+  const [categoria, setCategoria] = useState("");
   const [nombre, setNombre] = useState("");
   const [unidad, setUnidad] = useState<UnidadMep>("g");
   const [isLoading, setIsLoading] = useState(true);
@@ -26,7 +27,8 @@ export default function MepCortesPage() {
   const [confirmDelete, setConfirmDelete] = useState<MepCorte | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
 
-  const grupos = useMemo(() => agruparCortesPorPescado(cortes), [cortes]);
+  const grupos = useMemo(() => agruparCortesPorCategoria(cortes), [cortes]);
+  const categoriasSugeridas = useMemo(() => categoriasExistentes(cortes), [cortes]);
 
   const cargarDatos = async () => {
     setIsLoading(true);
@@ -52,26 +54,29 @@ export default function MepCortesPage() {
 
   const guardarCorte = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
-    const pescadoLimpio = pescado.trim();
+    const categoriaLimpia = categoria.trim();
     const nombreLimpio = nombre.trim();
-    if (!pescadoLimpio || !nombreLimpio) {
+    if (!categoriaLimpia || !nombreLimpio) {
       return;
     }
 
     setIsSaving(true);
     setError(null);
 
-    const maxOrden = cortes.reduce((m, c) => Math.max(m, c.orden), 0);
+    const enCategoria = cortes.filter(
+      (c) => c.categoria.toLowerCase() === categoriaLimpia.toLowerCase()
+    );
+    const maxOrden = enCategoria.reduce((m, c) => Math.max(m, c.orden), 0);
 
     const { data, error: insertError } = await supabase
       .from("mep_cortes")
       .insert({
-        pescado: pescadoLimpio,
+        categoria: categoriaLimpia,
         nombre: nombreLimpio,
         unidad,
         orden: maxOrden + 10,
       })
-      .select("id, pescado, nombre, unidad, orden, activo")
+      .select("id, categoria, nombre, unidad, orden, activo")
       .single();
 
     if (insertError) {
@@ -91,7 +96,7 @@ export default function MepCortesPage() {
       .from("mep_cortes")
       .update({ activo: !corte.activo, updated_at: new Date().toISOString() })
       .eq("id", corte.id)
-      .select("id, pescado, nombre, unidad, orden, activo")
+      .select("id, categoria, nombre, unidad, orden, activo")
       .single();
 
     if (updateError) {
@@ -133,9 +138,9 @@ export default function MepCortesPage() {
       <section className="mx-auto w-full max-w-4xl rounded-2xl border border-zinc-800 bg-zinc-900/60 p-6 shadow-[0_0_0_1px_rgba(255,255,255,0.02)] backdrop-blur">
         <header className="mb-6 flex flex-wrap items-start justify-between gap-3">
           <div>
-            <h1 className="text-2xl font-semibold text-white">Cortes MEP</h1>
+            <h1 className="text-2xl font-semibold text-white">Catálogo MEP</h1>
             <p className="mt-1 text-sm text-zinc-400">
-              Catálogo de cortes para la mise en place del delivery.
+              Definí categorías libres (Nigiri, Sashimi, Relleno maki…) y los ítems de cada una.
             </p>
           </div>
           <Link
@@ -148,19 +153,27 @@ export default function MepCortesPage() {
 
         <form onSubmit={guardarCorte} className="mb-8 space-y-4">
           <h2 className="text-sm uppercase tracking-[0.16em] text-zinc-500">
-            Agregar corte
+            Agregar ítem
           </h2>
           <div className="grid gap-3 sm:grid-cols-3">
-            <input
-              value={pescado}
-              onChange={(e) => setPescado(e.target.value)}
-              placeholder="Pescado (ej. Salmón)"
-              className="w-full rounded-xl border border-zinc-700 bg-zinc-950 px-4 py-2.5 text-sm text-zinc-100 outline-none transition focus:border-zinc-500"
-            />
+            <div>
+              <input
+                list="mep-categorias"
+                value={categoria}
+                onChange={(e) => setCategoria(e.target.value)}
+                placeholder="Categoría (ej. Nigiri)"
+                className="w-full rounded-xl border border-zinc-700 bg-zinc-950 px-4 py-2.5 text-sm text-zinc-100 outline-none transition focus:border-zinc-500"
+              />
+              <datalist id="mep-categorias">
+                {categoriasSugeridas.map((cat) => (
+                  <option key={cat} value={cat} />
+                ))}
+              </datalist>
+            </div>
             <input
               value={nombre}
               onChange={(e) => setNombre(e.target.value)}
-              placeholder="Corte (ej. Lomo, Belly)"
+              placeholder="Ítem (ej. Salmón, Atún)"
               className="w-full rounded-xl border border-zinc-700 bg-zinc-950 px-4 py-2.5 text-sm text-zinc-100 outline-none transition focus:border-zinc-500"
             />
             <select
@@ -175,9 +188,12 @@ export default function MepCortesPage() {
               ))}
             </select>
           </div>
+          <p className="text-xs text-zinc-500">
+            La categoría es texto libre: podés escribir una nueva o elegir una que ya exista.
+          </p>
           <button
             type="submit"
-            disabled={isSaving || !pescado.trim() || !nombre.trim()}
+            disabled={isSaving || !categoria.trim() || !nombre.trim()}
             className="inline-flex items-center gap-2 rounded-xl bg-white px-4 py-2.5 text-sm font-medium text-zinc-950 transition hover:bg-zinc-200 disabled:cursor-not-allowed disabled:opacity-50"
           >
             {isSaving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Plus className="h-4 w-4" />}
@@ -194,19 +210,20 @@ export default function MepCortesPage() {
         {isLoading ? (
           <div className="flex items-center justify-center gap-2 py-12 text-zinc-400">
             <Loader2 className="h-5 w-5 animate-spin" />
-            Cargando cortes…
+            Cargando catálogo…
           </div>
         ) : grupos.length === 0 ? (
           <p className="py-8 text-center text-sm text-zinc-500">
-            No hay cortes cargados. Agregá el primero arriba o ejecutá{" "}
-            <code className="text-zinc-300">supabase/mep-cortes.sql</code> para la semilla inicial.
+            No hay ítems cargados. Agregá el primero arriba o ejecutá{" "}
+            <code className="text-zinc-300">supabase/mep-cortes-categoria.sql</code> si migrás
+            desde la versión anterior.
           </p>
         ) : (
           <div className="space-y-6">
             {grupos.map((grupo) => (
-              <div key={grupo.pescado}>
+              <div key={grupo.categoria}>
                 <h3 className="mb-3 text-sm font-medium uppercase tracking-wide text-zinc-400">
-                  {grupo.pescado}
+                  {grupo.categoria}
                 </h3>
                 <ul className="divide-y divide-zinc-800 rounded-xl border border-zinc-800">
                   {grupo.cortes.map((corte) => (
@@ -254,11 +271,11 @@ export default function MepCortesPage() {
       {confirmDelete && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4">
           <div className="w-full max-w-sm rounded-2xl border border-zinc-700 bg-zinc-900 p-6 shadow-xl">
-            <h3 className="text-lg font-semibold text-white">Eliminar corte</h3>
+            <h3 className="text-lg font-semibold text-white">Eliminar ítem</h3>
             <p className="mt-2 text-sm text-zinc-400">
               ¿Borrar{" "}
               <span className="text-zinc-200">
-                {confirmDelete.pescado} · {confirmDelete.nombre}
+                {confirmDelete.categoria} · {confirmDelete.nombre}
               </span>
               ? Las cargas históricas conservan el id pero ya no aparecerá en nuevas MEP.
             </p>
