@@ -105,6 +105,63 @@ export type FiltroPersonaMep =
 export const MEP_CARGA_SELECT =
   "id, fecha, hora, servicio, historial_servicio_id, lineas, cargado_por_id, cargado_por_nombre, cierre_lineas, cierre_at, cerrado_por_id, cerrado_por_nombre, nota_relevo, created_at";
 
+const MEP_CARGA_SELECT_SIN_NOTA =
+  "id, fecha, hora, servicio, historial_servicio_id, lineas, cargado_por_id, cargado_por_nombre, cierre_lineas, cierre_at, cerrado_por_id, cerrado_por_nombre, created_at";
+
+const MEP_CARGA_SELECT_BASE =
+  "id, fecha, hora, servicio, historial_servicio_id, lineas, created_at";
+
+const MEP_CARGA_SELECT_VARIANTS = [
+  MEP_CARGA_SELECT,
+  MEP_CARGA_SELECT_SIN_NOTA,
+  MEP_CARGA_SELECT_BASE,
+] as const;
+
+type PostgrestishError = {
+  message: string;
+  code?: string;
+  details?: string | null;
+  hint?: string | null;
+};
+
+function errorColumnaFaltante(error: PostgrestishError): boolean {
+  const msg = error.message.toLowerCase();
+  return (
+    msg.includes("could not find") &&
+    msg.includes("column") &&
+    msg.includes("schema cache")
+  );
+}
+
+async function ejecutarSelectMepCargas(
+  build: (
+    select: string
+  ) => PromiseLike<{ data: unknown; error: PostgrestishError | null }>
+): Promise<MepDeliCargaDbRow[]> {
+  let lastError: PostgrestishError | null = null;
+  for (const select of MEP_CARGA_SELECT_VARIANTS) {
+    const { data, error } = await build(select);
+    if (!error) {
+      return (data ?? []) as MepDeliCargaDbRow[];
+    }
+    if (errorColumnaFaltante(error)) {
+      lastError = error;
+      continue;
+    }
+    throw error;
+  }
+  throw lastError ?? new Error("No se pudo leer mep_deli_cargas.");
+}
+
+/** Excluye cargas de mediodía (solo delivery nocturno en MEP Deli). */
+export function esCargaMepDeli(carga: MepDeliCarga): boolean {
+  return carga.servicio !== "Mediodia";
+}
+
+export function filtrarCargasMepDeli(cargas: MepDeliCarga[]): MepDeliCarga[] {
+  return cargas.filter(esCargaMepDeli);
+}
+
 export const UNIDADES_MEP: UnidadMep[] = ["g", "kg", "ud", "porciones"];
 
 const MEP_CORTES_SELECT = "id, categoria, pescado, nombre, unidad, orden, activo";
@@ -300,31 +357,21 @@ export async function fetchMepCortesTodos(): Promise<MepCorte[]> {
 }
 
 export async function fetchUltimaMepDeliCarga(): Promise<MepDeliCarga | null> {
-  const { data, error } = await supabase
-    .from("mep_deli_cargas")
-    .select(MEP_CARGA_SELECT)
-    .order("fecha", { ascending: false })
-    .order("created_at", { ascending: false })
-    .limit(40);
+  const rows = await ejecutarSelectMepCargas((select) =>
+    supabase
+      .from("mep_deli_cargas")
+      .select(select)
+      .order("fecha", { ascending: false })
+      .order("created_at", { ascending: false })
+      .limit(40)
+  );
 
-  if (error) {
-    throw error;
-  }
-
-  const rows = (data ?? []) as MepDeliCargaDbRow[];
-  if (!rows.length) {
+  const deli = filtrarCargasMepDeli(rows.map(cargaDesdeFila));
+  if (!deli.length) {
     return null;
   }
 
-  const ordenadas = [...rows].sort((a, b) => {
-    const df = b.fecha.localeCompare(a.fecha);
-    if (df !== 0) {
-      return df;
-    }
-    return b.created_at.localeCompare(a.created_at);
-  });
-
-  return cargaDesdeFila(ordenadas[0]!);
+  return [...deli].sort(compararCargasMasReciente)[0] ?? null;
 }
 
 export async function fetchUltimoHistorialParaMep(): Promise<HistorialServicioRow | null> {
@@ -373,17 +420,15 @@ export function agruparCortesPorCategoria(
 export const agruparCortesPorPescado = agruparCortesPorCategoria;
 
 export async function fetchMepDeliCargasHistorial(): Promise<MepDeliCarga[]> {
-  const { data, error } = await supabase
-    .from("mep_deli_cargas")
-    .select(MEP_CARGA_SELECT)
-    .order("fecha", { ascending: false })
-    .order("created_at", { ascending: false });
+  const rows = await ejecutarSelectMepCargas((select) =>
+    supabase
+      .from("mep_deli_cargas")
+      .select(select)
+      .order("fecha", { ascending: false })
+      .order("created_at", { ascending: false })
+  );
 
-  if (error) {
-    throw error;
-  }
-
-  return ((data ?? []) as MepDeliCargaDbRow[]).map(cargaDesdeFila);
+  return filtrarCargasMepDeli(rows.map(cargaDesdeFila));
 }
 
 export type MepLineaEnriquecida = MepLineaCarga & {
@@ -431,18 +476,11 @@ export function agruparCargasPorFecha(
     grupos.set(carga.fecha, lista);
   }
 
-  const ordenServicio: ServicioHistorial[] = ["Mediodia", "Noche"];
-
   return [...grupos.entries()]
     .sort(([a], [b]) => b.localeCompare(a))
     .map(([fecha, lista]) => ({
       fecha,
-      cargas: [...lista].sort((a, b) => {
-        const ia = ordenServicio.indexOf((a.servicio ?? "Noche") as ServicioHistorial);
-        const ib = ordenServicio.indexOf((b.servicio ?? "Noche") as ServicioHistorial);
-        if (ia !== ib) {
-          return ia - ib;
-        }
+      cargas: [...filtrarCargasMepDeli(lista)].sort((a, b) => {
         const ha = a.hora ?? "";
         const hb = b.hora ?? "";
         if (ha !== hb) {
@@ -450,7 +488,8 @@ export function agruparCargasPorFecha(
         }
         return b.created_at.localeCompare(a.created_at);
       }),
-    }));
+    }))
+    .filter((g) => g.cargas.length > 0);
 }
 
 export function compararCargasMasReciente(a: MepDeliCarga, b: MepDeliCarga): number {
@@ -463,11 +502,6 @@ export function compararCargasMasReciente(a: MepDeliCarga, b: MepDeliCarga): num
 
 export function etiquetaCargaMep(carga: MepDeliCarga): string {
   const hora = carga.hora?.trim() ? ` · ${carga.hora}` : "";
-  const serv = carga.servicio;
-  if (serv && serv !== MEP_DELI_SERVICIO) {
-    const etiqueta = serv === "Mediodia" ? "Mediodía" : serv;
-    return `${carga.fecha} · ${etiqueta}${hora}`;
-  }
   return `${carga.fecha}${hora}`;
 }
 
@@ -586,26 +620,104 @@ export function etiquetaDiaSemana(fecha: string): string {
   return DIAS_SEMANA[diaSemanaDesdeFechaISO(fecha)] ?? "";
 }
 
-export function etiquetaServicioMep(servicio: ServicioHistorial | null): string {
-  return servicio === "Mediodia" ? "mediodía" : "noche";
-}
-
 export function buscarMepMismoDiaSemana(
   cargas: MepDeliCarga[],
-  fecha: string,
-  servicio: ServicioHistorial = MEP_DELI_SERVICIO
+  fecha: string
 ): MepDeliCarga | null {
   const diaObjetivo = diaSemanaDesdeFechaISO(fecha);
-  const candidatas = cargas.filter(
-    (c) =>
-      c.fecha !== fecha &&
-      c.servicio === servicio &&
-      diaSemanaDesdeFechaISO(c.fecha) === diaObjetivo
+  const candidatas = filtrarCargasMepDeli(cargas).filter(
+    (c) => c.fecha !== fecha && diaSemanaDesdeFechaISO(c.fecha) === diaObjetivo
   );
   if (!candidatas.length) {
     return null;
   }
-  return [...candidatas].sort((a, b) => compararCargasMasReciente(a, b))[0] ?? null;
+  return [...candidatas].sort(compararCargasMasReciente)[0] ?? null;
+}
+
+export async function actualizarMepDeliCarga(
+  id: string,
+  patch: Record<string, unknown>
+): Promise<MepDeliCarga> {
+  const intentos = [
+    patch,
+    {
+      cierre_lineas: patch.cierre_lineas,
+      cierre_at: patch.cierre_at,
+    },
+  ];
+
+  let lastError: PostgrestishError | null = null;
+  for (const body of intentos) {
+    for (const select of MEP_CARGA_SELECT_VARIANTS) {
+      const { data, error } = await supabase
+        .from("mep_deli_cargas")
+        .update(body)
+        .eq("id", id)
+        .select(select)
+        .single();
+
+      if (!error && data) {
+        return cargaDesdeFila(data as unknown as MepDeliCargaDbRow);
+      }
+      if (error) {
+        if (errorColumnaFaltante(error)) {
+          lastError = error;
+          continue;
+        }
+        throw error;
+      }
+    }
+  }
+
+  throw lastError ?? new Error("No se pudo actualizar la MEP.");
+}
+
+export async function insertMepDeliCarga(
+  payload: Record<string, unknown>
+): Promise<MepDeliCarga> {
+  const intentos = [
+    payload,
+    {
+      fecha: payload.fecha,
+      hora: payload.hora,
+      servicio: payload.servicio,
+      historial_servicio_id: payload.historial_servicio_id,
+      lineas: payload.lineas,
+      cargado_por_id: payload.cargado_por_id,
+      cargado_por_nombre: payload.cargado_por_nombre,
+    },
+    {
+      fecha: payload.fecha,
+      hora: payload.hora,
+      servicio: payload.servicio,
+      historial_servicio_id: payload.historial_servicio_id,
+      lineas: payload.lineas,
+    },
+  ];
+
+  let lastError: PostgrestishError | null = null;
+  for (const body of intentos) {
+    for (const select of MEP_CARGA_SELECT_VARIANTS) {
+      const { data, error } = await supabase
+        .from("mep_deli_cargas")
+        .insert(body)
+        .select(select)
+        .single();
+
+      if (!error && data) {
+        return cargaDesdeFila(data as unknown as MepDeliCargaDbRow);
+      }
+      if (error) {
+        if (errorColumnaFaltante(error)) {
+          lastError = error;
+          continue;
+        }
+        throw error;
+      }
+    }
+  }
+
+  throw lastError ?? new Error("No se pudo guardar la MEP.");
 }
 
 export async function fetchMepCargasSinCerrarRecientes(): Promise<MepDeliCarga[]> {
@@ -613,21 +725,35 @@ export async function fetchMepCargasSinCerrarRecientes(): Promise<MepDeliCarga[]
   hace.setDate(hace.getDate() - 14);
   const desde = `${hace.getFullYear()}-${String(hace.getMonth() + 1).padStart(2, "0")}-${String(hace.getDate()).padStart(2, "0")}`;
 
-  const { data, error } = await supabase
-    .from("mep_deli_cargas")
-    .select(MEP_CARGA_SELECT)
-    .gte("fecha", desde)
-    .is("cierre_at", null)
-    .order("fecha", { ascending: false })
-    .order("created_at", { ascending: false });
+  const ordenar = (rows: MepDeliCargaDbRow[]) =>
+    filtrarCargasMepDeli(rows.map(cargaDesdeFila)).filter((c) => !tieneCierre(c));
 
-  if (error) {
-    throw error;
+  try {
+    const rows = await ejecutarSelectMepCargas((select) =>
+      supabase
+        .from("mep_deli_cargas")
+        .select(select)
+        .gte("fecha", desde)
+        .is("cierre_at", null)
+        .order("fecha", { ascending: false })
+        .order("created_at", { ascending: false })
+    );
+    return ordenar(rows);
+  } catch (err) {
+    if (!errorColumnaFaltante(err as PostgrestishError)) {
+      throw err;
+    }
   }
 
-  return ((data ?? []) as MepDeliCargaDbRow[])
-    .map(cargaDesdeFila)
-    .filter((c) => !tieneCierre(c));
+  const rows = await ejecutarSelectMepCargas((select) =>
+    supabase
+      .from("mep_deli_cargas")
+      .select(select)
+      .gte("fecha", desde)
+      .order("fecha", { ascending: false })
+      .order("created_at", { ascending: false })
+  );
+  return ordenar(rows);
 }
 
 export function personasEnCargas(cargas: MepDeliCarga[]): {

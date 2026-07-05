@@ -44,7 +44,7 @@ alter table public.mep_deli_cargas
 
 alter table public.mep_deli_cargas
   add constraint mep_deli_cargas_servicio_check
-  check (servicio is null or servicio in ('Mediodia', 'Noche'));
+  check (servicio is null or servicio in ('Noche'));
 
 create index if not exists mep_deli_cargas_fecha_idx
   on public.mep_deli_cargas (fecha desc);

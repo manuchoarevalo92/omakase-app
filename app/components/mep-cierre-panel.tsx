@@ -5,8 +5,7 @@ import { CheckCircle2, Loader2, Save } from "lucide-react";
 
 import { formatPostgrestError } from "@/src/lib/supabase-errors";
 import {
-  MEP_CARGA_SELECT,
-  cargaDesdeFila,
+  actualizarMepDeliCarga,
   cierreInicialDesdeCarga,
   enriquecerCierreLineas,
   etiquetaResultadoCierre,
@@ -19,7 +18,6 @@ import {
   type MepResultadoCierre,
   type MepCorte,
 } from "@/src/lib/mep-deli";
-import { supabase } from "@/src/lib/supabase";
 
 const RESULTADOS: MepResultadoCierre[] = ["ok", "falto", "sobro"];
 
@@ -75,30 +73,26 @@ export function MepCierrePanel(props: {
     const usuario = await fetchSessionMepUsuario();
     const cierreLineas = normalizarCierreLineas(lineas);
 
-    const { data, error: saveError } = await supabase
-      .from("mep_deli_cargas")
-      .update({
+    try {
+      const actualizada = await actualizarMepDeliCarga(carga.id, {
         cierre_lineas: cierreLineas,
         cierre_at: new Date().toISOString(),
         cerrado_por_id: usuario?.id ?? null,
         cerrado_por_nombre: usuario?.name ?? null,
-      })
-      .eq("id", carga.id)
-      .select(MEP_CARGA_SELECT)
-      .single();
-
-    if (saveError) {
-      setError(formatPostgrestError(saveError));
-      setIsSaving(false);
-      return;
-    }
-
-    const actualizada = cargaDesdeFila(data);
-    onCierreGuardado(actualizada);
+      });
+      onCierreGuardado(actualizada);
     setLineas(cierreInicialDesdeCarga(actualizada));
     setAbierto(false);
     setSuccess("Cierre guardado.");
     setIsSaving(false);
+    } catch (err) {
+      setError(
+        err && typeof err === "object" && "message" in err
+          ? formatPostgrestError(err as Parameters<typeof formatPostgrestError>[0])
+          : "No se pudo guardar el cierre."
+      );
+      setIsSaving(false);
+    }
   };
 
   if (tieneCierre(carga) && !abierto) {

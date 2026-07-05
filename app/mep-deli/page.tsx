@@ -23,14 +23,12 @@ import {
   fetchSessionMepUsuario,
   hayCantidadesCargadas,
   lineasDesdeCantidades,
-  MEP_CARGA_SELECT,
+  insertMepDeliCarga,
   MEP_DELI_SERVICIO,
-  cargaDesdeFila,
   tieneCierre,
   type MepCorte,
   type MepDeliCarga,
 } from "@/src/lib/mep-deli";
-import { supabase } from "@/src/lib/supabase";
 
 function formatFechaLocalYYYYMMDD(d: Date): string {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(
@@ -121,20 +119,49 @@ export default function MepDeliPage() {
   const cargarDatos = async () => {
     setIsLoading(true);
     setError(null);
+    const avisos: string[] = [];
+
+    const registrarFallo = (contexto: string, err: unknown) => {
+      if (err && typeof err === "object" && "message" in err) {
+        avisos.push(
+          `${contexto}: ${formatPostgrestError(
+            err as Parameters<typeof formatPostgrestError>[0]
+          )}`
+        );
+      } else {
+        avisos.push(`${contexto}: no se pudo cargar.`);
+      }
+    };
+
+    let carga: MepDeliCarga | null = null;
+
     try {
-      const [listaCortes, carga, historial, listaHistorial, pendientes] = await Promise.all([
-        fetchMepCortesActivos(),
-        fetchUltimaMepDeliCarga(),
-        fetchUltimoHistorialParaMep(),
-        fetchMepDeliCargasHistorial(),
-        fetchMepCargasSinCerrarRecientes(),
-      ]);
+      setCortes(await fetchMepCortesActivos());
+    } catch (err) {
+      registrarFallo("Catálogo de cortes", err);
+    }
 
-      setCortes(listaCortes);
+    try {
+      carga = await fetchUltimaMepDeliCarga();
       setUltimaCarga(carga);
-      setHistorialCargas(listaHistorial);
-      setSinCerrar(pendientes);
+    } catch (err) {
+      registrarFallo("Última MEP", err);
+    }
 
+    try {
+      setHistorialCargas(await fetchMepDeliCargasHistorial());
+    } catch (err) {
+      registrarFallo("Historial MEP", err);
+    }
+
+    try {
+      setSinCerrar(await fetchMepCargasSinCerrarRecientes());
+    } catch (err) {
+      registrarFallo("MEP sin cerrar", err);
+    }
+
+    try {
+      const historial = await fetchUltimoHistorialParaMep();
       if (carga) {
         hidratarDesdeCarga(carga);
       } else if (historial) {
@@ -142,12 +169,16 @@ export default function MepDeliPage() {
         setHoraServicio(historial.hora?.trim() || horaLocalHHmm(new Date()));
       }
     } catch (err) {
-      setError(
-        err instanceof Error ? err.message : "Error al conectar con Supabase."
-      );
-    } finally {
-      setIsLoading(false);
+      if (!carga) {
+        registrarFallo("Fecha del servicio", err);
+      }
     }
+
+    if (avisos.length) {
+      setError(avisos.join(" "));
+    }
+
+    setIsLoading(false);
   };
 
   useEffect(() => {
@@ -292,19 +323,7 @@ export default function MepDeliPage() {
     }
 
     try {
-      const { data, error: saveError } = await supabase
-        .from("mep_deli_cargas")
-        .insert(payload)
-        .select(MEP_CARGA_SELECT)
-        .single();
-
-      if (saveError) {
-        setError(formatPostgrestError(saveError));
-        setIsSaving(false);
-        return;
-      }
-
-      const guardada = cargaDesdeFila(data);
+      const guardada = await insertMepDeliCarga(payload);
 
       setUltimaCarga(guardada);
       setResumenGuardado(guardada);
@@ -320,7 +339,11 @@ export default function MepDeliPage() {
       );
     } catch (err) {
       setError(
-        err instanceof Error ? err.message : "Error desconocido al guardar."
+        err && typeof err === "object" && "message" in err
+          ? formatPostgrestError(err as Parameters<typeof formatPostgrestError>[0])
+          : err instanceof Error
+            ? err.message
+            : "Error desconocido al guardar."
       );
     } finally {
       setIsSaving(false);
