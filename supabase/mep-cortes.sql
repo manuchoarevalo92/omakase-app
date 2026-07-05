@@ -21,14 +21,42 @@ alter table public.mep_cortes
   add column if not exists pescado text;
 
 update public.mep_cortes
-set categoria = coalesce(nullif(trim(categoria), ''), nullif(trim(pescado), ''), 'General')
+set categoria = nullif(trim(pescado), '')
+where pescado is not null
+  and trim(pescado) <> ''
+  and (
+    categoria is null
+    or trim(categoria) = ''
+    or lower(trim(categoria)) = 'general'
+  );
+
+update public.mep_cortes
+set categoria = coalesce(nullif(trim(categoria), ''), 'General')
 where categoria is null or trim(categoria) = '';
+
+delete from public.mep_cortes
+where id in (
+  select id
+  from (
+    select
+      id,
+      row_number() over (
+        partition by lower(trim(categoria)), lower(trim(nombre))
+        order by created_at asc nulls last, id asc
+      ) as rn
+    from public.mep_cortes
+  ) ranked
+  where rn > 1
+);
 
 alter table public.mep_cortes
   alter column categoria set default 'General';
 
 alter table public.mep_cortes
   alter column categoria set not null;
+
+alter table public.mep_cortes
+  alter column pescado drop not null;
 
 alter table public.mep_cortes
   drop constraint if exists mep_cortes_unidad_check;

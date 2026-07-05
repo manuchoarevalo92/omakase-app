@@ -149,6 +149,11 @@ export function formatPostgrestError(error: {
         "Ejecutá supabase/mep-cortes-categoria.sql en el SQL Editor (columna categoria en mep_cortes)."
       );
     }
+    if (msg.includes("mep_cortes") && msg.includes("pescado") && msg.includes("not-null")) {
+      bits.push(
+        "La columna pescado ya no se usa pero sigue como NOT NULL. Volvé a ejecutar supabase/mep-cortes-categoria.sql (incluye ALTER COLUMN pescado DROP NOT NULL)."
+      );
+    }
     if (msg.includes("mep_deli_cargas") && msg.includes("cargado_por")) {
       bits.push(
         "Ejecutá supabase/mep-deli-cargas-autor-cierre.sql en el SQL Editor (autor y cierre en mep_deli_cargas)."

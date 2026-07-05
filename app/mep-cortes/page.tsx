@@ -73,6 +73,8 @@ export default function MepCortesPage() {
       .insert({
         categoria: categoriaLimpia,
         nombre: nombreLimpio,
+        // Columna legacy en DB antigua (NOT NULL); la app usa solo categoria.
+        pescado: categoriaLimpia,
         unidad,
         orden: maxOrden + 10,
       })
@@ -80,7 +82,14 @@ export default function MepCortesPage() {
       .single();
 
     if (insertError) {
-      setError(formatPostgrestError(insertError));
+      const msg = insertError.message.toLowerCase();
+      if (msg.includes("mep_cortes_categoria_nombre_unq") || msg.includes("duplicate key")) {
+        setError(
+          `${formatPostgrestError(insertError)} Ya existe un ítem con esa categoría y nombre.`
+        );
+      } else {
+        setError(formatPostgrestError(insertError));
+      }
       setIsSaving(false);
       return;
     }
