@@ -56,7 +56,6 @@ export type MepDeliCarga = {
   cierre_at: string | null;
   cerrado_por_id: string | null;
   cerrado_por_nombre: string | null;
-  nota_relevo: string | null;
   created_at: string;
 };
 
@@ -73,7 +72,6 @@ export type MepDeliCargaDbRow = {
   cierre_at?: string | null;
   cerrado_por_id?: string | null;
   cerrado_por_nombre?: string | null;
-  nota_relevo?: string | null;
   created_at: string;
 };
 
@@ -103,19 +101,12 @@ export type FiltroPersonaMep =
   | { tipo: "cerrado"; nombre: string };
 
 export const MEP_CARGA_SELECT =
-  "id, fecha, hora, servicio, historial_servicio_id, lineas, cargado_por_id, cargado_por_nombre, cierre_lineas, cierre_at, cerrado_por_id, cerrado_por_nombre, nota_relevo, created_at";
-
-const MEP_CARGA_SELECT_SIN_NOTA =
   "id, fecha, hora, servicio, historial_servicio_id, lineas, cargado_por_id, cargado_por_nombre, cierre_lineas, cierre_at, cerrado_por_id, cerrado_por_nombre, created_at";
 
 const MEP_CARGA_SELECT_BASE =
   "id, fecha, hora, servicio, historial_servicio_id, lineas, created_at";
 
-const MEP_CARGA_SELECT_VARIANTS = [
-  MEP_CARGA_SELECT,
-  MEP_CARGA_SELECT_SIN_NOTA,
-  MEP_CARGA_SELECT_BASE,
-] as const;
+const MEP_CARGA_SELECT_VARIANTS = [MEP_CARGA_SELECT, MEP_CARGA_SELECT_BASE] as const;
 
 type PostgrestishError = {
   message: string;
@@ -126,10 +117,13 @@ type PostgrestishError = {
 
 function errorColumnaFaltante(error: PostgrestishError): boolean {
   const msg = error.message.toLowerCase();
+  if (!msg.includes("column")) {
+    return false;
+  }
   return (
-    msg.includes("could not find") &&
-    msg.includes("column") &&
-    msg.includes("schema cache")
+    msg.includes("does not exist") ||
+    msg.includes("schema cache") ||
+    (msg.includes("could not find") && msg.includes("column"))
   );
 }
 
@@ -286,7 +280,6 @@ export function cargaDesdeFila(row: MepDeliCargaDbRow): MepDeliCarga {
     cierre_at: row.cierre_at ?? null,
     cerrado_por_id: row.cerrado_por_id ?? null,
     cerrado_por_nombre: row.cerrado_por_nombre ?? null,
-    nota_relevo: row.nota_relevo?.trim() || null,
     created_at: row.created_at,
   };
 }

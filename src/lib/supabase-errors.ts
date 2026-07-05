@@ -159,11 +159,6 @@ export function formatPostgrestError(error: {
         "Ejecutá supabase/mep-deli-cargas-autor-cierre.sql en el SQL Editor (autor y cierre en mep_deli_cargas)."
       );
     }
-    if (msg.includes("mep_deli_cargas") && msg.includes("nota_relevo")) {
-      bits.push(
-        "Ejecutá supabase/mep-deli-cargas-nota-relevo.sql en el SQL Editor (columna nota_relevo en mep_deli_cargas)."
-      );
-    }
   }
   if (
     msg.includes("could not find") &&

@@ -330,12 +330,6 @@ export default function MepHistorialPage() {
                             <span className="text-zinc-300">{carga.cargado_por_nombre}</span>
                           </p>
                         ) : null}
-                        {carga.nota_relevo ? (
-                          <p className="mb-3 rounded-lg border border-sky-900/40 bg-sky-950/20 px-3 py-2 text-xs text-sky-100">
-                            <span className="font-medium text-sky-300">Nota de relevo: </span>
-                            {carga.nota_relevo}
-                          </p>
-                        ) : null}
 
                         <p className="mb-2 text-[10px] font-semibold uppercase tracking-[0.14em] text-zinc-500">
                           MEP cargada

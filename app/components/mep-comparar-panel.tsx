@@ -34,11 +34,6 @@ function BloqueCarga(props: {
           Cargada por <span className="text-zinc-300">{carga.cargado_por_nombre}</span>
         </p>
       ) : null}
-      {carga.nota_relevo ? (
-        <p className="mb-3 rounded-lg border border-sky-900/40 bg-sky-950/20 px-3 py-2 text-xs text-sky-100">
-          {carga.nota_relevo}
-        </p>
-      ) : null}
       <ul className="mb-3 space-y-1 text-sm">
         {lineas.map((l) => (
           <li key={l.corte_id}>

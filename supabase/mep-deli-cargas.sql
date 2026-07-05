@@ -14,12 +14,8 @@ create table if not exists public.mep_deli_cargas (
   cierre_at timestamptz,
   cerrado_por_id text,
   cerrado_por_nombre text,
-  nota_relevo text,
   created_at timestamptz not null default now()
 );
-
-alter table public.mep_deli_cargas
-  add column if not exists nota_relevo text;
 
 alter table public.mep_deli_cargas
   add column if not exists cargado_por_id text;
@@ -60,5 +56,3 @@ comment on column public.mep_deli_cargas.cargado_por_nombre is
   'Nombre visible de quien cargó la MEP.';
 comment on column public.mep_deli_cargas.cierre_lineas is
   'Cierre: [{ "corte_id": "uuid", "resultado": "ok"|"falto"|"sobro", "cantidad": "2" }].';
-comment on column public.mep_deli_cargas.nota_relevo is
-  'Nota libre para el relevo entre Javi/Santi.';

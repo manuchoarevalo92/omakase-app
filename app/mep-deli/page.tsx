@@ -53,7 +53,6 @@ export default function MepDeliPage() {
   const [isSaving, setIsSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
-  const [notaRelevo, setNotaRelevo] = useState("");
   const [historialCargas, setHistorialCargas] = useState<MepDeliCarga[]>([]);
   const [sinCerrar, setSinCerrar] = useState<MepDeliCarga[]>([]);
 
@@ -103,7 +102,6 @@ export default function MepDeliPage() {
       setFechaServicio(carga.fecha);
       setHoraServicio(carga.hora?.trim() || horaLocalHHmm(new Date()));
       setCantidades(cantidadesDesdeLineas(carga.lineas));
-      setNotaRelevo(carga.nota_relevo ?? "");
       if (opts?.mostrarResumen) {
         setResumenGuardado(carga);
         setEditorOculto(true);
@@ -216,7 +214,6 @@ export default function MepDeliPage() {
     setHoraServicio(horaLocalHHmm(d));
     setResumenGuardado(null);
     setEditorOculto(false);
-    setNotaRelevo("");
     setSuccess("MEP nueva en blanco: fecha y hora puestas a hoy.");
     setError(null);
   };
@@ -253,7 +250,6 @@ export default function MepDeliPage() {
       }
     }
     hidratarDesdeCarga(plantillaMismoDia);
-    setNotaRelevo("");
     setSuccess(`Plantilla cargada: ${etiquetaCargaMep(plantillaMismoDia)}.`);
     setError(null);
   };
@@ -311,7 +307,6 @@ export default function MepDeliPage() {
       servicio: MEP_DELI_SERVICIO,
       historial_servicio_id: historialId,
       lineas,
-      nota_relevo: notaRelevo.trim() || null,
       cargado_por_id: null as string | null,
       cargado_por_nombre: null as string | null,
     };
@@ -426,12 +421,6 @@ export default function MepDeliPage() {
                 <span className="text-zinc-300">{resumenGuardado.cargado_por_nombre}</span>
               </p>
             ) : null}
-            {resumenGuardado.nota_relevo ? (
-              <p className="mb-3 rounded-lg border border-sky-900/40 bg-sky-950/20 px-3 py-2 text-xs text-sky-100">
-                <span className="font-medium text-sky-300">Nota de relevo: </span>
-                {resumenGuardado.nota_relevo}
-              </p>
-            ) : null}
             <ul className="grid gap-1.5 sm:grid-cols-2">
               {lineasConDatos.map((l) => (
                 <li key={l.corte_id} className="text-sm text-zinc-200">
@@ -518,19 +507,6 @@ export default function MepDeliPage() {
                 />
               </label>
             </div>
-
-            <label className="mb-6 block">
-              <span className="mb-1 block text-xs uppercase tracking-wide text-zinc-500">
-                Nota de relevo (opcional)
-              </span>
-              <textarea
-                value={notaRelevo}
-                onChange={(e) => setNotaRelevo(e.target.value)}
-                rows={2}
-                placeholder="Ej: quedó poco salmón, pedir más mañana…"
-                className="w-full resize-y rounded-xl border border-zinc-700 bg-zinc-950 px-4 py-2.5 text-sm text-zinc-100 outline-none placeholder:text-zinc-600 focus:border-zinc-500"
-              />
-            </label>
 
             {error && (
               <p className="mb-4 rounded-xl border border-red-900/60 bg-red-950/40 px-4 py-3 text-sm text-red-200">
