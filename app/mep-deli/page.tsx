@@ -17,6 +17,7 @@ import {
   etiquetaUnidadMep,
   enriquecerLineasMep,
   formatearCantidadSugerida,
+  fechaBloqueadaPorCierrePendiente,
   fetchMepCargasSinCerrarRecientes,
   fetchMepCortesActivos,
   fetchMepDeliCargaPorFecha,
@@ -27,6 +28,7 @@ import {
   hayCantidadesCargadas,
   lineasDesdeCantidades,
   MEP_DELI_SERVICIO,
+  obtenerMepPendienteCierre,
   tieneCierre,
   type MepCorte,
   type MepDeliCarga,
@@ -98,6 +100,11 @@ export default function MepDeliPage() {
   const plantillaMismoDia = useMemo(
     () => buscarMepMismoDiaSemana(historialCargas, fechaServicio),
     [historialCargas, fechaServicio]
+  );
+
+  const mepPendienteCierre = useMemo(
+    () => obtenerMepPendienteCierre(sinCerrar),
+    [sinCerrar]
   );
 
   const etiquetaPlantillaMismoDia = useMemo(() => {
@@ -174,13 +181,16 @@ export default function MepDeliPage() {
       registrarFallo("Historial MEP", err);
     }
 
+    let sinCerrarLista: MepDeliCarga[] = [];
     try {
-      setSinCerrar(await fetchMepCargasSinCerrarRecientes());
+      sinCerrarLista = await fetchMepCargasSinCerrarRecientes();
+      setSinCerrar(sinCerrarLista);
     } catch (err) {
       registrarFallo("MEP sin cerrar", err);
     }
 
-    const fechaInicial = formatFechaLocalYYYYMMDD(new Date());
+    const pendiente = obtenerMepPendienteCierre(sinCerrarLista);
+    const fechaInicial = pendiente?.fecha ?? formatFechaLocalYYYYMMDD(new Date());
     setFechaServicio(fechaInicial);
 
     try {
@@ -189,7 +199,7 @@ export default function MepDeliPage() {
       registrarFallo("MEP del día", err);
     }
 
-    if (!cargaHoy) {
+    if (!cargaHoy && !pendiente) {
       try {
         const historial = await fetchUltimoHistorialParaMep();
         if (historial?.fecha === fechaInicial) {
@@ -228,6 +238,14 @@ export default function MepDeliPage() {
   }, [fechaServicio, isLoading, aplicarMepDeFecha]);
 
   const onCambioFecha = (fecha: string) => {
+    const pendiente = obtenerMepPendienteCierre(sinCerrar);
+    if (fechaBloqueadaPorCierrePendiente(fecha, pendiente)) {
+      setError(
+        `Cerrá primero la MEP del ${etiquetaCargaMep(pendiente!)} antes de abrir otra fecha.`
+      );
+      setSuccess(null);
+      return;
+    }
     setFechaServicio(fecha);
     setSuccess(null);
     void aplicarMepDeFecha(fecha).catch((err) => {
@@ -275,6 +293,14 @@ export default function MepDeliPage() {
   const irAHoy = () => {
     const d = new Date();
     const hoy = formatFechaLocalYYYYMMDD(d);
+    const pendiente = obtenerMepPendienteCierre(sinCerrar);
+    if (fechaBloqueadaPorCierrePendiente(hoy, pendiente)) {
+      setError(
+        `Cerrá primero la MEP del ${etiquetaCargaMep(pendiente!)} para habilitar la de hoy.`
+      );
+      setSuccess(null);
+      return;
+    }
     setHoraServicio(horaLocalHHmm(d));
     onCambioFecha(hoy);
     setSuccess("Mostrando la MEP de hoy.");
@@ -323,6 +349,14 @@ export default function MepDeliPage() {
   };
 
   const guardarMep = async () => {
+    const pendiente = obtenerMepPendienteCierre(sinCerrar);
+    if (fechaBloqueadaPorCierrePendiente(fechaServicio, pendiente)) {
+      setError(
+        `Cerrá primero la MEP del ${etiquetaCargaMep(pendiente!)} antes de guardar otra fecha.`
+      );
+      return;
+    }
+
     setIsSaving(true);
     setError(null);
     setSuccess(null);
@@ -394,13 +428,34 @@ export default function MepDeliPage() {
     }
   };
 
-  const onCierreGuardado = (carga: MepDeliCarga) => {
+  const onCierreGuardado = async (carga: MepDeliCarga) => {
     setResumenGuardado(carga);
     setCantidades(cantidadesDesdeLineas(carga.lineas));
-    setSinCerrar((prev) => prev.filter((c) => c.id !== carga.id));
+    const nextSinCerrar = sinCerrar.filter((c) => c.id !== carga.id);
+    setSinCerrar(nextSinCerrar);
     setHistorialCargas((prev) =>
       deduplicarCargasPorFecha(prev.map((c) => (c.id === carga.id ? carga : c)))
     );
+
+    const pendiente = obtenerMepPendienteCierre(nextSinCerrar);
+    const destino = pendiente?.fecha ?? formatFechaLocalYYYYMMDD(new Date());
+    setFechaServicio(destino);
+    setError(null);
+    try {
+      await aplicarMepDeFecha(destino, { conservarHoraSiVacia: true });
+      setSuccess(
+        pendiente
+          ? `Cierre guardado. Falta cerrar la MEP del ${etiquetaCargaMep(pendiente)}.`
+          : "Cierre guardado. Ya podés cargar la MEP de hoy."
+      );
+    } catch (err) {
+      setSuccess("Cierre guardado.");
+      setError(
+        err && typeof err === "object" && "message" in err
+          ? formatPostgrestError(err as Parameters<typeof formatPostgrestError>[0])
+          : "No se pudo cargar la siguiente MEP."
+      );
+    }
   };
 
   const sugerenciasActivas = sugerencias.length;
@@ -433,22 +488,20 @@ export default function MepDeliPage() {
           </div>
         </header>
 
-        {sinCerrar.length > 0 && (
-          <div className="mb-6 rounded-xl border border-amber-900/50 bg-amber-950/25 px-4 py-3 text-sm text-amber-100">
-            <span className="font-medium">
-              {sinCerrar.length} MEP sin cerrar
-            </span>
-            <span className="text-amber-200/80">
-              {" "}
-              en los últimos 14 días:{" "}
-              {sinCerrar
-                .slice(0, 3)
-                .map((c) => etiquetaCargaMep(c))
-                .join(" · ")}
-              {sinCerrar.length > 3 ? "…" : ""}
-            </span>
+        {mepPendienteCierre ? (
+          <div className="mb-6 rounded-xl border border-amber-700/60 bg-amber-950/40 px-4 py-3 text-sm text-amber-50">
+            <p className="font-medium">
+              Cierre pendiente: {etiquetaCargaMep(mepPendienteCierre)}
+            </p>
+            <p className="mt-1 text-amber-100/85">
+              La planilla guardada sigue abierta hasta que hagan el cierre. La MEP de hoy
+              {mepPendienteCierre.fecha < formatFechaLocalYYYYMMDD(new Date())
+                ? " solo se habilita después"
+                : " debe cerrarse antes de pasar a otro día"}
+              .
+            </p>
           </div>
-        )}
+        ) : null}
 
         {error ? (
           <p className="mb-4 rounded-xl border border-red-900/60 bg-red-950/40 px-4 py-3 text-sm text-red-200">
@@ -548,7 +601,23 @@ export default function MepDeliPage() {
           <button
             type="button"
             onClick={irAHoy}
-            className="inline-flex items-center gap-2 rounded-xl border border-zinc-700 bg-zinc-950 px-4 py-2 text-sm text-zinc-200 transition hover:border-zinc-500"
+            disabled={Boolean(
+              mepPendienteCierre &&
+                fechaBloqueadaPorCierrePendiente(
+                  formatFechaLocalYYYYMMDD(new Date()),
+                  mepPendienteCierre
+                )
+            )}
+            title={
+              mepPendienteCierre &&
+              fechaBloqueadaPorCierrePendiente(
+                formatFechaLocalYYYYMMDD(new Date()),
+                mepPendienteCierre
+              )
+                ? `Cerrá primero la MEP del ${etiquetaCargaMep(mepPendienteCierre)}`
+                : undefined
+            }
+            className="inline-flex items-center gap-2 rounded-xl border border-zinc-700 bg-zinc-950 px-4 py-2 text-sm text-zinc-200 transition hover:border-zinc-500 disabled:cursor-not-allowed disabled:opacity-40"
           >
             <FilePlus className="h-4 w-4" />
             Ir a hoy
@@ -597,8 +666,14 @@ export default function MepDeliPage() {
                 <input
                   type="date"
                   value={fechaServicio}
+                  disabled={Boolean(mepPendienteCierre)}
                   onChange={(e) => onCambioFecha(e.target.value)}
-                  className="w-full rounded-xl border border-zinc-700 bg-zinc-950 px-4 py-2.5 text-sm text-zinc-100 outline-none focus:border-zinc-500"
+                  title={
+                    mepPendienteCierre
+                      ? `Cerrá primero la MEP del ${etiquetaCargaMep(mepPendienteCierre)}`
+                      : undefined
+                  }
+                  className="w-full rounded-xl border border-zinc-700 bg-zinc-950 px-4 py-2.5 text-sm text-zinc-100 outline-none focus:border-zinc-500 disabled:cursor-not-allowed disabled:opacity-50"
                 />
               </label>
               <label className="block">

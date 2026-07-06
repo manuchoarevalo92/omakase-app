@@ -273,6 +273,33 @@ export function tieneCierre(carga: MepDeliCarga): boolean {
   return Boolean(carga.cierre_at && (carga.cierre_lineas?.length ?? 0) > 0);
 }
 
+/** MEP sin cierre más antigua: hay que cerrarla antes de abrir otra fecha. */
+export function obtenerMepPendienteCierre(
+  cargas: MepDeliCarga[]
+): MepDeliCarga | null {
+  const pendientes = deduplicarCargasPorFecha(cargas).filter((c) => !tieneCierre(c));
+  if (!pendientes.length) {
+    return null;
+  }
+  return [...pendientes].sort((a, b) => {
+    const df = a.fecha.localeCompare(b.fecha);
+    if (df !== 0) {
+      return df;
+    }
+    return a.created_at.localeCompare(b.created_at);
+  })[0];
+}
+
+export function fechaBloqueadaPorCierrePendiente(
+  fecha: string,
+  pendiente: MepDeliCarga | null
+): boolean {
+  if (!pendiente) {
+    return false;
+  }
+  return fecha !== pendiente.fecha;
+}
+
 export function cargaDesdeFila(row: MepDeliCargaDbRow): MepDeliCarga {
   const cierre = normalizarCierreLineas(row.cierre_lineas);
   return {
