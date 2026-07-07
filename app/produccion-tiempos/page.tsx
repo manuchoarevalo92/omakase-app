@@ -1,0 +1,700 @@
+"use client";
+
+import { useCallback, useEffect, useMemo, useState } from "react";
+import {
+  Clock,
+  Loader2,
+  Pause,
+  PenLine,
+  Play,
+  Square,
+  Timer,
+  Trash2,
+  X,
+} from "lucide-react";
+import {
+  cantidadSugeridaAlMarcar,
+  ETIQUETA_AREA_PRODUCCION,
+  fetchPreparaciones,
+  formatearCantidad,
+  parseCantidadInput,
+  type Preparacion,
+} from "@/src/lib/preparaciones";
+import {
+  calcularResumenesPorPreparacion,
+  cancelarProduccionSesion,
+  completarProduccionSesion,
+  eliminarProduccionSesion,
+  etiquetaAreaSesion,
+  fetchProduccionSesionesRecientes,
+  fetchSesionActivaUsuario,
+  fetchSesionesActivasEquipo,
+  fetchSessionUsuario,
+  formatearDuracionLegible,
+  formatearDuracionSegundos,
+  guardarProduccionSesionManual,
+  iniciarProduccionSesion,
+  pausarProduccionSesion,
+  reanudarProduccionSesion,
+  segundosTranscurridosSesion,
+  sesionEstaPausada,
+  type ProduccionSesion,
+  type SessionUsuario,
+} from "@/src/lib/produccion-sesiones";
+import { formatPostgrestError } from "@/src/lib/supabase-errors";
+
+function RelojActivo({ sesion }: { sesion: ProduccionSesion }) {
+  const [tick, setTick] = useState(0);
+
+  useEffect(() => {
+    if (sesion.endedAt) {
+      return;
+    }
+    const id = window.setInterval(() => setTick((t) => t + 1), 1000);
+    return () => window.clearInterval(id);
+  }, [sesion.endedAt, sesion.id, sesion.pausadoAt, sesion.pausaTotalSegundos, sesion.startedAt]);
+
+  const segundos = segundosTranscurridosSesion(sesion);
+  void tick;
+
+  return (
+    <span className="font-mono text-4xl font-semibold tabular-nums tracking-tight text-white sm:text-5xl">
+      {formatearDuracionSegundos(segundos)}
+    </span>
+  );
+}
+
+export default function ProduccionTiemposPage() {
+  const [preparaciones, setPreparaciones] = useState<Preparacion[]>([]);
+  const [sesiones, setSesiones] = useState<ProduccionSesion[]>([]);
+  const [activasEquipo, setActivasEquipo] = useState<ProduccionSesion[]>([]);
+  const [sesionPropia, setSesionPropia] = useState<ProduccionSesion | null>(null);
+  const [usuario, setUsuario] = useState<SessionUsuario | null>(null);
+  const [prepSeleccionadaId, setPrepSeleccionadaId] = useState("");
+  const [isLoading, setIsLoading] = useState(true);
+  const [isBusy, setIsBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [success, setSuccess] = useState<string | null>(null);
+  const [mostrarManual, setMostrarManual] = useState(false);
+  const [modalCierre, setModalCierre] = useState(false);
+  const [cantidadCierre, setCantidadCierre] = useState("");
+  const [notasCierre, setNotasCierre] = useState("");
+  const [filtroPrep, setFiltroPrep] = useState("");
+  const [manualDuracion, setManualDuracion] = useState("");
+  const [manualCantidad, setManualCantidad] = useState("");
+  const [manualNotas, setManualNotas] = useState("");
+
+  const prepSeleccionada = useMemo(
+    () => preparaciones.find((p) => p.id === prepSeleccionadaId) ?? null,
+    [preparaciones, prepSeleccionadaId]
+  );
+
+  const resumenes = useMemo(() => calcularResumenesPorPreparacion(sesiones), [sesiones]);
+
+  const sesionesFiltradas = useMemo(() => {
+    if (!filtroPrep) {
+      return sesiones;
+    }
+    return sesiones.filter((s) => s.preparacionId === filtroPrep);
+  }, [sesiones, filtroPrep]);
+
+  const otrasActivas = useMemo(
+    () => activasEquipo.filter((s) => s.id !== sesionPropia?.id),
+    [activasEquipo, sesionPropia]
+  );
+
+  const refrescar = useCallback(async (usuarioActual: SessionUsuario | null) => {
+    const [preps, lista, activas] = await Promise.all([
+      fetchPreparaciones(),
+      fetchProduccionSesionesRecientes(),
+      fetchSesionesActivasEquipo(),
+    ]);
+    setPreparaciones(preps);
+    setSesiones(lista);
+    setActivasEquipo(activas);
+
+    if (usuarioActual) {
+      const propia =
+        activas.find((s) => s.hechoPorId === usuarioActual.id) ??
+        (await fetchSesionActivaUsuario(usuarioActual.id));
+      setSesionPropia(propia);
+      if (propia?.preparacionId) {
+        setPrepSeleccionadaId(propia.preparacionId);
+      }
+    }
+  }, []);
+
+  useEffect(() => {
+    let cancelled = false;
+    const cargar = async () => {
+      setIsLoading(true);
+      setError(null);
+      try {
+        const u = await fetchSessionUsuario();
+        if (cancelled) {
+          return;
+        }
+        setUsuario(u);
+        await refrescar(u);
+      } catch (err) {
+        if (!cancelled) {
+          setError(
+            err && typeof err === "object" && "message" in err
+              ? formatPostgrestError(err as Parameters<typeof formatPostgrestError>[0])
+              : "No se pudieron cargar los datos."
+          );
+        }
+      } finally {
+        if (!cancelled) {
+          setIsLoading(false);
+        }
+      }
+    };
+    void cargar();
+    return () => {
+      cancelled = true;
+    };
+  }, [refrescar]);
+
+  const iniciar = async () => {
+    if (!prepSeleccionada) {
+      setError("Elegí una preparación para cronometrar.");
+      return;
+    }
+    if (sesionPropia) {
+      setError("Ya tenés un cronómetro en curso.");
+      return;
+    }
+    setIsBusy(true);
+    setError(null);
+    setSuccess(null);
+    try {
+      const sesion = await iniciarProduccionSesion(prepSeleccionada, usuario);
+      setSesionPropia(sesion);
+      setActivasEquipo((prev) => [sesion, ...prev.filter((s) => s.id !== sesion.id)]);
+      setSuccess(`Cronómetro iniciado: ${prepSeleccionada.nombre}.`);
+    } catch (err) {
+      setError(
+        err instanceof Error
+          ? err.message
+          : "No se pudo iniciar el cronómetro."
+      );
+    } finally {
+      setIsBusy(false);
+    }
+  };
+
+  const togglePausa = async () => {
+    if (!sesionPropia) {
+      return;
+    }
+    setIsBusy(true);
+    setError(null);
+    try {
+      const actualizada = sesionEstaPausada(sesionPropia)
+        ? await reanudarProduccionSesion(sesionPropia)
+        : await pausarProduccionSesion(sesionPropia.id);
+      setSesionPropia(actualizada);
+      setActivasEquipo((prev) =>
+        prev.map((s) => (s.id === actualizada.id ? actualizada : s))
+      );
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "No se pudo pausar/reanudar.");
+    } finally {
+      setIsBusy(false);
+    }
+  };
+
+  const pedirCierre = () => {
+    if (!sesionPropia) {
+      return;
+    }
+    const prep = preparaciones.find((p) => p.id === sesionPropia.preparacionId);
+    if (prep) {
+      setCantidadCierre(String(cantidadSugeridaAlMarcar(prep)));
+    }
+    setNotasCierre("");
+    setModalCierre(true);
+  };
+
+  const confirmarCierre = async () => {
+    if (!sesionPropia) {
+      return;
+    }
+    const cantidad = parseCantidadInput(cantidadCierre);
+    setIsBusy(true);
+    setError(null);
+    try {
+      const completada = await completarProduccionSesion(sesionPropia, {
+        cantidadProducida: cantidad,
+        notas: notasCierre,
+      });
+      setSesionPropia(null);
+      setModalCierre(false);
+      setSesiones((prev) => [completada, ...prev.filter((s) => s.id !== completada.id)]);
+      setActivasEquipo((prev) => prev.filter((s) => s.id !== completada.id));
+      setSuccess(
+        `${completada.preparacionNombre} guardada · ${formatearDuracionLegible(completada.duracionSegundos ?? 0)}`
+      );
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "No se pudo guardar el cierre.");
+    } finally {
+      setIsBusy(false);
+    }
+  };
+
+  const cancelar = async () => {
+    if (!sesionPropia) {
+      return;
+    }
+    const ok = window.confirm("¿Descartar este cronómetro sin guardar?");
+    if (!ok) {
+      return;
+    }
+    setIsBusy(true);
+    setError(null);
+    try {
+      await cancelarProduccionSesion(sesionPropia.id);
+      setSesionPropia(null);
+      setActivasEquipo((prev) => prev.filter((s) => s.id !== sesionPropia.id));
+      setSuccess("Cronómetro descartado.");
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "No se pudo cancelar.");
+    } finally {
+      setIsBusy(false);
+    }
+  };
+
+  const guardarManual = async () => {
+    if (!prepSeleccionada) {
+      setError("Elegí una preparación.");
+      return;
+    }
+    const minutos = parseCantidadInput(manualDuracion);
+    if (!minutos) {
+      setError("Ingresá la duración en minutos.");
+      return;
+    }
+    setIsBusy(true);
+    setError(null);
+    try {
+      const sesion = await guardarProduccionSesionManual({
+        prep: prepSeleccionada,
+        duracionMinutos: minutos,
+        cantidadProducida: parseCantidadInput(manualCantidad),
+        notas: manualNotas,
+        usuario,
+      });
+      setSesiones((prev) => [sesion, ...prev]);
+      setManualDuracion("");
+      setManualCantidad("");
+      setManualNotas("");
+      setMostrarManual(false);
+      setSuccess(`Tiempo manual guardado: ${prepSeleccionada.nombre}.`);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "No se pudo guardar.");
+    } finally {
+      setIsBusy(false);
+    }
+  };
+
+  const borrarSesion = async (id: string) => {
+    const ok = window.confirm("¿Borrar este registro de tiempo?");
+    if (!ok) {
+      return;
+    }
+    setIsBusy(true);
+    setError(null);
+    try {
+      await eliminarProduccionSesion(id);
+      setSesiones((prev) => prev.filter((s) => s.id !== id));
+      setSuccess("Registro eliminado.");
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "No se pudo borrar.");
+    } finally {
+      setIsBusy(false);
+    }
+  };
+
+  return (
+    <main className="min-h-screen min-w-0 bg-zinc-950 px-4 py-6 text-zinc-100 sm:px-6 sm:py-10">
+      <section className="mx-auto w-full max-w-4xl rounded-2xl border border-zinc-800 bg-zinc-900/60 p-6 shadow-[0_0_0_1px_rgba(255,255,255,0.02)] backdrop-blur">
+        <header className="mb-6">
+          <h1 className="text-2xl font-semibold text-white">Tiempos de producción</h1>
+          <p className="mt-1 text-sm text-zinc-400">
+            Cronometrá preparaciones para armar el plan semanal después. Las preparaciones
+            salen del catálogo de producción (pantalla Producción).
+          </p>
+        </header>
+
+        {error ? (
+          <p className="mb-4 rounded-xl border border-red-900/60 bg-red-950/40 px-4 py-3 text-sm text-red-200">
+            {error}
+          </p>
+        ) : null}
+        {success && !error ? (
+          <p className="mb-4 rounded-xl border border-emerald-900/50 bg-emerald-950/30 px-4 py-3 text-sm text-emerald-200">
+            {success}
+          </p>
+        ) : null}
+
+        {otrasActivas.length > 0 ? (
+          <div className="mb-6 rounded-xl border border-sky-900/50 bg-sky-950/20 px-4 py-3 text-sm text-sky-100">
+            <p className="font-medium">En curso ahora</p>
+            <ul className="mt-2 space-y-1">
+              {otrasActivas.map((s) => (
+                <li key={s.id} className="text-sky-100/90">
+                  {s.hechoPorNombre ?? "Alguien"} · {s.preparacionNombre} ·{" "}
+                  {sesionEstaPausada(s) ? "pausado" : "corriendo"} ·{" "}
+                  {formatearDuracionSegundos(segundosTranscurridosSesion(s))}
+                </li>
+              ))}
+            </ul>
+          </div>
+        ) : null}
+
+        <div className="mb-8 rounded-2xl border border-zinc-700/80 bg-zinc-950/80 p-5 sm:p-6">
+          {isLoading ? (
+            <div className="flex items-center justify-center gap-2 py-10 text-zinc-400">
+              <Loader2 className="h-5 w-5 animate-spin" />
+              Cargando…
+            </div>
+          ) : sesionPropia ? (
+            <div className="flex flex-col items-center gap-4 text-center">
+              <p className="text-xs font-semibold uppercase tracking-[0.16em] text-zinc-500">
+                {sesionEstaPausada(sesionPropia) ? "Pausado" : "En curso"}
+              </p>
+              <p className="text-lg font-medium text-zinc-100">{sesionPropia.preparacionNombre}</p>
+              <p className="text-sm text-zinc-500">
+                {etiquetaAreaSesion(sesionPropia.area)}
+                {sesionPropia.hechoPorNombre ? ` · ${sesionPropia.hechoPorNombre}` : ""}
+              </p>
+              <RelojActivo sesion={sesionPropia} />
+              <div className="flex w-full max-w-md flex-col gap-2 sm:flex-row sm:justify-center">
+                <button
+                  type="button"
+                  onClick={() => void togglePausa()}
+                  disabled={isBusy}
+                  className="inline-flex flex-1 items-center justify-center gap-2 rounded-xl border border-zinc-600 bg-zinc-900 px-4 py-3 text-sm font-medium text-zinc-100 transition hover:border-zinc-500 disabled:opacity-50"
+                >
+                  {sesionEstaPausada(sesionPropia) ? (
+                    <>
+                      <Play className="h-4 w-4" />
+                      Reanudar
+                    </>
+                  ) : (
+                    <>
+                      <Pause className="h-4 w-4" />
+                      Pausar
+                    </>
+                  )}
+                </button>
+                <button
+                  type="button"
+                  onClick={pedirCierre}
+                  disabled={isBusy}
+                  className="inline-flex flex-1 items-center justify-center gap-2 rounded-xl bg-emerald-600 px-4 py-3 text-sm font-semibold text-white transition hover:bg-emerald-500 disabled:opacity-50"
+                >
+                  <Square className="h-4 w-4" />
+                  Terminar
+                </button>
+                <button
+                  type="button"
+                  onClick={() => void cancelar()}
+                  disabled={isBusy}
+                  title="Descartar"
+                  className="inline-flex items-center justify-center gap-2 rounded-xl border border-red-900/60 bg-red-950/30 px-4 py-3 text-sm text-red-200 transition hover:border-red-700 disabled:opacity-50"
+                >
+                  <X className="h-4 w-4" />
+                </button>
+              </div>
+            </div>
+          ) : (
+            <div className="space-y-4">
+              <label className="block">
+                <span className="mb-1 block text-xs uppercase tracking-wide text-zinc-500">
+                  Preparación
+                </span>
+                <select
+                  value={prepSeleccionadaId}
+                  onChange={(e) => setPrepSeleccionadaId(e.target.value)}
+                  className="w-full rounded-xl border border-zinc-700 bg-zinc-950 px-4 py-2.5 text-sm text-zinc-100 outline-none focus:border-zinc-500"
+                >
+                  <option value="">Elegir preparación…</option>
+                  {preparaciones.map((p) => (
+                    <option key={p.id} value={p.id}>
+                      {p.nombre} ({ETIQUETA_AREA_PRODUCCION[p.area]})
+                    </option>
+                  ))}
+                </select>
+              </label>
+              {prepSeleccionada ? (
+                <p className="text-xs text-zinc-500">
+                  Referencia: {formatearCantidad(prepSeleccionada.cantidadReferencia, prepSeleccionada.unidadCantidad)}
+                  {prepSeleccionada.ultimaCantidad
+                    ? ` · última: ${formatearCantidad(prepSeleccionada.ultimaCantidad, prepSeleccionada.unidadCantidad)}`
+                    : ""}
+                </p>
+              ) : null}
+              <button
+                type="button"
+                onClick={() => void iniciar()}
+                disabled={isBusy || !prepSeleccionada}
+                className="inline-flex w-full items-center justify-center gap-2 rounded-xl bg-white py-3.5 text-sm font-semibold text-zinc-950 transition hover:bg-zinc-200 disabled:cursor-not-allowed disabled:opacity-50 sm:w-auto sm:px-8"
+              >
+                {isBusy ? (
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                ) : (
+                  <Timer className="h-4 w-4" />
+                )}
+                Iniciar cronómetro
+              </button>
+            </div>
+          )}
+        </div>
+
+        <div className="mb-8">
+          <button
+            type="button"
+            onClick={() => setMostrarManual((v) => !v)}
+            className="inline-flex items-center gap-2 text-sm text-zinc-400 transition hover:text-zinc-200"
+          >
+            <PenLine className="h-4 w-4" />
+            {mostrarManual ? "Ocultar carga manual" : "Cargar tiempo a mano"}
+          </button>
+          {mostrarManual ? (
+            <div className="mt-4 grid gap-3 rounded-xl border border-zinc-800 bg-zinc-950/50 p-4 sm:grid-cols-2">
+              <label className="block sm:col-span-2">
+                <span className="mb-1 block text-xs uppercase tracking-wide text-zinc-500">
+                  Preparación
+                </span>
+                <select
+                  value={prepSeleccionadaId}
+                  onChange={(e) => setPrepSeleccionadaId(e.target.value)}
+                  className="w-full rounded-xl border border-zinc-700 bg-zinc-950 px-4 py-2.5 text-sm text-zinc-100 outline-none focus:border-zinc-500"
+                >
+                  <option value="">Elegir…</option>
+                  {preparaciones.map((p) => (
+                    <option key={p.id} value={p.id}>
+                      {p.nombre}
+                    </option>
+                  ))}
+                </select>
+              </label>
+              <label className="block">
+                <span className="mb-1 block text-xs uppercase tracking-wide text-zinc-500">
+                  Duración (minutos)
+                </span>
+                <input
+                  type="text"
+                  inputMode="decimal"
+                  value={manualDuracion}
+                  onChange={(e) => setManualDuracion(e.target.value)}
+                  placeholder="90"
+                  className="w-full rounded-xl border border-zinc-700 bg-zinc-950 px-4 py-2.5 text-sm text-zinc-100 outline-none focus:border-zinc-500"
+                />
+              </label>
+              <label className="block">
+                <span className="mb-1 block text-xs uppercase tracking-wide text-zinc-500">
+                  Cantidad producida
+                </span>
+                <input
+                  type="text"
+                  inputMode="decimal"
+                  value={manualCantidad}
+                  onChange={(e) => setManualCantidad(e.target.value)}
+                  placeholder={prepSeleccionada ? String(prepSeleccionada.cantidadReferencia) : ""}
+                  className="w-full rounded-xl border border-zinc-700 bg-zinc-950 px-4 py-2.5 text-sm text-zinc-100 outline-none focus:border-zinc-500"
+                />
+              </label>
+              <label className="block sm:col-span-2">
+                <span className="mb-1 block text-xs uppercase tracking-wide text-zinc-500">
+                  Notas
+                </span>
+                <input
+                  type="text"
+                  value={manualNotas}
+                  onChange={(e) => setManualNotas(e.target.value)}
+                  className="w-full rounded-xl border border-zinc-700 bg-zinc-950 px-4 py-2.5 text-sm text-zinc-100 outline-none focus:border-zinc-500"
+                />
+              </label>
+              <button
+                type="button"
+                onClick={() => void guardarManual()}
+                disabled={isBusy}
+                className="sm:col-span-2 inline-flex w-full items-center justify-center gap-2 rounded-xl border border-zinc-600 bg-zinc-900 px-4 py-2.5 text-sm font-medium text-zinc-100 transition hover:border-zinc-500 disabled:opacity-50 sm:w-auto"
+              >
+                Guardar tiempo manual
+              </button>
+            </div>
+          ) : null}
+        </div>
+
+        {resumenes.length > 0 ? (
+          <section className="mb-8">
+            <h2 className="mb-3 flex items-center gap-2 text-sm font-medium uppercase tracking-wide text-zinc-400">
+              <Clock className="h-4 w-4" />
+              Tiempos de referencia
+            </h2>
+            <div className="overflow-x-auto rounded-xl border border-zinc-800">
+              <table className="min-w-full text-left text-sm">
+                <thead className="border-b border-zinc-800 bg-zinc-950/60 text-xs uppercase tracking-wide text-zinc-500">
+                  <tr>
+                    <th className="px-4 py-2.5 font-medium">Preparación</th>
+                    <th className="px-4 py-2.5 font-medium">Mediana</th>
+                    <th className="px-4 py-2.5 font-medium">Rango</th>
+                    <th className="px-4 py-2.5 font-medium">Registros</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-zinc-800/80">
+                  {resumenes.map((r) => (
+                    <tr key={r.preparacionId ?? r.preparacionNombre} className="text-zinc-200">
+                      <td className="px-4 py-2.5">
+                        <span className="font-medium text-zinc-100">{r.preparacionNombre}</span>
+                        <span className="ml-2 text-xs text-zinc-500">
+                          {ETIQUETA_AREA_PRODUCCION[r.area]}
+                        </span>
+                      </td>
+                      <td className="px-4 py-2.5 tabular-nums">
+                        {r.duracionMedianaSegundos != null
+                          ? formatearDuracionLegible(r.duracionMedianaSegundos)
+                          : "—"}
+                      </td>
+                      <td className="px-4 py-2.5 text-xs text-zinc-400">
+                        {r.duracionMinSegundos != null && r.duracionMaxSegundos != null
+                          ? `${formatearDuracionLegible(r.duracionMinSegundos)} – ${formatearDuracionLegible(r.duracionMaxSegundos)}`
+                          : "—"}
+                      </td>
+                      <td className="px-4 py-2.5 tabular-nums text-zinc-400">{r.totalSesiones}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </section>
+        ) : null}
+
+        <section>
+          <div className="mb-3 flex flex-wrap items-center justify-between gap-3">
+            <h2 className="text-sm font-medium uppercase tracking-wide text-zinc-400">
+              Historial reciente
+            </h2>
+            <select
+              value={filtroPrep}
+              onChange={(e) => setFiltroPrep(e.target.value)}
+              className="rounded-lg border border-zinc-700 bg-zinc-950 px-3 py-1.5 text-xs text-zinc-200 outline-none focus:border-zinc-500"
+            >
+              <option value="">Todas las preparaciones</option>
+              {preparaciones.map((p) => (
+                <option key={p.id} value={p.id}>
+                  {p.nombre}
+                </option>
+              ))}
+            </select>
+          </div>
+          {sesionesFiltradas.length === 0 ? (
+            <p className="py-8 text-center text-sm text-zinc-500">
+              Todavía no hay tiempos registrados. Iniciá un cronómetro arriba.
+            </p>
+          ) : (
+            <ul className="divide-y divide-zinc-800 rounded-xl border border-zinc-800">
+              {sesionesFiltradas.map((s) => (
+                <li
+                  key={s.id}
+                  className="flex flex-wrap items-start justify-between gap-3 px-4 py-3"
+                >
+                  <div className="min-w-0">
+                    <p className="font-medium text-zinc-100">{s.preparacionNombre}</p>
+                    <p className="mt-0.5 text-xs text-zinc-500">
+                      {s.startedAt.slice(0, 10)} · {etiquetaAreaSesion(s.area)}
+                      {s.hechoPorNombre ? ` · ${s.hechoPorNombre}` : ""}
+                      {s.esManual ? " · manual" : ""}
+                    </p>
+                    {s.cantidadProducida && s.unidadCantidad ? (
+                      <p className="mt-1 text-xs text-zinc-400">
+                        {formatearCantidad(s.cantidadProducida, s.unidadCantidad)}
+                      </p>
+                    ) : null}
+                    {s.notas ? (
+                      <p className="mt-1 text-xs text-zinc-500">{s.notas}</p>
+                    ) : null}
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <span className="font-mono text-sm tabular-nums text-emerald-300">
+                      {s.duracionSegundos != null
+                        ? formatearDuracionLegible(s.duracionSegundos)
+                        : "en curso"}
+                    </span>
+                    {s.endedAt ? (
+                      <button
+                        type="button"
+                        onClick={() => void borrarSesion(s.id)}
+                        disabled={isBusy}
+                        title="Borrar"
+                        className="rounded-lg border border-zinc-700 p-1.5 text-zinc-500 transition hover:border-red-800 hover:text-red-300 disabled:opacity-50"
+                      >
+                        <Trash2 className="h-3.5 w-3.5" />
+                      </button>
+                    ) : null}
+                  </div>
+                </li>
+              ))}
+            </ul>
+          )}
+        </section>
+      </section>
+
+      {modalCierre && sesionPropia ? (
+        <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/60 p-4 sm:items-center">
+          <div className="w-full max-w-md rounded-2xl border border-zinc-700 bg-zinc-900 p-5 shadow-2xl">
+            <h3 className="text-lg font-semibold text-white">Terminar producción</h3>
+            <p className="mt-1 text-sm text-zinc-400">{sesionPropia.preparacionNombre}</p>
+            <div className="mt-4 space-y-3">
+              <label className="block">
+                <span className="mb-1 block text-xs uppercase tracking-wide text-zinc-500">
+                  Cantidad producida
+                  {prepSeleccionada ? ` (${prepSeleccionada.unidadCantidad})` : ""}
+                </span>
+                <input
+                  type="text"
+                  inputMode="decimal"
+                  value={cantidadCierre}
+                  onChange={(e) => setCantidadCierre(e.target.value)}
+                  className="w-full rounded-xl border border-zinc-700 bg-zinc-950 px-4 py-2.5 text-sm text-zinc-100 outline-none focus:border-zinc-500"
+                />
+              </label>
+              <label className="block">
+                <span className="mb-1 block text-xs uppercase tracking-wide text-zinc-500">
+                  Notas (opcional)
+                </span>
+                <input
+                  type="text"
+                  value={notasCierre}
+                  onChange={(e) => setNotasCierre(e.target.value)}
+                  className="w-full rounded-xl border border-zinc-700 bg-zinc-950 px-4 py-2.5 text-sm text-zinc-100 outline-none focus:border-zinc-500"
+                />
+              </label>
+            </div>
+            <div className="mt-5 flex gap-2">
+              <button
+                type="button"
+                onClick={() => setModalCierre(false)}
+                className="flex-1 rounded-xl border border-zinc-600 px-4 py-2.5 text-sm text-zinc-200 hover:border-zinc-500"
+              >
+                Cancelar
+              </button>
+              <button
+                type="button"
+                onClick={() => void confirmarCierre()}
+                disabled={isBusy}
+                className="flex-1 rounded-xl bg-emerald-600 px-4 py-2.5 text-sm font-semibold text-white hover:bg-emerald-500 disabled:opacity-50"
+              >
+                {isBusy ? "Guardando…" : "Guardar"}
+              </button>
+            </div>
+          </div>
+        </div>
+      ) : null}
+    </main>
+  );
+}
