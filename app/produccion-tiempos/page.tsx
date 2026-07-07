@@ -17,10 +17,13 @@ import {
 import {
   cantidadSugeridaAlMarcar,
   ETIQUETA_AREA_PRODUCCION,
+  esUnidadCantidadValida,
   fetchPreparaciones,
   formatearCantidad,
   parseCantidadInput,
+  UNIDADES_CANTIDAD,
   type Preparacion,
+  type UnidadCantidad,
 } from "@/src/lib/preparaciones";
 import {
   calcularResumenesPorPreparacion,
@@ -28,6 +31,7 @@ import {
   completarProduccionSesion,
   eliminarProduccionSesion,
   etiquetaAreaSesion,
+  etiquetaRitmoProduccion,
   fetchProduccionSesionesRecientes,
   fetchSesionActivaUsuario,
   fetchSesionesActivasEquipo,
@@ -80,10 +84,12 @@ export default function ProduccionTiemposPage() {
   const [mostrarManual, setMostrarManual] = useState(false);
   const [modalCierre, setModalCierre] = useState(false);
   const [cantidadCierre, setCantidadCierre] = useState("");
+  const [unidadCierre, setUnidadCierre] = useState<UnidadCantidad>("kg");
   const [notasCierre, setNotasCierre] = useState("");
   const [filtroPrep, setFiltroPrep] = useState("");
   const [manualDuracion, setManualDuracion] = useState("");
   const [manualCantidad, setManualCantidad] = useState("");
+  const [manualUnidad, setManualUnidad] = useState<UnidadCantidad>("kg");
   const [manualNotas, setManualNotas] = useState("");
 
   const prepSeleccionada = useMemo(
@@ -214,6 +220,7 @@ export default function ProduccionTiemposPage() {
     const prep = preparaciones.find((p) => p.id === sesionPropia.preparacionId);
     if (prep) {
       setCantidadCierre(String(cantidadSugeridaAlMarcar(prep)));
+      setUnidadCierre(prep.unidadCantidad);
     }
     setNotasCierre("");
     setModalCierre(true);
@@ -224,11 +231,16 @@ export default function ProduccionTiemposPage() {
       return;
     }
     const cantidad = parseCantidadInput(cantidadCierre);
+    if (!cantidad) {
+      setError("Ingresá la cantidad producida para calcular tiempos por unidad.");
+      return;
+    }
     setIsBusy(true);
     setError(null);
     try {
       const completada = await completarProduccionSesion(sesionPropia, {
         cantidadProducida: cantidad,
+        unidadCantidad: unidadCierre,
         notas: notasCierre,
       });
       setSesionPropia(null);
@@ -284,12 +296,14 @@ export default function ProduccionTiemposPage() {
         prep: prepSeleccionada,
         duracionMinutos: minutos,
         cantidadProducida: parseCantidadInput(manualCantidad),
+        unidadCantidad: manualUnidad,
         notas: manualNotas,
         usuario,
       });
       setSesiones((prev) => [sesion, ...prev]);
       setManualDuracion("");
       setManualCantidad("");
+      setManualUnidad(prepSeleccionada.unidadCantidad);
       setManualNotas("");
       setMostrarManual(false);
       setSuccess(`Tiempo manual guardado: ${prepSeleccionada.nombre}.`);
@@ -484,7 +498,13 @@ export default function ProduccionTiemposPage() {
                 </span>
                 <select
                   value={prepSeleccionadaId}
-                  onChange={(e) => setPrepSeleccionadaId(e.target.value)}
+                  onChange={(e) => {
+                    setPrepSeleccionadaId(e.target.value);
+                    const p = preparaciones.find((x) => x.id === e.target.value);
+                    if (p) {
+                      setManualUnidad(p.unidadCantidad);
+                    }
+                  }}
                   className="w-full rounded-xl border border-zinc-700 bg-zinc-950 px-4 py-2.5 text-sm text-zinc-100 outline-none focus:border-zinc-500"
                 >
                   <option value="">Elegir…</option>
@@ -512,14 +532,32 @@ export default function ProduccionTiemposPage() {
                 <span className="mb-1 block text-xs uppercase tracking-wide text-zinc-500">
                   Cantidad producida
                 </span>
-                <input
-                  type="text"
-                  inputMode="decimal"
-                  value={manualCantidad}
-                  onChange={(e) => setManualCantidad(e.target.value)}
-                  placeholder={prepSeleccionada ? String(prepSeleccionada.cantidadReferencia) : ""}
-                  className="w-full rounded-xl border border-zinc-700 bg-zinc-950 px-4 py-2.5 text-sm text-zinc-100 outline-none focus:border-zinc-500"
-                />
+                <div className="flex gap-2">
+                  <input
+                    type="text"
+                    inputMode="decimal"
+                    value={manualCantidad}
+                    onChange={(e) => setManualCantidad(e.target.value)}
+                    placeholder={prepSeleccionada ? String(prepSeleccionada.cantidadReferencia) : ""}
+                    className="min-w-0 flex-1 rounded-xl border border-zinc-700 bg-zinc-950 px-4 py-2.5 text-sm text-zinc-100 outline-none focus:border-zinc-500"
+                  />
+                  <select
+                    value={manualUnidad}
+                    onChange={(e) => {
+                      const v = e.target.value;
+                      if (esUnidadCantidadValida(v)) {
+                        setManualUnidad(v);
+                      }
+                    }}
+                    className="rounded-xl border border-zinc-700 bg-zinc-950 px-2 py-2.5 text-sm text-zinc-100"
+                  >
+                    {UNIDADES_CANTIDAD.map((u) => (
+                      <option key={u} value={u}>
+                        {u}
+                      </option>
+                    ))}
+                  </select>
+                </div>
               </label>
               <label className="block sm:col-span-2">
                 <span className="mb-1 block text-xs uppercase tracking-wide text-zinc-500">
@@ -556,6 +594,7 @@ export default function ProduccionTiemposPage() {
                   <tr>
                     <th className="px-4 py-2.5 font-medium">Preparación</th>
                     <th className="px-4 py-2.5 font-medium">Mediana</th>
+                    <th className="px-4 py-2.5 font-medium">Ritmo / unidad</th>
                     <th className="px-4 py-2.5 font-medium">Rango</th>
                     <th className="px-4 py-2.5 font-medium">Registros</th>
                   </tr>
@@ -573,6 +612,14 @@ export default function ProduccionTiemposPage() {
                         {r.duracionMedianaSegundos != null
                           ? formatearDuracionLegible(r.duracionMedianaSegundos)
                           : "—"}
+                      </td>
+                      <td className="px-4 py-2.5 text-xs text-violet-300/90">
+                        {etiquetaRitmoProduccion(r) ?? "—"}
+                        {r.sesionesConCantidad > 0 ? (
+                          <span className="block text-[10px] text-zinc-500">
+                            {r.sesionesConCantidad} con cantidad
+                          </span>
+                        ) : null}
                       </td>
                       <td className="px-4 py-2.5 text-xs text-zinc-400">
                         {r.duracionMinSegundos != null && r.duracionMaxSegundos != null
@@ -667,15 +714,36 @@ export default function ProduccionTiemposPage() {
               <label className="block">
                 <span className="mb-1 block text-xs uppercase tracking-wide text-zinc-500">
                   Cantidad producida
-                  {prepSeleccionada ? ` (${prepSeleccionada.unidadCantidad})` : ""}
                 </span>
-                <input
-                  type="text"
-                  inputMode="decimal"
-                  value={cantidadCierre}
-                  onChange={(e) => setCantidadCierre(e.target.value)}
-                  className="w-full rounded-xl border border-zinc-700 bg-zinc-950 px-4 py-2.5 text-sm text-zinc-100 outline-none focus:border-zinc-500"
-                />
+                <div className="flex gap-2">
+                  <input
+                    type="text"
+                    inputMode="decimal"
+                    value={cantidadCierre}
+                    onChange={(e) => setCantidadCierre(e.target.value)}
+                    placeholder="ej. 5"
+                    className="min-w-0 flex-1 rounded-xl border border-zinc-700 bg-zinc-950 px-4 py-2.5 text-sm text-zinc-100 outline-none focus:border-zinc-500"
+                  />
+                  <select
+                    value={unidadCierre}
+                    onChange={(e) => {
+                      const v = e.target.value;
+                      if (esUnidadCantidadValida(v)) {
+                        setUnidadCierre(v);
+                      }
+                    }}
+                    className="rounded-xl border border-zinc-700 bg-zinc-950 px-2 py-2.5 text-sm text-zinc-100"
+                  >
+                    {UNIDADES_CANTIDAD.map((u) => (
+                      <option key={u} value={u}>
+                        {u}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+                <p className="mt-1 text-[11px] text-zinc-500">
+                  Necesaria para escalar tiempos en el plan (ej. 5 kg en 1 h → 10 kg en 2 h).
+                </p>
               </label>
               <label className="block">
                 <span className="mb-1 block text-xs uppercase tracking-wide text-zinc-500">

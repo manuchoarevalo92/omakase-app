@@ -56,9 +56,12 @@ export type ProduccionResumenPreparacion = {
   unidadCantidad: UnidadCantidad | null;
   cantidadMediana: number | null;
   duracionMedianaSegundos: number | null;
+  /** Mediana de segundos por unidad (solo sesiones con cantidad). */
+  segundosPorUnidadMediana: number | null;
   duracionMinSegundos: number | null;
   duracionMaxSegundos: number | null;
   totalSesiones: number;
+  sesionesConCantidad: number;
 };
 
 export const PRODUCCION_SESION_SELECT =
@@ -201,6 +204,15 @@ export function calcularResumenesPorPreparacion(
     const cantidades = lista
       .map((s) => s.cantidadProducida)
       .filter((c): c is number => c != null);
+    const ratios = lista
+      .filter(
+        (s) =>
+          s.duracionSegundos != null &&
+          s.duracionSegundos > 0 &&
+          s.cantidadProducida != null &&
+          s.cantidadProducida > 0
+      )
+      .map((s) => s.duracionSegundos! / s.cantidadProducida!);
     resumenes.push({
       preparacionId: ref.preparacionId,
       preparacionNombre: ref.preparacionNombre,
@@ -208,15 +220,95 @@ export function calcularResumenesPorPreparacion(
       unidadCantidad: ref.unidadCantidad,
       cantidadMediana: mediana(cantidades),
       duracionMedianaSegundos: mediana(duraciones),
+      segundosPorUnidadMediana: mediana(ratios),
       duracionMinSegundos: duraciones.length ? Math.min(...duraciones) : null,
       duracionMaxSegundos: duraciones.length ? Math.max(...duraciones) : null,
       totalSesiones: lista.length,
+      sesionesConCantidad: ratios.length,
     });
   }
 
   return resumenes.sort((a, b) =>
     a.preparacionNombre.localeCompare(b.preparacionNombre, "es")
   );
+}
+
+const DURACION_DEFECTO_SEGUNDOS = 60 * 60;
+
+/** Convierte cantidad a la unidad de referencia del historial (g↔kg, ml↔L). */
+export function cantidadEnUnidadReferencia(
+  cantidad: number,
+  unidad: UnidadCantidad,
+  unidadReferencia: UnidadCantidad
+): number | null {
+  if (unidad === unidadReferencia) {
+    return cantidad;
+  }
+  if (unidad === "g" && unidadReferencia === "kg") {
+    return cantidad / 1000;
+  }
+  if (unidad === "kg" && unidadReferencia === "g") {
+    return cantidad * 1000;
+  }
+  if (unidad === "ml" && unidadReferencia === "L") {
+    return cantidad / 1000;
+  }
+  if (unidad === "L" && unidadReferencia === "ml") {
+    return cantidad * 1000;
+  }
+  return null;
+}
+
+export type EstimacionDuracionCantidad = {
+  segundos: number;
+  escaladoPorCantidad: boolean;
+};
+
+/** Estima duración escalando por cantidad si hay historial con unidades. */
+export function estimarDuracionSegundosPorCantidad(
+  preparacionId: string,
+  cantidad: number | null | undefined,
+  unidad: UnidadCantidad | null | undefined,
+  resumenes: ProduccionResumenPreparacion[]
+): EstimacionDuracionCantidad {
+  const resumen = resumenes.find((r) => r.preparacionId === preparacionId);
+  const fallback = resumen?.duracionMedianaSegundos ?? DURACION_DEFECTO_SEGUNDOS;
+
+  if (
+    !cantidad ||
+    cantidad <= 0 ||
+    !unidad ||
+    !resumen?.segundosPorUnidadMediana ||
+    !resumen.unidadCantidad
+  ) {
+    return { segundos: fallback, escaladoPorCantidad: false };
+  }
+
+  const normalizada = cantidadEnUnidadReferencia(cantidad, unidad, resumen.unidadCantidad);
+  if (normalizada == null) {
+    return { segundos: fallback, escaladoPorCantidad: false };
+  }
+
+  return {
+    segundos: Math.max(60, Math.round(normalizada * resumen.segundosPorUnidadMediana)),
+    escaladoPorCantidad: true,
+  };
+}
+
+export function etiquetaRitmoProduccion(resumen: ProduccionResumenPreparacion): string | null {
+  if (
+    resumen.segundosPorUnidadMediana == null ||
+    !resumen.unidadCantidad ||
+    resumen.sesionesConCantidad === 0
+  ) {
+    return null;
+  }
+  const minPorUnidad = resumen.segundosPorUnidadMediana / 60;
+  const fmt =
+    minPorUnidad >= 1
+      ? `${minPorUnidad.toLocaleString("es-AR", { maximumFractionDigits: 1 })} min/${resumen.unidadCantidad}`
+      : `${(resumen.segundosPorUnidadMediana).toLocaleString("es-AR", { maximumFractionDigits: 0 })} s/${resumen.unidadCantidad}`;
+  return fmt;
 }
 
 export async function fetchProduccionSesionesRecientes(
@@ -353,6 +445,7 @@ export async function completarProduccionSesion(
   sesion: ProduccionSesion,
   opts: {
     cantidadProducida?: number | null;
+    unidadCantidad?: UnidadCantidad | null;
     notas?: string | null;
   }
 ): Promise<ProduccionSesion> {
@@ -374,6 +467,7 @@ export async function completarProduccionSesion(
       pausa_total_segundos: pausaTotal,
       duracion_segundos: duracion,
       cantidad_producida: opts.cantidadProducida ?? sesion.cantidadProducida,
+      unidad_cantidad: opts.unidadCantidad ?? sesion.unidadCantidad,
       notas: opts.notas?.trim() || sesion.notas,
     })
     .eq("id", sesion.id)
@@ -400,6 +494,7 @@ export async function guardarProduccionSesionManual(opts: {
   prep: Preparacion;
   duracionMinutos: number;
   cantidadProducida?: number | null;
+  unidadCantidad?: UnidadCantidad | null;
   notas?: string | null;
   usuario: SessionUsuario | null;
 }): Promise<ProduccionSesion> {
@@ -417,7 +512,7 @@ export async function guardarProduccionSesionManual(opts: {
       ended_at: fin.toISOString(),
       duracion_segundos: duracionSegundos,
       cantidad_producida: opts.cantidadProducida ?? null,
-      unidad_cantidad: opts.prep.unidadCantidad,
+      unidad_cantidad: opts.unidadCantidad ?? opts.prep.unidadCantidad,
       notas: opts.notas?.trim() || null,
       es_manual: true,
       ...usuarioPayload(opts.usuario),

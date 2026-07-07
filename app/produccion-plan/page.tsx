@@ -16,14 +16,18 @@ import {
 
 import {
   cantidadSugeridaAlMarcar,
+  esUnidadCantidadValida,
   ETIQUETA_AREA_PRODUCCION,
   fetchPreparaciones,
   parseCantidadInput,
+  UNIDADES_CANTIDAD,
   type Preparacion,
+  type UnidadCantidad,
 } from "@/src/lib/preparaciones";
 import { APP_USERS } from "@/src/lib/auth-users";
 import {
   calcularResumenesPorPreparacion,
+  estimarDuracionSegundosPorCantidad,
   fetchProduccionSesionesRecientes,
   fetchSessionUsuario,
   formatearDuracionLegible,
@@ -87,7 +91,9 @@ export default function ProduccionPlanPage() {
   const [horaInicio, setHoraInicio] = useState("09:00");
   const [horaFin, setHoraFin] = useState("10:00");
   const [cantidad, setCantidad] = useState("");
+  const [unidadCantidad, setUnidadCantidad] = useState<UnidadCantidad>("kg");
   const [notas, setNotas] = useState("");
+  const [estimacionEscalada, setEstimacionEscalada] = useState(false);
   const [asignadoId, setAsignadoId] = useState("");
 
   const equipo = useMemo(() => APP_USERS.map((u) => ({ id: u.id, name: u.displayName })), []);
@@ -98,6 +104,16 @@ export default function ProduccionPlanPage() {
   const prepSeleccionada = useMemo(
     () => preparaciones.find((p) => p.id === prepId) ?? null,
     [preparaciones, prepId]
+  );
+
+  const aplicarDuracionEstimada = useCallback(
+    (prep: Preparacion, inicio: string, cantidadStr: string, unidad: UnidadCantidad) => {
+      const cant = parseCantidadInput(cantidadStr);
+      const est = estimarDuracionSegundosPorCantidad(prep.id, cant, unidad, resumenes);
+      setHoraFin(calcularHoraFinDesdeInicio(inicio, est.segundos));
+      setEstimacionEscalada(est.escaladoPorCantidad);
+    },
+    [resumenes]
   );
 
   const refrescar = useCallback(async () => {
@@ -166,6 +182,7 @@ export default function ProduccionPlanPage() {
     setHoraFin(calcularHoraFinDesdeInicio(inicio, 60 * 60));
     setCantidad("");
     setNotas("");
+    setEstimacionEscalada(false);
     if (usuario) {
       setAsignadoId(usuario.id);
     }
@@ -178,17 +195,32 @@ export default function ProduccionPlanPage() {
     if (!prep) {
       return;
     }
-    const seg = estimarDuracionSegundos(prep.id, resumenes);
-    setHoraFin(calcularHoraFinDesdeInicio(horaInicio, seg));
-    setCantidad(String(cantidadSugeridaAlMarcar(prep)));
+    setUnidadCantidad(prep.unidadCantidad);
+    const cant = String(cantidadSugeridaAlMarcar(prep));
+    setCantidad(cant);
+    aplicarDuracionEstimada(prep, horaInicio, cant, prep.unidadCantidad);
   };
 
   const onCambioHoraInicio = (valor: string) => {
     setHoraInicio(valor);
     if (prepSeleccionada) {
-      const seg = estimarDuracionSegundos(prepSeleccionada.id, resumenes);
-      setHoraFin(calcularHoraFinDesdeInicio(valor, seg));
+      aplicarDuracionEstimada(prepSeleccionada, valor, cantidad, unidadCantidad);
     }
+  };
+
+  const onCambioCantidad = (valor: string) => {
+    setCantidad(valor);
+    if (prepSeleccionada) {
+      aplicarDuracionEstimada(prepSeleccionada, horaInicio, valor, unidadCantidad);
+    }
+  };
+
+  const onCambioUnidad = (valor: string) => {
+    if (!esUnidadCantidadValida(valor) || !prepSeleccionada) {
+      return;
+    }
+    setUnidadCantidad(valor);
+    aplicarDuracionEstimada(prepSeleccionada, horaInicio, cantidad, valor);
   };
 
   const guardar = async () => {
@@ -214,6 +246,7 @@ export default function ProduccionPlanPage() {
         horaFin,
         prep: prepSeleccionada,
         cantidadPlanificada: parseCantidadInput(cantidad),
+        unidadCantidad,
         notas,
         asignado: { id: asignado.id, name: asignado.name },
         usuario,
@@ -479,6 +512,9 @@ export default function ProduccionPlanPage() {
                               </div>
                               <p className="text-[9px] font-medium opacity-90">
                                 {item.asignadoANombre ?? "Sin asignar"}
+                                {item.cantidadPlanificada && item.unidadCantidad
+                                  ? ` · ${item.cantidadPlanificada} ${item.unidadCantidad}`
+                                  : ""}
                               </p>
                               <p className="mt-auto text-[9px] tabular-nums opacity-80">
                                 {etiquetaHorarioItem(item)}
@@ -496,8 +532,8 @@ export default function ProduccionPlanPage() {
         )}
 
         <p className="mt-4 text-xs text-zinc-500">
-          Grilla {String(GRILLA_HORA_INICIO).padStart(2, "0")}:00–{GRILLA_HORA_FIN}:00. Tocá
-          cualquier franja horaria para planificar una preparación.
+          Grilla 10:00–00:00 (horario del local). Tocá cualquier franja para planificar una
+          preparación.
         </p>
       </section>
 
@@ -539,9 +575,28 @@ export default function ProduccionPlanPage() {
               </label>
               {prepSeleccionada ? (
                 <p className="text-xs text-zinc-500">
-                  Mediana:{" "}
-                  {formatearDuracionLegible(
-                    estimarDuracionSegundos(prepSeleccionada.id, resumenes)
+                  {estimacionEscalada && parseCantidadInput(cantidad) ? (
+                    <>
+                      Duración escalada:{" "}
+                      <span className="text-violet-300">
+                        {formatearDuracionLegible(
+                          estimarDuracionSegundosPorCantidad(
+                            prepSeleccionada.id,
+                            parseCantidadInput(cantidad),
+                            unidadCantidad,
+                            resumenes
+                          ).segundos
+                        )}{" "}
+                        para {cantidad} {unidadCantidad}
+                      </span>
+                    </>
+                  ) : (
+                    <>
+                      Sin historial con cantidad — mediana fija:{" "}
+                      {formatearDuracionLegible(
+                        estimarDuracionSegundos(prepSeleccionada.id, resumenes)
+                      )}
+                    </>
                   )}
                 </p>
               ) : null}
@@ -590,13 +645,26 @@ export default function ProduccionPlanPage() {
                 <span className="mb-1 block text-xs uppercase tracking-wide text-zinc-500">
                   Cantidad
                 </span>
-                <input
-                  type="text"
-                  inputMode="decimal"
-                  value={cantidad}
-                  onChange={(e) => setCantidad(e.target.value)}
-                  className="w-full rounded-xl border border-zinc-700 bg-zinc-950 px-4 py-2.5 text-sm"
-                />
+                <div className="flex gap-2">
+                  <input
+                    type="text"
+                    inputMode="decimal"
+                    value={cantidad}
+                    onChange={(e) => onCambioCantidad(e.target.value)}
+                    className="min-w-0 flex-1 rounded-xl border border-zinc-700 bg-zinc-950 px-4 py-2.5 text-sm"
+                  />
+                  <select
+                    value={unidadCantidad}
+                    onChange={(e) => onCambioUnidad(e.target.value)}
+                    className="rounded-xl border border-zinc-700 bg-zinc-950 px-2 py-2.5 text-sm"
+                  >
+                    {UNIDADES_CANTIDAD.map((u) => (
+                      <option key={u} value={u}>
+                        {u}
+                      </option>
+                    ))}
+                  </select>
+                </div>
               </label>
               <label className="block">
                 <span className="mb-1 block text-xs uppercase tracking-wide text-zinc-500">

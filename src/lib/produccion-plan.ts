@@ -7,6 +7,7 @@ import {
   type UnidadCantidad,
 } from "@/src/lib/preparaciones";
 import {
+  estimarDuracionSegundosPorCantidad,
   formatearDuracionLegible,
   type ProduccionResumenPreparacion,
 } from "@/src/lib/produccion-sesiones";
@@ -67,9 +68,9 @@ export const DIAS_SEMANA_ISO = [
   { valor: 7, corto: "Dom", largo: "Domingo" },
 ] as const;
 
-/** Grilla visible: 6:00 a 22:00. */
-export const GRILLA_HORA_INICIO = 6;
-export const GRILLA_HORA_FIN = 22;
+/** Grilla visible: 10:00 (entrada) a 24:00 (salida). */
+export const GRILLA_HORA_INICIO = 10;
+export const GRILLA_HORA_FIN = 24;
 export const GRILLA_PX_POR_HORA = 56;
 
 /** Personas que pueden producir en paralelo (Manu, Javi, Santi). */
@@ -79,7 +80,7 @@ export const PRODUCCION_PLAN_SELECT =
   "id, fecha, hora_inicio, hora_fin, preparacion_id, preparacion_nombre, area, duracion_estimada_segundos, cantidad_planificada, unidad_cantidad, asignado_a_id, asignado_a_nombre, notas, estado, creado_por_id, creado_por_nombre, created_at";
 
 const DURACION_DEFECTO_SEGUNDOS = 60 * 60;
-const HORA_DEFECTO_INICIO = "09:00";
+const HORA_DEFECTO_INICIO = "10:00";
 
 export function formatFechaLocalYYYYMMDD(d: Date): string {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(
@@ -210,10 +211,15 @@ export function planItemDesdeFila(row: ProduccionPlanItemDbRow): ProduccionPlanI
 
 export function estimarDuracionSegundos(
   preparacionId: string,
-  resumenes: ProduccionResumenPreparacion[]
+  resumenes: ProduccionResumenPreparacion[],
+  opts?: { cantidad?: number | null; unidad?: UnidadCantidad | null }
 ): number {
-  const resumen = resumenes.find((r) => r.preparacionId === preparacionId);
-  return resumen?.duracionMedianaSegundos ?? DURACION_DEFECTO_SEGUNDOS;
+  return estimarDuracionSegundosPorCantidad(
+    preparacionId,
+    opts?.cantidad,
+    opts?.unidad,
+    resumenes
+  ).segundos;
 }
 
 export function itemsPlanPorFecha(
@@ -386,6 +392,7 @@ export async function crearProduccionPlanItem(opts: {
   horaFin: string;
   prep: Preparacion;
   cantidadPlanificada?: number | null;
+  unidadCantidad?: UnidadCantidad | null;
   notas?: string | null;
   asignado?: SessionUsuario | null;
   usuario: SessionUsuario | null;
@@ -402,7 +409,7 @@ export async function crearProduccionPlanItem(opts: {
       area: opts.prep.area,
       duracion_estimada_segundos: duracion,
       cantidad_planificada: opts.cantidadPlanificada ?? null,
-      unidad_cantidad: opts.prep.unidadCantidad,
+      unidad_cantidad: opts.unidadCantidad ?? opts.prep.unidadCantidad,
       asignado_a_id: opts.asignado?.id ?? null,
       asignado_a_nombre: opts.asignado?.name ?? null,
       notas: opts.notas?.trim() || null,
