@@ -52,6 +52,7 @@ import {
   MENSAJE_MIGRACION_HORARIOS_PLAN,
   GRILLA_HORA_FIN,
   GRILLA_HORA_INICIO,
+  GRILLA_ITEM_MIN_ALTURA_PX,
   horasGrilla,
   itemTieneConflicto,
   itemsPlanPorFecha,
@@ -59,6 +60,7 @@ import {
   marcarPlanItemCompletado,
   marcarPlanItemPendiente,
   PRODUCCION_PERSONAS_PARALELAS,
+  siguienteHorarioLibrePersona,
   topItemGrillaPx,
   type ProduccionPlanItem,
 } from "@/src/lib/produccion-plan";
@@ -108,6 +110,20 @@ export default function ProduccionPlanPage() {
     [preparaciones, prepId]
   );
 
+  const horarioSugeridoActivo = useMemo(() => {
+    if (!modal || !asignadoId) {
+      return false;
+    }
+    return (
+      siguienteHorarioLibrePersona({
+        fecha: modal.fecha,
+        horaDesde: modal.horaInicio,
+        asignadoId,
+        plan,
+      }) !== modal.horaInicio
+    );
+  }, [modal, asignadoId, plan]);
+
   const aplicarDuracionEstimada = useCallback(
     (prep: Preparacion, inicio: string, cantidadStr: string, unidad: UnidadCantidad) => {
       const cant = parseCantidadInput(cantidadStr);
@@ -116,6 +132,39 @@ export default function ProduccionPlanPage() {
       setEstimacionEscalada(est.escaladoPorCantidad);
     },
     [resumenes]
+  );
+
+  const sugerirHorarioInicio = useCallback(
+    (fecha: string, horaSlot: string, personaId: string) => {
+      return siguienteHorarioLibrePersona({
+        fecha,
+        horaDesde: horaSlot,
+        asignadoId: personaId || null,
+        plan,
+      });
+    },
+    [plan]
+  );
+
+  const aplicarHorarioSugerido = useCallback(
+    (
+      fecha: string,
+      horaSlot: string,
+      personaId: string,
+      prep: Preparacion | null,
+      cantidadStr: string,
+      unidad: UnidadCantidad
+    ) => {
+      const inicio = sugerirHorarioInicio(fecha, horaSlot, personaId);
+      setHoraInicio(inicio);
+      if (prep) {
+        aplicarDuracionEstimada(prep, inicio, cantidadStr, unidad);
+      } else {
+        setHoraFin(calcularHoraFinDesdeInicio(inicio, 60 * 60));
+      }
+      return inicio;
+    },
+    [aplicarDuracionEstimada, sugerirHorarioInicio]
   );
 
   const refrescar = useCallback(async () => {
@@ -210,18 +259,33 @@ export default function ProduccionPlanPage() {
   };
 
   const abrirModal = (fecha: string, hora: number) => {
-    const inicio = etiquetaHoraGrilla(hora);
-    setModal({ fecha, horaInicio: inicio });
+    const horaSlot = etiquetaHoraGrilla(hora);
+    const personaId = usuario?.id ?? asignadoId;
+    setModal({ fecha, horaInicio: horaSlot });
     setPrepId("");
-    setHoraInicio(inicio);
-    setHoraFin(calcularHoraFinDesdeInicio(inicio, 60 * 60));
     setCantidad("");
     setNotas("");
     setEstimacionEscalada(false);
-    if (usuario) {
-      setAsignadoId(usuario.id);
+    if (personaId) {
+      setAsignadoId(personaId);
     }
+    aplicarHorarioSugerido(fecha, horaSlot, personaId, null, "", unidadCantidad);
     setError(null);
+  };
+
+  const onCambioAsignado = (id: string) => {
+    setAsignadoId(id);
+    if (!modal) {
+      return;
+    }
+    aplicarHorarioSugerido(
+      modal.fecha,
+      modal.horaInicio,
+      id,
+      prepSeleccionada,
+      cantidad,
+      unidadCantidad
+    );
   };
 
   const onElegirPrep = (id: string) => {
@@ -423,9 +487,9 @@ export default function ProduccionPlanPage() {
             Cargando grilla…
           </div>
         ) : (
-          <div className="-mx-2 overflow-x-auto pb-2">
-            <div className="min-w-[52rem] px-2">
-              <div className="grid grid-cols-[3.5rem_repeat(7,minmax(6.5rem,1fr))] gap-px">
+          <div className="-mx-2 overflow-x-auto pb-2 sm:mx-0">
+            <div className="min-w-[68rem] px-2 sm:min-w-0">
+              <div className="grid grid-cols-[4rem_repeat(7,minmax(9rem,1fr))] gap-px sm:grid-cols-[4.5rem_repeat(7,minmax(0,1fr))]">
                 <div className="sticky left-0 z-20 bg-zinc-900/95" />
                 {fechasSemana.map((fecha) => {
                   const diaIso = diaSemanaIsoDesdeFecha(fecha);
@@ -458,7 +522,7 @@ export default function ProduccionPlanPage() {
                   {horas.map((h) => (
                     <div
                       key={h}
-                      className="absolute right-2 -translate-y-1/2 text-[10px] tabular-nums text-zinc-500"
+                      className="absolute right-2 -translate-y-1/2 text-xs tabular-nums text-zinc-500"
                       style={{
                         top: `${((h - GRILLA_HORA_INICIO) / (GRILLA_HORA_FIN - GRILLA_HORA_INICIO)) * 100}%`,
                       }}
@@ -503,22 +567,22 @@ export default function ProduccionPlanPage() {
                         return (
                           <div
                             key={item.id}
-                            className={`absolute z-[5] overflow-hidden rounded-md border px-1 py-0.5 shadow-md ${claseAreaBloque(
+                            className={`absolute z-[5] overflow-hidden rounded-lg border px-2 py-1 shadow-md ${claseAreaBloque(
                               item.area,
                               completada
                             )} ${conflicto ? "ring-2 ring-red-500/70" : ""} ${completada ? "opacity-80" : ""}`}
                             style={{
                               top: topItemGrillaPx(item),
                               height: alturaItemGrillaPx(item),
-                              minHeight: 28,
-                              left: `calc(${izqPct}% + 2px)`,
-                              width: `calc(${anchoPct}% - 4px)`,
+                              minHeight: GRILLA_ITEM_MIN_ALTURA_PX,
+                              left: `calc(${izqPct}% + 3px)`,
+                              width: `calc(${anchoPct}% - 6px)`,
                             }}
                           >
-                            <div className="flex h-full flex-col">
-                              <div className="flex items-start justify-between gap-0.5">
+                            <div className="flex h-full min-h-0 flex-col gap-0.5">
+                              <div className="flex items-start justify-between gap-1">
                                 <p
-                                  className={`line-clamp-2 text-[10px] font-semibold leading-tight ${
+                                  className={`line-clamp-2 text-xs font-semibold leading-snug ${
                                     completada ? "line-through" : ""
                                   }`}
                                 >
@@ -535,7 +599,7 @@ export default function ProduccionPlanPage() {
                                     className="rounded p-0.5 opacity-70 hover:opacity-100 disabled:opacity-40"
                                     title={completada ? "Marcar pendiente" : "Hecha"}
                                   >
-                                    <Check className="h-3 w-3" />
+                                    <Check className="h-3.5 w-3.5" />
                                   </button>
                                   <button
                                     type="button"
@@ -546,17 +610,17 @@ export default function ProduccionPlanPage() {
                                     disabled={isBusy}
                                     className="rounded p-0.5 opacity-70 hover:opacity-100 disabled:opacity-40"
                                   >
-                                    <Trash2 className="h-3 w-3" />
+                                    <Trash2 className="h-3.5 w-3.5" />
                                   </button>
                                 </div>
                               </div>
-                              <p className="text-[9px] font-medium opacity-90">
+                              <p className="truncate text-[11px] font-medium leading-tight opacity-90">
                                 {item.asignadoANombre ?? "Sin asignar"}
                                 {item.cantidadPlanificada && item.unidadCantidad
                                   ? ` · ${item.cantidadPlanificada} ${item.unidadCantidad}`
                                   : ""}
                               </p>
-                              <p className="mt-auto text-[9px] tabular-nums opacity-80">
+                              <p className="mt-auto text-[11px] tabular-nums leading-tight opacity-80">
                                 {etiquetaHorarioItem(item)}
                               </p>
                             </div>
@@ -572,8 +636,8 @@ export default function ProduccionPlanPage() {
         )}
 
         <p className="mt-4 text-xs text-zinc-500">
-          Grilla 10:00–00:00 (horario del local). Tocá cualquier franja para planificar una
-          preparación.
+          Grilla 10:00–00:00 (horario del local). Deslizá horizontalmente en el celular si hace
+          falta. Tocá cualquier franja para planificar una preparación.
         </p>
       </section>
 
@@ -646,7 +710,7 @@ export default function ProduccionPlanPage() {
                 </span>
                 <select
                   value={asignadoId}
-                  onChange={(e) => setAsignadoId(e.target.value)}
+                  onChange={(e) => onCambioAsignado(e.target.value)}
                   className="w-full rounded-xl border border-zinc-700 bg-zinc-950 px-4 py-2.5 text-sm"
                 >
                   <option value="">Elegir…</option>
@@ -657,6 +721,11 @@ export default function ProduccionPlanPage() {
                   ))}
                 </select>
               </label>
+              {horarioSugeridoActivo ? (
+                <p className="text-xs text-sky-300/90">
+                  Siguiente hueco libre para esta persona: {horaInicio}
+                </p>
+              ) : null}
               <div className="grid grid-cols-2 gap-3">
                 <label className="block">
                   <span className="mb-1 block text-xs uppercase tracking-wide text-zinc-500">

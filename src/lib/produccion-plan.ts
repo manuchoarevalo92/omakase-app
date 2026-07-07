@@ -71,7 +71,10 @@ export const DIAS_SEMANA_ISO = [
 /** Grilla visible: 10:00 (entrada) a 24:00 (salida). */
 export const GRILLA_HORA_INICIO = 10;
 export const GRILLA_HORA_FIN = 24;
-export const GRILLA_PX_POR_HORA = 56;
+/** Altura de cada franja horaria en la grilla (legible en móvil con scroll). */
+export const GRILLA_PX_POR_HORA = 88;
+/** Altura mínima de un bloque de preparación aunque dure pocos minutos. */
+export const GRILLA_ITEM_MIN_ALTURA_PX = 52;
 
 /** Personas que pueden producir en paralelo (Manu, Javi, Santi). */
 export const PRODUCCION_PERSONAS_PARALELAS = 3;
@@ -212,7 +215,7 @@ export function topItemGrillaPx(item: ProduccionPlanItem): number {
 export function alturaItemGrillaPx(item: ProduccionPlanItem): number {
   const mins =
     minutosDesdeMedianoche(item.horaFin) - minutosDesdeMedianoche(item.horaInicio);
-  return Math.max((mins / 60) * GRILLA_PX_POR_HORA, 28);
+  return Math.max((mins / 60) * GRILLA_PX_POR_HORA, GRILLA_ITEM_MIN_ALTURA_PX);
 }
 
 export function planItemDesdeFila(row: ProduccionPlanItemDbRow): ProduccionPlanItem {
@@ -282,6 +285,50 @@ export function itemsSeSolapan(a: ProduccionPlanItem, b: ProduccionPlanItem): bo
   const bIni = minutosDesdeMedianoche(b.horaInicio);
   const bFin = minutosDesdeMedianoche(b.horaFin);
   return aIni < bFin && bIni < aFin;
+}
+
+function itemOcupaMinutoPersona(
+  item: ProduccionPlanItem,
+  minuto: number,
+  asignadoId: string
+): boolean {
+  if (item.estado === "cancelada" || item.asignadoAId !== asignadoId) {
+    return false;
+  }
+  const ini = minutosDesdeMedianoche(item.horaInicio);
+  const fin = minutosDesdeMedianoche(item.horaFin);
+  return ini <= minuto && minuto < fin;
+}
+
+/** Próximo inicio libre para una persona en un día, a partir del horario tocado en la grilla. */
+export function siguienteHorarioLibrePersona(opts: {
+  fecha: string;
+  horaDesde: string;
+  asignadoId: string | null;
+  plan: ProduccionPlanItem[];
+}): string {
+  if (!opts.asignadoId) {
+    return opts.horaDesde;
+  }
+
+  const limiteMax = GRILLA_HORA_FIN * 60;
+  let cursor = minutosDesdeMedianoche(opts.horaDesde);
+  const itemsDia = itemsPlanPorFecha(opts.plan, opts.fecha);
+
+  for (let paso = 0; paso <= itemsDia.length; paso++) {
+    const bloqueante = itemsDia.find((item) =>
+      itemOcupaMinutoPersona(item, cursor, opts.asignadoId!)
+    );
+    if (!bloqueante) {
+      break;
+    }
+    cursor = minutosDesdeMedianoche(bloqueante.horaFin);
+    if (cursor >= limiteMax) {
+      break;
+    }
+  }
+
+  return formatearHoraHHmm(Math.min(cursor, limiteMax));
 }
 
 export function maxSolapamientosConcurrentes(
