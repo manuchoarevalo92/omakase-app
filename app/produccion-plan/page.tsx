@@ -49,6 +49,7 @@ import {
   fechasSemanaDesdeLunes,
   fetchProduccionPlanSemana,
   formatFechaLocalYYYYMMDD,
+  MENSAJE_MIGRACION_HORARIOS_PLAN,
   GRILLA_HORA_FIN,
   GRILLA_HORA_INICIO,
   horasGrilla,
@@ -85,10 +86,11 @@ export default function ProduccionPlanPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [isBusy, setIsBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [requiereMigracionHorarios, setRequiereMigracionHorarios] = useState(false);
   const [success, setSuccess] = useState<string | null>(null);
   const [modal, setModal] = useState<ModalPrep | null>(null);
   const [prepId, setPrepId] = useState("");
-  const [horaInicio, setHoraInicio] = useState("09:00");
+  const [horaInicio, setHoraInicio] = useState("10:00");
   const [horaFin, setHoraFin] = useState("10:00");
   const [cantidad, setCantidad] = useState("");
   const [unidadCantidad, setUnidadCantidad] = useState<UnidadCantidad>("kg");
@@ -117,14 +119,47 @@ export default function ProduccionPlanPage() {
   );
 
   const refrescar = useCallback(async () => {
-    const [planLista, preps, sesiones] = await Promise.all([
+    const [planResult, prepsResult, sesionesResult] = await Promise.allSettled([
       fetchProduccionPlanSemana(lunesSemana),
       fetchPreparaciones(),
       fetchProduccionSesionesRecientes(200),
     ]);
-    setPlan(planLista);
-    setPreparaciones(preps);
-    setResumenes(calcularResumenesPorPreparacion(sesiones));
+
+    const errores: string[] = [];
+
+    if (planResult.status === "fulfilled") {
+      setPlan(planResult.value.items);
+      setRequiereMigracionHorarios(planResult.value.requiereMigracionHorarios);
+    } else {
+      setPlan([]);
+      setRequiereMigracionHorarios(false);
+      errores.push(
+        planResult.reason instanceof Error
+          ? planResult.reason.message
+          : "No se pudo cargar el plan."
+      );
+    }
+
+    if (prepsResult.status === "fulfilled") {
+      setPreparaciones(prepsResult.value);
+    } else {
+      setPreparaciones([]);
+      errores.push(
+        prepsResult.reason instanceof Error
+          ? prepsResult.reason.message
+          : "No se pudieron cargar las preparaciones."
+      );
+    }
+
+    if (sesionesResult.status === "fulfilled") {
+      setResumenes(calcularResumenesPorPreparacion(sesionesResult.value));
+    } else {
+      setResumenes([]);
+    }
+
+    if (errores.length > 0) {
+      throw new Error(errores.join(" "));
+    }
   }, [lunesSemana]);
 
   useEffect(() => {
@@ -366,6 +401,11 @@ export default function ProduccionPlanPage() {
           <span className="text-red-400/90">Borde rojo = misma persona doble o más de 3 a la vez.</span>
         </div>
 
+        {requiereMigracionHorarios ? (
+          <p className="mb-4 rounded-xl border border-amber-900/60 bg-amber-950/40 px-4 py-3 text-sm text-amber-100">
+            {MENSAJE_MIGRACION_HORARIOS_PLAN}
+          </p>
+        ) : null}
         {error ? (
           <p className="mb-4 rounded-xl border border-red-900/60 bg-red-950/40 px-4 py-3 text-sm text-red-200">
             {error}

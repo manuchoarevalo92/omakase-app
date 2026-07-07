@@ -22,14 +22,14 @@ from public.produccion_bloques b
 where p.bloque_id = b.id
   and p.hora_inicio is null;
 
--- Fallback: 09:00 + duración estimada.
+-- Fallback: 10:00 + duración estimada (inicio de grilla del local).
 update public.produccion_plan
 set
-  hora_inicio = coalesce(hora_inicio, '09:00'),
+  hora_inicio = coalesce(hora_inicio, '10:00'),
   hora_fin = coalesce(
     hora_fin,
     to_char(
-      '09:00'::time + make_interval(secs => duracion_estimada_segundos),
+      '10:00'::time + make_interval(secs => duracion_estimada_segundos),
       'HH24:MI'
     )
   )

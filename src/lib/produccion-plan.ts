@@ -79,7 +79,45 @@ export const PRODUCCION_PERSONAS_PARALELAS = 3;
 export const PRODUCCION_PLAN_SELECT =
   "id, fecha, hora_inicio, hora_fin, preparacion_id, preparacion_nombre, area, duracion_estimada_segundos, cantidad_planificada, unidad_cantidad, asignado_a_id, asignado_a_nombre, notas, estado, creado_por_id, creado_por_nombre, created_at";
 
-const DURACION_DEFECTO_SEGUNDOS = 60 * 60;
+/** Sin hora_inicio/hora_fin (tablas creadas antes de produccion-plan-horarios.sql). */
+const PRODUCCION_PLAN_SELECT_SIN_HORARIOS =
+  "id, fecha, preparacion_id, preparacion_nombre, area, duracion_estimada_segundos, cantidad_planificada, unidad_cantidad, asignado_a_id, asignado_a_nombre, notas, estado, creado_por_id, creado_por_nombre, created_at";
+
+export const MENSAJE_MIGRACION_HORARIOS_PLAN =
+  "Faltan las columnas hora_inicio y hora_fin en produccion_plan. En Supabase → SQL Editor ejecutá supabase/produccion-plan-horarios.sql y recargá la página para guardar bloques con horario en la grilla.";
+
+export type ProduccionPlanSemanaCarga = {
+  items: ProduccionPlanItem[];
+  requiereMigracionHorarios: boolean;
+};
+
+type PostgrestishError = {
+  message: string;
+  code?: string;
+  details?: string | null;
+  hint?: string | null;
+};
+
+function errorColumnaFaltante(error: PostgrestishError): boolean {
+  const msg = error.message.toLowerCase();
+  if (!msg.includes("column")) {
+    return false;
+  }
+  return (
+    msg.includes("does not exist") ||
+    msg.includes("schema cache") ||
+    (msg.includes("could not find") && msg.includes("column"))
+  );
+}
+
+function errorColumnaHorarioFaltante(error: PostgrestishError): boolean {
+  const msg = error.message.toLowerCase();
+  return (
+    errorColumnaFaltante(error) &&
+    (msg.includes("hora_inicio") || msg.includes("hora_fin"))
+  );
+}
+
 const HORA_DEFECTO_INICIO = "10:00";
 
 export function formatFechaLocalYYYYMMDD(d: Date): string {
@@ -356,22 +394,48 @@ export function etiquetaAreaPlan(area: AreaProduccion): string {
 
 export async function fetchProduccionPlanSemana(
   lunes: string
-): Promise<ProduccionPlanItem[]> {
+): Promise<ProduccionPlanSemanaCarga> {
   const fechas = fechasSemanaDesdeLunes(lunes);
-  const { data, error } = await supabase
-    .from("produccion_plan")
-    .select(PRODUCCION_PLAN_SELECT)
-    .gte("fecha", fechas[0])
-    .lte("fecha", fechas[6])
-    .neq("estado", "cancelada")
-    .order("fecha", { ascending: true })
-    .order("hora_inicio", { ascending: true });
+  const buildQuery = (select: string) =>
+    supabase
+      .from("produccion_plan")
+      .select(select)
+      .gte("fecha", fechas[0])
+      .lte("fecha", fechas[6])
+      .neq("estado", "cancelada")
+      .order("fecha", { ascending: true });
 
-  if (error) {
-    throw new Error(formatPostgrestError(error));
+  const { data, error } = await buildQuery(PRODUCCION_PLAN_SELECT).order(
+    "hora_inicio",
+    { ascending: true }
+  );
+
+  if (!error) {
+    return {
+      items: ((data ?? []) as unknown as ProduccionPlanItemDbRow[]).map(planItemDesdeFila),
+      requiereMigracionHorarios: false,
+    };
   }
 
-  return ((data ?? []) as ProduccionPlanItemDbRow[]).map(planItemDesdeFila);
+  if (errorColumnaHorarioFaltante(error)) {
+    const legacy = await buildQuery(PRODUCCION_PLAN_SELECT_SIN_HORARIOS).order(
+      "created_at",
+      { ascending: true }
+    );
+
+    if (legacy.error) {
+      throw new Error(formatPostgrestError(legacy.error));
+    }
+
+    return {
+      items: ((legacy.data ?? []) as unknown as ProduccionPlanItemDbRow[]).map(
+        planItemDesdeFila
+      ),
+      requiereMigracionHorarios: true,
+    };
+  }
+
+  throw new Error(formatPostgrestError(error));
 }
 
 type UsuarioPayload = {

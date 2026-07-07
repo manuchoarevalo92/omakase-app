@@ -167,6 +167,24 @@ export function formatPostgrestError(error: {
         "Ya hay una MEP para esa fecha. Ejecutá supabase/mep-deli-cargas-una-por-dia.sql si migrás desde duplicados viejos."
       );
     }
+    if (
+      msg.includes("produccion_plan") &&
+      (msg.includes("hora_inicio") || msg.includes("hora_fin"))
+    ) {
+      bits.push(
+        "Ejecutá supabase/produccion-plan-horarios.sql en el SQL Editor (columnas hora_inicio y hora_fin para la grilla semanal)."
+      );
+    }
+  }
+  if (
+    msg.includes("column") &&
+    msg.includes("does not exist") &&
+    msg.includes("produccion_plan") &&
+    (msg.includes("hora_inicio") || msg.includes("hora_fin"))
+  ) {
+    bits.push(
+      "Ejecutá supabase/produccion-plan-horarios.sql en el SQL Editor (columnas hora_inicio y hora_fin para la grilla semanal)."
+    );
   }
   if (
     msg.includes("could not find") &&
