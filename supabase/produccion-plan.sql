@@ -38,6 +38,8 @@ comment on column public.produccion_bloques.dia_semana is
 create table if not exists public.produccion_plan (
   id uuid primary key default gen_random_uuid(),
   fecha date not null,
+  hora_inicio text not null default '09:00',
+  hora_fin text not null default '10:00',
   bloque_id uuid references public.produccion_bloques(id) on delete set null,
   preparacion_id uuid references public.preparaciones(id) on delete set null,
   preparacion_nombre text not null,
@@ -90,13 +92,17 @@ alter table public.produccion_plan
   add constraint produccion_plan_unidad_cantidad_check
   check (unidad_cantidad is null or unidad_cantidad in ('L', 'ml', 'kg', 'g', 'ud'));
 
-create index if not exists produccion_plan_fecha_idx
-  on public.produccion_plan (fecha, bloque_id, orden);
+create index if not exists produccion_plan_fecha_hora_idx
+  on public.produccion_plan (fecha, hora_inicio);
 
-create index if not exists produccion_plan_preparacion_idx
-  on public.produccion_plan (preparacion_id, fecha desc);
+create index if not exists produccion_plan_fecha_idx
+  on public.produccion_plan (fecha, orden);
 
 comment on table public.produccion_plan is
-  'Tareas de producción asignadas a un día y bloque horario.';
+  'Preparaciones planificadas en la grilla semanal con hora de inicio y fin.';
+comment on column public.produccion_plan.hora_inicio is
+  'Inicio del bloque en la grilla (HH:MM).';
+comment on column public.produccion_plan.hora_fin is
+  'Fin del bloque en la grilla (HH:MM).';
 comment on column public.produccion_plan.duracion_estimada_segundos is
   'Duración estimada (p. ej. mediana de produccion_sesiones).';

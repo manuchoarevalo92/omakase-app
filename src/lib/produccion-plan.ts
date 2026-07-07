@@ -15,36 +15,13 @@ import { supabase } from "@/src/lib/supabase";
 
 export type SessionUsuario = { id: string; name: string };
 
-export type ProduccionBloque = {
-  id: string;
-  diaSemana: number;
-  horaInicio: string;
-  horaFin: string;
-  area: AreaProduccion;
-  titulo: string;
-  activo: boolean;
-  orden: number;
-  createdAt: string;
-};
-
-export type ProduccionBloqueDbRow = {
-  id: string;
-  dia_semana: number;
-  hora_inicio: string;
-  hora_fin: string;
-  area?: string | null;
-  titulo: string;
-  activo?: boolean | null;
-  orden?: number | null;
-  created_at: string;
-};
-
 export type ProduccionPlanEstado = "pendiente" | "completada" | "cancelada";
 
 export type ProduccionPlanItem = {
   id: string;
   fecha: string;
-  bloqueId: string | null;
+  horaInicio: string;
+  horaFin: string;
   preparacionId: string | null;
   preparacionNombre: string;
   area: AreaProduccion;
@@ -55,7 +32,6 @@ export type ProduccionPlanItem = {
   asignadoANombre: string | null;
   notas: string | null;
   estado: ProduccionPlanEstado;
-  orden: number;
   creadoPorId: string | null;
   creadoPorNombre: string | null;
   createdAt: string;
@@ -64,7 +40,8 @@ export type ProduccionPlanItem = {
 export type ProduccionPlanItemDbRow = {
   id: string;
   fecha: string;
-  bloque_id?: string | null;
+  hora_inicio?: string | null;
+  hora_fin?: string | null;
   preparacion_id?: string | null;
   preparacion_nombre: string;
   area?: string | null;
@@ -75,7 +52,6 @@ export type ProduccionPlanItemDbRow = {
   asignado_a_nombre?: string | null;
   notas?: string | null;
   estado?: string | null;
-  orden?: number | null;
   creado_por_id?: string | null;
   creado_por_nombre?: string | null;
   created_at: string;
@@ -91,13 +67,19 @@ export const DIAS_SEMANA_ISO = [
   { valor: 7, corto: "Dom", largo: "Domingo" },
 ] as const;
 
-export const PRODUCCION_BLOQUE_SELECT =
-  "id, dia_semana, hora_inicio, hora_fin, area, titulo, activo, orden, created_at";
+/** Grilla visible: 6:00 a 22:00. */
+export const GRILLA_HORA_INICIO = 6;
+export const GRILLA_HORA_FIN = 22;
+export const GRILLA_PX_POR_HORA = 56;
+
+/** Personas que pueden producir en paralelo (Manu, Javi, Santi). */
+export const PRODUCCION_PERSONAS_PARALELAS = 3;
 
 export const PRODUCCION_PLAN_SELECT =
-  "id, fecha, bloque_id, preparacion_id, preparacion_nombre, area, duracion_estimada_segundos, cantidad_planificada, unidad_cantidad, asignado_a_id, asignado_a_nombre, notas, estado, orden, creado_por_id, creado_por_nombre, created_at";
+  "id, fecha, hora_inicio, hora_fin, preparacion_id, preparacion_nombre, area, duracion_estimada_segundos, cantidad_planificada, unidad_cantidad, asignado_a_id, asignado_a_nombre, notas, estado, creado_por_id, creado_por_nombre, created_at";
 
 const DURACION_DEFECTO_SEGUNDOS = 60 * 60;
+const HORA_DEFECTO_INICIO = "09:00";
 
 export function formatFechaLocalYYYYMMDD(d: Date): string {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(
@@ -110,7 +92,6 @@ export function parseFechaLocalISO(fecha: string): Date {
   return new Date(y!, m! - 1, d!);
 }
 
-/** 1=lunes … 7=domingo (ISO). */
 export function diaSemanaIsoDesdeFecha(fecha: string): number {
   const d = parseFechaLocalISO(fecha).getDay();
   return d === 0 ? 7 : d;
@@ -141,10 +122,6 @@ export function etiquetaSemana(lunes: string): string {
   return `${fmt(ini)} – ${fmt(fin)}`;
 }
 
-export function etiquetaDiaSemanaIso(dia: number): string {
-  return DIAS_SEMANA_ISO.find((d) => d.valor === dia)?.largo ?? `Día ${dia}`;
-}
-
 export function etiquetaDiaSemanaCorto(dia: number): string {
   return DIAS_SEMANA_ISO.find((d) => d.valor === dia)?.corto ?? `D${dia}`;
 }
@@ -154,38 +131,64 @@ export function minutosDesdeMedianoche(hora: string): number {
   return (h ?? 0) * 60 + (m ?? 0);
 }
 
-export function duracionBloqueSegundos(bloque: ProduccionBloque): number {
-  const ini = minutosDesdeMedianoche(bloque.horaInicio);
-  const fin = minutosDesdeMedianoche(bloque.horaFin);
-  return Math.max(0, (fin - ini) * 60);
+export function formatearHoraHHmm(minutos: number): string {
+  const h = Math.floor(minutos / 60) % 24;
+  const m = minutos % 60;
+  return `${String(h).padStart(2, "0")}:${String(m).padStart(2, "0")}`;
 }
 
-export function etiquetaHorarioBloque(bloque: ProduccionBloque): string {
-  return `${bloque.horaInicio}–${bloque.horaFin}`;
+export function calcularHoraFinDesdeInicio(
+  horaInicio: string,
+  duracionSegundos: number
+): string {
+  const fin = minutosDesdeMedianoche(horaInicio) + Math.round(duracionSegundos / 60);
+  return formatearHoraHHmm(fin);
 }
 
-export function bloqueDesdeFila(row: ProduccionBloqueDbRow): ProduccionBloque {
-  return {
-    id: row.id,
-    diaSemana: row.dia_semana,
-    horaInicio: row.hora_inicio,
-    horaFin: row.hora_fin,
-    area: esAreaProduccionValida(row.area) ? row.area : "delivery",
-    titulo: row.titulo,
-    activo: row.activo !== false,
-    orden: row.orden ?? 0,
-    createdAt: row.created_at,
-  };
+export function duracionSegundosEntreHoras(horaInicio: string, horaFin: string): number {
+  const diff = minutosDesdeMedianoche(horaFin) - minutosDesdeMedianoche(horaInicio);
+  return Math.max(60, diff * 60);
+}
+
+export function etiquetaHorarioItem(item: ProduccionPlanItem): string {
+  return `${item.horaInicio}–${item.horaFin}`;
+}
+
+export function horasGrilla(): number[] {
+  return Array.from(
+    { length: GRILLA_HORA_FIN - GRILLA_HORA_INICIO },
+    (_, i) => GRILLA_HORA_INICIO + i
+  );
+}
+
+export function alturaGrillaPx(): number {
+  return (GRILLA_HORA_FIN - GRILLA_HORA_INICIO) * GRILLA_PX_POR_HORA;
+}
+
+export function topItemGrillaPx(item: ProduccionPlanItem): number {
+  const mins = minutosDesdeMedianoche(item.horaInicio) - GRILLA_HORA_INICIO * 60;
+  return (mins / 60) * GRILLA_PX_POR_HORA;
+}
+
+export function alturaItemGrillaPx(item: ProduccionPlanItem): number {
+  const mins =
+    minutosDesdeMedianoche(item.horaFin) - minutosDesdeMedianoche(item.horaInicio);
+  return Math.max((mins / 60) * GRILLA_PX_POR_HORA, 28);
 }
 
 export function planItemDesdeFila(row: ProduccionPlanItemDbRow): ProduccionPlanItem {
   const estado = row.estado;
   const estadoValido: ProduccionPlanEstado =
     estado === "completada" || estado === "cancelada" ? estado : "pendiente";
+  const horaInicio = row.hora_inicio?.trim() || HORA_DEFECTO_INICIO;
+  const horaFin =
+    row.hora_fin?.trim() ||
+    calcularHoraFinDesdeInicio(horaInicio, row.duracion_estimada_segundos);
   return {
     id: row.id,
     fecha: row.fecha,
-    bloqueId: row.bloque_id ?? null,
+    horaInicio,
+    horaFin,
     preparacionId: row.preparacion_id ?? null,
     preparacionNombre: row.preparacion_nombre,
     area: esAreaProduccionValida(row.area) ? row.area : "delivery",
@@ -199,7 +202,6 @@ export function planItemDesdeFila(row: ProduccionPlanItemDbRow): ProduccionPlanI
     asignadoANombre: row.asignado_a_nombre ?? null,
     notas: row.notas?.trim() || null,
     estado: estadoValido,
-    orden: row.orden ?? 0,
     creadoPorId: row.creado_por_id ?? null,
     creadoPorNombre: row.creado_por_nombre ?? null,
     createdAt: row.created_at,
@@ -214,65 +216,136 @@ export function estimarDuracionSegundos(
   return resumen?.duracionMedianaSegundos ?? DURACION_DEFECTO_SEGUNDOS;
 }
 
-export function usoBloqueSegundos(items: ProduccionPlanItem[]): number {
-  return items
-    .filter((i) => i.estado !== "cancelada")
-    .reduce((acc, i) => acc + i.duracionEstimadaSegundos, 0);
+export function itemsPlanPorFecha(
+  plan: ProduccionPlanItem[],
+  fecha: string
+): ProduccionPlanItem[] {
+  return plan
+    .filter((p) => p.fecha === fecha)
+    .sort(
+      (a, b) =>
+        minutosDesdeMedianoche(a.horaInicio) - minutosDesdeMedianoche(b.horaInicio) ||
+        a.preparacionNombre.localeCompare(b.preparacionNombre, "es")
+    );
 }
 
-export function bloqueSobrecargado(
-  bloque: ProduccionBloque,
-  items: ProduccionPlanItem[]
-): boolean {
-  const capacidad = duracionBloqueSegundos(bloque);
-  if (capacidad <= 0) {
+export function itemsSeSolapan(a: ProduccionPlanItem, b: ProduccionPlanItem): boolean {
+  if (a.fecha !== b.fecha || a.estado === "cancelada" || b.estado === "cancelada") {
     return false;
   }
-  return usoBloqueSegundos(items) > capacidad;
+  const aIni = minutosDesdeMedianoche(a.horaInicio);
+  const aFin = minutosDesdeMedianoche(a.horaFin);
+  const bIni = minutosDesdeMedianoche(b.horaInicio);
+  const bFin = minutosDesdeMedianoche(b.horaFin);
+  return aIni < bFin && bIni < aFin;
 }
 
-export function etiquetaUsoBloque(bloque: ProduccionBloque, items: ProduccionPlanItem[]): string {
-  const uso = usoBloqueSegundos(items);
-  const cap = duracionBloqueSegundos(bloque);
-  if (cap <= 0) {
-    return formatearDuracionLegible(uso);
+export function maxSolapamientosConcurrentes(
+  item: ProduccionPlanItem,
+  itemsMismoDia: ProduccionPlanItem[]
+): number {
+  const activos = itemsMismoDia.filter((i) => i.estado !== "cancelada");
+  const ini = minutosDesdeMedianoche(item.horaInicio);
+  const fin = minutosDesdeMedianoche(item.horaFin);
+  const puntos = new Set<number>([ini]);
+  for (const o of activos) {
+    if (!itemsSeSolapan(o, item)) {
+      continue;
+    }
+    const oIni = minutosDesdeMedianoche(o.horaInicio);
+    const oFin = minutosDesdeMedianoche(o.horaFin);
+    if (oIni >= ini && oIni < fin) {
+      puntos.add(oIni);
+    }
+    if (oFin > ini && oFin <= fin) {
+      puntos.add(oFin);
+    }
   }
-  return `${formatearDuracionLegible(uso)} / ${formatearDuracionLegible(cap)}`;
+  let max = 1;
+  for (const t of puntos) {
+    const count = activos.filter((o) => {
+      const oIni = minutosDesdeMedianoche(o.horaInicio);
+      const oFin = minutosDesdeMedianoche(o.horaFin);
+      return oIni <= t && oFin > t;
+    }).length;
+    max = Math.max(max, count);
+  }
+  return max;
+}
+
+/** Conflicto: misma persona dos veces a la vez, o más de 3 en paralelo. */
+export function itemTieneConflicto(
+  item: ProduccionPlanItem,
+  plan: ProduccionPlanItem[]
+): boolean {
+  if (item.estado === "cancelada") {
+    return false;
+  }
+  const mismoDia = plan.filter((p) => p.fecha === item.fecha && p.estado !== "cancelada");
+  if (item.asignadoAId) {
+    const doblePersona = mismoDia.some(
+      (o) =>
+        o.id !== item.id &&
+        o.asignadoAId === item.asignadoAId &&
+        itemsSeSolapan(o, item)
+    );
+    if (doblePersona) {
+      return true;
+    }
+  }
+  return maxSolapamientosConcurrentes(item, mismoDia) > PRODUCCION_PERSONAS_PARALELAS;
+}
+
+export type LayoutParaleloItem = {
+  indice: number;
+  columnas: number;
+};
+
+/** Reparte bloques superpuestos en hasta 3 columnas visuales. */
+export function calcularLayoutParaleloDia(
+  items: ProduccionPlanItem[]
+): Map<string, LayoutParaleloItem> {
+  const activos = items
+    .filter((i) => i.estado !== "cancelada")
+    .sort(
+      (a, b) =>
+        minutosDesdeMedianoche(a.horaInicio) - minutosDesdeMedianoche(b.horaInicio) ||
+        a.id.localeCompare(b.id)
+    );
+
+  const layout = new Map<string, LayoutParaleloItem>();
+  const finPorCarril = Array(PRODUCCION_PERSONAS_PARALELAS).fill(0) as number[];
+
+  for (const item of activos) {
+    const ini = minutosDesdeMedianoche(item.horaInicio);
+    const fin = minutosDesdeMedianoche(item.horaFin);
+    let indice = finPorCarril.findIndex((f) => f <= ini);
+    if (indice < 0) {
+      indice = PRODUCCION_PERSONAS_PARALELAS - 1;
+    }
+    finPorCarril[indice] = fin;
+    const columnas = Math.min(
+      PRODUCCION_PERSONAS_PARALELAS,
+      maxSolapamientosConcurrentes(item, activos)
+    );
+    layout.set(item.id, { indice, columnas });
+  }
+
+  return layout;
+}
+
+export function claseAreaBloque(area: AreaProduccion, completada: boolean): string {
+  if (completada) {
+    return "border-emerald-900/50 bg-emerald-950/30 text-emerald-100/80";
+  }
+  if (area === "barra") {
+    return "border-violet-800/60 bg-violet-950/50 text-violet-50";
+  }
+  return "border-sky-800/60 bg-sky-950/50 text-sky-50";
 }
 
 export function etiquetaAreaPlan(area: AreaProduccion): string {
   return ETIQUETA_AREA_PRODUCCION[area];
-}
-
-export async function fetchProduccionBloques(): Promise<ProduccionBloque[]> {
-  const { data, error } = await supabase
-    .from("produccion_bloques")
-    .select(PRODUCCION_BLOQUE_SELECT)
-    .eq("activo", true)
-    .order("dia_semana", { ascending: true })
-    .order("orden", { ascending: true })
-    .order("hora_inicio", { ascending: true });
-
-  if (error) {
-    throw new Error(formatPostgrestError(error));
-  }
-
-  return ((data ?? []) as ProduccionBloqueDbRow[]).map(bloqueDesdeFila);
-}
-
-export async function fetchProduccionBloquesTodos(): Promise<ProduccionBloque[]> {
-  const { data, error } = await supabase
-    .from("produccion_bloques")
-    .select(PRODUCCION_BLOQUE_SELECT)
-    .order("dia_semana", { ascending: true })
-    .order("orden", { ascending: true })
-    .order("hora_inicio", { ascending: true });
-
-  if (error) {
-    throw new Error(formatPostgrestError(error));
-  }
-
-  return ((data ?? []) as ProduccionBloqueDbRow[]).map(bloqueDesdeFila);
 }
 
 export async function fetchProduccionPlanSemana(
@@ -286,8 +359,7 @@ export async function fetchProduccionPlanSemana(
     .lte("fecha", fechas[6])
     .neq("estado", "cancelada")
     .order("fecha", { ascending: true })
-    .order("orden", { ascending: true })
-    .order("created_at", { ascending: true });
+    .order("hora_inicio", { ascending: true });
 
   if (error) {
     throw new Error(formatPostgrestError(error));
@@ -308,85 +380,27 @@ function usuarioPayload(usuario: SessionUsuario | null): UsuarioPayload {
   return { creado_por_id: usuario.id, creado_por_nombre: usuario.name };
 }
 
-export async function crearProduccionBloque(opts: {
-  diaSemana: number;
-  horaInicio: string;
-  horaFin: string;
-  area: AreaProduccion;
-  titulo: string;
-}): Promise<ProduccionBloque> {
-  const { data, error } = await supabase
-    .from("produccion_bloques")
-    .insert({
-      dia_semana: opts.diaSemana,
-      hora_inicio: opts.horaInicio,
-      hora_fin: opts.horaFin,
-      area: opts.area,
-      titulo: opts.titulo.trim(),
-    })
-    .select(PRODUCCION_BLOQUE_SELECT)
-    .single();
-
-  if (error) {
-    throw new Error(formatPostgrestError(error));
-  }
-
-  return bloqueDesdeFila(data as ProduccionBloqueDbRow);
-}
-
-export async function actualizarProduccionBloque(
-  id: string,
-  patch: Partial<{
-    dia_semana: number;
-    hora_inicio: string;
-    hora_fin: string;
-    area: AreaProduccion;
-    titulo: string;
-    activo: boolean;
-    orden: number;
-  }>
-): Promise<ProduccionBloque> {
-  const { data, error } = await supabase
-    .from("produccion_bloques")
-    .update(patch)
-    .eq("id", id)
-    .select(PRODUCCION_BLOQUE_SELECT)
-    .single();
-
-  if (error) {
-    throw new Error(formatPostgrestError(error));
-  }
-
-  return bloqueDesdeFila(data as ProduccionBloqueDbRow);
-}
-
-export async function eliminarProduccionBloque(id: string): Promise<void> {
-  const { error } = await supabase.from("produccion_bloques").delete().eq("id", id);
-
-  if (error) {
-    throw new Error(formatPostgrestError(error));
-  }
-}
-
 export async function crearProduccionPlanItem(opts: {
   fecha: string;
-  bloqueId: string;
+  horaInicio: string;
+  horaFin: string;
   prep: Preparacion;
-  duracionEstimadaSegundos: number;
   cantidadPlanificada?: number | null;
   notas?: string | null;
   asignado?: SessionUsuario | null;
   usuario: SessionUsuario | null;
 }): Promise<ProduccionPlanItem> {
+  const duracion = duracionSegundosEntreHoras(opts.horaInicio, opts.horaFin);
   const { data, error } = await supabase
     .from("produccion_plan")
     .insert({
       fecha: opts.fecha,
-      bloque_id: opts.bloqueId,
+      hora_inicio: opts.horaInicio,
+      hora_fin: opts.horaFin,
       preparacion_id: opts.prep.id,
       preparacion_nombre: opts.prep.nombre,
       area: opts.prep.area,
-      duracion_estimada_segundos: opts.duracionEstimadaSegundos,
+      duracion_estimada_segundos: duracion,
       cantidad_planificada: opts.cantidadPlanificada ?? null,
       unidad_cantidad: opts.prep.unidadCantidad,
       asignado_a_id: opts.asignado?.id ?? null,
@@ -407,6 +421,8 @@ export async function crearProduccionPlanItem(opts: {
 export async function actualizarProduccionPlanItem(
   id: string,
   patch: Partial<{
+    hora_inicio: string;
+    hora_fin: string;
     duracion_estimada_segundos: number;
     cantidad_planificada: number | null;
     notas: string | null;
