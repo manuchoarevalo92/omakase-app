@@ -34,12 +34,10 @@ import {
   type SessionUsuario,
 } from "@/src/lib/produccion-sesiones";
 import {
-  alturaGrillaPx,
-  alturaGrillaSemanaPx,
   alturaItemGrillaPx,
   anchoMinimoGrillaSemanaPx,
   calcularHoraFinDesdeInicio,
-  calcularLayoutVisualDia,
+  calcularLayoutVisualSemana,
   claseAreaBloque,
   crearProduccionPlanItem,
   diaSemanaIsoDesdeFecha,
@@ -112,22 +110,14 @@ export default function ProduccionPlanPage() {
   const horas = useMemo(() => horasGrilla(), []);
   const anchoGrillaPx = useMemo(() => anchoMinimoGrillaSemanaPx(), []);
   const columnasGrilla = `${GRILLA_EJE_HORAS_PX}px repeat(7, ${GRILLA_ANCHO_DIA_MIN_PX}px)`;
-  const alturaGrillaSemana = useMemo(
-    () => alturaGrillaSemanaPx(plan, lunesSemana),
+  const layoutSemana = useMemo(
+    () => calcularLayoutVisualSemana(plan, lunesSemana),
     [plan, lunesSemana]
   );
-  const layoutsPorFecha = useMemo(() => {
-    const map = new Map(
-      fechasSemana.map((fecha) => [
-        fecha,
-        calcularLayoutVisualDia(itemsPlanPorFecha(plan, fecha)),
-      ])
-    );
-    return map;
-  }, [plan, fechasSemana]);
+  const alturaGrillaSemana = layoutSemana.alturaPx;
+  const alturasFranjas = layoutSemana.alturasFranjas;
+  const layoutsPorFecha = layoutSemana.porFecha;
   const anchoCarrilPct = 100 / PRODUCCION_PERSONAS_PARALELAS;
-  const alturaGrillaBase = useMemo(() => alturaGrillaPx(), []);
-  const alturaOverflowSemana = Math.max(0, alturaGrillaSemana - alturaGrillaBase);
 
   const prepSeleccionada = useMemo(
     () => preparaciones.find((p) => p.id === prepId) ?? null,
@@ -300,7 +290,7 @@ export default function ProduccionPlanPage() {
   const onClickGrillaDia = (fecha: string, event: React.MouseEvent<HTMLButtonElement>) => {
     const rect = event.currentTarget.getBoundingClientRect();
     const y = event.clientY - rect.top;
-    const hora = horaDesdePosicionGrillaPx(y);
+    const hora = horaDesdePosicionGrillaPx(y, alturasFranjas);
     if (hora == null) {
       return;
     }
@@ -566,33 +556,22 @@ export default function ProduccionPlanPage() {
                   className="relative sticky left-0 z-10 border-r border-zinc-800/80 bg-zinc-900/95"
                   style={{ width: GRILLA_EJE_HORAS_PX, height: alturaGrillaSemana }}
                 >
-                  <div
-                    className="relative"
-                    style={{ height: alturaGrillaBase }}
-                  >
-                    {horas.map((h) => (
-                      <div
-                        key={h}
-                        className="pointer-events-none absolute inset-x-0 border-t border-zinc-700/55"
-                        style={{ top: topFranjaHorariaPx(h) }}
-                      />
-                    ))}
-                    {horas.map((h) => (
-                      <div
-                        key={`label-${h}`}
-                        className="absolute right-2 -translate-y-1/2 text-xs tabular-nums text-zinc-500"
-                        style={{ top: topFranjaHorariaPx(h) }}
-                      >
-                        {etiquetaHoraGrilla(h)}
-                      </div>
-                    ))}
-                  </div>
-                  {alturaOverflowSemana > 0 ? (
+                  {horas.map((h) => (
                     <div
-                      className="pointer-events-none absolute inset-x-0 border-t border-dashed border-zinc-700/50"
-                      style={{ top: alturaGrillaBase }}
+                      key={h}
+                      className="pointer-events-none absolute inset-x-0 border-t border-zinc-700/55"
+                      style={{ top: topFranjaHorariaPx(h, alturasFranjas) }}
                     />
-                  ) : null}
+                  ))}
+                  {horas.map((h) => (
+                    <div
+                      key={`label-${h}`}
+                      className="absolute right-2 -translate-y-1/2 text-xs tabular-nums text-zinc-500"
+                      style={{ top: topFranjaHorariaPx(h, alturasFranjas) }}
+                    >
+                      {etiquetaHoraGrilla(h)}
+                    </div>
+                  ))}
                 </div>
 
                 {fechasSemana.map((fecha) => {
@@ -607,36 +586,27 @@ export default function ProduccionPlanPage() {
                       }`}
                       style={{ width: GRILLA_ANCHO_DIA_MIN_PX, height: alturaGrillaSemana }}
                     >
-                      <div className="relative" style={{ height: alturaGrillaBase }}>
-                        {[1, 2].map((carril) => (
-                          <div
-                            key={carril}
-                            className="pointer-events-none absolute inset-y-0 border-r border-zinc-800/35"
-                            style={{ left: `${carril * anchoCarrilPct}%` }}
-                          />
-                        ))}
-                        {horas.map((h) => (
-                          <div
-                            key={h}
-                            className="pointer-events-none absolute inset-x-0 z-[3] border-t border-zinc-700/55"
-                            style={{ top: topFranjaHorariaPx(h) }}
-                          />
-                        ))}
-                        <button
-                          type="button"
-                          onClick={(e) => onClickGrillaDia(fecha, e)}
-                          className="absolute inset-x-0 top-0 z-[4] cursor-cell bg-transparent hover:bg-zinc-800/20"
-                          style={{ height: alturaGrillaBase }}
-                          aria-label={`Agregar preparación el ${fecha}`}
-                        />
-                      </div>
-
-                      {alturaOverflowSemana > 0 ? (
+                      {[1, 2].map((carril) => (
                         <div
-                          className="pointer-events-none absolute inset-x-0 border-t border-dashed border-zinc-700/40 bg-zinc-950/20"
-                          style={{ top: alturaGrillaBase, height: alturaOverflowSemana }}
+                          key={carril}
+                          className="pointer-events-none absolute inset-y-0 border-r border-zinc-800/35"
+                          style={{ left: `${carril * anchoCarrilPct}%` }}
                         />
-                      ) : null}
+                      ))}
+                      {horas.map((h) => (
+                        <div
+                          key={h}
+                          className="pointer-events-none absolute inset-x-0 z-[3] border-t border-zinc-700/55"
+                          style={{ top: topFranjaHorariaPx(h, alturasFranjas) }}
+                        />
+                      ))}
+                      <button
+                        type="button"
+                        onClick={(e) => onClickGrillaDia(fecha, e)}
+                        className="absolute inset-x-0 top-0 z-[4] cursor-cell bg-transparent hover:bg-zinc-800/20"
+                        style={{ height: alturaGrillaSemana }}
+                        aria-label={`Agregar preparación el ${fecha}`}
+                      />
 
                       {itemsDia.map((item) => {
                         const conflicto = itemTieneConflicto(item, plan);
