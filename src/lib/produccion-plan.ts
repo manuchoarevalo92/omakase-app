@@ -220,6 +220,22 @@ export function alturaGrillaPx(): number {
   return (GRILLA_HORA_FIN - GRILLA_HORA_INICIO) * GRILLA_PX_POR_HORA;
 }
 
+export function topFranjaHorariaPx(hora: number): number {
+  return (hora - GRILLA_HORA_INICIO) * GRILLA_PX_POR_HORA;
+}
+
+/** Convierte un clic en la grilla (y en px desde arriba) a hora de inicio de franja. */
+export function horaDesdePosicionGrillaPx(y: number): number | null {
+  if (y < 0 || y >= alturaGrillaPx()) {
+    return null;
+  }
+  const hora = GRILLA_HORA_INICIO + Math.floor(y / GRILLA_PX_POR_HORA);
+  if (hora >= GRILLA_HORA_FIN) {
+    return null;
+  }
+  return hora;
+}
+
 export function topItemGrillaPx(item: ProduccionPlanItem): number {
   const mins = minutosDesdeMedianoche(item.horaInicio) - GRILLA_HORA_INICIO * 60;
   return (mins / 60) * GRILLA_PX_POR_HORA;

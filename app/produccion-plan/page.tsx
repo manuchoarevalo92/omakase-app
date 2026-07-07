@@ -51,13 +51,13 @@ import {
   fechasSemanaDesdeLunes,
   fetchProduccionPlanSemana,
   formatFechaLocalYYYYMMDD,
+  horaDesdePosicionGrillaPx,
   MENSAJE_MIGRACION_HORARIOS_PLAN,
   GRILLA_ANCHO_CARRIL_MIN_PX,
   GRILLA_ANCHO_DIA_MIN_PX,
   GRILLA_EJE_HORAS_PX,
   GRILLA_HORA_FIN,
   GRILLA_HORA_INICIO,
-  GRILLA_PX_POR_HORA,
   horasGrilla,
   itemTieneConflicto,
   itemsPlanPorFecha,
@@ -66,6 +66,7 @@ import {
   marcarPlanItemPendiente,
   PRODUCCION_PERSONAS_PARALELAS,
   siguienteHorarioLibrePersona,
+  topFranjaHorariaPx,
   topItemGrillaPx,
   type ProduccionPlanItem,
 } from "@/src/lib/produccion-plan";
@@ -125,6 +126,8 @@ export default function ProduccionPlanPage() {
     return map;
   }, [plan, fechasSemana]);
   const anchoCarrilPct = 100 / PRODUCCION_PERSONAS_PARALELAS;
+  const alturaGrillaBase = useMemo(() => alturaGrillaPx(), []);
+  const alturaOverflowSemana = Math.max(0, alturaGrillaSemana - alturaGrillaBase);
 
   const prepSeleccionada = useMemo(
     () => preparaciones.find((p) => p.id === prepId) ?? null,
@@ -292,6 +295,16 @@ export default function ProduccionPlanPage() {
     }
     aplicarHorarioSugerido(fecha, horaSlot, personaId, null, "", unidadCantidad);
     setError(null);
+  };
+
+  const onClickGrillaDia = (fecha: string, event: React.MouseEvent<HTMLButtonElement>) => {
+    const rect = event.currentTarget.getBoundingClientRect();
+    const y = event.clientY - rect.top;
+    const hora = horaDesdePosicionGrillaPx(y);
+    if (hora == null) {
+      return;
+    }
+    abrirModal(fecha, hora);
   };
 
   const onCambioAsignado = (id: string) => {
@@ -553,17 +566,33 @@ export default function ProduccionPlanPage() {
                   className="relative sticky left-0 z-10 border-r border-zinc-800/80 bg-zinc-900/95"
                   style={{ width: GRILLA_EJE_HORAS_PX, height: alturaGrillaSemana }}
                 >
-                  {horas.map((h) => (
+                  <div
+                    className="relative"
+                    style={{ height: alturaGrillaBase }}
+                  >
+                    {horas.map((h) => (
+                      <div
+                        key={h}
+                        className="pointer-events-none absolute inset-x-0 border-t border-zinc-700/55"
+                        style={{ top: topFranjaHorariaPx(h) }}
+                      />
+                    ))}
+                    {horas.map((h) => (
+                      <div
+                        key={`label-${h}`}
+                        className="absolute right-2 -translate-y-1/2 text-xs tabular-nums text-zinc-500"
+                        style={{ top: topFranjaHorariaPx(h) }}
+                      >
+                        {etiquetaHoraGrilla(h)}
+                      </div>
+                    ))}
+                  </div>
+                  {alturaOverflowSemana > 0 ? (
                     <div
-                      key={h}
-                      className="absolute right-2 -translate-y-1/2 text-xs tabular-nums text-zinc-500"
-                      style={{
-                        top: (h - GRILLA_HORA_INICIO) * GRILLA_PX_POR_HORA,
-                      }}
-                    >
-                      {etiquetaHoraGrilla(h)}
-                    </div>
-                  ))}
+                      className="pointer-events-none absolute inset-x-0 border-t border-dashed border-zinc-700/50"
+                      style={{ top: alturaGrillaBase }}
+                    />
+                  ) : null}
                 </div>
 
                 {fechasSemana.map((fecha) => {
@@ -578,26 +607,36 @@ export default function ProduccionPlanPage() {
                       }`}
                       style={{ width: GRILLA_ANCHO_DIA_MIN_PX, height: alturaGrillaSemana }}
                     >
-                      {[1, 2].map((carril) => (
-                        <div
-                          key={carril}
-                          className="pointer-events-none absolute inset-y-0 border-r border-zinc-800/35"
-                          style={{ left: `${carril * anchoCarrilPct}%` }}
-                        />
-                      ))}
-                      {horas.map((h) => (
+                      <div className="relative" style={{ height: alturaGrillaBase }}>
+                        {[1, 2].map((carril) => (
+                          <div
+                            key={carril}
+                            className="pointer-events-none absolute inset-y-0 border-r border-zinc-800/35"
+                            style={{ left: `${carril * anchoCarrilPct}%` }}
+                          />
+                        ))}
+                        {horas.map((h) => (
+                          <div
+                            key={h}
+                            className="pointer-events-none absolute inset-x-0 z-[3] border-t border-zinc-700/55"
+                            style={{ top: topFranjaHorariaPx(h) }}
+                          />
+                        ))}
                         <button
-                          key={h}
                           type="button"
-                          onClick={() => abrirModal(fecha, h)}
-                          className="absolute inset-x-0 border-t border-zinc-800/50 transition hover:bg-zinc-800/30"
-                          style={{
-                            top: `${((h - GRILLA_HORA_INICIO) / (GRILLA_HORA_FIN - GRILLA_HORA_INICIO)) * alturaGrillaPx()}`,
-                            height: GRILLA_PX_POR_HORA,
-                          }}
-                          aria-label={`Agregar preparación ${fecha} ${etiquetaHoraGrilla(h)}`}
+                          onClick={(e) => onClickGrillaDia(fecha, e)}
+                          className="absolute inset-x-0 top-0 z-[4] cursor-cell bg-transparent hover:bg-zinc-800/20"
+                          style={{ height: alturaGrillaBase }}
+                          aria-label={`Agregar preparación el ${fecha}`}
                         />
-                      ))}
+                      </div>
+
+                      {alturaOverflowSemana > 0 ? (
+                        <div
+                          className="pointer-events-none absolute inset-x-0 border-t border-dashed border-zinc-700/40 bg-zinc-950/20"
+                          style={{ top: alturaGrillaBase, height: alturaOverflowSemana }}
+                        />
+                      ) : null}
 
                       {itemsDia.map((item) => {
                         const conflicto = itemTieneConflicto(item, plan);
@@ -620,7 +659,7 @@ export default function ProduccionPlanPage() {
                               height: layout.heightPx,
                               left: `calc(${izqPct}% + 4px)`,
                               width: `calc(${anchoCarrilPct}% - 8px)`,
-                              zIndex: 5 + layout.indice,
+                              zIndex: 10 + layout.indice,
                             }}
                           >
                             <div className="flex min-h-full flex-col gap-1">
