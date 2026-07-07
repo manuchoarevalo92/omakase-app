@@ -68,16 +68,26 @@ export const DIAS_SEMANA_ISO = [
   { valor: 7, corto: "Dom", largo: "Domingo" },
 ] as const;
 
+/** Personas que pueden producir en paralelo (Manu, Javi, Santi). */
+export const PRODUCCION_PERSONAS_PARALELAS = 3;
+
 /** Grilla visible: 10:00 (entrada) a 24:00 (salida). */
 export const GRILLA_HORA_INICIO = 10;
 export const GRILLA_HORA_FIN = 24;
 /** Altura de cada franja horaria en la grilla (legible en móvil con scroll). */
-export const GRILLA_PX_POR_HORA = 88;
+export const GRILLA_PX_POR_HORA = 112;
 /** Altura mínima de un bloque de preparación aunque dure pocos minutos. */
-export const GRILLA_ITEM_MIN_ALTURA_PX = 52;
+export const GRILLA_ITEM_MIN_ALTURA_PX = 76;
+/** Ancho mínimo de cada carril cuando hay actividades en paralelo. */
+export const GRILLA_ANCHO_CARRIL_MIN_PX = 116;
+/** Ancho mínimo de cada día (3 carriles para ver actividades en paralelo). */
+export const GRILLA_ANCHO_DIA_MIN_PX =
+  PRODUCCION_PERSONAS_PARALELAS * GRILLA_ANCHO_CARRIL_MIN_PX;
+export const GRILLA_EJE_HORAS_PX = 72;
 
-/** Personas que pueden producir en paralelo (Manu, Javi, Santi). */
-export const PRODUCCION_PERSONAS_PARALELAS = 3;
+export function anchoMinimoGrillaSemanaPx(): number {
+  return GRILLA_EJE_HORAS_PX + 7 * GRILLA_ANCHO_DIA_MIN_PX;
+}
 
 export const PRODUCCION_PLAN_SELECT =
   "id, fecha, hora_inicio, hora_fin, preparacion_id, preparacion_nombre, area, duracion_estimada_segundos, cantidad_planificada, unidad_cantidad, asignado_a_id, asignado_a_nombre, notas, estado, creado_por_id, creado_por_nombre, created_at";

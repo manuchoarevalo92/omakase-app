@@ -36,6 +36,7 @@ import {
 import {
   alturaGrillaPx,
   alturaItemGrillaPx,
+  anchoMinimoGrillaSemanaPx,
   calcularHoraFinDesdeInicio,
   calcularLayoutParaleloDia,
   claseAreaBloque,
@@ -50,6 +51,9 @@ import {
   fetchProduccionPlanSemana,
   formatFechaLocalYYYYMMDD,
   MENSAJE_MIGRACION_HORARIOS_PLAN,
+  GRILLA_ANCHO_CARRIL_MIN_PX,
+  GRILLA_ANCHO_DIA_MIN_PX,
+  GRILLA_EJE_HORAS_PX,
   GRILLA_HORA_FIN,
   GRILLA_HORA_INICIO,
   GRILLA_ITEM_MIN_ALTURA_PX,
@@ -104,6 +108,8 @@ export default function ProduccionPlanPage() {
 
   const fechasSemana = useMemo(() => fechasSemanaDesdeLunes(lunesSemana), [lunesSemana]);
   const horas = useMemo(() => horasGrilla(), []);
+  const anchoGrillaPx = useMemo(() => anchoMinimoGrillaSemanaPx(), []);
+  const columnasGrilla = `${GRILLA_EJE_HORAS_PX}px repeat(7, ${GRILLA_ANCHO_DIA_MIN_PX}px)`;
 
   const prepSeleccionada = useMemo(
     () => preparaciones.find((p) => p.id === prepId) ?? null,
@@ -396,7 +402,7 @@ export default function ProduccionPlanPage() {
 
   return (
     <main className="min-h-screen min-w-0 bg-zinc-950 px-4 py-6 text-zinc-100 sm:px-6 sm:py-10">
-      <section className="mx-auto w-full max-w-6xl rounded-2xl border border-zinc-800 bg-zinc-900/60 p-6 shadow-[0_0_0_1px_rgba(255,255,255,0.02)] backdrop-blur">
+      <section className="mx-auto w-full max-w-[100rem] rounded-2xl border border-zinc-800 bg-zinc-900/60 p-4 shadow-[0_0_0_1px_rgba(255,255,255,0.02)] backdrop-blur sm:p-6">
         <header className="mb-6 flex flex-wrap items-start justify-between gap-3">
           <div>
             <h1 className="text-2xl font-semibold text-white">Plan semanal</h1>
@@ -487,21 +493,29 @@ export default function ProduccionPlanPage() {
             Cargando grilla…
           </div>
         ) : (
-          <div className="-mx-2 overflow-x-auto pb-2 sm:mx-0">
-            <div className="min-w-[68rem] px-2 sm:min-w-0">
-              <div className="grid grid-cols-[4rem_repeat(7,minmax(9rem,1fr))] gap-px sm:grid-cols-[4.5rem_repeat(7,minmax(0,1fr))]">
-                <div className="sticky left-0 z-20 bg-zinc-900/95" />
+          <div className="-mx-4 overflow-x-auto pb-2 sm:-mx-6">
+            <div className="px-4 sm:px-6" style={{ minWidth: anchoGrillaPx }}>
+              <div
+                className="grid gap-px"
+                style={{ gridTemplateColumns: columnasGrilla }}
+              >
+                <div
+                  className="sticky left-0 z-20 bg-zinc-900/95"
+                  style={{ width: GRILLA_EJE_HORAS_PX }}
+                />
                 {fechasSemana.map((fecha) => {
                   const diaIso = diaSemanaIsoDesdeFecha(fecha);
                   const esHoy = fecha === formatFechaLocalYYYYMMDD(new Date());
+                  const cantidadDia = itemsPlanPorFecha(plan, fecha).length;
                   return (
                     <div
                       key={fecha}
-                      className={`sticky top-0 z-10 border-b px-1 pb-2 text-center ${
+                      className={`sticky top-0 z-10 border-b px-2 pb-2 text-center ${
                         esHoy ? "border-emerald-800/60" : "border-zinc-800"
                       }`}
+                      style={{ width: GRILLA_ANCHO_DIA_MIN_PX }}
                     >
-                      <p className="text-[10px] font-semibold uppercase tracking-wide text-zinc-500">
+                      <p className="text-[11px] font-semibold uppercase tracking-wide text-zinc-500">
                         {etiquetaDiaSemanaCorto(diaIso)}
                       </p>
                       <p
@@ -511,13 +525,18 @@ export default function ProduccionPlanPage() {
                       >
                         {fecha.slice(8)}/{fecha.slice(5, 7)}
                       </p>
+                      {cantidadDia > 0 ? (
+                        <p className="mt-0.5 text-[10px] text-zinc-500">
+                          {cantidadDia} prep{cantidadDia === 1 ? "" : "s"}
+                        </p>
+                      ) : null}
                     </div>
                   );
                 })}
 
                 <div
                   className="relative sticky left-0 z-10 border-r border-zinc-800/80 bg-zinc-900/95"
-                  style={{ height: alturaGrillaPx() }}
+                  style={{ width: GRILLA_EJE_HORAS_PX, height: alturaGrillaPx() }}
                 >
                   {horas.map((h) => (
                     <div
@@ -542,7 +561,7 @@ export default function ProduccionPlanPage() {
                       className={`relative border-l ${
                         esHoy ? "border-emerald-900/40 bg-emerald-950/5" : "border-zinc-800/80"
                       }`}
-                      style={{ height: alturaGrillaPx() }}
+                      style={{ width: GRILLA_ANCHO_DIA_MIN_PX, height: alturaGrillaPx() }}
                     >
                       {horas.map((h) => (
                         <button
@@ -567,7 +586,7 @@ export default function ProduccionPlanPage() {
                         return (
                           <div
                             key={item.id}
-                            className={`absolute z-[5] overflow-hidden rounded-lg border px-2 py-1 shadow-md ${claseAreaBloque(
+                            className={`absolute overflow-y-auto rounded-lg border px-2 py-1.5 shadow-md ${claseAreaBloque(
                               item.area,
                               completada
                             )} ${conflicto ? "ring-2 ring-red-500/70" : ""} ${completada ? "opacity-80" : ""}`}
@@ -575,54 +594,53 @@ export default function ProduccionPlanPage() {
                               top: topItemGrillaPx(item),
                               height: alturaItemGrillaPx(item),
                               minHeight: GRILLA_ITEM_MIN_ALTURA_PX,
-                              left: `calc(${izqPct}% + 3px)`,
-                              width: `calc(${anchoPct}% - 6px)`,
+                              left: `calc(${izqPct}% + 4px)`,
+                              width: `calc(${anchoPct}% - 8px)`,
+                              zIndex: 5 + layout.indice,
                             }}
                           >
-                            <div className="flex h-full min-h-0 flex-col gap-0.5">
-                              <div className="flex items-start justify-between gap-1">
-                                <p
-                                  className={`line-clamp-2 text-xs font-semibold leading-snug ${
-                                    completada ? "line-through" : ""
-                                  }`}
-                                >
-                                  {item.preparacionNombre}
-                                </p>
-                                <div className="flex shrink-0 gap-0.5">
-                                  <button
-                                    type="button"
-                                    onClick={(e) => {
-                                      e.stopPropagation();
-                                      void toggleCompletada(item);
-                                    }}
-                                    disabled={isBusy}
-                                    className="rounded p-0.5 opacity-70 hover:opacity-100 disabled:opacity-40"
-                                    title={completada ? "Marcar pendiente" : "Hecha"}
-                                  >
-                                    <Check className="h-3.5 w-3.5" />
-                                  </button>
-                                  <button
-                                    type="button"
-                                    onClick={(e) => {
-                                      e.stopPropagation();
-                                      void borrar(item.id);
-                                    }}
-                                    disabled={isBusy}
-                                    className="rounded p-0.5 opacity-70 hover:opacity-100 disabled:opacity-40"
-                                  >
-                                    <Trash2 className="h-3.5 w-3.5" />
-                                  </button>
-                                </div>
-                              </div>
-                              <p className="truncate text-[11px] font-medium leading-tight opacity-90">
+                            <div className="flex min-h-full flex-col gap-1">
+                              <p
+                                className={`break-words text-sm font-semibold leading-snug ${
+                                  completada ? "line-through" : ""
+                                }`}
+                              >
+                                {item.preparacionNombre}
+                              </p>
+                              <p className="break-words text-xs font-medium leading-snug opacity-90">
                                 {item.asignadoANombre ?? "Sin asignar"}
                                 {item.cantidadPlanificada && item.unidadCantidad
                                   ? ` · ${item.cantidadPlanificada} ${item.unidadCantidad}`
                                   : ""}
                               </p>
-                              <p className="mt-auto text-[11px] tabular-nums leading-tight opacity-80">
+                              <p className="text-xs tabular-nums leading-snug opacity-80">
                                 {etiquetaHorarioItem(item)}
                               </p>
+                              <div className="mt-auto flex gap-1 pt-1">
+                                <button
+                                  type="button"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    void toggleCompletada(item);
+                                  }}
+                                  disabled={isBusy}
+                                  className="rounded-md border border-white/10 bg-black/20 p-1 opacity-90 hover:opacity-100 disabled:opacity-40"
+                                  title={completada ? "Marcar pendiente" : "Hecha"}
+                                >
+                                  <Check className="h-4 w-4" />
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    void borrar(item.id);
+                                  }}
+                                  disabled={isBusy}
+                                  className="rounded-md border border-white/10 bg-black/20 p-1 opacity-90 hover:opacity-100 disabled:opacity-40"
+                                >
+                                  <Trash2 className="h-4 w-4" />
+                                </button>
+                              </div>
                             </div>
                           </div>
                         );
@@ -636,8 +654,9 @@ export default function ProduccionPlanPage() {
         )}
 
         <p className="mt-4 text-xs text-zinc-500">
-          Grilla 10:00–00:00 (horario del local). Deslizá horizontalmente en el celular si hace
-          falta. Tocá cualquier franja para planificar una preparación.
+          Grilla 10:00–00:00. Cada día tiene espacio para 3 actividades en paralelo (~
+          {GRILLA_ANCHO_CARRIL_MIN_PX}px por carril). Deslizá horizontalmente si no entra en
+          pantalla. Tocá una franja para planificar.
         </p>
       </section>
 
