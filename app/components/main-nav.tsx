@@ -24,6 +24,7 @@ const ALL_LINKS = [
   { href: "/compras", label: "Compras" },
   { href: "/produccion", label: "Producción" },
   { href: "/produccion-tiempos", label: "Tiempos prep" },
+  { href: "/produccion-plan", label: "Plan semanal" },
   { href: "/consumo", label: "Consumo" },
   { href: "/gasto", label: "Gasto" },
 ] as const;
@@ -32,7 +33,7 @@ type Href = (typeof ALL_LINKS)[number]["href"];
 
 /** Agrupación de las páginas en el menú desplegable. */
 const GRUPOS: { titulo: string; hrefs: Href[] }[] = [
-  { titulo: "Servicio", hrefs: ["/", "/bebidas", "/mep-deli", "/mep-historial", "/platos", "/mep-cortes", "/receta", "/historial", "/produccion-tiempos"] },
+  { titulo: "Servicio", hrefs: ["/", "/bebidas", "/mep-deli", "/mep-historial", "/platos", "/mep-cortes", "/receta", "/historial", "/produccion-tiempos", "/produccion-plan"] },
   { titulo: "Compras", hrefs: ["/pedidos", "/avisos", "/compras", "/stock", "/inventario"] },
   { titulo: "Análisis", hrefs: ["/consumo", "/gasto", "/estadisticas", "/produccion"] },
 ];
@@ -49,6 +50,7 @@ const STAFF_HREFS = new Set<string>([
   "/stock",
   "/historial",
   "/produccion-tiempos",
+  "/produccion-plan",
 ]);
 
 type SessionInfo = { id: string; name: string; role: "admin" | "staff" };
