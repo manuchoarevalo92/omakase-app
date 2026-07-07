@@ -78,6 +78,9 @@ export const GRILLA_HORA_FIN = 24;
 export const GRILLA_PX_POR_HORA = 112;
 /** Altura mínima de un bloque de preparación aunque dure pocos minutos. */
 export const GRILLA_ITEM_MIN_ALTURA_PX = 76;
+/** Separación vertical entre bloques apilados en el mismo carril. */
+export const GRILLA_ITEM_GAP_PX = 4;
+export const GRILLA_PADDING_INFERIOR_PX = 12;
 /** Ancho mínimo de cada carril cuando hay actividades en paralelo. */
 export const GRILLA_ANCHO_CARRIL_MIN_PX = 116;
 /** Ancho mínimo de cada día (3 carriles para ver actividades en paralelo). */
@@ -399,14 +402,22 @@ export function itemTieneConflicto(
 
 export type LayoutParaleloItem = {
   indice: number;
-  columnas: number;
+  topPx: number;
+  heightPx: number;
 };
 
-/** Reparte bloques superpuestos en hasta 3 columnas visuales. */
-export function calcularLayoutParaleloDia(
-  items: ProduccionPlanItem[]
-): Map<string, LayoutParaleloItem> {
-  const activos = items
+export type LayoutVisualDia = {
+  items: Map<string, LayoutParaleloItem>;
+  alturaPx: number;
+};
+
+function claveCarrilPersona(item: ProduccionPlanItem): string {
+  return item.asignadoAId ?? `sin-asignar-${item.id}`;
+}
+
+function asignarCarrilPorPersona(items: ProduccionPlanItem[]): Map<string, number> {
+  const carrilPorPersona = new Map<string, number>();
+  const ordenados = items
     .filter((i) => i.estado !== "cancelada")
     .sort(
       (a, b) =>
@@ -414,25 +425,92 @@ export function calcularLayoutParaleloDia(
         a.id.localeCompare(b.id)
     );
 
-  const layout = new Map<string, LayoutParaleloItem>();
-  const finPorCarril = Array(PRODUCCION_PERSONAS_PARALELAS).fill(0) as number[];
-
-  for (const item of activos) {
-    const ini = minutosDesdeMedianoche(item.horaInicio);
-    const fin = minutosDesdeMedianoche(item.horaFin);
-    let indice = finPorCarril.findIndex((f) => f <= ini);
-    if (indice < 0) {
-      indice = PRODUCCION_PERSONAS_PARALELAS - 1;
+  for (const item of ordenados) {
+    const clave = claveCarrilPersona(item);
+    if (!carrilPorPersona.has(clave)) {
+      carrilPorPersona.set(
+        clave,
+        Math.min(carrilPorPersona.size, PRODUCCION_PERSONAS_PARALELAS - 1)
+      );
     }
-    finPorCarril[indice] = fin;
-    const columnas = Math.min(
-      PRODUCCION_PERSONAS_PARALELAS,
-      maxSolapamientosConcurrentes(item, activos)
-    );
-    layout.set(item.id, { indice, columnas });
   }
 
-  return layout;
+  return carrilPorPersona;
+}
+
+/** Carriles fijos por persona y apilado vertical para evitar bloques encimados. */
+export function calcularLayoutVisualDia(items: ProduccionPlanItem[]): LayoutVisualDia {
+  const activos = items.filter((i) => i.estado !== "cancelada");
+  const carrilPorPersona = asignarCarrilPorPersona(items);
+  const porCarril: ProduccionPlanItem[][] = Array.from(
+    { length: PRODUCCION_PERSONAS_PARALELAS },
+    () => []
+  );
+
+  for (const item of activos) {
+    const carril = carrilPorPersona.get(claveCarrilPersona(item)) ?? 0;
+    porCarril[carril]!.push(item);
+  }
+
+  const layout = new Map<string, LayoutParaleloItem>();
+  let maxBottom = alturaGrillaPx();
+
+  for (let carril = 0; carril < PRODUCCION_PERSONAS_PARALELAS; carril++) {
+    const lista = porCarril[carril]!.sort(
+      (a, b) =>
+        minutosDesdeMedianoche(a.horaInicio) - minutosDesdeMedianoche(b.horaInicio) ||
+        a.id.localeCompare(b.id)
+    );
+    let finVisualAnterior = 0;
+
+    for (const item of lista) {
+      const topTiempo = topItemGrillaPx(item);
+      const altura = alturaItemGrillaPx(item);
+      const topVisual =
+        finVisualAnterior > 0
+          ? Math.max(topTiempo, finVisualAnterior + GRILLA_ITEM_GAP_PX)
+          : topTiempo;
+      finVisualAnterior = topVisual + altura;
+      layout.set(item.id, { indice: carril, topPx: topVisual, heightPx: altura });
+      maxBottom = Math.max(maxBottom, finVisualAnterior);
+    }
+  }
+
+  for (const item of items) {
+    if (item.estado === "cancelada" && !layout.has(item.id)) {
+      const carril = carrilPorPersona.get(claveCarrilPersona(item)) ?? 0;
+      layout.set(item.id, {
+        indice: carril,
+        topPx: topItemGrillaPx(item),
+        heightPx: alturaItemGrillaPx(item),
+      });
+    }
+  }
+
+  return {
+    items: layout,
+    alturaPx: maxBottom + GRILLA_PADDING_INFERIOR_PX,
+  };
+}
+
+export function alturaGrillaSemanaPx(plan: ProduccionPlanItem[], lunes: string): number {
+  const fechas = fechasSemanaDesdeLunes(lunes);
+  const alturas = fechas.map(
+    (fecha) => calcularLayoutVisualDia(itemsPlanPorFecha(plan, fecha)).alturaPx
+  );
+  return Math.max(alturaGrillaPx(), ...alturas);
+}
+
+/** @deprecated Usar calcularLayoutVisualDia */
+export function calcularLayoutParaleloDia(
+  items: ProduccionPlanItem[]
+): Map<string, { indice: number; columnas: number }> {
+  const visual = calcularLayoutVisualDia(items);
+  const legacy = new Map<string, { indice: number; columnas: number }>();
+  for (const [id, entry] of visual.items) {
+    legacy.set(id, { indice: entry.indice, columnas: PRODUCCION_PERSONAS_PARALELAS });
+  }
+  return legacy;
 }
 
 export function claseAreaBloque(area: AreaProduccion, completada: boolean): string {

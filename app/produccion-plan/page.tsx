@@ -35,10 +35,11 @@ import {
 } from "@/src/lib/produccion-sesiones";
 import {
   alturaGrillaPx,
+  alturaGrillaSemanaPx,
   alturaItemGrillaPx,
   anchoMinimoGrillaSemanaPx,
   calcularHoraFinDesdeInicio,
-  calcularLayoutParaleloDia,
+  calcularLayoutVisualDia,
   claseAreaBloque,
   crearProduccionPlanItem,
   diaSemanaIsoDesdeFecha,
@@ -56,7 +57,7 @@ import {
   GRILLA_EJE_HORAS_PX,
   GRILLA_HORA_FIN,
   GRILLA_HORA_INICIO,
-  GRILLA_ITEM_MIN_ALTURA_PX,
+  GRILLA_PX_POR_HORA,
   horasGrilla,
   itemTieneConflicto,
   itemsPlanPorFecha,
@@ -110,6 +111,20 @@ export default function ProduccionPlanPage() {
   const horas = useMemo(() => horasGrilla(), []);
   const anchoGrillaPx = useMemo(() => anchoMinimoGrillaSemanaPx(), []);
   const columnasGrilla = `${GRILLA_EJE_HORAS_PX}px repeat(7, ${GRILLA_ANCHO_DIA_MIN_PX}px)`;
+  const alturaGrillaSemana = useMemo(
+    () => alturaGrillaSemanaPx(plan, lunesSemana),
+    [plan, lunesSemana]
+  );
+  const layoutsPorFecha = useMemo(() => {
+    const map = new Map(
+      fechasSemana.map((fecha) => [
+        fecha,
+        calcularLayoutVisualDia(itemsPlanPorFecha(plan, fecha)),
+      ])
+    );
+    return map;
+  }, [plan, fechasSemana]);
+  const anchoCarrilPct = 100 / PRODUCCION_PERSONAS_PARALELAS;
 
   const prepSeleccionada = useMemo(
     () => preparaciones.find((p) => p.id === prepId) ?? null,
@@ -536,14 +551,14 @@ export default function ProduccionPlanPage() {
 
                 <div
                   className="relative sticky left-0 z-10 border-r border-zinc-800/80 bg-zinc-900/95"
-                  style={{ width: GRILLA_EJE_HORAS_PX, height: alturaGrillaPx() }}
+                  style={{ width: GRILLA_EJE_HORAS_PX, height: alturaGrillaSemana }}
                 >
                   {horas.map((h) => (
                     <div
                       key={h}
                       className="absolute right-2 -translate-y-1/2 text-xs tabular-nums text-zinc-500"
                       style={{
-                        top: `${((h - GRILLA_HORA_INICIO) / (GRILLA_HORA_FIN - GRILLA_HORA_INICIO)) * 100}%`,
+                        top: (h - GRILLA_HORA_INICIO) * GRILLA_PX_POR_HORA,
                       }}
                     >
                       {etiquetaHoraGrilla(h)}
@@ -553,7 +568,7 @@ export default function ProduccionPlanPage() {
 
                 {fechasSemana.map((fecha) => {
                   const itemsDia = itemsPlanPorFecha(plan, fecha);
-                  const layoutDia = calcularLayoutParaleloDia(itemsDia);
+                  const layoutDia = layoutsPorFecha.get(fecha)!;
                   const esHoy = fecha === formatFechaLocalYYYYMMDD(new Date());
                   return (
                     <div
@@ -561,8 +576,15 @@ export default function ProduccionPlanPage() {
                       className={`relative border-l ${
                         esHoy ? "border-emerald-900/40 bg-emerald-950/5" : "border-zinc-800/80"
                       }`}
-                      style={{ width: GRILLA_ANCHO_DIA_MIN_PX, height: alturaGrillaPx() }}
+                      style={{ width: GRILLA_ANCHO_DIA_MIN_PX, height: alturaGrillaSemana }}
                     >
+                      {[1, 2].map((carril) => (
+                        <div
+                          key={carril}
+                          className="pointer-events-none absolute inset-y-0 border-r border-zinc-800/35"
+                          style={{ left: `${carril * anchoCarrilPct}%` }}
+                        />
+                      ))}
                       {horas.map((h) => (
                         <button
                           key={h}
@@ -570,8 +592,8 @@ export default function ProduccionPlanPage() {
                           onClick={() => abrirModal(fecha, h)}
                           className="absolute inset-x-0 border-t border-zinc-800/50 transition hover:bg-zinc-800/30"
                           style={{
-                            top: `${((h - GRILLA_HORA_INICIO) / (GRILLA_HORA_FIN - GRILLA_HORA_INICIO)) * 100}%`,
-                            height: `${(1 / (GRILLA_HORA_FIN - GRILLA_HORA_INICIO)) * 100}%`,
+                            top: `${((h - GRILLA_HORA_INICIO) / (GRILLA_HORA_FIN - GRILLA_HORA_INICIO)) * alturaGrillaPx()}`,
+                            height: GRILLA_PX_POR_HORA,
                           }}
                           aria-label={`Agregar preparación ${fecha} ${etiquetaHoraGrilla(h)}`}
                         />
@@ -580,9 +602,12 @@ export default function ProduccionPlanPage() {
                       {itemsDia.map((item) => {
                         const conflicto = itemTieneConflicto(item, plan);
                         const completada = item.estado === "completada";
-                        const layout = layoutDia.get(item.id) ?? { indice: 0, columnas: 1 };
-                        const anchoPct = 100 / layout.columnas;
-                        const izqPct = layout.indice * anchoPct;
+                        const layout = layoutDia.items.get(item.id) ?? {
+                          indice: 0,
+                          topPx: topItemGrillaPx(item),
+                          heightPx: alturaItemGrillaPx(item),
+                        };
+                        const izqPct = layout.indice * anchoCarrilPct;
                         return (
                           <div
                             key={item.id}
@@ -591,11 +616,10 @@ export default function ProduccionPlanPage() {
                               completada
                             )} ${conflicto ? "ring-2 ring-red-500/70" : ""} ${completada ? "opacity-80" : ""}`}
                             style={{
-                              top: topItemGrillaPx(item),
-                              height: alturaItemGrillaPx(item),
-                              minHeight: GRILLA_ITEM_MIN_ALTURA_PX,
+                              top: layout.topPx,
+                              height: layout.heightPx,
                               left: `calc(${izqPct}% + 4px)`,
-                              width: `calc(${anchoPct}% - 8px)`,
+                              width: `calc(${anchoCarrilPct}% - 8px)`,
                               zIndex: 5 + layout.indice,
                             }}
                           >
