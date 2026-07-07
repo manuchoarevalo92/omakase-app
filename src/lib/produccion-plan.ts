@@ -78,6 +78,8 @@ export const GRILLA_HORA_FIN = 24;
 export const GRILLA_PX_POR_HORA = 112;
 /** Altura mínima de un bloque de preparación aunque dure pocos minutos. */
 export const GRILLA_ITEM_MIN_ALTURA_PX = 76;
+/** Separación vertical entre bloques cortos apilados en la misma franja horaria. */
+export const GRILLA_ITEM_GAP_PX = 4;
 export const GRILLA_PADDING_INFERIOR_PX = 12;
 /** Ancho mínimo de cada carril cuando hay actividades en paralelo. */
 export const GRILLA_ANCHO_CARRIL_MIN_PX = 116;
@@ -231,6 +233,26 @@ function minutosFinDesdeInicioGrilla(horaInicio: string, horaFin: string): numbe
   return fin;
 }
 
+function indiceFranjaDesdeMinutos(minutos: number): number {
+  return Math.floor(minutos / 60);
+}
+
+function duracionMinutosItem(item: ProduccionPlanItem): number {
+  return (
+    minutosFinDesdeInicioGrilla(item.horaInicio, item.horaFin) -
+    minutosDesdeInicioGrilla(item.horaInicio)
+  );
+}
+
+function franjaInicioItem(item: ProduccionPlanItem): number {
+  return indiceFranjaDesdeMinutos(minutosDesdeInicioGrilla(item.horaInicio));
+}
+
+/** Más de 1 h: cruza franjas sin expandirlas; solo apila/expande bloques cortos. */
+function itemEsBloqueLargo(item: ProduccionPlanItem): boolean {
+  return duracionMinutosItem(item) > 60;
+}
+
 export function alturasFranjasUniformes(): number[] {
   return horasGrilla().map(() => GRILLA_PX_POR_HORA);
 }
@@ -307,6 +329,14 @@ export function alturaItemGrillaPxConFranjas(
     return alturaTiempo;
   }
   return GRILLA_ITEM_MIN_ALTURA_PX;
+}
+
+function alturaItemCortoPx(item: ProduccionPlanItem, alturasFranjas: number[]): number {
+  const minsIni = minutosDesdeInicioGrilla(item.horaInicio);
+  const minsFin = minutosFinDesdeInicioGrilla(item.horaInicio, item.horaFin);
+  const alturaTiempo =
+    minutosGrillaAPx(minsFin, alturasFranjas) - minutosGrillaAPx(minsIni, alturasFranjas);
+  return Math.max(alturaTiempo, GRILLA_ITEM_MIN_ALTURA_PX);
 }
 
 export function topItemGrillaPx(item: ProduccionPlanItem): number {
@@ -531,15 +561,88 @@ function asignarCarrilPorPersona(items: ProduccionPlanItem[]): Map<string, numbe
   return carrilPorPersona;
 }
 
+function layoutearBloquesCortosEnFranjas(
+  items: ProduccionPlanItem[],
+  alturasFranjas: number[]
+): Map<string, LayoutParaleloItem> {
+  const activos = items.filter((i) => i.estado !== "cancelada" && !itemEsBloqueLargo(i));
+  const carrilPorPersona = asignarCarrilPorPersona(items);
+  const porCarril: ProduccionPlanItem[][] = Array.from(
+    { length: PRODUCCION_PERSONAS_PARALELAS },
+    () => []
+  );
+
+  for (const item of activos) {
+    const carril = carrilPorPersona.get(claveCarrilPersona(item)) ?? 0;
+    porCarril[carril]!.push(item);
+  }
+
+  const layout = new Map<string, LayoutParaleloItem>();
+
+  for (let carril = 0; carril < PRODUCCION_PERSONAS_PARALELAS; carril++) {
+    const lista = porCarril[carril]!.sort(
+      (a, b) =>
+        minutosDesdeMedianoche(a.horaInicio) - minutosDesdeMedianoche(b.horaInicio) ||
+        a.id.localeCompare(b.id)
+    );
+    const finPorFranja = new Map<number, number>();
+
+    for (const item of lista) {
+      const franja = franjaInicioItem(item);
+      const franjaTop = topAcumuladoFranjas(alturasFranjas, franja);
+      const topTiempo = topItemGrillaPxConFranjas(item, alturasFranjas);
+      const altura = alturaItemCortoPx(item, alturasFranjas);
+      const finAnterior = finPorFranja.get(franja);
+      const topVisual =
+        finAnterior != null && finAnterior > franjaTop
+          ? Math.max(topTiempo, finAnterior + GRILLA_ITEM_GAP_PX)
+          : topTiempo;
+      finPorFranja.set(franja, topVisual + altura);
+      layout.set(item.id, { indice: carril, topPx: topVisual, heightPx: altura });
+    }
+  }
+
+  return layout;
+}
+
+function expandirFranjasPorBloquesCortos(
+  layout: Map<string, LayoutParaleloItem>,
+  items: ProduccionPlanItem[],
+  alturasFranjas: number[]
+): number[] {
+  const nuevas = [...alturasFranjas];
+
+  for (const item of items) {
+    if (item.estado === "cancelada" || itemEsBloqueLargo(item)) {
+      continue;
+    }
+    const franjaIdx = franjaInicioItem(item);
+    if (franjaIdx < 0 || franjaIdx >= nuevas.length) {
+      continue;
+    }
+    const entry = layout.get(item.id);
+    if (!entry) {
+      continue;
+    }
+    const franjaTop = topAcumuladoFranjas(nuevas, franjaIdx);
+    const bottom = entry.topPx + entry.heightPx;
+    nuevas[franjaIdx] = Math.max(
+      nuevas[franjaIdx]!,
+      bottom - franjaTop + GRILLA_ITEM_GAP_PX
+    );
+  }
+
+  return nuevas;
+}
+
 function layoutearCarrillesDia(
   items: ProduccionPlanItem[],
   alturasFranjas: number[]
 ): Map<string, LayoutParaleloItem> {
-  const activos = items.filter((i) => i.estado !== "cancelada");
   const carrilPorPersona = asignarCarrilPorPersona(items);
-  const layout = new Map<string, LayoutParaleloItem>();
+  const layout = layoutearBloquesCortosEnFranjas(items, alturasFranjas);
 
-  for (const item of activos) {
+  for (const item of items.filter((i) => i.estado !== "cancelada" && itemEsBloqueLargo(i))) {
     const carril = carrilPorPersona.get(claveCarrilPersona(item)) ?? 0;
     layout.set(item.id, {
       indice: carril,
@@ -551,10 +654,13 @@ function layoutearCarrillesDia(
   for (const item of items) {
     if (item.estado === "cancelada" && !layout.has(item.id)) {
       const carril = carrilPorPersona.get(claveCarrilPersona(item)) ?? 0;
+      const esLargo = itemEsBloqueLargo(item);
       layout.set(item.id, {
         indice: carril,
         topPx: topItemGrillaPxConFranjas(item, alturasFranjas),
-        heightPx: alturaItemGrillaPxConFranjas(item, alturasFranjas),
+        heightPx: esLargo
+          ? alturaItemGrillaPxConFranjas(item, alturasFranjas)
+          : alturaItemCortoPx(item, alturasFranjas),
       });
     }
   }
@@ -562,14 +668,37 @@ function layoutearCarrillesDia(
   return layout;
 }
 
-/** Carriles fijos por persona; bloques según horario real y sobrepasan franjas sin estirarlas. */
-export function calcularLayoutVisualDia(items: ProduccionPlanItem[]): LayoutVisualDia {
-  const alturasFranjas = alturasFranjasUniformes();
+function calcularAlturasFranjasDia(items: ProduccionPlanItem[]): number[] {
+  let alturasFranjas = alturasFranjasUniformes();
+
+  for (let paso = 0; paso < 8; paso++) {
+    const cortos = layoutearBloquesCortosEnFranjas(items, alturasFranjas);
+    const expandidas = expandirFranjasPorBloquesCortos(cortos, items, alturasFranjas);
+    const estable = expandidas.every((altura, i) => altura === alturasFranjas[i]);
+    alturasFranjas = expandidas;
+    if (estable) {
+      break;
+    }
+  }
+
+  return alturasFranjas;
+}
+
+function calcularLayoutVisualDiaConFranjas(
+  items: ProduccionPlanItem[],
+  alturasFranjas: number[]
+): LayoutVisualDia {
   return {
     items: layoutearCarrillesDia(items, alturasFranjas),
     alturasFranjas,
-    alturaPx: alturaGrillaPx() + GRILLA_PADDING_INFERIOR_PX,
+    alturaPx: alturaGrillaDesdeFranjas(alturasFranjas) + GRILLA_PADDING_INFERIOR_PX,
   };
+}
+
+/** Bloques cortos expanden su franja horaria; bloques largos cruzan la grilla sin estirarla. */
+export function calcularLayoutVisualDia(items: ProduccionPlanItem[]): LayoutVisualDia {
+  const alturasFranjas = calcularAlturasFranjasDia(items);
+  return calcularLayoutVisualDiaConFranjas(items, alturasFranjas);
 }
 
 export function calcularLayoutVisualSemana(
@@ -577,18 +706,29 @@ export function calcularLayoutVisualSemana(
   lunes: string
 ): LayoutVisualSemana {
   const fechas = fechasSemanaDesdeLunes(lunes);
-  const alturasFranjas = alturasFranjasUniformes();
-  const porFecha = new Map<string, LayoutVisualDia>();
+  const alturasPorDia = fechas.map((fecha) =>
+    calcularAlturasFranjasDia(itemsPlanPorFecha(plan, fecha))
+  );
 
-  for (const fecha of fechas) {
-    porFecha.set(fecha, calcularLayoutVisualDia(itemsPlanPorFecha(plan, fecha)));
+  let alturasFranjas = alturasFranjasUniformes();
+  for (const dia of alturasPorDia) {
+    alturasFranjas = alturasFranjas.map((altura, i) => Math.max(altura, dia[i]!));
   }
 
-  return {
-    porFecha,
-    alturasFranjas,
-    alturaPx: alturaGrillaPx() + GRILLA_PADDING_INFERIOR_PX,
-  };
+  const porFecha = new Map<string, LayoutVisualDia>();
+  for (const fecha of fechas) {
+    porFecha.set(
+      fecha,
+      calcularLayoutVisualDiaConFranjas(itemsPlanPorFecha(plan, fecha), alturasFranjas)
+    );
+  }
+
+  const alturaPx = Math.max(
+    alturaGrillaPx(),
+    alturaGrillaDesdeFranjas(alturasFranjas) + GRILLA_PADDING_INFERIOR_PX
+  );
+
+  return { porFecha, alturasFranjas, alturaPx };
 }
 
 export function alturaGrillaSemanaPx(plan: ProduccionPlanItem[], lunes: string): number {
