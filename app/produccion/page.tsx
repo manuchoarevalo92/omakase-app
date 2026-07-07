@@ -26,6 +26,7 @@ import {
 import {
   AREAS_PRODUCCION,
   cantidadSugeridaAlMarcar,
+  crearPreparacion,
   ETIQUETA_AREA_PRODUCCION,
   fetchPreparaciones,
   formatearCantidad,
@@ -553,19 +554,14 @@ export default function ProduccionPage() {
     setIsSubmitting(true);
     setError(null);
     try {
-      const { error: insertError } = await supabase.from("preparaciones").insert({
+      await crearPreparacion({
         nombre,
         area: areaActiva,
-        duracion_dias: duracion,
-        cantidad_referencia: cantidadRef,
-        unidad_cantidad: nuevaUnidad,
+        duracionDias: duracion,
+        cantidadReferencia: cantidadRef,
+        unidadCantidad: nuevaUnidad,
         notas: nuevaNotas.trim() || null,
-        seguimiento_activo: true,
-        pendiente: false,
       });
-      if (insertError) {
-        throw new Error(formatPostgrestError(insertError));
-      }
       setNuevoNombre("");
       setNuevaDuracion("7");
       setNuevaCantidadRef("1");

@@ -9,6 +9,7 @@ import {
   Pause,
   PenLine,
   Play,
+  Plus,
   Square,
   Timer,
   Trash2,
@@ -16,6 +17,7 @@ import {
 } from "lucide-react";
 import {
   cantidadSugeridaAlMarcar,
+  crearPreparacion,
   ETIQUETA_AREA_PRODUCCION,
   esUnidadCantidadValida,
   fetchPreparaciones,
@@ -23,6 +25,7 @@ import {
   parseCantidadInput,
   UNIDADES_CANTIDAD,
   type Preparacion,
+  type AreaProduccion,
   type UnidadCantidad,
 } from "@/src/lib/preparaciones";
 import {
@@ -91,6 +94,12 @@ export default function ProduccionTiemposPage() {
   const [manualCantidad, setManualCantidad] = useState("");
   const [manualUnidad, setManualUnidad] = useState<UnidadCantidad>("kg");
   const [manualNotas, setManualNotas] = useState("");
+  const [altaPrepExpandida, setAltaPrepExpandida] = useState(false);
+  const [nuevaNombre, setNuevaNombre] = useState("");
+  const [nuevaArea, setNuevaArea] = useState<AreaProduccion>("delivery");
+  const [nuevaCantidadRef, setNuevaCantidadRef] = useState("1");
+  const [nuevaUnidad, setNuevaUnidad] = useState<UnidadCantidad>("L");
+  const [isCreandoPrep, setIsCreandoPrep] = useState(false);
 
   const prepSeleccionada = useMemo(
     () => preparaciones.find((p) => p.id === prepSeleccionadaId) ?? null,
@@ -163,6 +172,49 @@ export default function ProduccionTiemposPage() {
       cancelled = true;
     };
   }, [refrescar]);
+
+  useEffect(() => {
+    if (!isLoading && preparaciones.length === 0) {
+      setAltaPrepExpandida(true);
+    }
+  }, [isLoading, preparaciones.length]);
+
+  const crearPrep = async () => {
+    const nombre = nuevaNombre.trim();
+    const cantidadRef = parseCantidadInput(nuevaCantidadRef);
+    if (!nombre) {
+      setError("Ingresá el nombre de la preparación.");
+      return;
+    }
+    if (cantidadRef == null) {
+      setError("El lote típico debe ser mayor que 0.");
+      return;
+    }
+
+    setIsCreandoPrep(true);
+    setError(null);
+    setSuccess(null);
+    try {
+      const prep = await crearPreparacion({
+        nombre,
+        area: nuevaArea,
+        cantidadReferencia: cantidadRef,
+        unidadCantidad: nuevaUnidad,
+      });
+      setPreparaciones((prev) => [...prev, prep].sort((a, b) => a.nombre.localeCompare(b.nombre)));
+      setPrepSeleccionadaId(prep.id);
+      setManualUnidad(prep.unidadCantidad);
+      setNuevaNombre("");
+      setNuevaCantidadRef("1");
+      setNuevaUnidad("L");
+      setAltaPrepExpandida(false);
+      setSuccess(`"${prep.nombre}" agregada. Ya podés cronometrarla.`);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "No se pudo crear la preparación.");
+    } finally {
+      setIsCreandoPrep(false);
+    }
+  };
 
   const iniciar = async () => {
     if (!prepSeleccionada) {
@@ -456,6 +508,106 @@ export default function ProduccionTiemposPage() {
                   ))}
                 </select>
               </label>
+              {altaPrepExpandida ? (
+                <div className="rounded-xl border border-zinc-800 bg-zinc-950/60 p-4">
+                  <p className="mb-3 text-sm font-medium text-zinc-300">Nueva preparación</p>
+                  <div className="grid gap-3 sm:grid-cols-2">
+                    <label className="block sm:col-span-2">
+                      <span className="mb-1 block text-xs uppercase tracking-wide text-zinc-500">
+                        Nombre
+                      </span>
+                      <input
+                        type="text"
+                        value={nuevaNombre}
+                        onChange={(e) => setNuevaNombre(e.target.value)}
+                        placeholder="Tosazu, Nikiri…"
+                        className="w-full rounded-xl border border-zinc-700 bg-zinc-950 px-4 py-2.5 text-sm text-zinc-100 outline-none focus:border-zinc-500"
+                      />
+                    </label>
+                    <label className="block">
+                      <span className="mb-1 block text-xs uppercase tracking-wide text-zinc-500">
+                        Área
+                      </span>
+                      <select
+                        value={nuevaArea}
+                        onChange={(e) => {
+                          const v = e.target.value;
+                          if (v === "delivery" || v === "barra") {
+                            setNuevaArea(v);
+                          }
+                        }}
+                        className="w-full rounded-xl border border-zinc-700 bg-zinc-950 px-4 py-2.5 text-sm text-zinc-100 outline-none focus:border-zinc-500"
+                      >
+                        <option value="delivery">Delivery</option>
+                        <option value="barra">Barra</option>
+                      </select>
+                    </label>
+                    <label className="block">
+                      <span className="mb-1 block text-xs uppercase tracking-wide text-zinc-500">
+                        Lote típico
+                      </span>
+                      <div className="flex gap-2">
+                        <input
+                          type="text"
+                          inputMode="decimal"
+                          value={nuevaCantidadRef}
+                          onChange={(e) => setNuevaCantidadRef(e.target.value)}
+                          className="min-w-0 flex-1 rounded-xl border border-zinc-700 bg-zinc-950 px-4 py-2.5 text-sm text-zinc-100 outline-none focus:border-zinc-500"
+                        />
+                        <select
+                          value={nuevaUnidad}
+                          onChange={(e) => {
+                            const v = e.target.value;
+                            if (esUnidadCantidadValida(v)) {
+                              setNuevaUnidad(v);
+                            }
+                          }}
+                          className="rounded-xl border border-zinc-700 bg-zinc-950 px-2 py-2.5 text-sm text-zinc-100"
+                        >
+                          {UNIDADES_CANTIDAD.map((u) => (
+                            <option key={u} value={u}>
+                              {u}
+                            </option>
+                          ))}
+                        </select>
+                      </div>
+                    </label>
+                  </div>
+                  <div className="mt-3 flex flex-wrap gap-2">
+                    <button
+                      type="button"
+                      onClick={() => void crearPrep()}
+                      disabled={isCreandoPrep || !nuevaNombre.trim()}
+                      className="inline-flex items-center justify-center gap-2 rounded-xl border border-emerald-800/80 bg-emerald-900/50 px-4 py-2.5 text-sm font-semibold text-emerald-50 transition hover:bg-emerald-800/50 disabled:opacity-50"
+                    >
+                      {isCreandoPrep ? (
+                        <Loader2 className="h-4 w-4 animate-spin" />
+                      ) : (
+                        <Plus className="h-4 w-4" />
+                      )}
+                      Agregar y seleccionar
+                    </button>
+                    {preparaciones.length > 0 ? (
+                      <button
+                        type="button"
+                        onClick={() => setAltaPrepExpandida(false)}
+                        className="rounded-xl px-4 py-2.5 text-sm text-zinc-500 transition hover:text-zinc-300"
+                      >
+                        Cancelar
+                      </button>
+                    ) : null}
+                  </div>
+                </div>
+              ) : (
+                <button
+                  type="button"
+                  onClick={() => setAltaPrepExpandida(true)}
+                  className="flex w-full items-center justify-center gap-2 rounded-xl border border-dashed border-zinc-700 bg-zinc-950/40 px-4 py-2.5 text-sm text-zinc-400 transition hover:border-zinc-600 hover:text-zinc-200"
+                >
+                  <Plus className="h-4 w-4" />
+                  Agregar preparación nueva
+                </button>
+              )}
               {prepSeleccionada ? (
                 <p className="text-xs text-zinc-500">
                   Referencia: {formatearCantidad(prepSeleccionada.cantidadReferencia, prepSeleccionada.unidadCantidad)}

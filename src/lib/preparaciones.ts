@@ -112,6 +112,54 @@ export async function fetchPreparaciones(): Promise<Preparacion[]> {
   return ((data ?? []) as PreparacionDbRow[]).map(preparacionDesdeFila);
 }
 
+export type CrearPreparacionInput = {
+  nombre: string;
+  area: AreaProduccion;
+  duracionDias?: number;
+  cantidadReferencia?: number;
+  unidadCantidad?: UnidadCantidad;
+  notas?: string | null;
+  seguimientoActivo?: boolean;
+  pendiente?: boolean;
+};
+
+export async function crearPreparacion(input: CrearPreparacionInput): Promise<Preparacion> {
+  const nombre = input.nombre.trim();
+  if (!nombre) {
+    throw new Error("El nombre es obligatorio.");
+  }
+  const duracionDias = input.duracionDias ?? 7;
+  if (!Number.isFinite(duracionDias) || duracionDias < 1) {
+    throw new Error("La duración debe ser al menos 1 día.");
+  }
+  const cantidadReferencia = input.cantidadReferencia ?? 1;
+  if (cantidadReferencia <= 0) {
+    throw new Error("El lote típico debe ser mayor que 0.");
+  }
+  const unidadCantidad = input.unidadCantidad ?? "ud";
+
+  const { data, error } = await supabase
+    .from("preparaciones")
+    .insert({
+      nombre,
+      area: input.area,
+      duracion_dias: duracionDias,
+      cantidad_referencia: cantidadReferencia,
+      unidad_cantidad: unidadCantidad,
+      notas: input.notas?.trim() || null,
+      seguimiento_activo: input.seguimientoActivo ?? true,
+      pendiente: input.pendiente ?? false,
+    })
+    .select(PREPARACION_SELECT)
+    .single();
+
+  if (error) {
+    throw new Error(formatPostgrestError(error));
+  }
+
+  return preparacionDesdeFila(data as PreparacionDbRow);
+}
+
 export function hoyISO(): string {
   const d = new Date();
   const mm = String(d.getMonth() + 1).padStart(2, "0");
