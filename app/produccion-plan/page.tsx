@@ -150,11 +150,23 @@ export default function ProduccionPlanPage() {
 
   const equipo = useMemo(() => APP_USERS.map((u) => ({ id: u.id, name: u.displayName })), []);
   const personaOrdenIds = useMemo(() => APP_USERS.map((u) => u.id), []);
+  const getPersonaIdForItem = useCallback((item: ProduccionPlanItem): string | null => {
+    if (item.asignadoAId) {
+      return item.asignadoAId;
+    }
+    if (!item.asignadoANombre) {
+      return null;
+    }
+    const match = APP_USERS.find((u) => u.displayName === item.asignadoANombre);
+    return match?.id ?? null;
+  }, []);
+
   const indicePersonaItem = (item: ProduccionPlanItem) => {
-    if (!item.asignadoAId) {
+    const personaId = getPersonaIdForItem(item);
+    if (!personaId) {
       return 0;
     }
-    const idx = personaOrdenIds.indexOf(item.asignadoAId);
+    const idx = personaOrdenIds.indexOf(personaId);
     return idx >= 0 ? idx : 0;
   };
 
@@ -180,8 +192,8 @@ export default function ProduccionPlanPage() {
     fechasMostradas.length
   )}, ${GRILLA_ANCHO_DIA_MIN_PX}px)`;
   const layoutSemana = useMemo(
-    () => calcularLayoutVisualSemana(plan, lunesSemana, personaOrdenIds),
-    [plan, lunesSemana, personaOrdenIds]
+    () => calcularLayoutVisualSemana(plan, lunesSemana, personaOrdenIds, getPersonaIdForItem),
+    [plan, lunesSemana, personaOrdenIds, getPersonaIdForItem]
   );
   const alturaGrillaSemana = layoutSemana.alturaPx;
   const alturasFranjas = layoutSemana.alturasFranjas;
