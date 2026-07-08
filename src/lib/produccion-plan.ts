@@ -909,6 +909,7 @@ export async function crearProduccionPlanItemsBatch(
 export async function actualizarProduccionPlanItem(
   id: string,
   patch: Partial<{
+    fecha: string;
     hora_inicio: string;
     hora_fin: string;
     duracion_estimada_segundos: number;

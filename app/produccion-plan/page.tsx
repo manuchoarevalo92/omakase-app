@@ -36,11 +36,11 @@ import {
 } from "@/src/lib/produccion-sesiones";
 import {
   alturaItemGrillaPx,
-  anchoMinimoGrillaSemanaPx,
   calcularFechasRecurrencia,
   calcularHoraFinDesdeInicio,
   calcularLayoutVisualSemana,
   claseAreaBloque,
+  actualizarProduccionPlanItem,
   crearProduccionPlanItem,
   crearProduccionPlanItemsBatch,
   diaSemanaIsoDesdeFecha,
@@ -128,13 +128,33 @@ export default function ProduccionPlanPage() {
   const [clipboard, setClipboard] = useState<PlanClipboard | null>(null);
   const [recurrenciaModo, setRecurrenciaModo] = useState<RecurrenciaModalModo>("none");
   const [recurrenciaHasta, setRecurrenciaHasta] = useState("");
+  const [soloHoy, setSoloHoy] = useState(false);
+  const [filtroHoyAsignado, setFiltroHoyAsignado] = useState("");
+  const [draggingItemId, setDraggingItemId] = useState<string | null>(null);
 
   const equipo = useMemo(() => APP_USERS.map((u) => ({ id: u.id, name: u.displayName })), []);
 
   const fechasSemana = useMemo(() => fechasSemanaDesdeLunes(lunesSemana), [lunesSemana]);
+  const fechaHoy = useMemo(() => formatFechaLocalYYYYMMDD(new Date()), []);
+  const fechaHoyVisibleEnSemana = useMemo(
+    () => fechasSemana.includes(fechaHoy),
+    [fechasSemana, fechaHoy]
+  );
+  const fechasMostradas = useMemo(() => {
+    if (!soloHoy) {
+      return fechasSemana;
+    }
+    return fechaHoyVisibleEnSemana ? [fechaHoy] : [];
+  }, [soloHoy, fechasSemana, fechaHoyVisibleEnSemana, fechaHoy]);
   const horas = useMemo(() => horasGrilla(), []);
-  const anchoGrillaPx = useMemo(() => anchoMinimoGrillaSemanaPx(), []);
-  const columnasGrilla = `${GRILLA_EJE_HORAS_PX}px repeat(7, ${GRILLA_ANCHO_DIA_MIN_PX}px)`;
+  const anchoGrillaPx = useMemo(
+    () => GRILLA_EJE_HORAS_PX + Math.max(1, fechasMostradas.length) * GRILLA_ANCHO_DIA_MIN_PX,
+    [fechasMostradas.length]
+  );
+  const columnasGrilla = `${GRILLA_EJE_HORAS_PX}px repeat(${Math.max(
+    1,
+    fechasMostradas.length
+  )}, ${GRILLA_ANCHO_DIA_MIN_PX}px)`;
   const layoutSemana = useMemo(
     () => calcularLayoutVisualSemana(plan, lunesSemana),
     [plan, lunesSemana]
@@ -143,6 +163,13 @@ export default function ProduccionPlanPage() {
   const alturasFranjas = layoutSemana.alturasFranjas;
   const layoutsPorFecha = layoutSemana.porFecha;
   const anchoCarrilPct = 100 / PRODUCCION_PERSONAS_PARALELAS;
+  const itemsHoy = useMemo(() => itemsPlanPorFecha(plan, fechaHoy), [plan, fechaHoy]);
+  const itemsHoyFiltrados = useMemo(() => {
+    if (!filtroHoyAsignado) {
+      return itemsHoy;
+    }
+    return itemsHoy.filter((item) => item.asignadoAId === filtroHoyAsignado);
+  }, [itemsHoy, filtroHoyAsignado]);
 
   const prepSeleccionada = useMemo(
     () => preparaciones.find((p) => p.id === prepId) ?? null,
@@ -329,6 +356,64 @@ export default function ProduccionPlanPage() {
       return;
     }
     abrirModal(fecha, hora);
+  };
+
+  const onDragStartItem = (event: React.DragEvent<HTMLDivElement>, itemId: string) => {
+    event.dataTransfer.setData("text/plain", itemId);
+    event.dataTransfer.effectAllowed = "move";
+    setDraggingItemId(itemId);
+  };
+
+  const onDragEndItem = () => {
+    setDraggingItemId(null);
+  };
+
+  const onDropEnDia = async (
+    fechaDestino: string,
+    event: React.DragEvent<HTMLDivElement | HTMLButtonElement>
+  ) => {
+    event.preventDefault();
+    const itemId = event.dataTransfer.getData("text/plain");
+    const item = plan.find((p) => p.id === itemId);
+    setDraggingItemId(null);
+    if (!item) {
+      return;
+    }
+    const rect = event.currentTarget.getBoundingClientRect();
+    const y = event.clientY - rect.top;
+    const hora = horaDesdePosicionGrillaPx(y, alturasFranjas);
+    if (hora == null) {
+      return;
+    }
+    const horaInicioNueva = etiquetaHoraGrilla(hora);
+    const duracion = duracionSegundosEntreHoras(item.horaInicio, item.horaFin);
+    const horaFinNueva = calcularHoraFinDesdeInicio(horaInicioNueva, duracion);
+    if (item.fecha === fechaDestino && item.horaInicio === horaInicioNueva) {
+      return;
+    }
+    setIsBusy(true);
+    setError(null);
+    try {
+      const actualizado = await actualizarProduccionPlanItem(item.id, {
+        fecha: fechaDestino,
+        hora_inicio: horaInicioNueva,
+        hora_fin: horaFinNueva,
+        duracion_estimada_segundos: duracion,
+      });
+      setPlan((prev) => prev.map((p) => (p.id === actualizado.id ? actualizado : p)));
+      setSuccess(
+        `${actualizado.preparacionNombre} movida a ${actualizado.fecha} ${actualizado.horaInicio}.`
+      );
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "No se pudo mover el bloque.");
+    } finally {
+      setIsBusy(false);
+    }
+  };
+
+  const onDragOverDia = (event: React.DragEvent<HTMLDivElement | HTMLButtonElement>) => {
+    event.preventDefault();
+    event.dataTransfer.dropEffect = "move";
   };
 
   const copiarItem = (item: ProduccionPlanItem) => {
@@ -605,6 +690,67 @@ export default function ProduccionPlanPage() {
             {etiquetaSemana(lunesSemana)}
           </p>
         </div>
+        <div className="mb-4 flex flex-wrap items-center gap-2">
+          <button
+            type="button"
+            onClick={() => setSoloHoy((v) => !v)}
+            className={`rounded-xl border px-3 py-1.5 text-sm transition ${
+              soloHoy
+                ? "border-emerald-700 bg-emerald-900/30 text-emerald-100"
+                : "border-zinc-700 bg-zinc-950 text-zinc-300 hover:border-zinc-500"
+            }`}
+          >
+            {soloHoy ? "Mostrando solo hoy" : "Filtrar solo hoy"}
+          </button>
+          {soloHoy && !fechaHoyVisibleEnSemana ? (
+            <button
+              type="button"
+              onClick={irSemanaActual}
+              className="rounded-xl border border-zinc-700 bg-zinc-950 px-3 py-1.5 text-sm text-zinc-300 hover:border-zinc-500"
+            >
+              Ir a semana actual
+            </button>
+          ) : null}
+        </div>
+
+        <div className="mb-4 rounded-xl border border-zinc-800 bg-zinc-950/50 p-3">
+          <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
+            <p className="text-sm font-medium text-zinc-200">
+              Vista de hoy ({fechaHoy.slice(8)}/{fechaHoy.slice(5, 7)})
+            </p>
+            <select
+              value={filtroHoyAsignado}
+              onChange={(e) => setFiltroHoyAsignado(e.target.value)}
+              className="rounded-lg border border-zinc-700 bg-zinc-950 px-2 py-1 text-xs text-zinc-200"
+            >
+              <option value="">Todo el equipo</option>
+              {equipo.map((m) => (
+                <option key={m.id} value={m.id}>
+                  {m.name}
+                </option>
+              ))}
+            </select>
+          </div>
+          {itemsHoyFiltrados.length === 0 ? (
+            <p className="text-xs text-zinc-500">No hay actividades para hoy con ese filtro.</p>
+          ) : (
+            <div className="grid gap-1.5 sm:grid-cols-2 lg:grid-cols-3">
+              {itemsHoyFiltrados.map((item) => (
+                <div
+                  key={`hoy-${item.id}`}
+                  className={`rounded-lg border px-2.5 py-2 text-xs ${claseAreaBloque(
+                    item.area,
+                    item.estado === "completada"
+                  )}`}
+                >
+                  <p className="font-semibold">{item.preparacionNombre}</p>
+                  <p className="opacity-90">{item.asignadoANombre ?? "Sin asignar"}</p>
+                  <p className="opacity-80">{etiquetaHorarioItem(item)}</p>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
 
         <div className="mb-4 flex flex-wrap gap-3 text-[11px] text-zinc-500">
           <span className="inline-flex items-center gap-1.5">
@@ -658,6 +804,11 @@ export default function ProduccionPlanPage() {
             <Loader2 className="h-5 w-5 animate-spin" />
             Cargando grilla…
           </div>
+        ) : fechasMostradas.length === 0 ? (
+          <div className="rounded-xl border border-zinc-800 bg-zinc-950/50 p-4 text-sm text-zinc-400">
+            El día de hoy no está en la semana visible. Tocá <span className="text-zinc-200">Esta semana</span>{" "}
+            para verlo.
+          </div>
         ) : (
           <div className="-mx-4 overflow-x-auto pb-2 sm:-mx-6">
             <div className="px-4 sm:px-6" style={{ minWidth: anchoGrillaPx }}>
@@ -669,7 +820,7 @@ export default function ProduccionPlanPage() {
                   className="sticky left-0 z-20 bg-zinc-900/95"
                   style={{ width: GRILLA_EJE_HORAS_PX }}
                 />
-                {fechasSemana.map((fecha) => {
+                {fechasMostradas.map((fecha) => {
                   const diaIso = diaSemanaIsoDesdeFecha(fecha);
                   const esHoy = fecha === formatFechaLocalYYYYMMDD(new Date());
                   const cantidadDia = itemsPlanPorFecha(plan, fecha).length;
@@ -722,7 +873,7 @@ export default function ProduccionPlanPage() {
                   ))}
                 </div>
 
-                {fechasSemana.map((fecha) => {
+                {fechasMostradas.map((fecha) => {
                   const itemsDia = itemsPlanPorFecha(plan, fecha);
                   const layoutDia = layoutsPorFecha.get(fecha)!;
                   const esHoy = fecha === formatFechaLocalYYYYMMDD(new Date());
@@ -733,6 +884,10 @@ export default function ProduccionPlanPage() {
                         esHoy ? "border-emerald-900/40 bg-emerald-950/5" : "border-zinc-800/80"
                       }`}
                       style={{ width: GRILLA_ANCHO_DIA_MIN_PX, height: alturaGrillaSemana }}
+                      onDragOver={onDragOverDia}
+                      onDrop={(e) => {
+                        void onDropEnDia(fecha, e);
+                      }}
                     >
                       {[1, 2].map((carril) => (
                         <div
@@ -751,6 +906,10 @@ export default function ProduccionPlanPage() {
                       <button
                         type="button"
                         onClick={(e) => onClickGrillaDia(fecha, e)}
+                        onDragOver={onDragOverDia}
+                        onDrop={(e) => {
+                          void onDropEnDia(fecha, e);
+                        }}
                         className="absolute inset-x-0 top-0 z-[4] cursor-cell bg-transparent hover:bg-zinc-800/20"
                         style={{ height: alturaGrillaSemana }}
                         aria-label={`Agregar preparación el ${fecha}`}
@@ -772,12 +931,16 @@ export default function ProduccionPlanPage() {
                               item.area,
                               completada
                             )} ${conflicto ? "ring-2 ring-red-500/70" : ""} ${completada ? "opacity-80" : ""}`}
+                            draggable={!isBusy}
+                            onDragStart={(e) => onDragStartItem(e, item.id)}
+                            onDragEnd={onDragEndItem}
                             style={{
                               top: layout.topPx,
                               height: layout.heightPx,
                               left: `calc(${izqPct}% + 4px)`,
                               width: `calc(${anchoCarrilPct}% - 8px)`,
-                              zIndex: 10 + layout.indice,
+                              zIndex: 10 + layout.indice + (draggingItemId === item.id ? 100 : 0),
+                              opacity: draggingItemId === item.id ? 0.65 : undefined,
                             }}
                           >
                             <div className="flex min-h-full flex-col gap-1">
