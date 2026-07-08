@@ -104,13 +104,13 @@ function clasePersonaBloque(indice: number, completada: boolean): string {
   if (completada) {
     return "border-emerald-900/50 bg-emerald-950/30 text-emerald-100/80";
   }
-  if (indice === 1) {
+  if (indice === 0) {
     return "border-violet-800/60 bg-violet-950/50 text-violet-50";
   }
-  if (indice === 2) {
-    return "border-emerald-800/60 bg-emerald-950/50 text-emerald-50";
+  if (indice === 1) {
+    return "border-sky-800/60 bg-sky-950/50 text-sky-50";
   }
-  return "border-sky-800/60 bg-sky-950/50 text-sky-50";
+  return "border-emerald-800/60 bg-emerald-950/50 text-emerald-50";
 }
 
 const MAX_RECURRENCIA_DIAS = 90;
@@ -858,11 +858,11 @@ export default function ProduccionPlanPage() {
 
         <div className="mb-4 flex flex-wrap gap-3 text-[11px] text-zinc-500">
           <span className="inline-flex items-center gap-1.5">
-            <span className="h-2.5 w-2.5 rounded-sm border border-sky-800/60 bg-sky-950/50" />
+            <span className="h-2.5 w-2.5 rounded-sm border border-violet-800/60 bg-violet-950/50" />
             Manu
           </span>
           <span className="inline-flex items-center gap-1.5">
-            <span className="h-2.5 w-2.5 rounded-sm border border-violet-800/60 bg-violet-950/50" />
+            <span className="h-2.5 w-2.5 rounded-sm border border-sky-800/60 bg-sky-950/50" />
             Javi
           </span>
           <span className="inline-flex items-center gap-1.5">
