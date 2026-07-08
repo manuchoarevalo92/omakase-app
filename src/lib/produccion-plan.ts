@@ -574,7 +574,40 @@ function claveCarrilPersona(item: ProduccionPlanItem): string {
   return item.asignadoAId ?? `sin-asignar-${item.id}`;
 }
 
-function asignarCarrilPorPersona(items: ProduccionPlanItem[]): Map<string, number> {
+function asignarCarrilPorPersona(
+  items: ProduccionPlanItem[],
+  personaOrdenIds?: string[]
+): Map<string, number> {
+  // Si no pasamos un orden, mantenemos el comportamiento anterior (asigna carril
+  // por el orden en que aparecen las personas con actividades).
+  if (!personaOrdenIds || personaOrdenIds.length === 0) {
+    const carrilPorPersona = new Map<string, number>();
+    const ordenados = items
+      .filter((i) => i.estado !== "cancelada")
+      .sort(
+        (a, b) =>
+          minutosDesdeMedianoche(a.horaInicio) - minutosDesdeMedianoche(b.horaInicio) ||
+          a.id.localeCompare(b.id)
+      );
+
+    for (const item of ordenados) {
+      const clave = claveCarrilPersona(item);
+      if (!carrilPorPersona.has(clave)) {
+        carrilPorPersona.set(
+          clave,
+          Math.min(carrilPorPersona.size, PRODUCCION_PERSONAS_PARALELAS - 1)
+        );
+      }
+    }
+
+    return carrilPorPersona;
+  }
+
+  const idxPorPersonaId = new Map<string, number>();
+  for (let i = 0; i < Math.min(personaOrdenIds.length, PRODUCCION_PERSONAS_PARALELAS); i++) {
+    idxPorPersonaId.set(personaOrdenIds[i]!, i);
+  }
+
   const carrilPorPersona = new Map<string, number>();
   const ordenados = items
     .filter((i) => i.estado !== "cancelada")
@@ -586,12 +619,17 @@ function asignarCarrilPorPersona(items: ProduccionPlanItem[]): Map<string, numbe
 
   for (const item of ordenados) {
     const clave = claveCarrilPersona(item);
-    if (!carrilPorPersona.has(clave)) {
-      carrilPorPersona.set(
-        clave,
-        Math.min(carrilPorPersona.size, PRODUCCION_PERSONAS_PARALELAS - 1)
-      );
+    if (carrilPorPersona.has(clave)) {
+      continue;
     }
+    const asignadoId = item.asignadoAId;
+    if (asignadoId && idxPorPersonaId.has(asignadoId)) {
+      carrilPorPersona.set(clave, idxPorPersonaId.get(asignadoId)!);
+      continue;
+    }
+    // Fallback: si no sabemos a qué persona corresponde (o no está en el orden),
+    // mantenemos el carril 0 para no mover las actividades fijas.
+    carrilPorPersona.set(clave, 0);
   }
 
   return carrilPorPersona;
@@ -599,10 +637,11 @@ function asignarCarrilPorPersona(items: ProduccionPlanItem[]): Map<string, numbe
 
 function layoutearBloquesCortosEnFranjas(
   items: ProduccionPlanItem[],
-  alturasFranjas: number[]
+  alturasFranjas: number[],
+  personaOrdenIds?: string[]
 ): Map<string, LayoutParaleloItem> {
   const activos = items.filter((i) => i.estado !== "cancelada" && !itemEsBloqueLargo(i));
-  const carrilPorPersona = asignarCarrilPorPersona(items);
+  const carrilPorPersona = asignarCarrilPorPersona(items, personaOrdenIds);
   const porCarril: ProduccionPlanItem[][] = Array.from(
     { length: PRODUCCION_PERSONAS_PARALELAS },
     () => []
@@ -673,10 +712,11 @@ function expandirFranjasPorBloquesCortos(
 
 function layoutearCarrillesDia(
   items: ProduccionPlanItem[],
-  alturasFranjas: number[]
+  alturasFranjas: number[],
+  personaOrdenIds?: string[]
 ): Map<string, LayoutParaleloItem> {
-  const carrilPorPersona = asignarCarrilPorPersona(items);
-  const layout = layoutearBloquesCortosEnFranjas(items, alturasFranjas);
+  const carrilPorPersona = asignarCarrilPorPersona(items, personaOrdenIds);
+  const layout = layoutearBloquesCortosEnFranjas(items, alturasFranjas, personaOrdenIds);
 
   for (const item of items.filter((i) => i.estado !== "cancelada" && itemEsBloqueLargo(i))) {
     const carril = carrilPorPersona.get(claveCarrilPersona(item)) ?? 0;
@@ -704,11 +744,14 @@ function layoutearCarrillesDia(
   return layout;
 }
 
-function calcularAlturasFranjasDia(items: ProduccionPlanItem[]): number[] {
+function calcularAlturasFranjasDia(
+  items: ProduccionPlanItem[],
+  personaOrdenIds?: string[]
+): number[] {
   let alturasFranjas = alturasFranjasUniformes();
 
   for (let paso = 0; paso < 8; paso++) {
-    const cortos = layoutearBloquesCortosEnFranjas(items, alturasFranjas);
+    const cortos = layoutearBloquesCortosEnFranjas(items, alturasFranjas, personaOrdenIds);
     const expandidas = expandirFranjasPorBloquesCortos(cortos, items, alturasFranjas);
     const estable = expandidas.every((altura, i) => altura === alturasFranjas[i]);
     alturasFranjas = expandidas;
@@ -722,10 +765,11 @@ function calcularAlturasFranjasDia(items: ProduccionPlanItem[]): number[] {
 
 function calcularLayoutVisualDiaConFranjas(
   items: ProduccionPlanItem[],
-  alturasFranjas: number[]
+  alturasFranjas: number[],
+  personaOrdenIds?: string[]
 ): LayoutVisualDia {
   return {
-    items: layoutearCarrillesDia(items, alturasFranjas),
+    items: layoutearCarrillesDia(items, alturasFranjas, personaOrdenIds),
     alturasFranjas,
     alturaPx: alturaGrillaDesdeFranjas(alturasFranjas) + GRILLA_PADDING_INFERIOR_PX,
   };
@@ -739,11 +783,12 @@ export function calcularLayoutVisualDia(items: ProduccionPlanItem[]): LayoutVisu
 
 export function calcularLayoutVisualSemana(
   plan: ProduccionPlanItem[],
-  lunes: string
+  lunes: string,
+  personaOrdenIds?: string[]
 ): LayoutVisualSemana {
   const fechas = fechasSemanaDesdeLunes(lunes);
   const alturasPorDia = fechas.map((fecha) =>
-    calcularAlturasFranjasDia(itemsPlanPorFecha(plan, fecha))
+    calcularAlturasFranjasDia(itemsPlanPorFecha(plan, fecha), personaOrdenIds)
   );
 
   let alturasFranjas = alturasFranjasUniformes();
@@ -755,7 +800,11 @@ export function calcularLayoutVisualSemana(
   for (const fecha of fechas) {
     porFecha.set(
       fecha,
-      calcularLayoutVisualDiaConFranjas(itemsPlanPorFecha(plan, fecha), alturasFranjas)
+      calcularLayoutVisualDiaConFranjas(
+        itemsPlanPorFecha(plan, fecha),
+        alturasFranjas,
+        personaOrdenIds
+      )
     );
   }
 

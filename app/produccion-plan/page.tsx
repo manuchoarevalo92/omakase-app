@@ -39,7 +39,6 @@ import {
   calcularFechasRecurrencia,
   calcularHoraFinDesdeInicio,
   calcularLayoutVisualSemana,
-  claseAreaBloque,
   actualizarProduccionPlanItem,
   crearProduccionPlanItem,
   crearProduccionPlanItemsBatch,
@@ -101,6 +100,19 @@ function etiquetaHoraGrilla(hora: number): string {
   return `${String(hora).padStart(2, "0")}:00`;
 }
 
+function clasePersonaBloque(indice: number, completada: boolean): string {
+  if (completada) {
+    return "border-emerald-900/50 bg-emerald-950/30 text-emerald-100/80";
+  }
+  if (indice === 1) {
+    return "border-violet-800/60 bg-violet-950/50 text-violet-50";
+  }
+  if (indice === 2) {
+    return "border-emerald-800/60 bg-emerald-950/50 text-emerald-50";
+  }
+  return "border-sky-800/60 bg-sky-950/50 text-sky-50";
+}
+
 const MAX_RECURRENCIA_DIAS = 90;
 
 export default function ProduccionPlanPage() {
@@ -137,6 +149,14 @@ export default function ProduccionPlanPage() {
   const [draggingItemId, setDraggingItemId] = useState<string | null>(null);
 
   const equipo = useMemo(() => APP_USERS.map((u) => ({ id: u.id, name: u.displayName })), []);
+  const personaOrdenIds = useMemo(() => APP_USERS.map((u) => u.id), []);
+  const indicePersonaItem = (item: ProduccionPlanItem) => {
+    if (!item.asignadoAId) {
+      return 0;
+    }
+    const idx = personaOrdenIds.indexOf(item.asignadoAId);
+    return idx >= 0 ? idx : 0;
+  };
 
   const fechasSemana = useMemo(() => fechasSemanaDesdeLunes(lunesSemana), [lunesSemana]);
   const fechaHoy = useMemo(() => formatFechaLocalYYYYMMDD(new Date()), []);
@@ -160,8 +180,8 @@ export default function ProduccionPlanPage() {
     fechasMostradas.length
   )}, ${GRILLA_ANCHO_DIA_MIN_PX}px)`;
   const layoutSemana = useMemo(
-    () => calcularLayoutVisualSemana(plan, lunesSemana),
-    [plan, lunesSemana]
+    () => calcularLayoutVisualSemana(plan, lunesSemana, personaOrdenIds),
+    [plan, lunesSemana, personaOrdenIds]
   );
   const alturaGrillaSemana = layoutSemana.alturaPx;
   const alturasFranjas = layoutSemana.alturasFranjas;
@@ -810,8 +830,8 @@ export default function ProduccionPlanPage() {
               {itemsHoyFiltrados.map((item) => (
                 <div
                   key={`hoy-${item.id}`}
-                  className={`rounded-lg border px-2.5 py-2 text-xs ${claseAreaBloque(
-                    item.area,
+                  className={`rounded-lg border px-2.5 py-2 text-xs ${clasePersonaBloque(
+                    indicePersonaItem(item),
                     item.estado === "completada"
                   )}`}
                 >
@@ -827,11 +847,15 @@ export default function ProduccionPlanPage() {
         <div className="mb-4 flex flex-wrap gap-3 text-[11px] text-zinc-500">
           <span className="inline-flex items-center gap-1.5">
             <span className="h-2.5 w-2.5 rounded-sm border border-sky-800/60 bg-sky-950/50" />
-            Delivery
+            Manu
           </span>
           <span className="inline-flex items-center gap-1.5">
             <span className="h-2.5 w-2.5 rounded-sm border border-violet-800/60 bg-violet-950/50" />
-            Barra
+            Javi
+          </span>
+          <span className="inline-flex items-center gap-1.5">
+            <span className="h-2.5 w-2.5 rounded-sm border border-emerald-800/60 bg-emerald-950/50" />
+            Santi
           </span>
           <span>
             Hasta {PRODUCCION_PERSONAS_PARALELAS} preparaciones en el mismo horario (una por persona).
@@ -1019,8 +1043,8 @@ export default function ProduccionPlanPage() {
                         return (
                           <div
                             key={item.id}
-                            className={`absolute cursor-pointer overflow-y-auto rounded-lg border px-2 py-1.5 shadow-md ${claseAreaBloque(
-                              item.area,
+                            className={`absolute cursor-pointer overflow-y-auto rounded-lg border px-2 py-1.5 shadow-md ${clasePersonaBloque(
+                              layout.indice,
                               completada
                             )} ${conflicto ? "ring-2 ring-red-500/70" : ""} ${completada ? "opacity-80" : ""}`}
                             draggable={!isBusy}
