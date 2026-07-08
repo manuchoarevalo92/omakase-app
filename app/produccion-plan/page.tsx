@@ -53,6 +53,7 @@ import {
   fechasSemanaDesdeLunes,
   fetchProduccionPlanSemana,
   formatFechaLocalYYYYMMDD,
+  minutosGrillaAPx,
   horaMinutoDesdePosicionGrillaPx,
   horaDesdePosicionGrillaPx,
   MENSAJE_MIGRACION_HORARIOS_PLAN,
@@ -106,6 +107,7 @@ export default function ProduccionPlanPage() {
   const [lunesSemana, setLunesSemana] = useState(() =>
     lunesDeSemanaDe(formatFechaLocalYYYYMMDD(new Date()))
   );
+  const [ahora, setAhora] = useState(() => new Date());
   const [plan, setPlan] = useState<ProduccionPlanItem[]>([]);
   const [preparaciones, setPreparaciones] = useState<Preparacion[]>([]);
   const [resumenes, setResumenes] = useState(
@@ -165,6 +167,16 @@ export default function ProduccionPlanPage() {
   const alturasFranjas = layoutSemana.alturasFranjas;
   const layoutsPorFecha = layoutSemana.porFecha;
   const anchoCarrilPct = 100 / PRODUCCION_PERSONAS_PARALELAS;
+  const ahoraMinutos = ahora.getHours() * 60 + ahora.getMinutes();
+  const inicioMinutos = GRILLA_HORA_INICIO * 60;
+  const finMinutos = GRILLA_HORA_FIN * 60;
+  const mostrarLineaAhora = ahoraMinutos >= inicioMinutos && ahoraMinutos < finMinutos;
+  const lineTopPx = mostrarLineaAhora
+    ? minutosGrillaAPx(ahoraMinutos - inicioMinutos, alturasFranjas)
+    : 0;
+  const ahoraHHmm = `${String(ahora.getHours()).padStart(2, "0")}:${String(
+    ahora.getMinutes()
+  ).padStart(2, "0")}`;
   const itemsHoy = useMemo(() => itemsPlanPorFecha(plan, fechaHoy), [plan, fechaHoy]);
   const itemsHoyFiltrados = useMemo(() => {
     if (!filtroHoyAsignado) {
@@ -317,6 +329,11 @@ export default function ProduccionPlanPage() {
       cancelled = true;
     };
   }, [refrescar]);
+
+  useEffect(() => {
+    const id = window.setInterval(() => setAhora(new Date()), 30_000);
+    return () => window.clearInterval(id);
+  }, []);
 
   const cambiarSemana = (delta: number) => {
     const d = new Date(lunesSemana + "T12:00:00");
@@ -926,6 +943,20 @@ export default function ProduccionPlanPage() {
                       {etiquetaHoraGrilla(h)}
                     </div>
                   ))}
+                  {mostrarLineaAhora ? (
+                    <>
+                      <div
+                        className="pointer-events-none absolute left-0 right-0 z-[60] h-px bg-emerald-400/80"
+                        style={{ top: lineTopPx }}
+                      />
+                      <div
+                        className="pointer-events-none absolute z-[61] -translate-y-1/2 rounded-md border border-emerald-700/70 bg-emerald-950/70 px-2 py-0.5 text-[11px] font-semibold text-emerald-100 tabular-nums"
+                        style={{ top: lineTopPx, left: 6 }}
+                      >
+                        {ahoraHHmm}
+                      </div>
+                    </>
+                  ) : null}
                 </div>
 
                 {fechasMostradas.map((fecha) => {
@@ -958,6 +989,12 @@ export default function ProduccionPlanPage() {
                           style={{ top: topFranjaHorariaPx(h, alturasFranjas) }}
                         />
                       ))}
+                      {mostrarLineaAhora ? (
+                        <div
+                          className="pointer-events-none absolute left-0 right-0 z-[40] h-px bg-emerald-400/70"
+                          style={{ top: lineTopPx }}
+                        />
+                      ) : null}
                       <button
                         type="button"
                         onClick={(e) => onClickGrillaDia(fecha, e)}
