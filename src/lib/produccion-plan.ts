@@ -310,6 +310,37 @@ export function horaDesdePosicionGrillaPx(
   return null;
 }
 
+/**
+ * Convierte una posición Y de la grilla a HH:mm ajustando al paso indicado.
+ * Ej: pasoMinutos=5 devuelve 10:00, 10:05, 10:10, etc.
+ */
+export function horaMinutoDesdePosicionGrillaPx(
+  y: number,
+  alturasFranjas: number[] = alturasFranjasUniformes(),
+  pasoMinutos = 5
+): string | null {
+  const alturaTotal = alturaGrillaDesdeFranjas(alturasFranjas);
+  if (y < 0 || y >= alturaTotal) {
+    return null;
+  }
+  const paso = Math.max(1, pasoMinutos);
+  let acumulado = 0;
+  for (let i = 0; i < alturasFranjas.length; i++) {
+    const alturaFranja = alturasFranjas[i]!;
+    const limite = acumulado + alturaFranja;
+    if (y < limite) {
+      const proporcion = alturaFranja <= 0 ? 0 : (y - acumulado) / alturaFranja;
+      const minutosDentroFranja = Math.max(0, Math.min(59, Math.round(proporcion * 60)));
+      const minutosRedondeados = Math.round(minutosDentroFranja / paso) * paso;
+      const minutosTotales = GRILLA_HORA_INICIO * 60 + i * 60 + minutosRedondeados;
+      const maxMinutos = GRILLA_HORA_FIN * 60;
+      return formatearHoraHHmm(Math.min(minutosTotales, maxMinutos));
+    }
+    acumulado = limite;
+  }
+  return null;
+}
+
 export function topItemGrillaPxConFranjas(
   item: ProduccionPlanItem,
   alturasFranjas: number[]
@@ -910,10 +941,14 @@ export async function actualizarProduccionPlanItem(
   id: string,
   patch: Partial<{
     fecha: string;
+    preparacion_id: string | null;
+    preparacion_nombre: string;
+    area: AreaProduccion;
     hora_inicio: string;
     hora_fin: string;
     duracion_estimada_segundos: number;
     cantidad_planificada: number | null;
+    unidad_cantidad: UnidadCantidad | null;
     notas: string | null;
     estado: ProduccionPlanEstado;
     asignado_a_id: string | null;

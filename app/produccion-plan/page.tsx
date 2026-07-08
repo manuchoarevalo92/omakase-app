@@ -53,6 +53,7 @@ import {
   fechasSemanaDesdeLunes,
   fetchProduccionPlanSemana,
   formatFechaLocalYYYYMMDD,
+  horaMinutoDesdePosicionGrillaPx,
   horaDesdePosicionGrillaPx,
   MENSAJE_MIGRACION_HORARIOS_PLAN,
   GRILLA_ANCHO_CARRIL_MIN_PX,
@@ -117,6 +118,7 @@ export default function ProduccionPlanPage() {
   const [requiereMigracionHorarios, setRequiereMigracionHorarios] = useState(false);
   const [success, setSuccess] = useState<string | null>(null);
   const [modal, setModal] = useState<ModalPrep | null>(null);
+  const [itemEditandoId, setItemEditandoId] = useState<string | null>(null);
   const [prepId, setPrepId] = useState("");
   const [horaInicio, setHoraInicio] = useState("10:00");
   const [horaFin, setHoraFin] = useState("10:00");
@@ -174,6 +176,10 @@ export default function ProduccionPlanPage() {
   const prepSeleccionada = useMemo(
     () => preparaciones.find((p) => p.id === prepId) ?? null,
     [preparaciones, prepId]
+  );
+  const itemEditando = useMemo(
+    () => (itemEditandoId ? plan.find((p) => p.id === itemEditandoId) ?? null : null),
+    [itemEditandoId, plan]
   );
 
   const horarioSugeridoActivo = useMemo(() => {
@@ -328,6 +334,7 @@ export default function ProduccionPlanPage() {
     const horaSlot = etiquetaHoraGrilla(hora);
     const personaId = usuario?.id ?? asignadoId;
     setModal({ fecha, horaInicio: horaSlot });
+    setItemEditandoId(null);
     setPrepId("");
     setCantidad("");
     setNotas("");
@@ -338,6 +345,22 @@ export default function ProduccionPlanPage() {
       setAsignadoId(personaId);
     }
     aplicarHorarioSugerido(fecha, horaSlot, personaId, null, "", unidadCantidad);
+    setError(null);
+  };
+
+  const abrirModalEdicion = (item: ProduccionPlanItem) => {
+    setModal({ fecha: item.fecha, horaInicio: item.horaInicio });
+    setItemEditandoId(item.id);
+    setPrepId(item.preparacionId ?? "");
+    setHoraInicio(item.horaInicio);
+    setHoraFin(item.horaFin);
+    setCantidad(item.cantidadPlanificada != null ? String(item.cantidadPlanificada) : "");
+    setUnidadCantidad(item.unidadCantidad ?? "kg");
+    setNotas(item.notas ?? "");
+    setEstimacionEscalada(false);
+    setRecurrenciaModo("none");
+    setRecurrenciaHasta(item.fecha);
+    setAsignadoId(item.asignadoAId ?? "");
     setError(null);
   };
 
@@ -381,11 +404,10 @@ export default function ProduccionPlanPage() {
     }
     const rect = event.currentTarget.getBoundingClientRect();
     const y = event.clientY - rect.top;
-    const hora = horaDesdePosicionGrillaPx(y, alturasFranjas);
-    if (hora == null) {
+    const horaInicioNueva = horaMinutoDesdePosicionGrillaPx(y, alturasFranjas, 5);
+    if (!horaInicioNueva) {
       return;
     }
-    const horaInicioNueva = etiquetaHoraGrilla(hora);
     const duracion = duracionSegundosEntreHoras(item.horaInicio, item.horaFin);
     const horaFinNueva = calcularHoraFinDesdeInicio(horaInicioNueva, duracion);
     if (item.fecha === fechaDestino && item.horaInicio === horaInicioNueva) {
@@ -576,19 +598,52 @@ export default function ProduccionPlanPage() {
         asignado: { id: asignado.id, name: asignado.name },
         usuario,
       };
-      const nuevos =
-        fechasObjetivo.length === 1
-          ? [await crearProduccionPlanItem({ fecha: fechasObjetivo[0]!, ...payloadBase })]
-          : await crearProduccionPlanItemsBatch(
-              fechasObjetivo.map((fecha) => ({ fecha, ...payloadBase }))
-            );
-      setPlan((prev) => [...prev, ...nuevos]);
+      const duracion = duracionSegundosEntreHoras(horaInicio, horaFin);
+      let nuevos: ProduccionPlanItem[] = [];
+      if (itemEditandoId) {
+        const actualizado = await actualizarProduccionPlanItem(itemEditandoId, {
+          fecha: fechaBase,
+          preparacion_id: prepSeleccionada.id,
+          preparacion_nombre: prepSeleccionada.nombre,
+          area: prepSeleccionada.area,
+          hora_inicio: horaInicio,
+          hora_fin: horaFin,
+          duracion_estimada_segundos: duracion,
+          cantidad_planificada: parseCantidadInput(cantidad),
+          unidad_cantidad: unidadCantidad,
+          notas: notas.trim() || null,
+          asignado_a_id: asignado.id,
+          asignado_a_nombre: asignado.name,
+        });
+        const fechasExtra = fechasObjetivo.filter((f) => f !== fechaBase);
+        if (fechasExtra.length > 0) {
+          nuevos = await crearProduccionPlanItemsBatch(
+            fechasExtra.map((fecha) => ({ fecha, ...payloadBase }))
+          );
+        }
+        setPlan((prev) =>
+          [...prev.map((p) => (p.id === actualizado.id ? actualizado : p)), ...nuevos].sort((a, b) =>
+            a.fecha.localeCompare(b.fecha) || a.horaInicio.localeCompare(b.horaInicio)
+          )
+        );
+      } else {
+        nuevos =
+          fechasObjetivo.length === 1
+            ? [await crearProduccionPlanItem({ fecha: fechasObjetivo[0]!, ...payloadBase })]
+            : await crearProduccionPlanItemsBatch(
+                fechasObjetivo.map((fecha) => ({ fecha, ...payloadBase }))
+              );
+        setPlan((prev) => [...prev, ...nuevos]);
+      }
       setModal(null);
+      setItemEditandoId(null);
       if (nuevos.length === 1) {
         const item = nuevos[0]!;
         setSuccess(
           `${item.preparacionNombre} planificada ${item.fecha} ${item.horaInicio}–${item.horaFin}.`
         );
+      } else if (itemEditandoId && nuevos.length === 0) {
+        setSuccess("Actividad actualizada.");
       } else {
         setSuccess(
           `${prepSeleccionada.nombre} planificada en ${nuevos.length} fechas (${recurrenciaModo === "daily" ? "diaria" : "semanal"}).`
@@ -927,13 +982,17 @@ export default function ProduccionPlanPage() {
                         return (
                           <div
                             key={item.id}
-                            className={`absolute overflow-y-auto rounded-lg border px-2 py-1.5 shadow-md ${claseAreaBloque(
+                            className={`absolute cursor-pointer overflow-y-auto rounded-lg border px-2 py-1.5 shadow-md ${claseAreaBloque(
                               item.area,
                               completada
                             )} ${conflicto ? "ring-2 ring-red-500/70" : ""} ${completada ? "opacity-80" : ""}`}
                             draggable={!isBusy}
                             onDragStart={(e) => onDragStartItem(e, item.id)}
                             onDragEnd={onDragEndItem}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              abrirModalEdicion(item);
+                            }}
                             style={{
                               top: layout.topPx,
                               height: layout.heightPx,
@@ -1021,20 +1080,38 @@ export default function ProduccionPlanPage() {
           <div className="w-full max-w-md rounded-2xl border border-zinc-700 bg-zinc-900 p-5 shadow-2xl">
             <div className="mb-4 flex items-start justify-between gap-2">
               <div>
-                <h3 className="text-lg font-semibold text-white">Planificar preparación</h3>
+                <h3 className="text-lg font-semibold text-white">
+                  {itemEditando ? "Editar preparación" : "Planificar preparación"}
+                </h3>
                 <p className="text-sm text-zinc-400 tabular-nums">
                   {modal.fecha} · desde {modal.horaInicio}
                 </p>
               </div>
               <button
                 type="button"
-                onClick={() => setModal(null)}
+                onClick={() => {
+                  setModal(null);
+                  setItemEditandoId(null);
+                }}
                 className="rounded-lg p-1 text-zinc-500 hover:text-zinc-200"
               >
                 <X className="h-4 w-4" />
               </button>
             </div>
             <div className="space-y-3">
+              <label className="block">
+                <span className="mb-1 block text-xs uppercase tracking-wide text-zinc-500">
+                  Fecha
+                </span>
+                <input
+                  type="date"
+                  value={modal.fecha}
+                  onChange={(e) =>
+                    setModal((prev) => (prev ? { ...prev, fecha: e.target.value } : prev))
+                  }
+                  className="w-full rounded-xl border border-zinc-700 bg-zinc-950 px-4 py-2.5 text-sm"
+                />
+              </label>
               <label className="block">
                 <span className="mb-1 block text-xs uppercase tracking-wide text-zinc-500">
                   Preparación
@@ -1194,7 +1271,10 @@ export default function ProduccionPlanPage() {
             <div className="mt-5 flex gap-2">
               <button
                 type="button"
-                onClick={() => setModal(null)}
+                onClick={() => {
+                  setModal(null);
+                  setItemEditandoId(null);
+                }}
                 className="flex-1 rounded-xl border border-zinc-600 px-4 py-2.5 text-sm text-zinc-200"
               >
                 Cancelar
@@ -1206,7 +1286,7 @@ export default function ProduccionPlanPage() {
                 className="inline-flex flex-1 items-center justify-center gap-2 rounded-xl bg-emerald-600 px-4 py-2.5 text-sm font-semibold text-white hover:bg-emerald-500 disabled:opacity-50"
               >
                 <Plus className="h-4 w-4" />
-                {isBusy ? "Guardando…" : "Agregar"}
+                {isBusy ? "Guardando…" : itemEditando ? "Guardar cambios" : "Agregar"}
               </button>
             </div>
           </div>
