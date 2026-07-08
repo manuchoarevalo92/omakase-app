@@ -96,15 +96,6 @@ type PlanClipboard = {
   asignadoANombre: string | null;
 };
 
-type TouchDragState = {
-  itemId: string;
-  clientX: number;
-  clientY: number;
-  startedX: number;
-  startedY: number;
-  active: boolean;
-};
-
 function etiquetaHoraGrilla(hora: number): string {
   return `${String(hora).padStart(2, "0")}:00`;
 }
@@ -156,8 +147,6 @@ export default function ProduccionPlanPage() {
   const [soloHoy, setSoloHoy] = useState(false);
   const [filtroHoyAsignado, setFiltroHoyAsignado] = useState("");
   const [draggingItemId, setDraggingItemId] = useState<string | null>(null);
-  const [touchDrag, setTouchDrag] = useState<TouchDragState | null>(null);
-  const [suppressClickItemId, setSuppressClickItemId] = useState<string | null>(null);
 
   const equipo = useMemo(() => APP_USERS.map((u) => ({ id: u.id, name: u.displayName })), []);
   const personaOrdenIds = useMemo(() => APP_USERS.map((u) => u.id), []);
@@ -451,11 +440,23 @@ export default function ProduccionPlanPage() {
     setDraggingItemId(null);
   };
 
-  const moverItemAFechaYHora = async (
-    item: ProduccionPlanItem,
+  const onDropEnDia = async (
     fechaDestino: string,
-    horaInicioNueva: string
+    event: React.DragEvent<HTMLDivElement | HTMLButtonElement>
   ) => {
+    event.preventDefault();
+    const itemId = event.dataTransfer.getData("text/plain");
+    const item = plan.find((p) => p.id === itemId);
+    setDraggingItemId(null);
+    if (!item) {
+      return;
+    }
+    const rect = event.currentTarget.getBoundingClientRect();
+    const y = event.clientY - rect.top;
+    const horaInicioNueva = horaMinutoDesdePosicionGrillaPx(y, alturasFranjas, 5);
+    if (!horaInicioNueva) {
+      return;
+    }
     const duracion = duracionSegundosEntreHoras(item.horaInicio, item.horaFin);
     const horaFinNueva = calcularHoraFinDesdeInicio(horaInicioNueva, duracion);
     if (item.fecha === fechaDestino && item.horaInicio === horaInicioNueva) {
@@ -481,120 +482,9 @@ export default function ProduccionPlanPage() {
     }
   };
 
-  const onDropEnDia = async (
-    fechaDestino: string,
-    event: React.DragEvent<HTMLDivElement | HTMLButtonElement>
-  ) => {
-    event.preventDefault();
-    const itemId = event.dataTransfer.getData("text/plain");
-    const item = plan.find((p) => p.id === itemId);
-    setDraggingItemId(null);
-    if (!item) {
-      return;
-    }
-    const rect = event.currentTarget.getBoundingClientRect();
-    const y = event.clientY - rect.top;
-    const horaInicioNueva = horaMinutoDesdePosicionGrillaPx(y, alturasFranjas, 5);
-    if (!horaInicioNueva) {
-      return;
-    }
-    await moverItemAFechaYHora(item, fechaDestino, horaInicioNueva);
-  };
-
   const onDragOverDia = (event: React.DragEvent<HTMLDivElement | HTMLButtonElement>) => {
     event.preventDefault();
     event.dataTransfer.dropEffect = "move";
-  };
-
-  const onPointerDownItem = (event: React.PointerEvent<HTMLDivElement>, itemId: string) => {
-    if (event.pointerType !== "touch" || isBusy) {
-      return;
-    }
-    event.currentTarget.setPointerCapture(event.pointerId);
-    setTouchDrag({
-      itemId,
-      clientX: event.clientX,
-      clientY: event.clientY,
-      startedX: event.clientX,
-      startedY: event.clientY,
-      active: false,
-    });
-  };
-
-  const onPointerMoveItem = (event: React.PointerEvent<HTMLDivElement>) => {
-    if (event.pointerType !== "touch") {
-      return;
-    }
-    setTouchDrag((prev) => {
-      if (!prev) {
-        return prev;
-      }
-      const dx = event.clientX - prev.startedX;
-      const dy = event.clientY - prev.startedY;
-      const active = prev.active || Math.hypot(dx, dy) > 10;
-      return {
-        ...prev,
-        clientX: event.clientX,
-        clientY: event.clientY,
-        active,
-      };
-    });
-    event.preventDefault();
-  };
-
-  const finalizarTouchDrag = async (
-    itemId: string,
-    clientX: number,
-    clientY: number,
-    active: boolean
-  ) => {
-    setTouchDrag(null);
-    setSuppressClickItemId(itemId);
-    window.setTimeout(() => setSuppressClickItemId((prev) => (prev === itemId ? null : prev)), 0);
-    if (!active) {
-      const item = plan.find((p) => p.id === itemId);
-      if (item) {
-        abrirModalEdicion(item);
-      }
-      return;
-    }
-    const target = document
-      .elementFromPoint(clientX, clientY)
-      ?.closest("[data-drop-fecha]") as HTMLElement | null;
-    if (!target) {
-      return;
-    }
-    const fechaDestino = target.dataset.dropFecha;
-    if (!fechaDestino) {
-      return;
-    }
-    const item = plan.find((p) => p.id === itemId);
-    if (!item) {
-      return;
-    }
-    const rect = target.getBoundingClientRect();
-    const y = clientY - rect.top;
-    const horaInicioNueva = horaMinutoDesdePosicionGrillaPx(y, alturasFranjas, 5);
-    if (!horaInicioNueva) {
-      return;
-    }
-    await moverItemAFechaYHora(item, fechaDestino, horaInicioNueva);
-  };
-
-  const onPointerUpItem = async (event: React.PointerEvent<HTMLDivElement>) => {
-    if (event.pointerType !== "touch" || !touchDrag) {
-      return;
-    }
-    await finalizarTouchDrag(
-      touchDrag.itemId,
-      event.clientX,
-      event.clientY,
-      touchDrag.active
-    );
-  };
-
-  const onPointerCancelItem = () => {
-    setTouchDrag(null);
   };
 
   const copiarItem = (item: ProduccionPlanItem) => {
@@ -1112,7 +1002,6 @@ export default function ProduccionPlanPage() {
                   return (
                     <div
                       key={fecha}
-                      data-drop-fecha={fecha}
                       className={`relative border-l ${
                         esHoy ? "border-emerald-900/40 bg-emerald-950/5" : "border-zinc-800/80"
                       }`}
@@ -1173,18 +1062,7 @@ export default function ProduccionPlanPage() {
                             draggable={!isBusy}
                             onDragStart={(e) => onDragStartItem(e, item.id)}
                             onDragEnd={onDragEndItem}
-                            onPointerDown={(e) => onPointerDownItem(e, item.id)}
-                            onPointerMove={onPointerMoveItem}
-                            onPointerUp={(e) => {
-                              void onPointerUpItem(e);
-                            }}
-                            onPointerCancel={onPointerCancelItem}
                             onClick={(e) => {
-                              if (touchDrag?.itemId === item.id || suppressClickItemId === item.id) {
-                                e.preventDefault();
-                                e.stopPropagation();
-                                return;
-                              }
                               e.stopPropagation();
                               abrirModalEdicion(item);
                             }}
@@ -1194,12 +1072,7 @@ export default function ProduccionPlanPage() {
                               left: `calc(${izqPct}% + 4px)`,
                               width: `calc(${anchoCarrilPct}% - 8px)`,
                               zIndex: 10 + layout.indice + (draggingItemId === item.id ? 100 : 0),
-                              opacity:
-                                draggingItemId === item.id ||
-                                (touchDrag?.itemId === item.id && touchDrag.active)
-                                  ? 0.65
-                                  : undefined,
-                              touchAction: "none",
+                              opacity: draggingItemId === item.id ? 0.65 : undefined,
                             }}
                           >
                             <div className="flex min-h-full flex-col gap-1">
