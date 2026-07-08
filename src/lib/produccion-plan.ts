@@ -201,7 +201,12 @@ export function calcularHoraFinDesdeInicio(
 }
 
 export function duracionSegundosEntreHoras(horaInicio: string, horaFin: string): number {
-  const diff = minutosDesdeMedianoche(horaFin) - minutosDesdeMedianoche(horaInicio);
+  const ini = minutosDesdeMedianoche(horaInicio);
+  let fin = minutosDesdeMedianoche(horaFin);
+  if (fin <= ini) {
+    fin += 24 * 60;
+  }
+  const diff = fin - ini;
   return Math.max(60, diff * 60);
 }
 
