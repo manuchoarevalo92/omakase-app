@@ -7,6 +7,7 @@ import {
   Check,
   ChevronLeft,
   ChevronRight,
+  Copy,
   Loader2,
   Plus,
   Timer,
@@ -36,11 +37,14 @@ import {
 import {
   alturaItemGrillaPx,
   anchoMinimoGrillaSemanaPx,
+  calcularFechasRecurrencia,
   calcularHoraFinDesdeInicio,
   calcularLayoutVisualSemana,
   claseAreaBloque,
   crearProduccionPlanItem,
+  crearProduccionPlanItemsBatch,
   diaSemanaIsoDesdeFecha,
+  duracionSegundosEntreHoras,
   eliminarProduccionPlanItem,
   estimarDuracionSegundos,
   etiquetaDiaSemanaCorto,
@@ -75,9 +79,27 @@ type ModalPrep = {
   horaInicio: string;
 };
 
+type RecurrenciaModalModo = "none" | "daily" | "weekly";
+
+type PlanClipboard = {
+  itemId: string;
+  preparacionId: string | null;
+  preparacionNombre: string;
+  area: Preparacion["area"];
+  horaInicio: string;
+  horaFin: string;
+  cantidadPlanificada: number | null;
+  unidadCantidad: UnidadCantidad | null;
+  notas: string | null;
+  asignadoAId: string | null;
+  asignadoANombre: string | null;
+};
+
 function etiquetaHoraGrilla(hora: number): string {
   return `${String(hora).padStart(2, "0")}:00`;
 }
+
+const MAX_RECURRENCIA_DIAS = 90;
 
 export default function ProduccionPlanPage() {
   const [lunesSemana, setLunesSemana] = useState(() =>
@@ -103,6 +125,9 @@ export default function ProduccionPlanPage() {
   const [notas, setNotas] = useState("");
   const [estimacionEscalada, setEstimacionEscalada] = useState(false);
   const [asignadoId, setAsignadoId] = useState("");
+  const [clipboard, setClipboard] = useState<PlanClipboard | null>(null);
+  const [recurrenciaModo, setRecurrenciaModo] = useState<RecurrenciaModalModo>("none");
+  const [recurrenciaHasta, setRecurrenciaHasta] = useState("");
 
   const equipo = useMemo(() => APP_USERS.map((u) => ({ id: u.id, name: u.displayName })), []);
 
@@ -280,6 +305,8 @@ export default function ProduccionPlanPage() {
     setCantidad("");
     setNotas("");
     setEstimacionEscalada(false);
+    setRecurrenciaModo("none");
+    setRecurrenciaHasta(fecha);
     if (personaId) {
       setAsignadoId(personaId);
     }
@@ -288,13 +315,80 @@ export default function ProduccionPlanPage() {
   };
 
   const onClickGrillaDia = (fecha: string, event: React.MouseEvent<HTMLButtonElement>) => {
+    if (isBusy) {
+      return;
+    }
     const rect = event.currentTarget.getBoundingClientRect();
     const y = event.clientY - rect.top;
     const hora = horaDesdePosicionGrillaPx(y, alturasFranjas);
     if (hora == null) {
       return;
     }
+    if (clipboard) {
+      void pegarClipboardEnHorario(fecha, etiquetaHoraGrilla(hora));
+      return;
+    }
     abrirModal(fecha, hora);
+  };
+
+  const copiarItem = (item: ProduccionPlanItem) => {
+    setClipboard({
+      itemId: item.id,
+      preparacionId: item.preparacionId,
+      preparacionNombre: item.preparacionNombre,
+      area: item.area,
+      horaInicio: item.horaInicio,
+      horaFin: item.horaFin,
+      cantidadPlanificada: item.cantidadPlanificada,
+      unidadCantidad: item.unidadCantidad,
+      notas: item.notas,
+      asignadoAId: item.asignadoAId,
+      asignadoANombre: item.asignadoANombre,
+    });
+    setSuccess(`Copiado: ${item.preparacionNombre}. Tocá una hora para pegar.`);
+    setError(null);
+  };
+
+  const pegarClipboardEnHorario = async (fecha: string, horaDestino: string) => {
+    if (!clipboard) {
+      return;
+    }
+    const prep = preparaciones.find((p) => p.id === clipboard.preparacionId);
+    if (!prep) {
+      setError(
+        `No se encontró la preparación "${clipboard.preparacionNombre}" para pegar.`
+      );
+      return;
+    }
+    const duracion = duracionSegundosEntreHoras(clipboard.horaInicio, clipboard.horaFin);
+    const horaFinDestino = calcularHoraFinDesdeInicio(horaDestino, duracion);
+    const asignado =
+      clipboard.asignadoAId && clipboard.asignadoANombre
+        ? { id: clipboard.asignadoAId, name: clipboard.asignadoANombre }
+        : null;
+    setIsBusy(true);
+    setError(null);
+    try {
+      const item = await crearProduccionPlanItem({
+        fecha,
+        horaInicio: horaDestino,
+        horaFin: horaFinDestino,
+        prep,
+        cantidadPlanificada: clipboard.cantidadPlanificada,
+        unidadCantidad: clipboard.unidadCantidad ?? prep.unidadCantidad,
+        notas: clipboard.notas,
+        asignado,
+        usuario,
+      });
+      setPlan((prev) => [...prev, item]);
+      setSuccess(
+        `Pegado: ${item.preparacionNombre} ${item.fecha} ${item.horaInicio}–${item.horaFin}.`
+      );
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "No se pudo pegar el bloque.");
+    } finally {
+      setIsBusy(false);
+    }
   };
 
   const onCambioAsignado = (id: string) => {
@@ -360,11 +454,34 @@ export default function ProduccionPlanPage() {
       setError("Elegí quién hace esta preparación.");
       return;
     }
+    const fechaBase = modal.fecha;
+    let fechasObjetivo = [fechaBase];
+    if (recurrenciaModo !== "none") {
+      if (!recurrenciaHasta) {
+        setError("Elegí hasta qué fecha repetir.");
+        return;
+      }
+      const fechas = calcularFechasRecurrencia({
+        fechaInicio: fechaBase,
+        fechaFin: recurrenciaHasta,
+        modo: recurrenciaModo,
+      });
+      if (fechas.length === 0) {
+        setError("La fecha de fin debe ser igual o posterior a la fecha inicial.");
+        return;
+      }
+      if (fechas.length > MAX_RECURRENCIA_DIAS) {
+        setError(
+          `La recurrencia supera el máximo de ${MAX_RECURRENCIA_DIAS} ocurrencias. Ajustá la fecha de fin.`
+        );
+        return;
+      }
+      fechasObjetivo = fechas;
+    }
     setIsBusy(true);
     setError(null);
     try {
-      const item = await crearProduccionPlanItem({
-        fecha: modal.fecha,
+      const payloadBase = {
         horaInicio,
         horaFin,
         prep: prepSeleccionada,
@@ -373,10 +490,25 @@ export default function ProduccionPlanPage() {
         notas,
         asignado: { id: asignado.id, name: asignado.name },
         usuario,
-      });
-      setPlan((prev) => [...prev, item]);
+      };
+      const nuevos =
+        fechasObjetivo.length === 1
+          ? [await crearProduccionPlanItem({ fecha: fechasObjetivo[0]!, ...payloadBase })]
+          : await crearProduccionPlanItemsBatch(
+              fechasObjetivo.map((fecha) => ({ fecha, ...payloadBase }))
+            );
+      setPlan((prev) => [...prev, ...nuevos]);
       setModal(null);
-      setSuccess(`${prepSeleccionada.nombre} planificada ${modal.fecha} ${horaInicio}–${horaFin}.`);
+      if (nuevos.length === 1) {
+        const item = nuevos[0]!;
+        setSuccess(
+          `${item.preparacionNombre} planificada ${item.fecha} ${item.horaInicio}–${item.horaFin}.`
+        );
+      } else {
+        setSuccess(
+          `${prepSeleccionada.nombre} planificada en ${nuevos.length} fechas (${recurrenciaModo === "daily" ? "diaria" : "semanal"}).`
+        );
+      }
     } catch (err) {
       setError(err instanceof Error ? err.message : "No se pudo guardar.");
     } finally {
@@ -488,6 +620,22 @@ export default function ProduccionPlanPage() {
           </span>
           <span className="text-red-400/90">Borde rojo = misma persona doble o más de 3 a la vez.</span>
         </div>
+
+        {clipboard ? (
+          <div className="mb-4 flex flex-wrap items-center justify-between gap-2 rounded-xl border border-sky-900/60 bg-sky-950/30 px-3 py-2 text-sm text-sky-100">
+            <p>
+              Copiado: <span className="font-medium">{clipboard.preparacionNombre}</span> (
+              {clipboard.horaInicio}–{clipboard.horaFin}). Tocá una franja para pegar.
+            </p>
+            <button
+              type="button"
+              onClick={() => setClipboard(null)}
+              className="rounded-lg border border-sky-700/70 px-2.5 py-1 text-xs text-sky-100/90 hover:bg-sky-900/40"
+            >
+              Limpiar copia
+            </button>
+          </div>
+        ) : null}
 
         {requiereMigracionHorarios ? (
           <p className="mb-4 rounded-xl border border-amber-900/60 bg-amber-950/40 px-4 py-3 text-sm text-amber-100">
@@ -654,6 +802,18 @@ export default function ProduccionPlanPage() {
                                   type="button"
                                   onClick={(e) => {
                                     e.stopPropagation();
+                                    copiarItem(item);
+                                  }}
+                                  disabled={isBusy}
+                                  className="rounded-md border border-white/10 bg-black/20 p-1 opacity-90 hover:opacity-100 disabled:opacity-40"
+                                  title="Copiar bloque"
+                                >
+                                  <Copy className="h-4 w-4" />
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
                                     void toggleCompletada(item);
                                   }}
                                   disabled={isBusy}
@@ -799,6 +959,35 @@ export default function ProduccionPlanPage() {
                     value={horaFin}
                     onChange={(e) => setHoraFin(e.target.value)}
                     className="w-full rounded-xl border border-zinc-700 bg-zinc-950 px-3 py-2.5 text-sm"
+                  />
+                </label>
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                <label className="block">
+                  <span className="mb-1 block text-xs uppercase tracking-wide text-zinc-500">
+                    Recurrencia
+                  </span>
+                  <select
+                    value={recurrenciaModo}
+                    onChange={(e) => setRecurrenciaModo(e.target.value as RecurrenciaModalModo)}
+                    className="w-full rounded-xl border border-zinc-700 bg-zinc-950 px-3 py-2.5 text-sm"
+                  >
+                    <option value="none">Sin recurrencia</option>
+                    <option value="daily">Diaria</option>
+                    <option value="weekly">Semanal</option>
+                  </select>
+                </label>
+                <label className="block">
+                  <span className="mb-1 block text-xs uppercase tracking-wide text-zinc-500">
+                    Repetir hasta
+                  </span>
+                  <input
+                    type="date"
+                    value={recurrenciaHasta}
+                    onChange={(e) => setRecurrenciaHasta(e.target.value)}
+                    disabled={recurrenciaModo === "none"}
+                    min={modal.fecha}
+                    className="w-full rounded-xl border border-zinc-700 bg-zinc-950 px-3 py-2.5 text-sm disabled:opacity-50"
                   />
                 </label>
               </div>

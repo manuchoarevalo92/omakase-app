@@ -819,7 +819,7 @@ function usuarioPayload(usuario: SessionUsuario | null): UsuarioPayload {
   return { creado_por_id: usuario.id, creado_por_nombre: usuario.name };
 }
 
-export async function crearProduccionPlanItem(opts: {
+export type CrearProduccionPlanItemInput = {
   fecha: string;
   horaInicio: string;
   horaFin: string;
@@ -829,25 +829,33 @@ export async function crearProduccionPlanItem(opts: {
   notas?: string | null;
   asignado?: SessionUsuario | null;
   usuario: SessionUsuario | null;
-}): Promise<ProduccionPlanItem> {
+};
+
+function payloadInsertPlanItem(opts: CrearProduccionPlanItemInput) {
   const duracion = duracionSegundosEntreHoras(opts.horaInicio, opts.horaFin);
+  return {
+    fecha: opts.fecha,
+    hora_inicio: opts.horaInicio,
+    hora_fin: opts.horaFin,
+    preparacion_id: opts.prep.id,
+    preparacion_nombre: opts.prep.nombre,
+    area: opts.prep.area,
+    duracion_estimada_segundos: duracion,
+    cantidad_planificada: opts.cantidadPlanificada ?? null,
+    unidad_cantidad: opts.unidadCantidad ?? opts.prep.unidadCantidad,
+    asignado_a_id: opts.asignado?.id ?? null,
+    asignado_a_nombre: opts.asignado?.name ?? null,
+    notas: opts.notas?.trim() || null,
+    ...usuarioPayload(opts.usuario),
+  };
+}
+
+export async function crearProduccionPlanItem(
+  opts: CrearProduccionPlanItemInput
+): Promise<ProduccionPlanItem> {
   const { data, error } = await supabase
     .from("produccion_plan")
-    .insert({
-      fecha: opts.fecha,
-      hora_inicio: opts.horaInicio,
-      hora_fin: opts.horaFin,
-      preparacion_id: opts.prep.id,
-      preparacion_nombre: opts.prep.nombre,
-      area: opts.prep.area,
-      duracion_estimada_segundos: duracion,
-      cantidad_planificada: opts.cantidadPlanificada ?? null,
-      unidad_cantidad: opts.unidadCantidad ?? opts.prep.unidadCantidad,
-      asignado_a_id: opts.asignado?.id ?? null,
-      asignado_a_nombre: opts.asignado?.name ?? null,
-      notas: opts.notas?.trim() || null,
-      ...usuarioPayload(opts.usuario),
-    })
+    .insert(payloadInsertPlanItem(opts))
     .select(PRODUCCION_PLAN_SELECT)
     .single();
 
@@ -856,6 +864,46 @@ export async function crearProduccionPlanItem(opts: {
   }
 
   return planItemDesdeFila(data as ProduccionPlanItemDbRow);
+}
+
+export type RecurrenciaPlanModo = "daily" | "weekly";
+
+export function calcularFechasRecurrencia(opts: {
+  fechaInicio: string;
+  fechaFin: string;
+  modo: RecurrenciaPlanModo;
+}): string[] {
+  const inicio = parseFechaLocalISO(opts.fechaInicio);
+  const fin = parseFechaLocalISO(opts.fechaFin);
+  if (Number.isNaN(inicio.getTime()) || Number.isNaN(fin.getTime()) || fin < inicio) {
+    return [];
+  }
+  const pasoDias = opts.modo === "daily" ? 1 : 7;
+  const fechas: string[] = [];
+  for (const d = new Date(inicio); d <= fin; d.setDate(d.getDate() + pasoDias)) {
+    fechas.push(formatFechaLocalYYYYMMDD(d));
+  }
+  return fechas;
+}
+
+export async function crearProduccionPlanItemsBatch(
+  items: CrearProduccionPlanItemInput[]
+): Promise<ProduccionPlanItem[]> {
+  if (items.length === 0) {
+    return [];
+  }
+  const { data, error } = await supabase
+    .from("produccion_plan")
+    .insert(items.map((item) => payloadInsertPlanItem(item)))
+    .select(PRODUCCION_PLAN_SELECT)
+    .order("fecha", { ascending: true })
+    .order("hora_inicio", { ascending: true });
+
+  if (error) {
+    throw new Error(formatPostgrestError(error));
+  }
+
+  return ((data ?? []) as ProduccionPlanItemDbRow[]).map(planItemDesdeFila);
 }
 
 export async function actualizarProduccionPlanItem(
