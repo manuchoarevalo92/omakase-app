@@ -18,6 +18,14 @@ export type SessionUsuario = { id: string; name: string };
 
 export type ProduccionPlanEstado = "pendiente" | "completada" | "cancelada";
 
+export const PLAN_CATEGORIAS = ["produ", "servicio"] as const;
+export type ProduccionPlanCategoria = (typeof PLAN_CATEGORIAS)[number];
+
+export const ETIQUETA_PLAN_CATEGORIA: Record<ProduccionPlanCategoria, string> = {
+  produ: "Produ",
+  servicio: "Servicio",
+};
+
 export type ProduccionPlanItem = {
   id: string;
   fecha: string;
@@ -26,6 +34,7 @@ export type ProduccionPlanItem = {
   preparacionId: string | null;
   preparacionNombre: string;
   area: AreaProduccion;
+  categoria: ProduccionPlanCategoria;
   duracionEstimadaSegundos: number;
   cantidadPlanificada: number | null;
   unidadCantidad: UnidadCantidad | null;
@@ -46,6 +55,7 @@ export type ProduccionPlanItemDbRow = {
   preparacion_id?: string | null;
   preparacion_nombre: string;
   area?: string | null;
+  categoria?: string | null;
   duracion_estimada_segundos: number;
   cantidad_planificada?: number | null;
   unidad_cantidad?: string | null;
@@ -93,18 +103,29 @@ export function anchoMinimoGrillaSemanaPx(): number {
 }
 
 export const PRODUCCION_PLAN_SELECT =
+  "id, fecha, hora_inicio, hora_fin, preparacion_id, preparacion_nombre, area, categoria, duracion_estimada_segundos, cantidad_planificada, unidad_cantidad, asignado_a_id, asignado_a_nombre, notas, estado, creado_por_id, creado_por_nombre, created_at";
+
+/** Sin categoria (tablas creadas antes de produccion-plan-categoria.sql). */
+const PRODUCCION_PLAN_SELECT_SIN_CATEGORIA =
   "id, fecha, hora_inicio, hora_fin, preparacion_id, preparacion_nombre, area, duracion_estimada_segundos, cantidad_planificada, unidad_cantidad, asignado_a_id, asignado_a_nombre, notas, estado, creado_por_id, creado_por_nombre, created_at";
 
 /** Sin hora_inicio/hora_fin (tablas creadas antes de produccion-plan-horarios.sql). */
 const PRODUCCION_PLAN_SELECT_SIN_HORARIOS =
+  "id, fecha, preparacion_id, preparacion_nombre, area, categoria, duracion_estimada_segundos, cantidad_planificada, unidad_cantidad, asignado_a_id, asignado_a_nombre, notas, estado, creado_por_id, creado_por_nombre, created_at";
+
+const PRODUCCION_PLAN_SELECT_LEGACY =
   "id, fecha, preparacion_id, preparacion_nombre, area, duracion_estimada_segundos, cantidad_planificada, unidad_cantidad, asignado_a_id, asignado_a_nombre, notas, estado, creado_por_id, creado_por_nombre, created_at";
 
 export const MENSAJE_MIGRACION_HORARIOS_PLAN =
   "Faltan las columnas hora_inicio y hora_fin en produccion_plan. En Supabase → SQL Editor ejecutá supabase/produccion-plan-horarios.sql y recargá la página para guardar bloques con horario en la grilla.";
 
+export const MENSAJE_MIGRACION_CATEGORIA_PLAN =
+  "Falta la columna categoria en produccion_plan. En Supabase → SQL Editor ejecutá supabase/produccion-plan-categoria.sql y recargá la página.";
+
 export type ProduccionPlanSemanaCarga = {
   items: ProduccionPlanItem[];
   requiereMigracionHorarios: boolean;
+  requiereMigracionCategoria: boolean;
 };
 
 type PostgrestishError = {
@@ -132,6 +153,47 @@ function errorColumnaHorarioFaltante(error: PostgrestishError): boolean {
     errorColumnaFaltante(error) &&
     (msg.includes("hora_inicio") || msg.includes("hora_fin"))
   );
+}
+
+function errorColumnaCategoriaFaltante(error: PostgrestishError): boolean {
+  const msg = error.message.toLowerCase();
+  return errorColumnaFaltante(error) && msg.includes("categoria");
+}
+
+export function esPlanCategoriaValida(
+  v: string | null | undefined
+): v is ProduccionPlanCategoria {
+  return v === "produ" || v === "servicio";
+}
+
+export function itemServicioDebeAutoCompletar(
+  item: ProduccionPlanItem,
+  ahora: Date
+): boolean {
+  if (item.categoria !== "servicio" || item.estado !== "pendiente") {
+    return false;
+  }
+  const hoy = formatFechaLocalYYYYMMDD(ahora);
+  if (item.fecha < hoy) {
+    return true;
+  }
+  if (item.fecha > hoy) {
+    return false;
+  }
+  const minutosAhora = ahora.getHours() * 60 + ahora.getMinutes();
+  const ini = minutosDesdeMedianoche(item.horaInicio);
+  let fin = minutosDesdeMedianoche(item.horaFin);
+  if (fin <= ini) {
+    fin += 24 * 60;
+  }
+  return minutosAhora >= fin;
+}
+
+export function itemsServicioParaAutoCompletar(
+  items: ProduccionPlanItem[],
+  ahora: Date
+): ProduccionPlanItem[] {
+  return items.filter((item) => itemServicioDebeAutoCompletar(item, ahora));
 }
 
 const HORA_DEFECTO_INICIO = "10:00";
@@ -399,6 +461,7 @@ export function planItemDesdeFila(row: ProduccionPlanItemDbRow): ProduccionPlanI
     preparacionId: row.preparacion_id ?? null,
     preparacionNombre: row.preparacion_nombre,
     area: esAreaProduccionValida(row.area) ? row.area : "delivery",
+    categoria: esPlanCategoriaValida(row.categoria) ? row.categoria : "produ",
     duracionEstimadaSegundos: row.duracion_estimada_segundos,
     cantidadPlanificada:
       row.cantidad_planificada != null && row.cantidad_planificada > 0
@@ -901,11 +964,45 @@ export async function fetchProduccionPlanSemana(
     return {
       items: ((data ?? []) as unknown as ProduccionPlanItemDbRow[]).map(planItemDesdeFila),
       requiereMigracionHorarios: false,
+      requiereMigracionCategoria: false,
+    };
+  }
+
+  if (errorColumnaCategoriaFaltante(error)) {
+    const sinCategoria = await buildQuery(PRODUCCION_PLAN_SELECT_SIN_CATEGORIA).order(
+      "hora_inicio",
+      { ascending: true }
+    );
+    if (sinCategoria.error) {
+      if (errorColumnaHorarioFaltante(sinCategoria.error)) {
+        const legacy = await buildQuery(PRODUCCION_PLAN_SELECT_LEGACY).order(
+          "created_at",
+          { ascending: true }
+        );
+        if (legacy.error) {
+          throw new Error(formatPostgrestError(legacy.error));
+        }
+        return {
+          items: ((legacy.data ?? []) as unknown as ProduccionPlanItemDbRow[]).map(
+            planItemDesdeFila
+          ),
+          requiereMigracionHorarios: true,
+          requiereMigracionCategoria: true,
+        };
+      }
+      throw new Error(formatPostgrestError(sinCategoria.error));
+    }
+    return {
+      items: ((sinCategoria.data ?? []) as unknown as ProduccionPlanItemDbRow[]).map(
+        planItemDesdeFila
+      ),
+      requiereMigracionHorarios: false,
+      requiereMigracionCategoria: true,
     };
   }
 
   if (errorColumnaHorarioFaltante(error)) {
-    const legacy = await buildQuery(PRODUCCION_PLAN_SELECT_SIN_HORARIOS).order(
+    const legacy = await buildQuery(PRODUCCION_PLAN_SELECT_LEGACY).order(
       "created_at",
       { ascending: true }
     );
@@ -919,10 +1016,84 @@ export async function fetchProduccionPlanSemana(
         planItemDesdeFila
       ),
       requiereMigracionHorarios: true,
+      requiereMigracionCategoria: true,
     };
   }
 
   throw new Error(formatPostgrestError(error));
+}
+
+export async function fetchProduccionPendientesAtrasados(
+  fechaHastaExclusiva: string,
+  limite = 200
+): Promise<ProduccionPlanItem[]> {
+  const buildQuery = (select: string) =>
+    supabase
+      .from("produccion_plan")
+      .select(select)
+      .eq("estado", "pendiente")
+      .eq("categoria", "produ")
+      .lt("fecha", fechaHastaExclusiva)
+      .order("fecha", { ascending: true })
+      .order("hora_inicio", { ascending: true })
+      .limit(limite);
+
+  const { data, error } = await buildQuery(PRODUCCION_PLAN_SELECT);
+
+  if (!error) {
+    return ((data ?? []) as unknown as ProduccionPlanItemDbRow[]).map(planItemDesdeFila);
+  }
+
+  if (errorColumnaCategoriaFaltante(error)) {
+    const legacy = await supabase
+      .from("produccion_plan")
+      .select(PRODUCCION_PLAN_SELECT_SIN_CATEGORIA)
+      .eq("estado", "pendiente")
+      .lt("fecha", fechaHastaExclusiva)
+      .order("fecha", { ascending: true })
+      .order("hora_inicio", { ascending: true })
+      .limit(limite);
+    if (legacy.error) {
+      throw new Error(formatPostgrestError(legacy.error));
+    }
+    return ((legacy.data ?? []) as unknown as ProduccionPlanItemDbRow[]).map(planItemDesdeFila);
+  }
+
+  throw new Error(formatPostgrestError(error));
+}
+
+export async function autoCompletarServiciosVencidos(
+  fechaHoy: string,
+  ahora: Date = new Date()
+): Promise<ProduccionPlanItem[]> {
+  const { data, error } = await supabase
+    .from("produccion_plan")
+    .select(PRODUCCION_PLAN_SELECT)
+    .eq("estado", "pendiente")
+    .eq("categoria", "servicio")
+    .lte("fecha", fechaHoy)
+    .order("fecha", { ascending: true })
+    .limit(500);
+
+  if (error) {
+    if (errorColumnaCategoriaFaltante(error)) {
+      return [];
+    }
+    throw new Error(formatPostgrestError(error));
+  }
+
+  const candidatos = ((data ?? []) as unknown as ProduccionPlanItemDbRow[])
+    .map(planItemDesdeFila)
+    .filter((item) => itemServicioDebeAutoCompletar(item, ahora));
+
+  if (candidatos.length === 0) {
+    return [];
+  }
+
+  const completados = await Promise.all(
+    candidatos.map((item) => marcarPlanItemCompletado(item.id))
+  );
+  return completados;
 }
 
 type UsuarioPayload = {
@@ -942,6 +1113,7 @@ export type CrearProduccionPlanItemInput = {
   horaInicio: string;
   horaFin: string;
   prep: Preparacion;
+  categoria?: ProduccionPlanCategoria;
   cantidadPlanificada?: number | null;
   unidadCantidad?: UnidadCantidad | null;
   notas?: string | null;
@@ -958,6 +1130,7 @@ function payloadInsertPlanItem(opts: CrearProduccionPlanItemInput) {
     preparacion_id: opts.prep.id,
     preparacion_nombre: opts.prep.nombre,
     area: opts.prep.area,
+    categoria: opts.categoria ?? "produ",
     duracion_estimada_segundos: duracion,
     cantidad_planificada: opts.cantidadPlanificada ?? null,
     unidad_cantidad: opts.unidadCantidad ?? opts.prep.unidadCantidad,
@@ -1031,6 +1204,7 @@ export async function actualizarProduccionPlanItem(
     preparacion_id: string | null;
     preparacion_nombre: string;
     area: AreaProduccion;
+    categoria: ProduccionPlanCategoria;
     hora_inicio: string;
     hora_fin: string;
     duracion_estimada_segundos: number;

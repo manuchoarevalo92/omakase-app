@@ -40,21 +40,26 @@ import {
   calcularHoraFinDesdeInicio,
   calcularLayoutVisualSemana,
   actualizarProduccionPlanItem,
+  autoCompletarServiciosVencidos,
   crearProduccionPlanItem,
   crearProduccionPlanItemsBatch,
   diaSemanaIsoDesdeFecha,
   duracionSegundosEntreHoras,
   eliminarProduccionPlanItem,
   estimarDuracionSegundos,
+  ETIQUETA_PLAN_CATEGORIA,
   etiquetaDiaSemanaCorto,
   etiquetaHorarioItem,
   etiquetaSemana,
   fechasSemanaDesdeLunes,
+  fetchProduccionPendientesAtrasados,
   fetchProduccionPlanSemana,
   formatFechaLocalYYYYMMDD,
+  itemsServicioParaAutoCompletar,
   minutosGrillaAPx,
   horaMinutoDesdePosicionGrillaPx,
   horaDesdePosicionGrillaPx,
+  MENSAJE_MIGRACION_CATEGORIA_PLAN,
   MENSAJE_MIGRACION_HORARIOS_PLAN,
   GRILLA_ANCHO_CARRIL_MIN_PX,
   GRILLA_ANCHO_DIA_MIN_PX,
@@ -71,6 +76,7 @@ import {
   siguienteHorarioLibrePersona,
   topFranjaHorariaPx,
   topItemGrillaPx,
+  type ProduccionPlanCategoria,
   type ProduccionPlanItem,
 } from "@/src/lib/produccion-plan";
 import { formatPostgrestError } from "@/src/lib/supabase-errors";
@@ -87,6 +93,7 @@ type PlanClipboard = {
   preparacionId: string | null;
   preparacionNombre: string;
   area: Preparacion["area"];
+  categoria: ProduccionPlanCategoria;
   horaInicio: string;
   horaFin: string;
   cantidadPlanificada: number | null;
@@ -98,6 +105,16 @@ type PlanClipboard = {
 
 function etiquetaHoraGrilla(hora: number): string {
   return `${String(hora).padStart(2, "0")}:00`;
+}
+
+function redondearMinutosAlPaso(minutos: number, paso: number): number {
+  return Math.round(minutos / paso) * paso;
+}
+
+function hhmmDesdeMinutos(minutos: number): string {
+  const h = Math.floor(minutos / 60) % 24;
+  const m = minutos % 60;
+  return `${String(h).padStart(2, "0")}:${String(m).padStart(2, "0")}`;
 }
 
 function clasePersonaBloque(indice: number, completada: boolean): string {
@@ -121,6 +138,7 @@ export default function ProduccionPlanPage() {
   );
   const [ahora, setAhora] = useState(() => new Date());
   const [plan, setPlan] = useState<ProduccionPlanItem[]>([]);
+  const [pendientesAtrasados, setPendientesAtrasados] = useState<ProduccionPlanItem[]>([]);
   const [preparaciones, setPreparaciones] = useState<Preparacion[]>([]);
   const [resumenes, setResumenes] = useState(
     () => [] as ReturnType<typeof calcularResumenesPorPreparacion>
@@ -130,6 +148,7 @@ export default function ProduccionPlanPage() {
   const [isBusy, setIsBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [requiereMigracionHorarios, setRequiereMigracionHorarios] = useState(false);
+  const [requiereMigracionCategoria, setRequiereMigracionCategoria] = useState(false);
   const [success, setSuccess] = useState<string | null>(null);
   const [modal, setModal] = useState<ModalPrep | null>(null);
   const [itemEditandoId, setItemEditandoId] = useState<string | null>(null);
@@ -139,6 +158,7 @@ export default function ProduccionPlanPage() {
   const [cantidad, setCantidad] = useState("");
   const [unidadCantidad, setUnidadCantidad] = useState<UnidadCantidad>("kg");
   const [notas, setNotas] = useState("");
+  const [categoria, setCategoria] = useState<ProduccionPlanCategoria>("produ");
   const [estimacionEscalada, setEstimacionEscalada] = useState(false);
   const [asignadoId, setAsignadoId] = useState("");
   const [clipboard, setClipboard] = useState<PlanClipboard | null>(null);
@@ -284,20 +304,25 @@ export default function ProduccionPlanPage() {
   );
 
   const refrescar = useCallback(async () => {
-    const [planResult, prepsResult, sesionesResult] = await Promise.allSettled([
-      fetchProduccionPlanSemana(lunesSemana),
-      fetchPreparaciones(),
-      fetchProduccionSesionesRecientes(200),
-    ]);
+    const [planResult, prepsResult, sesionesResult, pendientesResult, autoServicioResult] =
+      await Promise.allSettled([
+        fetchProduccionPlanSemana(lunesSemana),
+        fetchPreparaciones(),
+        fetchProduccionSesionesRecientes(200),
+        fetchProduccionPendientesAtrasados(fechaHoy, 300),
+        autoCompletarServiciosVencidos(fechaHoy),
+      ]);
 
     const errores: string[] = [];
 
     if (planResult.status === "fulfilled") {
       setPlan(planResult.value.items);
       setRequiereMigracionHorarios(planResult.value.requiereMigracionHorarios);
+      setRequiereMigracionCategoria(planResult.value.requiereMigracionCategoria);
     } else {
       setPlan([]);
       setRequiereMigracionHorarios(false);
+      setRequiereMigracionCategoria(false);
       errores.push(
         planResult.reason instanceof Error
           ? planResult.reason.message
@@ -322,10 +347,25 @@ export default function ProduccionPlanPage() {
       setResumenes([]);
     }
 
+    if (pendientesResult.status === "fulfilled") {
+      setPendientesAtrasados(pendientesResult.value);
+    } else {
+      setPendientesAtrasados([]);
+    }
+
+    if (autoServicioResult.status === "fulfilled" && autoServicioResult.value.length > 0) {
+      const completados = autoServicioResult.value;
+      const ids = new Set(completados.map((item) => item.id));
+      setPlan((prev) =>
+        prev.map((item) => completados.find((c) => c.id === item.id) ?? item)
+      );
+      setPendientesAtrasados((prev) => prev.filter((item) => !ids.has(item.id)));
+    }
+
     if (errores.length > 0) {
       throw new Error(errores.join(" "));
     }
-  }, [lunesSemana]);
+  }, [lunesSemana, fechaHoy]);
 
   useEffect(() => {
     let cancelled = false;
@@ -367,6 +407,32 @@ export default function ProduccionPlanPage() {
     return () => window.clearInterval(id);
   }, []);
 
+  useEffect(() => {
+    const vencidos = itemsServicioParaAutoCompletar(plan, ahora);
+    if (vencidos.length === 0 || isBusy) {
+      return;
+    }
+    let cancelled = false;
+    const completar = async () => {
+      try {
+        const actualizados = await Promise.all(
+          vencidos.map((item) => marcarPlanItemCompletado(item.id))
+        );
+        if (cancelled) {
+          return;
+        }
+        const porId = new Map(actualizados.map((item) => [item.id, item]));
+        setPlan((prev) => prev.map((item) => porId.get(item.id) ?? item));
+      } catch {
+        // El próximo tick o refresh lo reintenta.
+      }
+    };
+    void completar();
+    return () => {
+      cancelled = true;
+    };
+  }, [ahora, plan, isBusy]);
+
   const cambiarSemana = (delta: number) => {
     const d = new Date(lunesSemana + "T12:00:00");
     d.setDate(d.getDate() + delta * 7);
@@ -387,6 +453,7 @@ export default function ProduccionPlanPage() {
     setPrepId("");
     setCantidad("");
     setNotas("");
+    setCategoria("produ");
     setEstimacionEscalada(false);
     setRecurrenciaModo("none");
     setRecurrenciaHasta(fecha);
@@ -406,6 +473,7 @@ export default function ProduccionPlanPage() {
     setCantidad(item.cantidadPlanificada != null ? String(item.cantidadPlanificada) : "");
     setUnidadCantidad(item.unidadCantidad ?? "kg");
     setNotas(item.notas ?? "");
+    setCategoria(item.categoria);
     setEstimacionEscalada(false);
     setRecurrenciaModo("none");
     setRecurrenciaHasta(item.fecha);
@@ -488,11 +556,83 @@ export default function ProduccionPlanPage() {
   };
 
   const copiarItem = (item: ProduccionPlanItem) => {
+    const payload: PlanClipboard = {
+      itemId: item.id,
+      preparacionId: item.preparacionId,
+      preparacionNombre: item.preparacionNombre,
+      area: item.area,
+      categoria: item.categoria,
+      horaInicio: item.horaInicio,
+      horaFin: item.horaFin,
+      cantidadPlanificada: item.cantidadPlanificada,
+      unidadCantidad: item.unidadCantidad,
+      notas: item.notas,
+      asignadoAId: item.asignadoAId,
+      asignadoANombre: item.asignadoANombre,
+    };
+    setClipboard(payload);
+    setSuccess(`Copiado: ${item.preparacionNombre}. Tocá una hora para pegar.`);
+    setError(null);
+  };
+
+  const horaBaseReprogramacionHoy = (): string => {
+    const actual = new Date();
+    const minutosAhora = actual.getHours() * 60 + actual.getMinutes();
+    const minimo = GRILLA_HORA_INICIO * 60;
+    const maximo = GRILLA_HORA_FIN * 60;
+    const clamped = Math.max(minimo, Math.min(maximo, minutosAhora));
+    const redondeado = redondearMinutosAlPaso(clamped, 5);
+    return hhmmDesdeMinutos(Math.min(redondeado, maximo));
+  };
+
+  const reprogramarPendienteAHoy = async (item: ProduccionPlanItem) => {
+    const horaBase = horaBaseReprogramacionHoy();
+    const horaInicioNueva = siguienteHorarioLibrePersona({
+      fecha: fechaHoy,
+      horaDesde: horaBase,
+      asignadoId: item.asignadoAId,
+      plan,
+    });
+    const duracion = duracionSegundosEntreHoras(item.horaInicio, item.horaFin);
+    const horaFinNueva = calcularHoraFinDesdeInicio(horaInicioNueva, duracion);
+    setIsBusy(true);
+    setError(null);
+    try {
+      const actualizado = await actualizarProduccionPlanItem(item.id, {
+        fecha: fechaHoy,
+        hora_inicio: horaInicioNueva,
+        hora_fin: horaFinNueva,
+        duracion_estimada_segundos: duracion,
+        estado: "pendiente",
+      });
+      setPlan((prev) => {
+        const sinItem = prev.filter((p) => p.id !== actualizado.id);
+        if (!fechasSemana.includes(fechaHoy)) {
+          return sinItem;
+        }
+        return [...sinItem, actualizado].sort(
+          (a, b) =>
+            a.fecha.localeCompare(b.fecha) || a.horaInicio.localeCompare(b.horaInicio)
+        );
+      });
+      setPendientesAtrasados((prev) => prev.filter((p) => p.id !== actualizado.id));
+      setSuccess(
+        `Reprogramada: ${actualizado.preparacionNombre} para hoy ${actualizado.horaInicio}.`
+      );
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "No se pudo reprogramar el pendiente.");
+    } finally {
+      setIsBusy(false);
+    }
+  };
+
+  const copiarPendienteParaReplanificar = (item: ProduccionPlanItem) => {
     setClipboard({
       itemId: item.id,
       preparacionId: item.preparacionId,
       preparacionNombre: item.preparacionNombre,
       area: item.area,
+      categoria: item.categoria,
       horaInicio: item.horaInicio,
       horaFin: item.horaFin,
       cantidadPlanificada: item.cantidadPlanificada,
@@ -501,7 +641,9 @@ export default function ProduccionPlanPage() {
       asignadoAId: item.asignadoAId,
       asignadoANombre: item.asignadoANombre,
     });
-    setSuccess(`Copiado: ${item.preparacionNombre}. Tocá una hora para pegar.`);
+    setSuccess(
+      `Pendiente copiado: ${item.preparacionNombre}. Tocá una franja de la grilla para replanificar.`
+    );
     setError(null);
   };
 
@@ -530,6 +672,7 @@ export default function ProduccionPlanPage() {
         horaInicio: horaDestino,
         horaFin: horaFinDestino,
         prep,
+        categoria: clipboard.categoria,
         cantidadPlanificada: clipboard.cantidadPlanificada,
         unidadCantidad: clipboard.unidadCantidad ?? prep.unidadCantidad,
         notas: clipboard.notas,
@@ -641,6 +784,7 @@ export default function ProduccionPlanPage() {
         horaInicio,
         horaFin,
         prep: prepSeleccionada,
+        categoria,
         cantidadPlanificada: parseCantidadInput(cantidad),
         unidadCantidad,
         notas,
@@ -655,6 +799,7 @@ export default function ProduccionPlanPage() {
           preparacion_id: prepSeleccionada.id,
           preparacion_nombre: prepSeleccionada.nombre,
           area: prepSeleccionada.area,
+          categoria,
           hora_inicio: horaInicio,
           hora_fin: horaFin,
           duracion_estimada_segundos: duracion,
@@ -706,6 +851,9 @@ export default function ProduccionPlanPage() {
   };
 
   const toggleCompletada = async (item: ProduccionPlanItem) => {
+    if (item.categoria === "servicio") {
+      return;
+    }
     setIsBusy(true);
     setError(null);
     try {
@@ -714,6 +862,9 @@ export default function ProduccionPlanPage() {
           ? await marcarPlanItemPendiente(item.id)
           : await marcarPlanItemCompletado(item.id);
       setPlan((prev) => prev.map((p) => (p.id === actualizada.id ? actualizada : p)));
+      if (actualizada.estado === "completada") {
+        setPendientesAtrasados((prev) => prev.filter((p) => p.id !== actualizada.id));
+      }
     } catch (err) {
       setError(err instanceof Error ? err.message : "No se pudo actualizar.");
     } finally {
@@ -731,6 +882,7 @@ export default function ProduccionPlanPage() {
     try {
       await eliminarProduccionPlanItem(id);
       setPlan((prev) => prev.filter((p) => p.id !== id));
+      setPendientesAtrasados((prev) => prev.filter((p) => p.id !== id));
       setSuccess("Preparación eliminada del plan.");
     } catch (err) {
       setError(err instanceof Error ? err.message : "No se pudo borrar.");
@@ -818,6 +970,65 @@ export default function ProduccionPlanPage() {
         </div>
 
         <div className="mb-4 rounded-xl border border-zinc-800 bg-zinc-950/50 p-3">
+          <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
+            <p className="text-sm font-medium text-zinc-200">Pendientes atrasados (Produ)</p>
+            <p className="text-xs text-zinc-500">
+              {pendientesAtrasados.length} pendiente{pendientesAtrasados.length === 1 ? "" : "s"} de
+              producción
+            </p>
+          </div>
+          {pendientesAtrasados.length === 0 ? (
+            <p className="mb-2 text-xs text-zinc-500">
+              No hay producción pendiente de días anteriores. Las de Servicio se completan solas al
+              pasar el horario.
+            </p>
+          ) : (
+            <div className="mb-3 grid gap-2">
+              {pendientesAtrasados.slice(0, 8).map((item) => (
+                <div
+                  key={`pend-${item.id}`}
+                  className="rounded-lg border border-amber-900/40 bg-amber-950/20 px-3 py-2"
+                >
+                  <div className="flex flex-wrap items-start justify-between gap-2">
+                    <div>
+                      <p className="text-sm font-medium text-amber-100">{item.preparacionNombre}</p>
+                      <p className="text-xs text-amber-100/70">
+                        {item.fecha} · {etiquetaHorarioItem(item)} ·{" "}
+                        {item.asignadoANombre ?? "Sin asignar"}
+                      </p>
+                    </div>
+                    <div className="flex gap-1.5">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          void reprogramarPendienteAHoy(item);
+                        }}
+                        disabled={isBusy}
+                        className="rounded-lg border border-amber-700/70 px-2.5 py-1 text-xs text-amber-100 hover:bg-amber-900/30 disabled:opacity-50"
+                      >
+                        Reprogramar hoy
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => copiarPendienteParaReplanificar(item)}
+                        disabled={isBusy}
+                        className="rounded-lg border border-zinc-700 px-2.5 py-1 text-xs text-zinc-200 hover:border-zinc-500 disabled:opacity-50"
+                      >
+                        Copiar para pegar
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              ))}
+              {pendientesAtrasados.length > 8 ? (
+                <p className="text-xs text-zinc-500">
+                  Mostrando 8 de {pendientesAtrasados.length}. Navegá a semanas anteriores para ver
+                  y ordenar el resto.
+                </p>
+              ) : null}
+            </div>
+          )}
+
           <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
             <p className="text-sm font-medium text-zinc-200">
               Vista de hoy ({fechaHoy.slice(8)}/{fechaHoy.slice(5, 7)})
@@ -873,6 +1084,10 @@ export default function ProduccionPlanPage() {
             Hasta {PRODUCCION_PERSONAS_PARALELAS} preparaciones en el mismo horario (una por persona).
           </span>
           <span className="text-red-400/90">Borde rojo = misma persona doble o más de 3 a la vez.</span>
+          <span>
+            <span className="text-zinc-300">Produ</span> = marcar hecha manual ·{" "}
+            <span className="text-zinc-300">Servicio</span> = se completa sola al pasar el horario
+          </span>
         </div>
 
         {clipboard ? (
@@ -894,6 +1109,11 @@ export default function ProduccionPlanPage() {
         {requiereMigracionHorarios ? (
           <p className="mb-4 rounded-xl border border-amber-900/60 bg-amber-950/40 px-4 py-3 text-sm text-amber-100">
             {MENSAJE_MIGRACION_HORARIOS_PLAN}
+          </p>
+        ) : null}
+        {requiereMigracionCategoria ? (
+          <p className="mb-4 rounded-xl border border-amber-900/60 bg-amber-950/40 px-4 py-3 text-sm text-amber-100">
+            {MENSAJE_MIGRACION_CATEGORIA_PLAN}
           </p>
         ) : null}
         {error ? (
@@ -1083,6 +1303,10 @@ export default function ProduccionPlanPage() {
                               >
                                 {item.preparacionNombre}
                               </p>
+                              <p className="text-[10px] font-medium uppercase tracking-wide opacity-75">
+                                {ETIQUETA_PLAN_CATEGORIA[item.categoria]}
+                                {item.categoria === "servicio" ? " · auto" : ""}
+                              </p>
                               <p className="break-words text-xs font-medium leading-snug opacity-90">
                                 {item.asignadoANombre ?? "Sin asignar"}
                                 {item.cantidadPlanificada && item.unidadCantidad
@@ -1105,18 +1329,20 @@ export default function ProduccionPlanPage() {
                                 >
                                   <Copy className="h-4 w-4" />
                                 </button>
-                                <button
-                                  type="button"
-                                  onClick={(e) => {
-                                    e.stopPropagation();
-                                    void toggleCompletada(item);
-                                  }}
-                                  disabled={isBusy}
-                                  className="rounded-md border border-white/10 bg-black/20 p-1 opacity-90 hover:opacity-100 disabled:opacity-40"
-                                  title={completada ? "Marcar pendiente" : "Hecha"}
-                                >
-                                  <Check className="h-4 w-4" />
-                                </button>
+                                {item.categoria === "produ" ? (
+                                  <button
+                                    type="button"
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      void toggleCompletada(item);
+                                    }}
+                                    disabled={isBusy}
+                                    className="rounded-md border border-white/10 bg-black/20 p-1 opacity-90 hover:opacity-100 disabled:opacity-40"
+                                    title={completada ? "Marcar pendiente" : "Hecha"}
+                                  >
+                                    <Check className="h-4 w-4" />
+                                  </button>
+                                ) : null}
                                 <button
                                   type="button"
                                   onClick={(e) => {
@@ -1229,6 +1455,19 @@ export default function ProduccionPlanPage() {
                   )}
                 </p>
               ) : null}
+              <label className="block">
+                <span className="mb-1 block text-xs uppercase tracking-wide text-zinc-500">
+                  Categoría
+                </span>
+                <select
+                  value={categoria}
+                  onChange={(e) => setCategoria(e.target.value as ProduccionPlanCategoria)}
+                  className="w-full rounded-xl border border-zinc-700 bg-zinc-950 px-4 py-2.5 text-sm"
+                >
+                  <option value="produ">Produ (marcar hecha manual)</option>
+                  <option value="servicio">Servicio (se completa sola al pasar el horario)</option>
+                </select>
+              </label>
               <label className="block">
                 <span className="mb-1 block text-xs uppercase tracking-wide text-zinc-500">
                   Quién la hace

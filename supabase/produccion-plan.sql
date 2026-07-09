@@ -50,6 +50,7 @@ create table if not exists public.produccion_plan (
   asignado_a_id text,
   asignado_a_nombre text,
   notas text,
+  categoria text not null default 'produ',
   estado text not null default 'pendiente',
   orden integer not null default 0,
   creado_por_id text,
@@ -63,6 +64,13 @@ alter table public.produccion_plan
 alter table public.produccion_plan
   add constraint produccion_plan_area_check
   check (area in ('delivery', 'barra'));
+
+alter table public.produccion_plan
+  drop constraint if exists produccion_plan_categoria_check;
+
+alter table public.produccion_plan
+  add constraint produccion_plan_categoria_check
+  check (categoria in ('produ', 'servicio'));
 
 alter table public.produccion_plan
   drop constraint if exists produccion_plan_estado_check;
@@ -100,6 +108,8 @@ create index if not exists produccion_plan_fecha_idx
 
 comment on table public.produccion_plan is
   'Preparaciones planificadas en la grilla semanal con hora de inicio y fin.';
+comment on column public.produccion_plan.categoria is
+  'produ: se marca hecha manualmente. servicio: se completa sola al pasar hora_fin.';
 comment on column public.produccion_plan.hora_inicio is
   'Inicio del bloque en la grilla (HH:MM).';
 comment on column public.produccion_plan.hora_fin is
