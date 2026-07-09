@@ -353,6 +353,78 @@ export function hayCantidadesCargadas(cantidades: Map<string, string>): boolean 
   return false;
 }
 
+const MEP_DELI_BORRADOR_KEY = "omakase-mep-deli-borrador";
+
+export type MepDeliBorrador = {
+  fecha: string;
+  hora: string;
+  cantidades: Record<string, string>;
+  confirmados: string[];
+  updatedAt: string;
+};
+
+function borradorStorageKey(fecha: string): string {
+  return `${MEP_DELI_BORRADOR_KEY}:${fecha}`;
+}
+
+export function leerBorradorMepDeli(fecha: string): MepDeliBorrador | null {
+  if (typeof window === "undefined") {
+    return null;
+  }
+  try {
+    const raw = window.localStorage.getItem(borradorStorageKey(fecha));
+    if (!raw) {
+      return null;
+    }
+    const parsed = JSON.parse(raw) as MepDeliBorrador;
+    if (parsed.fecha !== fecha || typeof parsed.cantidades !== "object") {
+      return null;
+    }
+    return {
+      fecha: parsed.fecha,
+      hora: typeof parsed.hora === "string" ? parsed.hora : "",
+      cantidades: parsed.cantidades ?? {},
+      confirmados: Array.isArray(parsed.confirmados) ? parsed.confirmados : [],
+      updatedAt: typeof parsed.updatedAt === "string" ? parsed.updatedAt : "",
+    };
+  } catch {
+    return null;
+  }
+}
+
+export function guardarBorradorMepDeli(borrador: MepDeliBorrador): void {
+  if (typeof window === "undefined") {
+    return;
+  }
+  try {
+    window.localStorage.setItem(borradorStorageKey(borrador.fecha), JSON.stringify(borrador));
+  } catch {
+    // quota / modo privado
+  }
+}
+
+export function limpiarBorradorMepDeli(fecha: string): void {
+  if (typeof window === "undefined") {
+    return;
+  }
+  try {
+    window.localStorage.removeItem(borradorStorageKey(fecha));
+  } catch {
+    // ignorar
+  }
+}
+
+export function cantidadesDesdeBorrador(borrador: MepDeliBorrador): Map<string, string> {
+  const map = new Map<string, string>();
+  for (const [corteId, cantidad] of Object.entries(borrador.cantidades)) {
+    const c = cantidad.trim();
+    if (corteId && c.length > 0) {
+      map.set(corteId, c);
+    }
+  }
+  return map;
+}
+
 export async function fetchMepCortesActivos(): Promise<MepCorte[]> {
   const { data, error } = await supabase
     .from("mep_cortes")

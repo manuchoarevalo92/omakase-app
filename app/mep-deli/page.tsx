@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { FilePlus, List, Loader2, Pencil, RefreshCw, Save, Sparkles } from "lucide-react";
+import { Check, FilePlus, List, Loader2, Pencil, RefreshCw, Save, Sparkles } from "lucide-react";
 import Link from "next/link";
 
 import { MepCierrePanel } from "@/app/components/mep-cierre-panel";
@@ -10,6 +10,7 @@ import {
   agruparCortesPorCategoria,
   buscarMepMismoDiaSemana,
   calcularSugerenciasCantidades,
+  cantidadesDesdeBorrador,
   cantidadesDesdeLineas,
   deduplicarCargasPorFecha,
   etiquetaCargaMep,
@@ -24,8 +25,11 @@ import {
   fetchMepDeliCargasHistorial,
   fetchUltimoHistorialParaMep,
   fetchSessionMepUsuario,
+  guardarBorradorMepDeli,
   guardarMepDeliCarga,
   hayCantidadesCargadas,
+  leerBorradorMepDeli,
+  limpiarBorradorMepDeli,
   lineasDesdeCantidades,
   MEP_DELI_SERVICIO,
   obtenerMepPendienteCierre,
@@ -48,6 +52,7 @@ export default function MepDeliPage() {
   const now = new Date();
   const [cortes, setCortes] = useState<MepCorte[]>([]);
   const [cantidades, setCantidades] = useState<Map<string, string>>(() => new Map());
+  const [confirmados, setConfirmados] = useState<Set<string>>(() => new Set());
   const [fechaServicio, setFechaServicio] = useState(() => formatFechaLocalYYYYMMDD(now));
   const [horaServicio, setHoraServicio] = useState(() => horaLocalHHmm(now));
   const [resumenGuardado, setResumenGuardado] = useState<MepDeliCarga | null>(null);
@@ -112,6 +117,31 @@ export default function MepDeliPage() {
     return `Cargar último ${dia}`;
   }, [fechaServicio]);
 
+  const persistirBorrador = useCallback(
+    (
+      cantidadesActuales: Map<string, string>,
+      confirmadosActuales: Set<string>,
+      hora: string,
+      fecha: string
+    ) => {
+      if (
+        confirmadosActuales.size === 0 &&
+        !hayCantidadesCargadas(cantidadesActuales)
+      ) {
+        limpiarBorradorMepDeli(fecha);
+        return;
+      }
+      guardarBorradorMepDeli({
+        fecha,
+        hora,
+        cantidades: Object.fromEntries(cantidadesActuales),
+        confirmados: [...confirmadosActuales],
+        updatedAt: new Date().toISOString(),
+      });
+    },
+    []
+  );
+
   const hidratarDesdeCarga = useCallback(
     (carga: MepDeliCarga, opts?: { mostrarResumen?: boolean; conservarFecha?: boolean }) => {
       if (!opts?.conservarFecha) {
@@ -122,9 +152,12 @@ export default function MepDeliPage() {
       if (opts?.mostrarResumen) {
         setResumenGuardado(carga);
         setEditorOculto(true);
+        setConfirmados(new Set());
       } else {
         setResumenGuardado(null);
         setEditorOculto(false);
+        const ids = new Set(carga.lineas.map((l) => l.corte_id));
+        setConfirmados(ids);
       }
       setError(null);
     },
@@ -140,9 +173,21 @@ export default function MepDeliPage() {
       } else {
         setResumenGuardado(null);
         setEditorOculto(false);
-        setCantidades(new Map());
-        if (!opts?.conservarHoraSiVacia) {
-          setHoraServicio(horaLocalHHmm(new Date()));
+        const borrador = leerBorradorMepDeli(fecha);
+        if (borrador) {
+          setCantidades(cantidadesDesdeBorrador(borrador));
+          setConfirmados(new Set(borrador.confirmados));
+          if (borrador.hora?.trim()) {
+            setHoraServicio(borrador.hora.trim());
+          } else if (!opts?.conservarHoraSiVacia) {
+            setHoraServicio(horaLocalHHmm(new Date()));
+          }
+        } else {
+          setCantidades(new Map());
+          setConfirmados(new Set());
+          if (!opts?.conservarHoraSiVacia) {
+            setHoraServicio(horaLocalHHmm(new Date()));
+          }
         }
       }
       return carga;
@@ -229,13 +274,17 @@ export default function MepDeliPage() {
       if (document.visibilityState !== "visible" || isLoading) {
         return;
       }
+      // No pisar borrador local mientras se edita
+      if (!editorOculto) {
+        return;
+      }
       void aplicarMepDeFecha(fechaServicio, { conservarHoraSiVacia: true }).catch(() => {
         // silencioso al volver a la pestaña
       });
     };
     document.addEventListener("visibilitychange", refrescarSiVisible);
     return () => document.removeEventListener("visibilitychange", refrescarSiVisible);
-  }, [fechaServicio, isLoading, aplicarMepDeFecha]);
+  }, [fechaServicio, isLoading, aplicarMepDeFecha, editorOculto]);
 
   const onCambioFecha = (fecha: string) => {
     const pendiente = obtenerMepPendienteCierre(sinCerrar);
@@ -279,15 +328,54 @@ export default function MepDeliPage() {
 
   const actualizarCantidad = (corteId: string, valor: string) => {
     setError(null);
-    setCantidades((prev) => {
-      const next = new Map(prev);
-      if (valor.trim()) {
-        next.set(corteId, valor);
-      } else {
-        next.delete(corteId);
-      }
-      return next;
-    });
+    const nextCantidades = new Map(cantidades);
+    if (valor.trim()) {
+      nextCantidades.set(corteId, valor);
+    } else {
+      nextCantidades.delete(corteId);
+    }
+    setCantidades(nextCantidades);
+
+    let nextConfirmados = confirmados;
+    if (confirmados.has(corteId)) {
+      nextConfirmados = new Set(confirmados);
+      nextConfirmados.delete(corteId);
+      setConfirmados(nextConfirmados);
+    }
+    persistirBorrador(nextCantidades, nextConfirmados, horaServicio, fechaServicio);
+  };
+
+  const confirmarCorte = (corteId: string) => {
+    const cantidad = cantidades.get(corteId)?.trim();
+    if (!cantidad) {
+      setError("Ingresá una cantidad antes de confirmar.");
+      setSuccess(null);
+      return;
+    }
+    const nextConfirmados = new Set(confirmados);
+    nextConfirmados.add(corteId);
+    setConfirmados(nextConfirmados);
+    setError(null);
+    setSuccess(null);
+    persistirBorrador(cantidades, nextConfirmados, horaServicio, fechaServicio);
+  };
+
+  const desconfirmarCorte = (corteId: string) => {
+    const nextConfirmados = new Set(confirmados);
+    nextConfirmados.delete(corteId);
+    setConfirmados(nextConfirmados);
+    setError(null);
+    setSuccess(null);
+    persistirBorrador(cantidades, nextConfirmados, horaServicio, fechaServicio);
+  };
+
+  const abrirEditorMep = () => {
+    setEditorOculto(false);
+    if (resumenGuardado) {
+      const ids = new Set(resumenGuardado.lineas.map((l) => l.corte_id));
+      setConfirmados(ids);
+      persistirBorrador(cantidades, ids, horaServicio, fechaServicio);
+    }
   };
 
   const irAHoy = () => {
@@ -320,9 +408,12 @@ export default function MepDeliPage() {
         return;
       }
     }
-    setCantidades(cantidadesDesdeLineas(plantillaMismoDia.lineas));
+    const nuevasCantidades = cantidadesDesdeLineas(plantillaMismoDia.lineas);
+    setCantidades(nuevasCantidades);
+    setConfirmados(new Set());
     setResumenGuardado(null);
     setEditorOculto(false);
+    persistirBorrador(nuevasCantidades, new Set(), horaServicio, fechaServicio);
     setSuccess(`Plantilla del ${etiquetaCargaMep(plantillaMismoDia)} aplicada al ${fechaServicio}.`);
     setError(null);
   };
@@ -332,18 +423,18 @@ export default function MepDeliPage() {
       setError("No hay sugerencias con historial de cierres suficiente.");
       return;
     }
-    setCantidades((prev) => {
-      const next = new Map(prev);
-      for (const s of sugerencias) {
-        if (s.cantidad_sugerida !== null) {
-          next.set(
-            s.corte_id,
-            formatearCantidadSugerida(s.cantidad_sugerida, s.unidad)
-          );
-        }
+    const next = new Map(cantidades);
+    for (const s of sugerencias) {
+      if (s.cantidad_sugerida !== null) {
+        next.set(
+          s.corte_id,
+          formatearCantidadSugerida(s.cantidad_sugerida, s.unidad)
+        );
       }
-      return next;
-    });
+    }
+    setCantidades(next);
+    setConfirmados(new Set());
+    persistirBorrador(next, new Set(), horaServicio, fechaServicio);
     setSuccess(`Sugerencias aplicadas (${sugerencias.length} ítems).`);
     setError(null);
   };
@@ -403,6 +494,8 @@ export default function MepDeliPage() {
 
       setResumenGuardado(guardada);
       setEditorOculto(true);
+      setConfirmados(new Set());
+      limpiarBorradorMepDeli(fechaServicio);
       setHistorialCargas((prev) => {
         const sinFecha = prev.filter((c) => c.fecha !== guardada.fecha);
         return deduplicarCargasPorFecha([guardada, ...sinFecha]);
@@ -459,6 +552,12 @@ export default function MepDeliPage() {
   };
 
   const sugerenciasActivas = sugerencias.length;
+  const totalConfirmados = confirmados.size;
+  const cantidadesCargadas = hayCantidadesCargadas(cantidades);
+  const borradorRestaurado = useMemo(
+    () => leerBorradorMepDeli(fechaServicio),
+    [fechaServicio, totalConfirmados, cantidades]
+  );
 
   return (
     <main className="min-h-screen min-w-0 bg-zinc-950 px-4 py-6 text-zinc-100 sm:px-6 sm:py-10">
@@ -539,7 +638,7 @@ export default function MepDeliPage() {
               <div className="flex w-full shrink-0 flex-col gap-2 sm:w-auto sm:min-w-[11rem] sm:flex-row sm:flex-wrap sm:justify-end">
                 <button
                   type="button"
-                  onClick={() => setEditorOculto(false)}
+                  onClick={abrirEditorMep}
                   className="inline-flex w-full items-center justify-center gap-1.5 rounded-lg border border-emerald-900/50 bg-emerald-950/50 px-3 py-2.5 text-xs font-semibold text-emerald-50 transition hover:bg-emerald-900/40 sm:w-auto"
                 >
                   <Pencil className="h-3.5 w-3.5 shrink-0" aria-hidden />
@@ -683,7 +782,13 @@ export default function MepDeliPage() {
                 <input
                   type="time"
                   value={horaServicio}
-                  onChange={(e) => setHoraServicio(e.target.value)}
+                  onChange={(e) => {
+                    const hora = e.target.value;
+                    setHoraServicio(hora);
+                    if (confirmados.size > 0 || hayCantidadesCargadas(cantidades)) {
+                      persistirBorrador(cantidades, confirmados, hora, fechaServicio);
+                    }
+                  }}
                   className="w-full rounded-xl border border-zinc-700 bg-zinc-950 px-4 py-2.5 text-sm text-zinc-100 outline-none focus:border-zinc-500"
                 />
               </label>
@@ -704,6 +809,33 @@ export default function MepDeliPage() {
               </p>
             ) : (
               <div className="space-y-6">
+                {!resumenGuardado ? (
+                  <p className="rounded-xl border border-sky-900/40 bg-sky-950/25 px-4 py-3 text-sm text-sky-100/90">
+                    Podés cargar y guardar la MEP con cualquier cantidad. Si te interrumpen,
+                    usá <span className="font-medium text-sky-50">Confirmar</span> en cada corte
+                    listo — queda bloqueado y no se pierde aunque se corte la pantalla.
+                    {borradorRestaurado &&
+                    (borradorRestaurado.confirmados.length > 0 ||
+                      Object.keys(borradorRestaurado.cantidades).length > 0) ? (
+                      <span className="mt-1 block text-sky-200/80">
+                        Borrador restaurado
+                        {borradorRestaurado.confirmados.length > 0
+                          ? ` · ${borradorRestaurado.confirmados.length} confirmado${
+                              borradorRestaurado.confirmados.length === 1 ? "" : "s"
+                            }`
+                          : ""}
+                        .
+                      </span>
+                    ) : null}
+                  </p>
+                ) : null}
+
+                {totalConfirmados > 0 ? (
+                  <p className="text-xs text-zinc-500">
+                    {totalConfirmados} de {cortes.length} cortes confirmados
+                  </p>
+                ) : null}
+
                 {grupos.map((grupo) => (
                   <div key={grupo.categoria}>
                     <h2 className="mb-3 text-sm font-medium uppercase tracking-wide text-zinc-400">
@@ -712,20 +844,31 @@ export default function MepDeliPage() {
                     <ul className="divide-y divide-zinc-800 rounded-xl border border-zinc-800">
                       {grupo.cortes.map((corte) => {
                         const sug = sugerenciasPorId.get(corte.id);
+                        const estaConfirmado = confirmados.has(corte.id);
                         return (
                         <li
                           key={corte.id}
-                          className="flex flex-wrap items-center justify-between gap-3 px-4 py-3"
+                          className={`flex flex-wrap items-center justify-between gap-3 px-4 py-3 ${
+                            estaConfirmado ? "bg-emerald-950/20" : ""
+                          }`}
                         >
-                          <div className="min-w-[8rem]">
-                            <span className="font-medium text-zinc-100">
-                              {corte.nombre}
-                            </span>
-                            {sug?.motivo ? (
-                              <p className="mt-0.5 text-[11px] text-violet-300/90">{sug.motivo}</p>
+                          <div className="min-w-[8rem] flex items-start gap-2">
+                            {estaConfirmado ? (
+                              <Check
+                                className="mt-0.5 h-4 w-4 shrink-0 text-emerald-400"
+                                aria-hidden
+                              />
                             ) : null}
+                            <div>
+                              <span className="font-medium text-zinc-100">
+                                {corte.nombre}
+                              </span>
+                              {sug?.motivo ? (
+                                <p className="mt-0.5 text-[11px] text-violet-300/90">{sug.motivo}</p>
+                              ) : null}
+                            </div>
                           </div>
-                          <div className="flex items-center gap-2">
+                          <div className="flex flex-wrap items-center gap-2">
                             <input
                               type="text"
                               inputMode="decimal"
@@ -736,11 +879,34 @@ export default function MepDeliPage() {
                               }
                               value={cantidades.get(corte.id) ?? ""}
                               onChange={(e) => actualizarCantidad(corte.id, e.target.value)}
-                              className="w-28 rounded-xl border border-zinc-700 bg-zinc-950 px-3 py-2 text-right text-sm text-zinc-100 outline-none focus:border-zinc-500"
+                              readOnly={estaConfirmado}
+                              className={`w-28 rounded-xl border px-3 py-2 text-right text-sm outline-none focus:border-zinc-500 ${
+                                estaConfirmado
+                                  ? "border-emerald-900/50 bg-emerald-950/30 text-emerald-50"
+                                  : "border-zinc-700 bg-zinc-950 text-zinc-100"
+                              }`}
                             />
                             <span className="w-10 text-xs text-zinc-500">
                               {etiquetaUnidadMep(corte.unidad)}
                             </span>
+                            {estaConfirmado ? (
+                              <button
+                                type="button"
+                                onClick={() => desconfirmarCorte(corte.id)}
+                                className="rounded-lg border border-zinc-600 bg-zinc-900 px-2.5 py-2 text-[11px] font-medium text-zinc-300 transition hover:border-zinc-500 hover:text-white"
+                              >
+                                Editar
+                              </button>
+                            ) : (
+                              <button
+                                type="button"
+                                onClick={() => confirmarCorte(corte.id)}
+                                disabled={!cantidades.get(corte.id)?.trim()}
+                                className="rounded-lg border border-emerald-800/60 bg-emerald-950/50 px-2.5 py-2 text-[11px] font-semibold text-emerald-100 transition hover:border-emerald-600 hover:bg-emerald-900/40 disabled:cursor-not-allowed disabled:opacity-40"
+                              >
+                                Confirmar
+                              </button>
+                            )}
                           </div>
                         </li>
                         );
@@ -752,7 +918,12 @@ export default function MepDeliPage() {
                 <button
                   type="button"
                   onClick={() => void guardarMep()}
-                  disabled={isSaving}
+                  disabled={isSaving || !cantidadesCargadas}
+                  title={
+                    !cantidadesCargadas
+                      ? "Ingresá al menos una cantidad antes de guardar"
+                      : undefined
+                  }
                   className="mt-2 inline-flex w-full items-center justify-center gap-2 rounded-xl bg-white py-3 text-sm font-semibold text-zinc-950 transition hover:bg-zinc-200 disabled:cursor-not-allowed disabled:opacity-50 sm:w-auto sm:px-8"
                 >
                   {isSaving ? (
