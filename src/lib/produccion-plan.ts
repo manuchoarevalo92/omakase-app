@@ -2,7 +2,11 @@ import {
   ETIQUETA_AREA_PRODUCCION,
   esAreaProduccionValida,
   esUnidadCantidadValida,
+  esCategoriaPlanValida,
+  categoriaPlanEsServicio,
+  ETIQUETA_CATEGORIA_PLAN,
   type AreaProduccion,
+  type CategoriaPlan,
   type Preparacion,
   type UnidadCantidad,
 } from "@/src/lib/preparaciones";
@@ -18,13 +22,16 @@ export type SessionUsuario = { id: string; name: string };
 
 export type ProduccionPlanEstado = "pendiente" | "completada" | "cancelada";
 
-export const PLAN_CATEGORIAS = ["produ", "servicio"] as const;
-export type ProduccionPlanCategoria = (typeof PLAN_CATEGORIAS)[number];
+/** @deprecated Usar CategoriaPlan desde preparaciones */
+export type ProduccionPlanCategoria = CategoriaPlan;
 
-export const ETIQUETA_PLAN_CATEGORIA: Record<ProduccionPlanCategoria, string> = {
-  produ: "Produ",
-  servicio: "Servicio",
-};
+export const PLAN_CATEGORIAS = [
+  "prep_barra",
+  "servicio_barra",
+  "servicio_delivery",
+] as const satisfies readonly CategoriaPlan[];
+
+export const ETIQUETA_PLAN_CATEGORIA = ETIQUETA_CATEGORIA_PLAN;
 
 export type ProduccionPlanItem = {
   id: string;
@@ -34,7 +41,7 @@ export type ProduccionPlanItem = {
   preparacionId: string | null;
   preparacionNombre: string;
   area: AreaProduccion;
-  categoria: ProduccionPlanCategoria;
+  categoria: CategoriaPlan;
   duracionEstimadaSegundos: number;
   cantidadPlanificada: number | null;
   unidadCantidad: UnidadCantidad | null;
@@ -160,17 +167,15 @@ function errorColumnaCategoriaFaltante(error: PostgrestishError): boolean {
   return errorColumnaFaltante(error) && msg.includes("categoria");
 }
 
-export function esPlanCategoriaValida(
-  v: string | null | undefined
-): v is ProduccionPlanCategoria {
-  return v === "produ" || v === "servicio";
+export function esPlanCategoriaValida(v: string | null | undefined): v is CategoriaPlan {
+  return esCategoriaPlanValida(v);
 }
 
 export function itemServicioDebeAutoCompletar(
   item: ProduccionPlanItem,
   ahora: Date
 ): boolean {
-  if (item.categoria !== "servicio" || item.estado !== "pendiente") {
+  if (!categoriaPlanEsServicio(item.categoria) || item.estado !== "pendiente") {
     return false;
   }
   const hoy = formatFechaLocalYYYYMMDD(ahora);
@@ -461,7 +466,13 @@ export function planItemDesdeFila(row: ProduccionPlanItemDbRow): ProduccionPlanI
     preparacionId: row.preparacion_id ?? null,
     preparacionNombre: row.preparacion_nombre,
     area: esAreaProduccionValida(row.area) ? row.area : "delivery",
-    categoria: esPlanCategoriaValida(row.categoria) ? row.categoria : "produ",
+    categoria: esCategoriaPlanValida(row.categoria)
+      ? row.categoria
+      : row.categoria === "produ"
+        ? "prep_barra"
+        : row.categoria === "servicio"
+          ? "servicio_barra"
+          : "prep_barra",
     duracionEstimadaSegundos: row.duracion_estimada_segundos,
     cantidadPlanificada:
       row.cantidad_planificada != null && row.cantidad_planificada > 0
@@ -1032,7 +1043,7 @@ export async function fetchProduccionPendientesAtrasados(
       .from("produccion_plan")
       .select(select)
       .eq("estado", "pendiente")
-      .eq("categoria", "produ")
+      .eq("categoria", "prep_barra")
       .lt("fecha", fechaHastaExclusiva)
       .order("fecha", { ascending: true })
       .order("hora_inicio", { ascending: true })
@@ -1070,7 +1081,7 @@ export async function autoCompletarServiciosVencidos(
     .from("produccion_plan")
     .select(PRODUCCION_PLAN_SELECT)
     .eq("estado", "pendiente")
-    .eq("categoria", "servicio")
+    .in("categoria", ["servicio_barra", "servicio_delivery"])
     .lte("fecha", fechaHoy)
     .order("fecha", { ascending: true })
     .limit(500);
@@ -1113,7 +1124,6 @@ export type CrearProduccionPlanItemInput = {
   horaInicio: string;
   horaFin: string;
   prep: Preparacion;
-  categoria?: ProduccionPlanCategoria;
   cantidadPlanificada?: number | null;
   unidadCantidad?: UnidadCantidad | null;
   notas?: string | null;
@@ -1130,7 +1140,7 @@ function payloadInsertPlanItem(opts: CrearProduccionPlanItemInput) {
     preparacion_id: opts.prep.id,
     preparacion_nombre: opts.prep.nombre,
     area: opts.prep.area,
-    categoria: opts.categoria ?? "produ",
+    categoria: opts.prep.categoriaPlan,
     duracion_estimada_segundos: duracion,
     cantidad_planificada: opts.cantidadPlanificada ?? null,
     unidad_cantidad: opts.unidadCantidad ?? opts.prep.unidadCantidad,
@@ -1204,7 +1214,7 @@ export async function actualizarProduccionPlanItem(
     preparacion_id: string | null;
     preparacion_nombre: string;
     area: AreaProduccion;
-    categoria: ProduccionPlanCategoria;
+    categoria: CategoriaPlan;
     hora_inicio: string;
     hora_fin: string;
     duracion_estimada_segundos: number;

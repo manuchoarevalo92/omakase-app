@@ -16,14 +16,19 @@ import {
   X,
 } from "lucide-react";
 import {
+  actualizarCategoriaPlanPreparacion,
   cantidadSugeridaAlMarcar,
+  CATEGORIAS_PLAN,
   crearPreparacion,
   ETIQUETA_AREA_PRODUCCION,
+  ETIQUETA_CATEGORIA_PLAN,
+  esCategoriaPlanValida,
   esUnidadCantidadValida,
   fetchPreparaciones,
   formatearCantidad,
   parseCantidadInput,
   UNIDADES_CANTIDAD,
+  type CategoriaPlan,
   type Preparacion,
   type AreaProduccion,
   type UnidadCantidad,
@@ -100,6 +105,7 @@ export default function ProduccionTiemposPage() {
   const [nuevaCantidadRef, setNuevaCantidadRef] = useState("1");
   const [nuevaUnidad, setNuevaUnidad] = useState<UnidadCantidad>("L");
   const [isCreandoPrep, setIsCreandoPrep] = useState(false);
+  const [categoriaPlanBusyId, setCategoriaPlanBusyId] = useState<string | null>(null);
 
   const prepSeleccionada = useMemo(
     () => preparaciones.find((p) => p.id === prepSeleccionadaId) ?? null,
@@ -213,6 +219,34 @@ export default function ProduccionTiemposPage() {
       setError(err instanceof Error ? err.message : "No se pudo crear la preparación.");
     } finally {
       setIsCreandoPrep(false);
+    }
+  };
+
+  const cambiarCategoriaPlan = async (prep: Preparacion, categoriaPlan: CategoriaPlan) => {
+    if (prep.categoriaPlan === categoriaPlan) {
+      return;
+    }
+    setCategoriaPlanBusyId(prep.id);
+    setError(null);
+    setSuccess(null);
+    try {
+      const { preparacion, planItemsActualizados } = await actualizarCategoriaPlanPreparacion(
+        prep.id,
+        categoriaPlan
+      );
+      setPreparaciones((prev) =>
+        prev.map((p) => (p.id === preparacion.id ? preparacion : p))
+      );
+      setSuccess(
+        `"${preparacion.nombre}" → ${ETIQUETA_CATEGORIA_PLAN[categoriaPlan]}.` +
+          (planItemsActualizados > 0
+            ? ` Actualizados ${planItemsActualizados} bloque${planItemsActualizados === 1 ? "" : "s"} en el plan semanal.`
+            : "")
+      );
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "No se pudo actualizar la categoría.");
+    } finally {
+      setCategoriaPlanBusyId(null);
     }
   };
 
@@ -733,6 +767,60 @@ export default function ProduccionTiemposPage() {
             </div>
           ) : null}
         </div>
+
+        {preparaciones.length > 0 ? (
+          <section className="mb-8">
+            <h2 className="mb-1 text-sm font-medium uppercase tracking-wide text-zinc-400">
+              Categoría en plan semanal
+            </h2>
+            <p className="mb-3 text-xs text-zinc-500">
+              Se define por preparación. Al cambiarla acá se actualizan todos los bloques de esa prep
+              en el plan (pasados y futuros). Prep Barra = marcar hecha manual; Servicio = se
+              completa sola al pasar el horario.
+            </p>
+            <div className="overflow-x-auto rounded-xl border border-zinc-800">
+              <table className="min-w-full text-left text-sm">
+                <thead className="border-b border-zinc-800 bg-zinc-950/60 text-xs uppercase tracking-wide text-zinc-500">
+                  <tr>
+                    <th className="px-4 py-2.5 font-medium">Preparación</th>
+                    <th className="px-4 py-2.5 font-medium">Categoría</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-zinc-800/80">
+                  {preparaciones.map((p) => (
+                    <tr key={p.id} className="text-zinc-200">
+                      <td className="px-4 py-2.5">
+                        <span className="font-medium text-zinc-100">{p.nombre}</span>
+                        <span className="ml-2 text-xs text-zinc-500">
+                          {ETIQUETA_AREA_PRODUCCION[p.area]}
+                        </span>
+                      </td>
+                      <td className="px-4 py-2.5">
+                        <select
+                          value={p.categoriaPlan}
+                          disabled={categoriaPlanBusyId === p.id}
+                          onChange={(e) => {
+                            const v = e.target.value;
+                            if (esCategoriaPlanValida(v)) {
+                              void cambiarCategoriaPlan(p, v);
+                            }
+                          }}
+                          className="w-full min-w-[12rem] rounded-lg border border-zinc-700 bg-zinc-950 px-2 py-1.5 text-sm text-zinc-100 outline-none focus:border-zinc-500 disabled:opacity-50"
+                        >
+                          {CATEGORIAS_PLAN.map((c) => (
+                            <option key={c} value={c}>
+                              {ETIQUETA_CATEGORIA_PLAN[c]}
+                            </option>
+                          ))}
+                        </select>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </section>
+        ) : null}
 
         {resumenes.length > 0 ? (
           <section className="mb-8">

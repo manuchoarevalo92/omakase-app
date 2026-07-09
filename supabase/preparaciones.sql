@@ -29,6 +29,16 @@ alter table public.preparaciones
   add column if not exists ultima_cantidad numeric(12, 3);
 
 alter table public.preparaciones
+  add column if not exists categoria_plan text not null default 'prep_barra';
+
+alter table public.preparaciones
+  drop constraint if exists preparaciones_categoria_plan_check;
+
+alter table public.preparaciones
+  add constraint preparaciones_categoria_plan_check
+  check (categoria_plan in ('prep_barra', 'servicio_barra', 'servicio_delivery'));
+
+alter table public.preparaciones
   drop constraint if exists preparaciones_duracion_dias_check;
 
 alter table public.preparaciones
@@ -93,3 +103,5 @@ comment on column public.preparaciones.unidad_cantidad is
   'Unidad de cantidad_referencia y ultima_cantidad: L, ml, kg, g, ud.';
 comment on column public.preparaciones.ultima_cantidad is
   'Cantidad del último lote hecho; escala el recordatorio proporcionalmente.';
+comment on column public.preparaciones.categoria_plan is
+  'Tipo en plan semanal: prep_barra (manual), servicio_barra o servicio_delivery (auto al pasar hora_fin).';

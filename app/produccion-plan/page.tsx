@@ -17,8 +17,10 @@ import {
 
 import {
   cantidadSugeridaAlMarcar,
-  esUnidadCantidadValida,
   ETIQUETA_AREA_PRODUCCION,
+  categoriaPlanEsManual,
+  categoriaPlanEsServicio,
+  esUnidadCantidadValida,
   fetchPreparaciones,
   parseCantidadInput,
   UNIDADES_CANTIDAD,
@@ -76,7 +78,6 @@ import {
   siguienteHorarioLibrePersona,
   topFranjaHorariaPx,
   topItemGrillaPx,
-  type ProduccionPlanCategoria,
   type ProduccionPlanItem,
 } from "@/src/lib/produccion-plan";
 import { formatPostgrestError } from "@/src/lib/supabase-errors";
@@ -93,7 +94,6 @@ type PlanClipboard = {
   preparacionId: string | null;
   preparacionNombre: string;
   area: Preparacion["area"];
-  categoria: ProduccionPlanCategoria;
   horaInicio: string;
   horaFin: string;
   cantidadPlanificada: number | null;
@@ -158,7 +158,6 @@ export default function ProduccionPlanPage() {
   const [cantidad, setCantidad] = useState("");
   const [unidadCantidad, setUnidadCantidad] = useState<UnidadCantidad>("kg");
   const [notas, setNotas] = useState("");
-  const [categoria, setCategoria] = useState<ProduccionPlanCategoria>("produ");
   const [estimacionEscalada, setEstimacionEscalada] = useState(false);
   const [asignadoId, setAsignadoId] = useState("");
   const [clipboard, setClipboard] = useState<PlanClipboard | null>(null);
@@ -453,7 +452,6 @@ export default function ProduccionPlanPage() {
     setPrepId("");
     setCantidad("");
     setNotas("");
-    setCategoria("produ");
     setEstimacionEscalada(false);
     setRecurrenciaModo("none");
     setRecurrenciaHasta(fecha);
@@ -473,7 +471,6 @@ export default function ProduccionPlanPage() {
     setCantidad(item.cantidadPlanificada != null ? String(item.cantidadPlanificada) : "");
     setUnidadCantidad(item.unidadCantidad ?? "kg");
     setNotas(item.notas ?? "");
-    setCategoria(item.categoria);
     setEstimacionEscalada(false);
     setRecurrenciaModo("none");
     setRecurrenciaHasta(item.fecha);
@@ -561,7 +558,6 @@ export default function ProduccionPlanPage() {
       preparacionId: item.preparacionId,
       preparacionNombre: item.preparacionNombre,
       area: item.area,
-      categoria: item.categoria,
       horaInicio: item.horaInicio,
       horaFin: item.horaFin,
       cantidadPlanificada: item.cantidadPlanificada,
@@ -666,7 +662,6 @@ export default function ProduccionPlanPage() {
         horaInicio: horaDestino,
         horaFin: horaFinDestino,
         prep,
-        categoria: clipboard.categoria,
         cantidadPlanificada: clipboard.cantidadPlanificada,
         unidadCantidad: clipboard.unidadCantidad ?? prep.unidadCantidad,
         notas: clipboard.notas,
@@ -778,7 +773,6 @@ export default function ProduccionPlanPage() {
         horaInicio,
         horaFin,
         prep: prepSeleccionada,
-        categoria,
         cantidadPlanificada: parseCantidadInput(cantidad),
         unidadCantidad,
         notas,
@@ -793,7 +787,7 @@ export default function ProduccionPlanPage() {
           preparacion_id: prepSeleccionada.id,
           preparacion_nombre: prepSeleccionada.nombre,
           area: prepSeleccionada.area,
-          categoria,
+          categoria: prepSeleccionada.categoriaPlan,
           hora_inicio: horaInicio,
           hora_fin: horaFin,
           duracion_estimada_segundos: duracion,
@@ -845,7 +839,7 @@ export default function ProduccionPlanPage() {
   };
 
   const toggleCompletada = async (item: ProduccionPlanItem) => {
-    if (item.categoria === "servicio") {
+    if (!categoriaPlanEsManual(item.categoria)) {
       return;
     }
     setIsBusy(true);
@@ -965,7 +959,7 @@ export default function ProduccionPlanPage() {
 
         <div className="mb-4 rounded-xl border border-zinc-800 bg-zinc-950/50 p-3">
           <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
-            <p className="text-sm font-medium text-zinc-200">Pendientes atrasados (Produ)</p>
+            <p className="text-sm font-medium text-zinc-200">Pendientes atrasados (Prep Barra)</p>
             <p className="text-xs text-zinc-500">
               {pendientesAtrasados.length} pendiente{pendientesAtrasados.length === 1 ? "" : "s"} de
               producción
@@ -973,8 +967,8 @@ export default function ProduccionPlanPage() {
           </div>
           {pendientesAtrasados.length === 0 ? (
             <p className="mb-2 text-xs text-zinc-500">
-              No hay producción pendiente de días anteriores. Las de Servicio se completan solas al
-              pasar el horario.
+              No hay prep pendiente de días anteriores. Servicio Barra y Servicio delivery se
+              completan solas al pasar el horario.
             </p>
           ) : (
             <div className="mb-3 grid gap-2">
@@ -1081,8 +1075,9 @@ export default function ProduccionPlanPage() {
           </span>
           <span className="text-red-400/90">Borde rojo = misma persona doble o más de 3 a la vez.</span>
           <span>
-            <span className="text-zinc-300">Produ</span> = marcar hecha manual ·{" "}
-            <span className="text-zinc-300">Servicio</span> = se completa sola al pasar el horario
+            <span className="text-zinc-300">Prep Barra</span> = marcar hecha manual ·{" "}
+            <span className="text-zinc-300">Servicio</span> = se completa sola (definido en Tiempos
+            prep)
           </span>
         </div>
 
@@ -1301,7 +1296,7 @@ export default function ProduccionPlanPage() {
                               </p>
                               <p className="text-[10px] font-medium uppercase tracking-wide opacity-75">
                                 {ETIQUETA_PLAN_CATEGORIA[item.categoria]}
-                                {item.categoria === "servicio" ? " · auto" : ""}
+                                {categoriaPlanEsServicio(item.categoria) ? " · auto" : ""}
                               </p>
                               <p className="break-words text-xs font-medium leading-snug opacity-90">
                                 {item.asignadoANombre ?? "Sin asignar"}
@@ -1325,7 +1320,7 @@ export default function ProduccionPlanPage() {
                                 >
                                   <Copy className="h-4 w-4" />
                                 </button>
-                                {item.categoria === "produ" ? (
+                                {categoriaPlanEsManual(item.categoria) ? (
                                   <button
                                     type="button"
                                     onClick={(e) => {
@@ -1451,19 +1446,22 @@ export default function ProduccionPlanPage() {
                   )}
                 </p>
               ) : null}
-              <label className="block">
-                <span className="mb-1 block text-xs uppercase tracking-wide text-zinc-500">
-                  Categoría
-                </span>
-                <select
-                  value={categoria}
-                  onChange={(e) => setCategoria(e.target.value as ProduccionPlanCategoria)}
-                  className="w-full rounded-xl border border-zinc-700 bg-zinc-950 px-4 py-2.5 text-sm"
-                >
-                  <option value="produ">Produ (marcar hecha manual)</option>
-                  <option value="servicio">Servicio (se completa sola al pasar el horario)</option>
-                </select>
-              </label>
+              {prepSeleccionada ? (
+                <p className="text-xs text-zinc-500">
+                  Categoría en plan:{" "}
+                  <span className="text-zinc-300">
+                    {ETIQUETA_PLAN_CATEGORIA[prepSeleccionada.categoriaPlan]}
+                  </span>
+                  {categoriaPlanEsServicio(prepSeleccionada.categoriaPlan)
+                    ? " (se completa sola)"
+                    : " (marcar hecha manual)"}
+                  . Cambiala en{" "}
+                  <Link href="/produccion-tiempos" className="text-zinc-300 underline hover:text-white">
+                    Tiempos prep
+                  </Link>
+                  .
+                </p>
+              ) : null}
               <label className="block">
                 <span className="mb-1 block text-xs uppercase tracking-wide text-zinc-500">
                   Quién la hace

@@ -15,6 +15,35 @@ export const UNIDADES_CANTIDAD = ["L", "ml", "kg", "g", "ud"] as const;
 
 export type UnidadCantidad = (typeof UNIDADES_CANTIDAD)[number];
 
+export const CATEGORIAS_PLAN = [
+  "prep_barra",
+  "servicio_barra",
+  "servicio_delivery",
+] as const;
+
+export type CategoriaPlan = (typeof CATEGORIAS_PLAN)[number];
+
+export const ETIQUETA_CATEGORIA_PLAN: Record<CategoriaPlan, string> = {
+  prep_barra: "Prep Barra",
+  servicio_barra: "Servicio Barra",
+  servicio_delivery: "Servicio delivery",
+};
+
+export function esCategoriaPlanValida(valor: string | null | undefined): valor is CategoriaPlan {
+  if (!valor) {
+    return false;
+  }
+  return (CATEGORIAS_PLAN as readonly string[]).includes(valor);
+}
+
+export function categoriaPlanEsServicio(categoria: CategoriaPlan): boolean {
+  return categoria === "servicio_barra" || categoria === "servicio_delivery";
+}
+
+export function categoriaPlanEsManual(categoria: CategoriaPlan): boolean {
+  return categoria === "prep_barra";
+}
+
 export function esAreaProduccionValida(valor: string | null | undefined): valor is AreaProduccion {
   if (!valor) {
     return false;
@@ -33,6 +62,7 @@ export type Preparacion = {
   id: string;
   nombre: string;
   area: AreaProduccion;
+  categoriaPlan: CategoriaPlan;
   duracionDias: number;
   bufferPct: number;
   seguimientoActivo: boolean;
@@ -48,6 +78,7 @@ export type PreparacionDbRow = {
   id: string;
   nombre: string;
   area?: string | null;
+  categoria_plan?: string | null;
   duracion_dias?: number | null;
   buffer_pct?: number | null;
   seguimiento_activo?: boolean | null;
@@ -60,6 +91,9 @@ export type PreparacionDbRow = {
 };
 
 export const PREPARACION_SELECT =
+  "id, nombre, area, categoria_plan, duracion_dias, buffer_pct, seguimiento_activo, pendiente, fecha_ultima_produccion, cantidad_referencia, unidad_cantidad, ultima_cantidad, notas";
+
+const PREPARACION_SELECT_SIN_CATEGORIA_PLAN =
   "id, nombre, area, duracion_dias, buffer_pct, seguimiento_activo, pendiente, fecha_ultima_produccion, cantidad_referencia, unidad_cantidad, ultima_cantidad, notas";
 
 function parseCantidadDb(valor: number | null | undefined): number | null {
@@ -83,6 +117,7 @@ export function preparacionDesdeFila(row: PreparacionDbRow): Preparacion {
     id: row.id,
     nombre: row.nombre,
     area: esAreaProduccionValida(row.area) ? row.area : "delivery",
+    categoriaPlan: esCategoriaPlanValida(row.categoria_plan) ? row.categoria_plan : "prep_barra",
     duracionDias: row.duracion_dias != null && row.duracion_dias > 0 ? row.duracion_dias : 7,
     bufferPct: row.buffer_pct != null ? row.buffer_pct : BUFFER_PCT_DEFECTO,
     seguimientoActivo: row.seguimiento_activo !== false,
@@ -105,16 +140,29 @@ export async function fetchPreparaciones(): Promise<Preparacion[]> {
     .select(PREPARACION_SELECT)
     .order("nombre", { ascending: true });
 
-  if (error) {
-    throw new Error(formatPostgrestError(error));
+  if (!error) {
+    return ((data ?? []) as PreparacionDbRow[]).map(preparacionDesdeFila);
   }
 
-  return ((data ?? []) as PreparacionDbRow[]).map(preparacionDesdeFila);
+  const msg = error.message.toLowerCase();
+  if (msg.includes("column") && msg.includes("categoria_plan")) {
+    const legacy = await supabase
+      .from("preparaciones")
+      .select(PREPARACION_SELECT_SIN_CATEGORIA_PLAN)
+      .order("nombre", { ascending: true });
+    if (legacy.error) {
+      throw new Error(formatPostgrestError(legacy.error));
+    }
+    return ((legacy.data ?? []) as PreparacionDbRow[]).map(preparacionDesdeFila);
+  }
+
+  throw new Error(formatPostgrestError(error));
 }
 
 export type CrearPreparacionInput = {
   nombre: string;
   area: AreaProduccion;
+  categoriaPlan?: CategoriaPlan;
   duracionDias?: number;
   cantidadReferencia?: number;
   unidadCantidad?: UnidadCantidad;
@@ -143,6 +191,7 @@ export async function crearPreparacion(input: CrearPreparacionInput): Promise<Pr
     .insert({
       nombre,
       area: input.area,
+      categoria_plan: input.categoriaPlan ?? "prep_barra",
       duracion_dias: duracionDias,
       cantidad_referencia: cantidadReferencia,
       unidad_cantidad: unidadCantidad,
@@ -158,6 +207,44 @@ export async function crearPreparacion(input: CrearPreparacionInput): Promise<Pr
   }
 
   return preparacionDesdeFila(data as PreparacionDbRow);
+}
+
+export type ActualizarCategoriaPlanResult = {
+  preparacion: Preparacion;
+  planItemsActualizados: number;
+};
+
+/** Cambia la categoría de plan de una preparación y propaga a todos sus bloques en produccion_plan. */
+export async function actualizarCategoriaPlanPreparacion(
+  preparacionId: string,
+  categoriaPlan: CategoriaPlan
+): Promise<ActualizarCategoriaPlanResult> {
+  const { data, error } = await supabase
+    .from("preparaciones")
+    .update({ categoria_plan: categoriaPlan })
+    .eq("id", preparacionId)
+    .select(PREPARACION_SELECT)
+    .single();
+
+  if (error) {
+    throw new Error(formatPostgrestError(error));
+  }
+
+  const { data: planRows, error: planError } = await supabase
+    .from("produccion_plan")
+    .update({ categoria: categoriaPlan })
+    .eq("preparacion_id", preparacionId)
+    .neq("estado", "cancelada")
+    .select("id");
+
+  if (planError) {
+    throw new Error(formatPostgrestError(planError));
+  }
+
+  return {
+    preparacion: preparacionDesdeFila(data as PreparacionDbRow),
+    planItemsActualizados: planRows?.length ?? 0,
+  };
 }
 
 export function hoyISO(): string {
