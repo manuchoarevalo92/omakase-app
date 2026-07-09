@@ -626,27 +626,6 @@ export default function ProduccionPlanPage() {
     }
   };
 
-  const copiarPendienteParaReplanificar = (item: ProduccionPlanItem) => {
-    setClipboard({
-      itemId: item.id,
-      preparacionId: item.preparacionId,
-      preparacionNombre: item.preparacionNombre,
-      area: item.area,
-      categoria: item.categoria,
-      horaInicio: item.horaInicio,
-      horaFin: item.horaFin,
-      cantidadPlanificada: item.cantidadPlanificada,
-      unidadCantidad: item.unidadCantidad,
-      notas: item.notas,
-      asignadoAId: item.asignadoAId,
-      asignadoANombre: item.asignadoANombre,
-    });
-    setSuccess(
-      `Pendiente copiado: ${item.preparacionNombre}. Tocá una franja de la grilla para replanificar.`
-    );
-    setError(null);
-  };
-
   const pegarClipboardEnHorario = async (fecha: string, horaDestino: string) => {
     if (!clipboard) {
       return;
@@ -997,26 +976,16 @@ export default function ProduccionPlanPage() {
                         {item.asignadoANombre ?? "Sin asignar"}
                       </p>
                     </div>
-                    <div className="flex gap-1.5">
-                      <button
-                        type="button"
-                        onClick={() => {
-                          void reprogramarPendienteAHoy(item);
-                        }}
-                        disabled={isBusy}
-                        className="rounded-lg border border-amber-700/70 px-2.5 py-1 text-xs text-amber-100 hover:bg-amber-900/30 disabled:opacity-50"
-                      >
-                        Reprogramar hoy
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => copiarPendienteParaReplanificar(item)}
-                        disabled={isBusy}
-                        className="rounded-lg border border-zinc-700 px-2.5 py-1 text-xs text-zinc-200 hover:border-zinc-500 disabled:opacity-50"
-                      >
-                        Copiar para pegar
-                      </button>
-                    </div>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        void reprogramarPendienteAHoy(item);
+                      }}
+                      disabled={isBusy}
+                      className="shrink-0 rounded-lg border border-amber-700/70 px-2.5 py-1 text-xs text-amber-100 hover:bg-amber-900/30 disabled:opacity-50"
+                    >
+                      Reprogramar hoy
+                    </button>
                   </div>
                 </div>
               ))}
