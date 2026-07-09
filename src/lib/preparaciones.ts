@@ -65,6 +65,7 @@ export type Preparacion = {
   nombre: string;
   area: AreaProduccion;
   categoriaPlan: CategoriaPlan;
+  categoriaPlanConfirmada: boolean;
   duracionDias: number;
   bufferPct: number;
   seguimientoActivo: boolean;
@@ -81,6 +82,7 @@ export type PreparacionDbRow = {
   nombre: string;
   area?: string | null;
   categoria_plan?: string | null;
+  categoria_plan_confirmada?: boolean | null;
   duracion_dias?: number | null;
   buffer_pct?: number | null;
   seguimiento_activo?: boolean | null;
@@ -93,10 +95,13 @@ export type PreparacionDbRow = {
 };
 
 export const PREPARACION_SELECT =
-  "id, nombre, area, categoria_plan, duracion_dias, buffer_pct, seguimiento_activo, pendiente, fecha_ultima_produccion, cantidad_referencia, unidad_cantidad, ultima_cantidad, notas";
+  "id, nombre, area, categoria_plan, categoria_plan_confirmada, duracion_dias, buffer_pct, seguimiento_activo, pendiente, fecha_ultima_produccion, cantidad_referencia, unidad_cantidad, ultima_cantidad, notas";
 
 const PREPARACION_SELECT_SIN_CATEGORIA_PLAN =
   "id, nombre, area, duracion_dias, buffer_pct, seguimiento_activo, pendiente, fecha_ultima_produccion, cantidad_referencia, unidad_cantidad, ultima_cantidad, notas";
+
+const PREPARACION_SELECT_SIN_CONFIRMACION =
+  "id, nombre, area, categoria_plan, duracion_dias, buffer_pct, seguimiento_activo, pendiente, fecha_ultima_produccion, cantidad_referencia, unidad_cantidad, ultima_cantidad, notas";
 
 function parseCantidadDb(valor: number | null | undefined): number | null {
   if (valor == null || !Number.isFinite(valor) || valor <= 0) {
@@ -120,6 +125,7 @@ export function preparacionDesdeFila(row: PreparacionDbRow): Preparacion {
     nombre: row.nombre,
     area: esAreaProduccionValida(row.area) ? row.area : "delivery",
     categoriaPlan: normalizarCategoriaPlan(row.categoria_plan),
+    categoriaPlanConfirmada: row.categoria_plan_confirmada === true,
     duracionDias: row.duracion_dias != null && row.duracion_dias > 0 ? row.duracion_dias : 7,
     bufferPct: row.buffer_pct != null ? row.buffer_pct : BUFFER_PCT_DEFECTO,
     seguimientoActivo: row.seguimiento_activo !== false,
@@ -147,6 +153,17 @@ export async function fetchPreparaciones(): Promise<Preparacion[]> {
   }
 
   const msg = error.message.toLowerCase();
+  if (msg.includes("column") && msg.includes("categoria_plan_confirmada")) {
+    const sinConfirmacion = await supabase
+      .from("preparaciones")
+      .select(PREPARACION_SELECT_SIN_CONFIRMACION)
+      .order("nombre", { ascending: true });
+    if (sinConfirmacion.error) {
+      throw new Error(formatPostgrestError(sinConfirmacion.error));
+    }
+    return ((sinConfirmacion.data ?? []) as PreparacionDbRow[]).map(preparacionDesdeFila);
+  }
+
   if (msg.includes("column") && msg.includes("categoria_plan")) {
     const legacy = await supabase
       .from("preparaciones")
@@ -194,6 +211,7 @@ export async function crearPreparacion(input: CrearPreparacionInput): Promise<Pr
       nombre,
       area: input.area,
       categoria_plan: input.categoriaPlan ?? "produ",
+      categoria_plan_confirmada: false,
       duracion_dias: duracionDias,
       cantidad_referencia: cantidadReferencia,
       unidad_cantidad: unidadCantidad,
@@ -223,7 +241,10 @@ export async function actualizarCategoriaPlanPreparacion(
 ): Promise<ActualizarCategoriaPlanResult> {
   const { data, error } = await supabase
     .from("preparaciones")
-    .update({ categoria_plan: categoriaPlan })
+    .update({
+      categoria_plan: categoriaPlan,
+      categoria_plan_confirmada: true,
+    })
     .eq("id", preparacionId)
     .select(PREPARACION_SELECT)
     .single();

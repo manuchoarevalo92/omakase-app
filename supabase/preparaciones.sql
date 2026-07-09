@@ -32,6 +32,9 @@ alter table public.preparaciones
   add column if not exists categoria_plan text not null default 'produ';
 
 alter table public.preparaciones
+  add column if not exists categoria_plan_confirmada boolean not null default false;
+
+alter table public.preparaciones
   drop constraint if exists preparaciones_categoria_plan_check;
 
 alter table public.preparaciones
