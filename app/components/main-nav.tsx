@@ -25,6 +25,7 @@ const ALL_LINKS = [
   { href: "/produccion", label: "Producción" },
   { href: "/produccion-tiempos", label: "Tiempos prep" },
   { href: "/produccion-plan", label: "Plan semanal" },
+  { href: "/personal", label: "Personal" },
   { href: "/consumo", label: "Consumo" },
   { href: "/gasto", label: "Gasto" },
 ] as const;
@@ -35,7 +36,7 @@ type Href = (typeof ALL_LINKS)[number]["href"];
 const GRUPOS: { titulo: string; hrefs: Href[] }[] = [
   { titulo: "Servicio", hrefs: ["/", "/bebidas", "/mep-deli", "/mep-historial", "/platos", "/mep-cortes", "/receta", "/historial", "/produccion-tiempos", "/produccion-plan"] },
   { titulo: "Compras", hrefs: ["/pedidos", "/avisos", "/compras", "/stock", "/inventario"] },
-  { titulo: "Análisis", hrefs: ["/consumo", "/gasto", "/estadisticas", "/produccion"] },
+  { titulo: "Análisis", hrefs: ["/consumo", "/gasto", "/estadisticas", "/produccion", "/personal"] },
 ];
 
 const STAFF_HREFS = new Set<string>([
