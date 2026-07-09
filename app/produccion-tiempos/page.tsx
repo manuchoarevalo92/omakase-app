@@ -775,8 +775,8 @@ export default function ProduccionTiemposPage() {
             </h2>
             <p className="mb-3 text-xs text-zinc-500">
               Se define por preparación. Al cambiarla acá se actualizan todos los bloques de esa prep
-              en el plan (pasados y futuros). Prep Barra = marcar hecha manual; Servicio = se
-              completa sola al pasar el horario.
+              en el plan (pasados y futuros). Produ = marcar hecha manual; Servicio = se completa sola
+              al pasar el horario.
             </p>
             <div className="overflow-x-auto rounded-xl border border-zinc-800">
               <table className="min-w-full text-left text-sm">

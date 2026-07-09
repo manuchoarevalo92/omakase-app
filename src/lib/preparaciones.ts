@@ -15,33 +15,35 @@ export const UNIDADES_CANTIDAD = ["L", "ml", "kg", "g", "ud"] as const;
 
 export type UnidadCantidad = (typeof UNIDADES_CANTIDAD)[number];
 
-export const CATEGORIAS_PLAN = [
-  "prep_barra",
-  "servicio_barra",
-  "servicio_delivery",
-] as const;
+export const CATEGORIAS_PLAN = ["produ", "servicio"] as const;
 
 export type CategoriaPlan = (typeof CATEGORIAS_PLAN)[number];
 
 export const ETIQUETA_CATEGORIA_PLAN: Record<CategoriaPlan, string> = {
-  prep_barra: "Prep Barra",
-  servicio_barra: "Servicio Barra",
-  servicio_delivery: "Servicio delivery",
+  produ: "Produ",
+  servicio: "Servicio",
 };
 
-export function esCategoriaPlanValida(valor: string | null | undefined): valor is CategoriaPlan {
-  if (!valor) {
-    return false;
+export function normalizarCategoriaPlan(valor: string | null | undefined): CategoriaPlan {
+  if (valor === "servicio" || valor === "servicio_barra" || valor === "servicio_delivery") {
+    return "servicio";
   }
-  return (CATEGORIAS_PLAN as readonly string[]).includes(valor);
+  if (valor === "produ" || valor === "prep_barra") {
+    return "produ";
+  }
+  return "produ";
+}
+
+export function esCategoriaPlanValida(valor: string | null | undefined): valor is CategoriaPlan {
+  return valor === "produ" || valor === "servicio";
 }
 
 export function categoriaPlanEsServicio(categoria: CategoriaPlan): boolean {
-  return categoria === "servicio_barra" || categoria === "servicio_delivery";
+  return categoria === "servicio";
 }
 
 export function categoriaPlanEsManual(categoria: CategoriaPlan): boolean {
-  return categoria === "prep_barra";
+  return categoria === "produ";
 }
 
 export function esAreaProduccionValida(valor: string | null | undefined): valor is AreaProduccion {
@@ -117,7 +119,7 @@ export function preparacionDesdeFila(row: PreparacionDbRow): Preparacion {
     id: row.id,
     nombre: row.nombre,
     area: esAreaProduccionValida(row.area) ? row.area : "delivery",
-    categoriaPlan: esCategoriaPlanValida(row.categoria_plan) ? row.categoria_plan : "prep_barra",
+    categoriaPlan: normalizarCategoriaPlan(row.categoria_plan),
     duracionDias: row.duracion_dias != null && row.duracion_dias > 0 ? row.duracion_dias : 7,
     bufferPct: row.buffer_pct != null ? row.buffer_pct : BUFFER_PCT_DEFECTO,
     seguimientoActivo: row.seguimiento_activo !== false,
@@ -191,7 +193,7 @@ export async function crearPreparacion(input: CrearPreparacionInput): Promise<Pr
     .insert({
       nombre,
       area: input.area,
-      categoria_plan: input.categoriaPlan ?? "prep_barra",
+      categoria_plan: input.categoriaPlan ?? "produ",
       duracion_dias: duracionDias,
       cantidad_referencia: cantidadReferencia,
       unidad_cantidad: unidadCantidad,

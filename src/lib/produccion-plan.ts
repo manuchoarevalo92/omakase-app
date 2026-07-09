@@ -3,6 +3,7 @@ import {
   esAreaProduccionValida,
   esUnidadCantidadValida,
   esCategoriaPlanValida,
+  normalizarCategoriaPlan,
   categoriaPlanEsServicio,
   ETIQUETA_CATEGORIA_PLAN,
   type AreaProduccion,
@@ -25,11 +26,7 @@ export type ProduccionPlanEstado = "pendiente" | "completada" | "cancelada";
 /** @deprecated Usar CategoriaPlan desde preparaciones */
 export type ProduccionPlanCategoria = CategoriaPlan;
 
-export const PLAN_CATEGORIAS = [
-  "prep_barra",
-  "servicio_barra",
-  "servicio_delivery",
-] as const satisfies readonly CategoriaPlan[];
+export const PLAN_CATEGORIAS = ["produ", "servicio"] as const satisfies readonly CategoriaPlan[];
 
 export const ETIQUETA_PLAN_CATEGORIA = ETIQUETA_CATEGORIA_PLAN;
 
@@ -466,13 +463,7 @@ export function planItemDesdeFila(row: ProduccionPlanItemDbRow): ProduccionPlanI
     preparacionId: row.preparacion_id ?? null,
     preparacionNombre: row.preparacion_nombre,
     area: esAreaProduccionValida(row.area) ? row.area : "delivery",
-    categoria: esCategoriaPlanValida(row.categoria)
-      ? row.categoria
-      : row.categoria === "produ"
-        ? "prep_barra"
-        : row.categoria === "servicio"
-          ? "servicio_barra"
-          : "prep_barra",
+    categoria: normalizarCategoriaPlan(row.categoria),
     duracionEstimadaSegundos: row.duracion_estimada_segundos,
     cantidadPlanificada:
       row.cantidad_planificada != null && row.cantidad_planificada > 0
@@ -1043,7 +1034,7 @@ export async function fetchProduccionPendientesAtrasados(
       .from("produccion_plan")
       .select(select)
       .eq("estado", "pendiente")
-      .eq("categoria", "prep_barra")
+      .eq("categoria", "produ")
       .lt("fecha", fechaHastaExclusiva)
       .order("fecha", { ascending: true })
       .order("hora_inicio", { ascending: true })
@@ -1081,7 +1072,7 @@ export async function autoCompletarServiciosVencidos(
     .from("produccion_plan")
     .select(PRODUCCION_PLAN_SELECT)
     .eq("estado", "pendiente")
-    .in("categoria", ["servicio_barra", "servicio_delivery"])
+    .eq("categoria", "servicio")
     .lte("fecha", fechaHoy)
     .order("fecha", { ascending: true })
     .limit(500);

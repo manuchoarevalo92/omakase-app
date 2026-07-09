@@ -50,7 +50,7 @@ create table if not exists public.produccion_plan (
   asignado_a_id text,
   asignado_a_nombre text,
   notas text,
-  categoria text not null default 'prep_barra',
+  categoria text not null default 'produ',
   estado text not null default 'pendiente',
   orden integer not null default 0,
   creado_por_id text,
@@ -70,7 +70,7 @@ alter table public.produccion_plan
 
 alter table public.produccion_plan
   add constraint produccion_plan_categoria_check
-  check (categoria in ('prep_barra', 'servicio_barra', 'servicio_delivery'));
+  check (categoria in ('produ', 'servicio'));
 
 alter table public.produccion_plan
   drop constraint if exists produccion_plan_estado_check;

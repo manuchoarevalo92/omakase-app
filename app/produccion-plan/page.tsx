@@ -959,7 +959,7 @@ export default function ProduccionPlanPage() {
 
         <div className="mb-4 rounded-xl border border-zinc-800 bg-zinc-950/50 p-3">
           <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
-            <p className="text-sm font-medium text-zinc-200">Pendientes atrasados (Prep Barra)</p>
+            <p className="text-sm font-medium text-zinc-200">Pendientes atrasados (Produ)</p>
             <p className="text-xs text-zinc-500">
               {pendientesAtrasados.length} pendiente{pendientesAtrasados.length === 1 ? "" : "s"} de
               producción
@@ -967,8 +967,8 @@ export default function ProduccionPlanPage() {
           </div>
           {pendientesAtrasados.length === 0 ? (
             <p className="mb-2 text-xs text-zinc-500">
-              No hay prep pendiente de días anteriores. Servicio Barra y Servicio delivery se
-              completan solas al pasar el horario.
+              No hay producción pendiente de días anteriores. Las de Servicio se completan solas al
+              pasar el horario.
             </p>
           ) : (
             <div className="mb-3 grid gap-2">
@@ -1075,7 +1075,7 @@ export default function ProduccionPlanPage() {
           </span>
           <span className="text-red-400/90">Borde rojo = misma persona doble o más de 3 a la vez.</span>
           <span>
-            <span className="text-zinc-300">Prep Barra</span> = marcar hecha manual ·{" "}
+            <span className="text-zinc-300">Produ</span> = marcar hecha manual ·{" "}
             <span className="text-zinc-300">Servicio</span> = se completa sola (definido en Tiempos
             prep)
           </span>

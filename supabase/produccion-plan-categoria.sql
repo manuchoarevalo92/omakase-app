@@ -2,4 +2,4 @@
 -- Si solo tenías produ/servicio, ejecutá esos dos scripts en orden.
 
 alter table public.produccion_plan
-  add column if not exists categoria text not null default 'prep_barra';
+  add column if not exists categoria text not null default 'produ';
