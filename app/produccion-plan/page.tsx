@@ -626,6 +626,21 @@ export default function ProduccionPlanPage() {
     }
   };
 
+  const marcarPendienteComoTerminada = async (item: ProduccionPlanItem) => {
+    setIsBusy(true);
+    setError(null);
+    try {
+      const actualizada = await marcarPlanItemCompletado(item.id);
+      setPlan((prev) => prev.map((p) => (p.id === actualizada.id ? actualizada : p)));
+      setPendientesAtrasados((prev) => prev.filter((p) => p.id !== actualizada.id));
+      setSuccess(`Marcada como terminada: ${actualizada.preparacionNombre}.`);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "No se pudo marcar como terminada.");
+    } finally {
+      setIsBusy(false);
+    }
+  };
+
   const pegarClipboardEnHorario = async (fecha: string, horaDestino: string) => {
     if (!clipboard) {
       return;
@@ -976,16 +991,28 @@ export default function ProduccionPlanPage() {
                         {item.asignadoANombre ?? "Sin asignar"}
                       </p>
                     </div>
-                    <button
-                      type="button"
-                      onClick={() => {
-                        void reprogramarPendienteAHoy(item);
-                      }}
-                      disabled={isBusy}
-                      className="shrink-0 rounded-lg border border-amber-700/70 px-2.5 py-1 text-xs text-amber-100 hover:bg-amber-900/30 disabled:opacity-50"
-                    >
-                      Reprogramar hoy
-                    </button>
+                    <div className="flex shrink-0 gap-1.5">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          void reprogramarPendienteAHoy(item);
+                        }}
+                        disabled={isBusy}
+                        className="rounded-lg border border-amber-700/70 px-2.5 py-1 text-xs text-amber-100 hover:bg-amber-900/30 disabled:opacity-50"
+                      >
+                        Reprogramar hoy
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          void marcarPendienteComoTerminada(item);
+                        }}
+                        disabled={isBusy}
+                        className="rounded-lg border border-emerald-800/70 px-2.5 py-1 text-xs text-emerald-100 hover:bg-emerald-900/30 disabled:opacity-50"
+                      >
+                        Terminada
+                      </button>
+                    </div>
                   </div>
                 </div>
               ))}
