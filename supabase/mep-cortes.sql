@@ -65,6 +65,9 @@ alter table public.mep_cortes
   add constraint mep_cortes_unidad_check
   check (unidad in ('g', 'kg', 'ud', 'porciones'));
 
+alter table public.mep_cortes
+  add column if not exists peso_ref text;
+
 drop index if exists public.mep_cortes_pescado_nombre_unq;
 
 create unique index if not exists mep_cortes_categoria_nombre_unq
@@ -84,6 +87,8 @@ comment on column public.mep_cortes.nombre is
   'Ítem dentro de la categoría (ej. Salmón, Atún, Dorada).';
 comment on column public.mep_cortes.unidad is
   'Unidad por defecto al cargar cantidades: g, kg, ud, porciones.';
+comment on column public.mep_cortes.peso_ref is
+  'Peso objetivo / rango de referencia (ej. 15 g, 12/14 g). Solo informativo en la lista MEP.';
 
 -- Semilla inicial (solo si la tabla está vacía).
 insert into public.mep_cortes (categoria, nombre, unidad, orden)

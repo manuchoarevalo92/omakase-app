@@ -9,9 +9,11 @@ import {
   UNIDADES_MEP,
   agruparCortesPorCategoria,
   categoriasExistentes,
+  corteDesdeFila,
   etiquetaUnidadMep,
   fetchMepCortesTodos,
   type MepCorte,
+  type MepCorteDbRow,
   type UnidadMep,
 } from "@/src/lib/mep-deli";
 import { supabase } from "@/src/lib/supabase";
@@ -78,7 +80,7 @@ export default function MepCortesPage() {
         unidad,
         orden: maxOrden + 10,
       })
-      .select("id, categoria, nombre, unidad, orden, activo")
+      .select("id, categoria, nombre, unidad, peso_ref, orden, activo")
       .single();
 
     if (insertError) {
@@ -94,7 +96,7 @@ export default function MepCortesPage() {
       return;
     }
 
-    setCortes((actual) => [...actual, data as MepCorte]);
+    setCortes((actual) => [...actual, corteDesdeFila(data as MepCorteDbRow)]);
     setNombre("");
     setIsSaving(false);
   };
@@ -105,7 +107,7 @@ export default function MepCortesPage() {
       .from("mep_cortes")
       .update({ activo: !corte.activo, updated_at: new Date().toISOString() })
       .eq("id", corte.id)
-      .select("id, categoria, nombre, unidad, orden, activo")
+      .select("id, categoria, nombre, unidad, peso_ref, orden, activo")
       .single();
 
     if (updateError) {
@@ -114,7 +116,7 @@ export default function MepCortesPage() {
     }
 
     setCortes((actual) =>
-      actual.map((c) => (c.id === corte.id ? (data as MepCorte) : c))
+      actual.map((c) => (c.id === corte.id ? corteDesdeFila(data as MepCorteDbRow) : c))
     );
   };
 
@@ -244,6 +246,11 @@ export default function MepCortesPage() {
                     >
                       <div>
                         <span className="font-medium text-zinc-100">{corte.nombre}</span>
+                        {corte.peso_ref ? (
+                          <span className="ml-2 text-xs tabular-nums text-amber-200/80">
+                            {corte.peso_ref}
+                          </span>
+                        ) : null}
                         <span className="ml-2 text-xs text-zinc-500">
                           {etiquetaUnidadMep(corte.unidad)}
                         </span>

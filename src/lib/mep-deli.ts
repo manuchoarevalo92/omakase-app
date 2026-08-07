@@ -15,6 +15,8 @@ export type MepCorte = {
   categoria: string;
   nombre: string;
   unidad: UnidadMep;
+  /** Peso objetivo de referencia (pizarra), ej. "15 g" o "12/14 g". */
+  peso_ref: string | null;
   orden: number;
   activo: boolean;
 };
@@ -25,6 +27,7 @@ export type MepCorteDbRow = {
   pescado?: string | null;
   nombre: string;
   unidad: string;
+  peso_ref?: string | null;
   orden: number;
   activo: boolean;
 };
@@ -166,7 +169,11 @@ export function filtrarCargasMepDeli(cargas: MepDeliCarga[]): MepDeliCarga[] {
 
 export const UNIDADES_MEP: UnidadMep[] = ["g", "kg", "ud", "porciones"];
 
-const MEP_CORTES_SELECT = "id, categoria, pescado, nombre, unidad, orden, activo";
+const MEP_CORTES_SELECT =
+  "id, categoria, pescado, nombre, unidad, peso_ref, orden, activo";
+
+const MEP_CORTES_SELECT_BASE =
+  "id, categoria, pescado, nombre, unidad, orden, activo";
 
 export function etiquetaUnidadMep(unidad: UnidadMep): string {
   if (unidad === "porciones") {
@@ -188,11 +195,13 @@ export function corteDesdeFila(row: MepCorteDbRow): MepCorte {
   const unidad = UNIDADES_MEP.includes(row.unidad as UnidadMep)
     ? (row.unidad as UnidadMep)
     : "g";
+  const peso = row.peso_ref?.trim();
   return {
     id: row.id,
     categoria: categoriaDesdeFila(row),
     nombre: row.nombre,
     unidad,
+    peso_ref: peso && peso.length > 0 ? peso : null,
     orden: row.orden,
     activo: row.activo,
   };
@@ -426,34 +435,54 @@ export function cantidadesDesdeBorrador(borrador: MepDeliBorrador): Map<string, 
 }
 
 export async function fetchMepCortesActivos(): Promise<MepCorte[]> {
-  const { data, error } = await supabase
-    .from("mep_cortes")
-    .select(MEP_CORTES_SELECT)
-    .eq("activo", true)
-    .order("orden", { ascending: true })
-    .order("categoria", { ascending: true })
-    .order("nombre", { ascending: true });
+  const selects = [MEP_CORTES_SELECT, MEP_CORTES_SELECT_BASE] as const;
+  let lastError: PostgrestishError | null = null;
 
-  if (error) {
+  for (const select of selects) {
+    const { data, error } = await supabase
+      .from("mep_cortes")
+      .select(select as string)
+      .eq("activo", true)
+      .order("orden", { ascending: true })
+      .order("categoria", { ascending: true })
+      .order("nombre", { ascending: true });
+
+    if (!error) {
+      return ((data ?? []) as unknown as MepCorteDbRow[]).map(corteDesdeFila);
+    }
+    if (errorColumnaFaltante(error)) {
+      lastError = error;
+      continue;
+    }
     throw error;
   }
 
-  return ((data ?? []) as MepCorteDbRow[]).map(corteDesdeFila);
+  throw lastError ?? new Error("No se pudo leer mep_cortes.");
 }
 
 export async function fetchMepCortesTodos(): Promise<MepCorte[]> {
-  const { data, error } = await supabase
-    .from("mep_cortes")
-    .select(MEP_CORTES_SELECT)
-    .order("categoria", { ascending: true })
-    .order("orden", { ascending: true })
-    .order("nombre", { ascending: true });
+  const selects = [MEP_CORTES_SELECT, MEP_CORTES_SELECT_BASE] as const;
+  let lastError: PostgrestishError | null = null;
 
-  if (error) {
+  for (const select of selects) {
+    const { data, error } = await supabase
+      .from("mep_cortes")
+      .select(select as string)
+      .order("categoria", { ascending: true })
+      .order("orden", { ascending: true })
+      .order("nombre", { ascending: true });
+
+    if (!error) {
+      return ((data ?? []) as unknown as MepCorteDbRow[]).map(corteDesdeFila);
+    }
+    if (errorColumnaFaltante(error)) {
+      lastError = error;
+      continue;
+    }
     throw error;
   }
 
-  return ((data ?? []) as MepCorteDbRow[]).map(corteDesdeFila);
+  throw lastError ?? new Error("No se pudo leer mep_cortes.");
 }
 
 export async function fetchUltimaMepDeliCarga(): Promise<MepDeliCarga | null> {

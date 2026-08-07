@@ -655,14 +655,21 @@ export default function MepDeliPage() {
               </div>
             </div>
             <ul className="mb-4 grid gap-1.5 sm:grid-cols-2">
-              {lineasResumen.map((l) => (
+              {lineasResumen.map((l) => {
+                const peso = cortesPorId.get(l.corte_id)?.peso_ref;
+                return (
                 <li key={l.corte_id} className="text-sm text-zinc-200">
-                  <span className="text-zinc-500">{l.categoria} ·</span> {l.nombre}:{" "}
+                  <span className="text-zinc-500">{l.categoria} ·</span> {l.nombre}
+                  {peso ? (
+                    <span className="text-amber-200/80"> ({peso})</span>
+                  ) : null}
+                  :{" "}
                   <span className="font-medium text-white">
                     {l.cantidad} {etiquetaUnidadMep(l.unidad)}
                   </span>
                 </li>
-              ))}
+                );
+              })}
             </ul>
             <MepCierrePanel
               carga={resumenGuardado}
@@ -863,6 +870,11 @@ export default function MepDeliPage() {
                               <span className="font-medium text-zinc-100">
                                 {corte.nombre}
                               </span>
+                              {corte.peso_ref ? (
+                                <span className="ml-2 text-[11px] tabular-nums text-amber-200/90">
+                                  {corte.peso_ref}
+                                </span>
+                              ) : null}
                               {sug?.motivo ? (
                                 <p className="mt-0.5 text-[11px] text-violet-300/90">{sug.motivo}</p>
                               ) : null}
