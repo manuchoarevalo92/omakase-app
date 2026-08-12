@@ -9,6 +9,7 @@ import {
   Circle,
   Loader2,
   Plus,
+  RefreshCw,
   Trash2,
 } from "lucide-react";
 
@@ -31,6 +32,7 @@ import {
   progresoChecklist,
   slotsDesdeMenuItems,
   slotsVaciosMenuOmakase,
+  sincronizarChecklistDesdeMenu,
   toggleEventoChecklistItem,
   type Evento,
   type EventoDetalle,
@@ -260,12 +262,16 @@ export default function EventosPage() {
         menuSlots,
         platosPorId
       );
-      setDetalle((prev) => (prev ? { ...prev, menuItems } : prev));
+      const { checklist, agregados } = await sincronizarChecklistDesdeMenu(detalle.id);
+      setDetalle((prev) =>
+        prev ? { ...prev, menuItems, checklistItems: checklist } : prev
+      );
       setSuccess(
         `Menú guardado: ${conteo.base}/${conteo.baseObjetivo} base` +
           (!menuSlots.nigiriOnly && conteo.regalo > 0
             ? ` + ${conteo.regalo} regalo`
             : "") +
+          (agregados > 0 ? ` · checklist +${agregados} insumos` : "") +
           "."
       );
     } catch (err) {
@@ -354,6 +360,28 @@ export default function EventosPage() {
       setChecklistNuevo("");
     } catch (err) {
       setError(err instanceof Error ? err.message : "No se pudo agregar ítem.");
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  const sincronizarChecklist = async () => {
+    if (!detalle) return;
+    setIsSaving(true);
+    setError(null);
+    setSuccess(null);
+    try {
+      const { checklist, agregados } = await sincronizarChecklistDesdeMenu(detalle.id);
+      setDetalle((prev) => (prev ? { ...prev, checklistItems: checklist } : prev));
+      setSuccess(
+        agregados > 0
+          ? `Checklist actualizada: +${agregados} insumos desde el menú.`
+          : "Checklist al día: no había insumos nuevos."
+      );
+    } catch (err) {
+      setError(
+        err instanceof Error ? err.message : "No se pudo sincronizar la checklist."
+      );
     } finally {
       setIsSaving(false);
     }
@@ -573,24 +601,38 @@ export default function EventosPage() {
           />
 
           <section className="rounded-2xl border border-zinc-800 bg-zinc-900/60 p-5">
-            <div className="mb-4 flex flex-wrap items-center justify-between gap-2">
+            <div className="mb-4 flex flex-wrap items-start justify-between gap-3">
               <div>
                 <h2 className="text-sm font-semibold uppercase tracking-wide text-zinc-400">
                   Qué llevar / checklist
                 </h2>
                 <p className="mt-1 text-xs text-zinc-500">
-                  {progreso.listos} de {progreso.total} listos · logística general; la lista por
-                  plato la armamos cuando me pases qué hace falta en cada uno
+                  {progreso.listos} de {progreso.total} listos · equipo + insumos del menú
+                  (sin duplicar)
                 </p>
               </div>
-              {progreso.total > 0 ? (
-                <div className="h-2 w-32 overflow-hidden rounded-full bg-zinc-800">
-                  <div
-                    className="h-full bg-emerald-500 transition-all"
-                    style={{ width: `${(progreso.listos / progreso.total) * 100}%` }}
-                  />
-                </div>
-              ) : null}
+              <div className="flex flex-wrap items-center gap-2">
+                {progreso.total > 0 ? (
+                  <div className="h-2 w-28 overflow-hidden rounded-full bg-zinc-800">
+                    <div
+                      className="h-full bg-emerald-500 transition-all"
+                      style={{
+                        width: `${(progreso.listos / Math.max(progreso.total, 1)) * 100}%`,
+                      }}
+                    />
+                  </div>
+                ) : null}
+                <button
+                  type="button"
+                  onClick={() => void sincronizarChecklist()}
+                  disabled={isSaving}
+                  className="inline-flex items-center gap-1.5 border border-zinc-600 bg-zinc-950 px-3 py-2 text-[11px] font-medium text-zinc-200 disabled:opacity-40"
+                  title="Suma insumos únicos de los platos del menú"
+                >
+                  <RefreshCw className="h-3.5 w-3.5" />
+                  Desde menú
+                </button>
+              </div>
             </div>
 
             <ul className="mb-4 space-y-2">

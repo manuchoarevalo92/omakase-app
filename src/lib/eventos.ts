@@ -679,6 +679,65 @@ export async function eliminarEventoChecklistItem(id: string): Promise<void> {
   if (error) throw new Error(formatPostgrestError(error));
 }
 
+/**
+ * Agrega a la checklist los insumos únicos de los platos del menú
+ * (no borra ítems existentes de logística/equipo).
+ */
+export async function sincronizarChecklistDesdeMenu(
+  eventoId: string
+): Promise<{ checklist: EventoChecklistItem[]; agregados: number }> {
+  const { consolidarNecesidades, fetchNecesidadesPorPlatos } = await import(
+    "@/src/lib/plato-necesidades"
+  );
+
+  const menuItems = await fetchMenuItems(eventoId);
+  const platoIds = menuItems
+    .map((m) => m.platoId)
+    .filter((id): id is string => Boolean(id));
+
+  const necesidades = await fetchNecesidadesPorPlatos(platoIds);
+  const unicos = consolidarNecesidades(necesidades);
+
+  const { data: checklistRows, error: checklistError } = await supabase
+    .from("evento_checklist_items")
+    .select(EVENTO_CHECKLIST_SELECT)
+    .eq("evento_id", eventoId)
+    .order("orden", { ascending: true });
+
+  if (checklistError) throw new Error(formatPostgrestError(checklistError));
+
+  const actuales = ((checklistRows ?? []) as EventoChecklistItemDb[]).map(
+    parseChecklistItem
+  );
+  const existentes = new Set(actuales.map((c) => c.titulo.trim().toLowerCase()));
+  const maxOrden = actuales.reduce((m, c) => Math.max(m, c.orden), 0);
+
+  const aInsertar = unicos.filter((item) => !existentes.has(item.toLowerCase()));
+  if (aInsertar.length === 0) {
+    return { checklist: actuales, agregados: 0 };
+  }
+
+  const payload = aInsertar.map((titulo, index) => ({
+    evento_id: eventoId,
+    titulo,
+    orden: maxOrden + (index + 1) * 10,
+  }));
+
+  const { data: nuevos, error: insertError } = await supabase
+    .from("evento_checklist_items")
+    .insert(payload)
+    .select(EVENTO_CHECKLIST_SELECT);
+
+  if (insertError) throw new Error(formatPostgrestError(insertError));
+
+  const checklist = [
+    ...actuales,
+    ...((nuevos ?? []) as EventoChecklistItemDb[]).map(parseChecklistItem),
+  ].sort((a, b) => a.orden - b.orden || a.titulo.localeCompare(b.titulo, "es"));
+
+  return { checklist, agregados: aInsertar.length };
+}
+
 export function slotsVaciosMenuOmakase(): EventoMenuOmakaseSlots {
   return slotsVacios();
 }
