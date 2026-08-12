@@ -166,6 +166,7 @@ export const EVENTO_CHECKLIST_CATEGORIAS = [
   "seco",
   "preparados",
   "vajilla",
+  "vajilla_servicio",
   "utensilios",
   "equipo",
   "bebidas",
@@ -180,6 +181,7 @@ export const ETIQUETA_CHECKLIST_CATEGORIA: Record<EventoChecklistCategoria, stri
   seco: "Seco",
   preparados: "Preparados",
   vajilla: "Vajilla",
+  vajilla_servicio: "Vajilla de servicio",
   utensilios: "Utensilios",
   equipo: "Equipo",
   bebidas: "Bebidas",
@@ -199,12 +201,6 @@ export function inferirCategoriaChecklist(titulo: string): EventoChecklistCatego
   if (!t) return "otros";
 
   if (
-    /bebida|sake|vino|cerveza|agua|chagu[aá]n|refresco|\bt[eé]\b/.test(t)
-  ) {
-    return "bebidas";
-  }
-
-  if (
     /confirmar men[uú]|revisar ingredientes|mise en place|\bmep\b|impreso|cartel|servilleta|descartable|compra/.test(
       t
     )
@@ -212,14 +208,21 @@ export function inferirCategoriaChecklist(titulo: string): EventoChecklistCatego
     return "logistica";
   }
 
-  if (
-    /ohitsu|neta box|contenedor de arroz/.test(t)
-  ) {
+  if (/ohitsu|neta box|contenedor de arroz/.test(t)) {
     return "equipo";
   }
 
+  // Mise / mise en place de servicio (no la vajilla del comensal).
   if (
-    /vajilla|platito|plato|bol|bowl|palitos(?! de)|apoyapalitos|cucharita|apoyacucharita|oshibori|apoya oshibori|tenedor/.test(
+    /ochoko|vaso(?:s)? para pincel|bowl|bol(?:es)? de|platito para|recipiente para|vajilla de servicio/.test(
+      t
+    )
+  ) {
+    return "vajilla_servicio";
+  }
+
+  if (
+    /(?:^|\b)vajilla\b|palitos(?! de)|apoyapalitos|cucharita|apoyacucharita|oshibori|apoya oshibori|tenedor/.test(
       t
     )
   ) {
@@ -235,13 +238,19 @@ export function inferirCategoriaChecklist(titulo: string): EventoChecklistCatego
   }
 
   if (
-    /caja t[eé]rmica|transporte|arrocera|parrill|carb[oó]n|placa para cocinar|recipiente para zuke|contenedor/.test(
+    /caja t[eé]rmica|transporte|arrocera|parrill|carb[oó]n|placa para cocinar|contenedor/.test(
       t
     ) ||
     t === "carbón" ||
     t === "carbon"
   ) {
     return "equipo";
+  }
+
+  if (
+    /bebida|tokkuri|vino|cerveza|agua|chagu[aá]n|refresco|\bt[eé]\b|\bsake\b/.test(t)
+  ) {
+    return "bebidas";
   }
 
   if (
@@ -318,6 +327,9 @@ export const CHECKLIST_PLANTILLA_EVENTO: {
   { titulo: "Oshibori", categoria: "vajilla" },
   { titulo: "Apoya oshibori", categoria: "vajilla" },
   { titulo: "Tenedores de postre", categoria: "vajilla" },
+  { titulo: "Ochoko", categoria: "vajilla_servicio" },
+  { titulo: "Vasos para pinceles", categoria: "vajilla_servicio" },
+  { titulo: "Bowls de negitoro", categoria: "vajilla_servicio" },
 ];
 
 function esEstadoValido(v: string | null | undefined): v is EventoEstado {

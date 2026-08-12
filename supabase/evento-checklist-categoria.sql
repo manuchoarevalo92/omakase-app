@@ -12,4 +12,4 @@ alter table public.evento_checklist_items
   alter column categoria set default 'otros';
 
 comment on column public.evento_checklist_items.categoria is
-  'Grupo de packing: fresco, seco, preparados, vajilla, utensilios, equipo, bebidas, logistica, otros';
+  'Grupo de packing: fresco, seco, preparados, vajilla, vajilla_servicio, utensilios, equipo, bebidas, logistica, otros';
