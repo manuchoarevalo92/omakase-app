@@ -16,6 +16,7 @@ import {
 import { EventoMenuOmakase } from "@/app/components/evento-menu-omakase";
 import {
   actualizarEvento,
+  actualizarCantidadChecklistItem,
   contarPasosMenu,
   crearEvento,
   crearEventoChecklistItem,
@@ -88,6 +89,7 @@ export default function EventosPage() {
   const [platoSeleccionado, setPlatoSeleccionado] = useState("");
   const [menuLibre, setMenuLibre] = useState("");
   const [checklistNuevo, setChecklistNuevo] = useState("");
+  const [checklistCantidadNueva, setChecklistCantidadNueva] = useState("1");
   const [menuSlots, setMenuSlots] = useState<EventoMenuOmakaseSlots>(() =>
     slotsVaciosMenuOmakase()
   );
@@ -350,18 +352,54 @@ export default function EventosPage() {
     setIsSaving(true);
     setError(null);
     try {
+      const cantidad = Number(checklistCantidadNueva);
       const item = await crearEventoChecklistItem({
         eventoId: detalle.id,
         titulo: checklistNuevo.trim(),
+        cantidad: Number.isFinite(cantidad) && cantidad > 0 ? cantidad : 1,
       });
       setDetalle((prev) =>
         prev ? { ...prev, checklistItems: [...prev.checklistItems, item] } : prev
       );
       setChecklistNuevo("");
+      setChecklistCantidadNueva("1");
     } catch (err) {
       setError(err instanceof Error ? err.message : "No se pudo agregar ítem.");
     } finally {
       setIsSaving(false);
+    }
+  };
+
+  const cambiarCantidadChecklist = async (itemId: string, raw: string) => {
+    if (!detalle) return;
+    const parsed = Number(raw);
+    const cantidad = Number.isFinite(parsed) && parsed > 0 ? Math.floor(parsed) : 1;
+    setDetalle((prev) =>
+      prev
+        ? {
+            ...prev,
+            checklistItems: prev.checklistItems.map((i) =>
+              i.id === itemId ? { ...i, cantidad } : i
+            ),
+          }
+        : prev
+    );
+    try {
+      const actualizado = await actualizarCantidadChecklistItem(itemId, cantidad);
+      setDetalle((prev) =>
+        prev
+          ? {
+              ...prev,
+              checklistItems: prev.checklistItems.map((i) =>
+                i.id === itemId ? actualizado : i
+              ),
+            }
+          : prev
+      );
+    } catch (err) {
+      setError(
+        err instanceof Error ? err.message : "No se pudo actualizar la cantidad."
+      );
     }
   };
 
@@ -671,6 +709,21 @@ export default function EventosPage() {
                       </p>
                     ) : null}
                   </div>
+                  <label className="flex shrink-0 items-center gap-1.5 pt-0.5">
+                    <span className="text-[10px] uppercase tracking-wide text-zinc-500">
+                      ud
+                    </span>
+                    <input
+                      type="number"
+                      min={1}
+                      inputMode="numeric"
+                      value={item.cantidad}
+                      onChange={(e) => void cambiarCantidadChecklist(item.id, e.target.value)}
+                      disabled={item.completado}
+                      className="w-14 border border-zinc-700 bg-zinc-950 px-2 py-1.5 text-center text-sm tabular-nums text-zinc-100 outline-none focus:border-zinc-500 disabled:opacity-50"
+                      aria-label={`Cantidad de ${item.titulo}`}
+                    />
+                  </label>
                   <button
                     type="button"
                     onClick={() => void quitarChecklist(item.id)}
@@ -683,7 +736,17 @@ export default function EventosPage() {
               ))}
             </ul>
 
-            <div className="flex gap-2">
+            <div className="flex flex-wrap gap-2">
+              <input
+                type="number"
+                min={1}
+                inputMode="numeric"
+                value={checklistCantidadNueva}
+                onChange={(e) => setChecklistCantidadNueva(e.target.value)}
+                className="w-16 border border-zinc-700 bg-zinc-950 px-2 py-2 text-center text-sm tabular-nums outline-none focus:border-zinc-500"
+                aria-label="Cantidad del nuevo ítem"
+                title="Cantidad"
+              />
               <input
                 value={checklistNuevo}
                 onChange={(e) => setChecklistNuevo(e.target.value)}

@@ -46,6 +46,7 @@ create table if not exists public.evento_checklist_items (
   evento_id uuid not null references public.eventos(id) on delete cascade,
   titulo text not null,
   orden integer not null default 0,
+  cantidad integer not null default 1,
   completado boolean not null default false,
   completado_at timestamptz,
   completado_por_id text,

@@ -67,6 +67,7 @@ export type EventoChecklistItem = {
   eventoId: string;
   titulo: string;
   orden: number;
+  cantidad: number;
   completado: boolean;
   completadoAt: string | null;
   completadoPorId: string | null;
@@ -120,6 +121,7 @@ type EventoChecklistItemDb = {
   evento_id: string;
   titulo: string;
   orden: number;
+  cantidad?: number | null;
   completado: boolean;
   completado_at?: string | null;
   completado_por_id?: string | null;
@@ -137,6 +139,9 @@ export const EVENTO_MENU_SELECT_BASE =
   "id, evento_id, plato_id, plato_nombre, categoria, orden, cantidad, notas, created_at";
 
 export const EVENTO_CHECKLIST_SELECT =
+  "id, evento_id, titulo, orden, cantidad, completado, completado_at, completado_por_id, completado_por_nombre, created_at";
+
+export const EVENTO_CHECKLIST_SELECT_BASE =
   "id, evento_id, titulo, orden, completado, completado_at, completado_por_id, completado_por_nombre, created_at";
 
 export const ETIQUETA_EVENTO_ESTADO: Record<EventoEstado, string> = {
@@ -222,11 +227,16 @@ function parseMenuItem(row: EventoMenuItemDb): EventoMenuItem {
 }
 
 function parseChecklistItem(row: EventoChecklistItemDb): EventoChecklistItem {
+  const cantidad =
+    row.cantidad != null && Number.isFinite(row.cantidad) && row.cantidad > 0
+      ? Math.floor(row.cantidad)
+      : 1;
   return {
     id: row.id,
     eventoId: row.evento_id,
     titulo: row.titulo,
     orden: row.orden,
+    cantidad,
     completado: row.completado === true,
     completadoAt: row.completado_at ?? null,
     completadoPorId: row.completado_por_id ?? null,
@@ -619,6 +629,7 @@ export async function crearEventoChecklistItem(input: {
   eventoId: string;
   titulo: string;
   orden?: number;
+  cantidad?: number;
 }): Promise<EventoChecklistItem> {
   const titulo = input.titulo.trim();
   if (!titulo) {
@@ -637,13 +648,33 @@ export async function crearEventoChecklistItem(input: {
     orden = maxOrden + 10;
   }
 
+  const cantidad =
+    input.cantidad != null && input.cantidad > 0 ? Math.floor(input.cantidad) : 1;
+
   const { data, error } = await supabase
     .from("evento_checklist_items")
     .insert({
       evento_id: input.eventoId,
       titulo,
       orden,
+      cantidad,
     })
+    .select(EVENTO_CHECKLIST_SELECT)
+    .single();
+
+  if (error) throw new Error(formatPostgrestError(error));
+  return parseChecklistItem(data as EventoChecklistItemDb);
+}
+
+export async function actualizarCantidadChecklistItem(
+  id: string,
+  cantidad: number
+): Promise<EventoChecklistItem> {
+  const valor = Number.isFinite(cantidad) && cantidad > 0 ? Math.floor(cantidad) : 1;
+  const { data, error } = await supabase
+    .from("evento_checklist_items")
+    .update({ cantidad: valor })
+    .eq("id", id)
     .select(EVENTO_CHECKLIST_SELECT)
     .single();
 
@@ -721,6 +752,7 @@ export async function sincronizarChecklistDesdeMenu(
     evento_id: eventoId,
     titulo,
     orden: maxOrden + (index + 1) * 10,
+    cantidad: 1,
   }));
 
   const { data: nuevos, error: insertError } = await supabase
