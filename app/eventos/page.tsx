@@ -21,6 +21,7 @@ import {
   actualizarEvento,
   actualizarCantidadChecklistItem,
   actualizarCategoriaChecklistItem,
+  actualizarTituloChecklistItem,
   actualizarUnidadChecklistItem,
   agruparChecklistPorCategoria,
   contarPasosMenu,
@@ -289,8 +290,13 @@ export default function EventosPage() {
         platosPorId
       );
       const { checklist, agregados } = await sincronizarChecklistDesdeMenu(detalle.id);
+      let estado = detalle.estado;
+      if (estado === "borrador") {
+        const actualizado = await actualizarEvento(detalle.id, { estado: "confirmado" });
+        estado = actualizado.estado;
+      }
       setDetalle((prev) =>
-        prev ? { ...prev, menuItems, checklistItems: checklist } : prev
+        prev ? { ...prev, menuItems, checklistItems: checklist, estado } : prev
       );
       setMenuVistaLista(true);
       setSuccess(
@@ -299,6 +305,7 @@ export default function EventosPage() {
             ? ` + ${conteo.regalo} regalo`
             : "") +
           (agregados > 0 ? ` · checklist +${agregados} insumos` : "") +
+          (estado === "confirmado" ? " · estado Guardado" : "") +
           "."
       );
     } catch (err) {
@@ -428,6 +435,45 @@ export default function EventosPage() {
     } catch (err) {
       setError(
         err instanceof Error ? err.message : "No se pudo actualizar la cantidad."
+      );
+    }
+  };
+
+  const cambiarTituloChecklist = async (itemId: string, raw: string) => {
+    if (!detalle) return;
+    const titulo = raw.trim();
+    if (!titulo) {
+      setError("El nombre del ítem no puede quedar vacío.");
+      return;
+    }
+    const actual = detalle.checklistItems.find((i) => i.id === itemId);
+    if (actual && actual.titulo === titulo) return;
+
+    setDetalle((prev) =>
+      prev
+        ? {
+            ...prev,
+            checklistItems: prev.checklistItems.map((i) =>
+              i.id === itemId ? { ...i, titulo } : i
+            ),
+          }
+        : prev
+    );
+    try {
+      const actualizado = await actualizarTituloChecklistItem(itemId, titulo);
+      setDetalle((prev) =>
+        prev
+          ? {
+              ...prev,
+              checklistItems: prev.checklistItems.map((i) =>
+                i.id === itemId ? actualizado : i
+              ),
+            }
+          : prev
+      );
+    } catch (err) {
+      setError(
+        err instanceof Error ? err.message : "No se pudo actualizar el nombre."
       );
     }
   };
@@ -846,15 +892,37 @@ export default function EventosPage() {
                             )}
                           </button>
                           <div className="min-w-0 flex-1">
-                            <p
-                              className={`text-sm ${
+                            <input
+                              value={item.titulo}
+                              onChange={(e) => {
+                                const titulo = e.target.value;
+                                setDetalle((prev) =>
+                                  prev
+                                    ? {
+                                        ...prev,
+                                        checklistItems: prev.checklistItems.map((i) =>
+                                          i.id === item.id ? { ...i, titulo } : i
+                                        ),
+                                      }
+                                    : prev
+                                );
+                              }}
+                              onBlur={(e) =>
+                                void cambiarTituloChecklist(item.id, e.target.value)
+                              }
+                              onKeyDown={(e) => {
+                                if (e.key === "Enter") {
+                                  e.currentTarget.blur();
+                                }
+                              }}
+                              disabled={item.completado}
+                              className={`w-full border border-transparent bg-transparent px-0 py-0.5 text-sm outline-none focus:border-zinc-600 focus:bg-zinc-950 focus:px-2 disabled:opacity-60 ${
                                 item.completado
                                   ? "text-zinc-400 line-through"
                                   : "text-zinc-100"
                               }`}
-                            >
-                              {item.titulo}
-                            </p>
+                              aria-label={`Nombre de ${item.titulo}`}
+                            />
                             {item.completado && item.completadoPorNombre ? (
                               <p className="mt-0.5 text-[10px] text-zinc-500">
                                 {item.completadoPorNombre}

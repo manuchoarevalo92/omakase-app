@@ -238,7 +238,7 @@ export function inferirCategoriaChecklist(titulo: string): EventoChecklistCatego
   }
 
   if (
-    /caja t[eé]rmica|transporte|arrocera|parrill|carb[oó]n|placa para cocinar|contenedor/.test(
+    /caja t[eé]rmica|transporte|arrocera|parrill|carb[oó]n|placa para cocinar|placa de inox|contenedor/.test(
       t
     ) ||
     t === "carbón" ||
@@ -262,7 +262,7 @@ export function inferirCategoriaChecklist(titulo: string): EventoChecklistCatego
   }
 
   if (
-    /arroz|nori|kombu|alga|s[eé]samo|kuzu|polvo de coco|sal\b|az[uú]car/.test(t)
+    /arroz|nori|kombu|alga|s[eé]samo|kuzu|polvo de coco|sal\b|az[uú]car|papel verde/.test(t)
   ) {
     return "seco";
   }
@@ -298,7 +298,7 @@ export function agruparChecklistPorCategoria(
 
 export const ETIQUETA_EVENTO_ESTADO: Record<EventoEstado, string> = {
   borrador: "Borrador",
-  confirmado: "Confirmado",
+  confirmado: "Guardado",
   completado: "Completado",
   cancelado: "Cancelado",
 };
@@ -331,6 +331,8 @@ export const CHECKLIST_PLANTILLA_EVENTO: {
   { titulo: "Ochoko", categoria: "vajilla_servicio" },
   { titulo: "Vasos para pinceles", categoria: "vajilla_servicio" },
   { titulo: "Bowls de negitoro", categoria: "vajilla_servicio" },
+  { titulo: "Papel verde", categoria: "seco" },
+  { titulo: "Placa de inox", categoria: "equipo" },
 ];
 
 function esEstadoValido(v: string | null | undefined): v is EventoEstado {
@@ -892,6 +894,25 @@ export async function actualizarCantidadChecklistItem(
   const { data, error } = await supabase
     .from("evento_checklist_items")
     .update({ cantidad: valor })
+    .eq("id", id)
+    .select(EVENTO_CHECKLIST_SELECT)
+    .single();
+
+  if (error) throw new Error(formatPostgrestError(error));
+  return parseChecklistItem(data as EventoChecklistItemDb);
+}
+
+export async function actualizarTituloChecklistItem(
+  id: string,
+  titulo: string
+): Promise<EventoChecklistItem> {
+  const valor = titulo.trim();
+  if (!valor) {
+    throw new Error("El nombre del ítem no puede quedar vacío.");
+  }
+  const { data, error } = await supabase
+    .from("evento_checklist_items")
+    .update({ titulo: valor })
     .eq("id", id)
     .select(EVENTO_CHECKLIST_SELECT)
     .single();
