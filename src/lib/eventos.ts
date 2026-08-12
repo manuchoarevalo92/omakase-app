@@ -152,7 +152,7 @@ export const EVENTO_CHECKLIST_SELECT_BASE =
 export const EVENTO_CHECKLIST_UNIDADES = [
   "unidad",
   "caja",
-  "saco",
+  "saku",
   "porción",
   "kg",
   "g",
