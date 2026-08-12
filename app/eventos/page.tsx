@@ -20,7 +20,9 @@ import { EventoMenuNecesidades } from "@/app/components/evento-menu-necesidades"
 import {
   actualizarEvento,
   actualizarCantidadChecklistItem,
+  actualizarCategoriaChecklistItem,
   actualizarUnidadChecklistItem,
+  agruparChecklistPorCategoria,
   contarPasosMenu,
   crearEvento,
   crearEventoChecklistItem,
@@ -28,19 +30,23 @@ import {
   eliminarEvento,
   eliminarEventoChecklistItem,
   eliminarEventoMenuItem,
+  ETIQUETA_CHECKLIST_CATEGORIA,
   ETIQUETA_EVENTO_ESTADO,
+  EVENTO_CHECKLIST_CATEGORIAS,
   EVENTO_CHECKLIST_UNIDADES,
   EVENTO_ESTADOS,
   extrasDesdeMenuItems,
   fetchEventoDetalle,
   fetchEventos,
   guardarMenuOmakaseEvento,
+  inferirCategoriaChecklist,
   progresoChecklist,
   slotsDesdeMenuItems,
   slotsVaciosMenuOmakase,
   sincronizarChecklistDesdeMenu,
   toggleEventoChecklistItem,
   type Evento,
+  type EventoChecklistCategoria,
   type EventoDetalle,
   type EventoEstado,
   type EventoMenuItem,
@@ -96,6 +102,8 @@ export default function EventosPage() {
   const [checklistNuevo, setChecklistNuevo] = useState("");
   const [checklistCantidadNueva, setChecklistCantidadNueva] = useState("1");
   const [checklistUnidadNueva, setChecklistUnidadNueva] = useState("unidad");
+  const [checklistCategoriaNueva, setChecklistCategoriaNueva] =
+    useState<EventoChecklistCategoria>("otros");
   const [menuSlots, setMenuSlots] = useState<EventoMenuOmakaseSlots>(() =>
     slotsVaciosMenuOmakase()
   );
@@ -123,6 +131,11 @@ export default function EventosPage() {
 
   const progreso = useMemo(
     () => (detalle ? progresoChecklist(detalle.checklistItems) : { total: 0, listos: 0 }),
+    [detalle]
+  );
+
+  const checklistPorCategoria = useMemo(
+    () => (detalle ? agruparChecklistPorCategoria(detalle.checklistItems) : []),
     [detalle]
   );
 
@@ -370,6 +383,7 @@ export default function EventosPage() {
         titulo: checklistNuevo.trim(),
         cantidad: Number.isFinite(cantidad) && cantidad > 0 ? cantidad : 1,
         unidad: checklistUnidadNueva,
+        categoria: checklistCategoriaNueva,
       });
       setDetalle((prev) =>
         prev ? { ...prev, checklistItems: [...prev.checklistItems, item] } : prev
@@ -377,6 +391,7 @@ export default function EventosPage() {
       setChecklistNuevo("");
       setChecklistCantidadNueva("1");
       setChecklistUnidadNueva("unidad");
+      setChecklistCategoriaNueva("otros");
     } catch (err) {
       setError(err instanceof Error ? err.message : "No se pudo agregar ítem.");
     } finally {
@@ -445,6 +460,40 @@ export default function EventosPage() {
     } catch (err) {
       setError(
         err instanceof Error ? err.message : "No se pudo actualizar la unidad."
+      );
+    }
+  };
+
+  const cambiarCategoriaChecklist = async (
+    itemId: string,
+    categoria: EventoChecklistCategoria
+  ) => {
+    if (!detalle) return;
+    setDetalle((prev) =>
+      prev
+        ? {
+            ...prev,
+            checklistItems: prev.checklistItems.map((i) =>
+              i.id === itemId ? { ...i, categoria } : i
+            ),
+          }
+        : prev
+    );
+    try {
+      const actualizado = await actualizarCategoriaChecklistItem(itemId, categoria);
+      setDetalle((prev) =>
+        prev
+          ? {
+              ...prev,
+              checklistItems: prev.checklistItems.map((i) =>
+                i.id === itemId ? actualizado : i
+              ),
+            }
+          : prev
+      );
+    } catch (err) {
+      setError(
+        err instanceof Error ? err.message : "No se pudo actualizar la categoría."
       );
     }
   };
@@ -729,8 +778,7 @@ export default function EventosPage() {
                   Qué llevar / checklist
                 </h2>
                 <p className="mt-1 text-xs text-zinc-500">
-                  {progreso.listos} de {progreso.total} listos · equipo + insumos del menú
-                  (sin duplicar)
+                  {progreso.listos} de {progreso.total} listos · agrupado por categoría
                 </p>
               </div>
               <div className="flex flex-wrap items-center gap-2">
@@ -757,83 +805,129 @@ export default function EventosPage() {
               </div>
             </div>
 
-            <ul className="mb-4 space-y-2">
-              {detalle.checklistItems.map((item) => (
-                <li
-                  key={item.id}
-                  className={`flex items-start gap-3 rounded-xl border px-3 py-2.5 ${
-                    item.completado
-                      ? "border-emerald-900/40 bg-emerald-950/20"
-                      : "border-zinc-800 bg-zinc-950/40"
-                  }`}
-                >
-                  <button
-                    type="button"
-                    onClick={() => void toggleChecklist(item.id)}
-                    className="mt-0.5 shrink-0 text-emerald-400"
-                    aria-label={item.completado ? "Marcar pendiente" : "Marcar listo"}
+            <div className="mb-4 space-y-4">
+              {checklistPorCategoria.map((bloque) => {
+                const listosBloque = bloque.items.filter((i) => i.completado).length;
+                return (
+                  <section
+                    key={bloque.categoria}
+                    className="rounded-lg border border-zinc-800/90 bg-zinc-950/40 p-3"
                   >
-                    {item.completado ? (
-                      <CheckCircle2 className="h-5 w-5" />
-                    ) : (
-                      <Circle className="h-5 w-5 text-zinc-500" />
-                    )}
-                  </button>
-                  <div className="min-w-0 flex-1">
-                    <p
-                      className={`text-sm ${
-                        item.completado ? "text-zinc-400 line-through" : "text-zinc-100"
-                      }`}
-                    >
-                      {item.titulo}
-                    </p>
-                    {item.completado && item.completadoPorNombre ? (
-                      <p className="mt-0.5 text-[10px] text-zinc-500">
-                        {item.completadoPorNombre}
-                      </p>
-                    ) : null}
-                  </div>
-                  <div className="flex shrink-0 items-center gap-1.5 pt-0.5">
-                    <input
-                      type="number"
-                      min={1}
-                      inputMode="numeric"
-                      value={item.cantidad}
-                      onChange={(e) => void cambiarCantidadChecklist(item.id, e.target.value)}
-                      disabled={item.completado}
-                      className="w-14 border border-zinc-700 bg-zinc-950 px-2 py-1.5 text-center text-sm tabular-nums text-zinc-100 outline-none focus:border-zinc-500 disabled:opacity-50"
-                      aria-label={`Cantidad de ${item.titulo}`}
-                    />
-                    <select
-                      value={item.unidad}
-                      onChange={(e) => void cambiarUnidadChecklist(item.id, e.target.value)}
-                      disabled={item.completado}
-                      className="min-w-[5.75rem] border border-zinc-700 bg-zinc-950 px-1.5 py-1.5 text-xs text-zinc-200 outline-none focus:border-zinc-500 disabled:opacity-50"
-                      aria-label={`Unidad de ${item.titulo}`}
-                    >
-                      {!EVENTO_CHECKLIST_UNIDADES.includes(
-                        item.unidad as (typeof EVENTO_CHECKLIST_UNIDADES)[number]
-                      ) ? (
-                        <option value={item.unidad}>{item.unidad}</option>
-                      ) : null}
-                      {EVENTO_CHECKLIST_UNIDADES.map((u) => (
-                        <option key={u} value={u}>
-                          {u}
-                        </option>
+                    <div className="mb-2 flex items-baseline justify-between gap-2">
+                      <h3 className="text-[10px] font-semibold uppercase tracking-[0.16em] text-zinc-500">
+                        {bloque.etiqueta}
+                      </h3>
+                      <span className="text-[10px] tabular-nums text-zinc-600">
+                        {listosBloque}/{bloque.items.length}
+                      </span>
+                    </div>
+                    <ul className="space-y-2">
+                      {bloque.items.map((item) => (
+                        <li
+                          key={item.id}
+                          className={`flex flex-wrap items-start gap-2 rounded-xl border px-3 py-2.5 sm:flex-nowrap sm:gap-3 ${
+                            item.completado
+                              ? "border-emerald-900/40 bg-emerald-950/20"
+                              : "border-zinc-800 bg-zinc-950/40"
+                          }`}
+                        >
+                          <button
+                            type="button"
+                            onClick={() => void toggleChecklist(item.id)}
+                            className="mt-0.5 shrink-0 text-emerald-400"
+                            aria-label={
+                              item.completado ? "Marcar pendiente" : "Marcar listo"
+                            }
+                          >
+                            {item.completado ? (
+                              <CheckCircle2 className="h-5 w-5" />
+                            ) : (
+                              <Circle className="h-5 w-5 text-zinc-500" />
+                            )}
+                          </button>
+                          <div className="min-w-0 flex-1">
+                            <p
+                              className={`text-sm ${
+                                item.completado
+                                  ? "text-zinc-400 line-through"
+                                  : "text-zinc-100"
+                              }`}
+                            >
+                              {item.titulo}
+                            </p>
+                            {item.completado && item.completadoPorNombre ? (
+                              <p className="mt-0.5 text-[10px] text-zinc-500">
+                                {item.completadoPorNombre}
+                              </p>
+                            ) : null}
+                            <select
+                              value={item.categoria}
+                              onChange={(e) =>
+                                void cambiarCategoriaChecklist(
+                                  item.id,
+                                  e.target.value as EventoChecklistCategoria
+                                )
+                              }
+                              disabled={item.completado}
+                              className="mt-1.5 border border-zinc-800 bg-transparent py-0.5 text-[10px] text-zinc-500 outline-none focus:border-zinc-600 disabled:opacity-50"
+                              aria-label={`Categoría de ${item.titulo}`}
+                            >
+                              {EVENTO_CHECKLIST_CATEGORIAS.map((cat) => (
+                                <option key={cat} value={cat}>
+                                  {ETIQUETA_CHECKLIST_CATEGORIA[cat]}
+                                </option>
+                              ))}
+                            </select>
+                          </div>
+                          <div className="flex shrink-0 items-center gap-1.5">
+                            <input
+                              type="number"
+                              min={1}
+                              inputMode="numeric"
+                              value={item.cantidad}
+                              onChange={(e) =>
+                                void cambiarCantidadChecklist(item.id, e.target.value)
+                              }
+                              disabled={item.completado}
+                              className="w-14 border border-zinc-700 bg-zinc-950 px-2 py-1.5 text-center text-sm tabular-nums text-zinc-100 outline-none focus:border-zinc-500 disabled:opacity-50"
+                              aria-label={`Cantidad de ${item.titulo}`}
+                            />
+                            <select
+                              value={item.unidad}
+                              onChange={(e) =>
+                                void cambiarUnidadChecklist(item.id, e.target.value)
+                              }
+                              disabled={item.completado}
+                              className="min-w-[5.75rem] border border-zinc-700 bg-zinc-950 px-1.5 py-1.5 text-xs text-zinc-200 outline-none focus:border-zinc-500 disabled:opacity-50"
+                              aria-label={`Unidad de ${item.titulo}`}
+                            >
+                              {!EVENTO_CHECKLIST_UNIDADES.includes(
+                                item.unidad as (typeof EVENTO_CHECKLIST_UNIDADES)[number]
+                              ) ? (
+                                <option value={item.unidad}>{item.unidad}</option>
+                              ) : null}
+                              {EVENTO_CHECKLIST_UNIDADES.map((u) => (
+                                <option key={u} value={u}>
+                                  {u}
+                                </option>
+                              ))}
+                            </select>
+                          </div>
+                          <button
+                            type="button"
+                            onClick={() => void quitarChecklist(item.id)}
+                            className="shrink-0 rounded-lg p-1 text-zinc-600 hover:text-red-400"
+                            aria-label="Eliminar ítem"
+                          >
+                            <Trash2 className="h-3.5 w-3.5" />
+                          </button>
+                        </li>
                       ))}
-                    </select>
-                  </div>
-                  <button
-                    type="button"
-                    onClick={() => void quitarChecklist(item.id)}
-                    className="shrink-0 rounded-lg p-1 text-zinc-600 hover:text-red-400"
-                    aria-label="Eliminar ítem"
-                  >
-                    <Trash2 className="h-3.5 w-3.5" />
-                  </button>
-                </li>
-              ))}
-            </ul>
+                    </ul>
+                  </section>
+                );
+              })}
+            </div>
 
             <div className="flex flex-wrap gap-2">
               <input
@@ -859,9 +953,30 @@ export default function EventosPage() {
                   </option>
                 ))}
               </select>
+              <select
+                value={checklistCategoriaNueva}
+                onChange={(e) =>
+                  setChecklistCategoriaNueva(e.target.value as EventoChecklistCategoria)
+                }
+                className="border border-zinc-700 bg-zinc-950 px-2 py-2 text-sm text-zinc-200 outline-none focus:border-zinc-500"
+                aria-label="Categoría del nuevo ítem"
+                title="Categoría"
+              >
+                {EVENTO_CHECKLIST_CATEGORIAS.map((cat) => (
+                  <option key={cat} value={cat}>
+                    {ETIQUETA_CHECKLIST_CATEGORIA[cat]}
+                  </option>
+                ))}
+              </select>
               <input
                 value={checklistNuevo}
-                onChange={(e) => setChecklistNuevo(e.target.value)}
+                onChange={(e) => {
+                  const valor = e.target.value;
+                  setChecklistNuevo(valor);
+                  if (valor.trim()) {
+                    setChecklistCategoriaNueva(inferirCategoriaChecklist(valor));
+                  }
+                }}
                 onKeyDown={(e) => {
                   if (e.key === "Enter") {
                     e.preventDefault();

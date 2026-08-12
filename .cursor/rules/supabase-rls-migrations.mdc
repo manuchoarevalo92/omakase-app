@@ -1,0 +1,27 @@
+---
+description: Supabase — correr migraciones yo + RLS siempre
+alwaysApply: true
+---
+
+# Supabase: ejecución y RLS
+
+## Quién corre el SQL
+
+- **Nunca** pedirle al usuario que copie/pegue SQL en el SQL Editor.
+- Si hay schema, migraciones o seeds: **correrlos yo** vía MCP Supabase (`apply_migration` / `execute_sql`) en el proyecto de Omakase (`qnddgsfecwezvjzexlwm`).
+- Guardar también el `.sql` idempotente en `supabase/` para el repo.
+- Si el MCP no está autenticado, autenticar (`mcp_auth`) y reintentar antes de fallar.
+
+## RLS obligatorio (privacidad)
+
+- **Toda** tabla nueva o expuesta a la app debe tener `enable row level security` en la **misma** migración que la crea.
+- Incluir policies para el rol que usa la app (`anon`), en el mismo paso — no dejar tablas con RLS off ni “después lo vemos”.
+- Patrón actual de la app (auth en cookie/sesión, cliente con anon key): policies `select/insert/update/delete` a `anon` explícitas; la restricción fina de roles (admin/staff) vive en la app.
+- Nunca crear tablas públicas sin RLS. Si una tabla ya existe sin RLS, habilitarlo y agregar policies en cuanto se toque.
+
+## Orden de trabajo
+
+1. Escribir `supabase/{feature}.sql` + RLS (junto o `*-rls-anon.sql`).
+2. Aplicar en Supabase con MCP.
+3. Verificar tablas/policies si hace falta.
+4. Seguir con el código de la app.

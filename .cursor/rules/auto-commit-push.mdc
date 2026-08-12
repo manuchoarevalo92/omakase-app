@@ -1,0 +1,16 @@
+---
+description: Tras cada cambio pedido, commit + push sin preguntar
+alwaysApply: true
+---
+
+# Commit y push automáticos
+
+Cuando el usuario pide un cambio (feature, fix, SQL, UI, etc.) y el trabajo queda listo:
+
+1. **Commit** de los archivos relevantes (nunca `.env` ni secretos).
+2. **Push** a `origin` de la rama actual (`git push -u origin HEAD` si hace falta).
+3. No esperar a que diga “commit”, “push” o “comiteá”.
+
+Excepciones: si el usuario dice explícitamente que no suba / no committee, o si hay un conflicto/riesgo claro (p. ej. push a main con force) — ahí preguntar.
+
+Seguir el protocolo de commit del proyecto (status, diff, log, mensaje en HEREDOC, no `--no-verify`, no amend salvo reglas existentes).

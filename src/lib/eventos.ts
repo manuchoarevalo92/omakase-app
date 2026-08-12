@@ -69,6 +69,7 @@ export type EventoChecklistItem = {
   orden: number;
   cantidad: number;
   unidad: string;
+  categoria: EventoChecklistCategoria;
   completado: boolean;
   completadoAt: string | null;
   completadoPorId: string | null;
@@ -124,6 +125,7 @@ type EventoChecklistItemDb = {
   orden: number;
   cantidad?: number | null;
   unidad?: string | null;
+  categoria?: string | null;
   completado: boolean;
   completado_at?: string | null;
   completado_por_id?: string | null;
@@ -141,10 +143,10 @@ export const EVENTO_MENU_SELECT_BASE =
   "id, evento_id, plato_id, plato_nombre, categoria, orden, cantidad, notas, created_at";
 
 export const EVENTO_CHECKLIST_SELECT =
-  "id, evento_id, titulo, orden, cantidad, unidad, completado, completado_at, completado_por_id, completado_por_nombre, created_at";
+  "id, evento_id, titulo, orden, cantidad, unidad, categoria, completado, completado_at, completado_por_id, completado_por_nombre, created_at";
 
 export const EVENTO_CHECKLIST_SELECT_BASE =
-  "id, evento_id, titulo, orden, cantidad, completado, completado_at, completado_por_id, completado_por_nombre, created_at";
+  "id, evento_id, titulo, orden, cantidad, unidad, completado, completado_at, completado_por_id, completado_por_nombre, created_at";
 
 /** Unidades sugeridas en checklist (texto libre también permitido). */
 export const EVENTO_CHECKLIST_UNIDADES = [
@@ -157,6 +159,133 @@ export const EVENTO_CHECKLIST_UNIDADES = [
   "L",
   "pack",
 ] as const;
+
+/** Categorías de packing para revisar la checklist por bloques. */
+export const EVENTO_CHECKLIST_CATEGORIAS = [
+  "fresco",
+  "seco",
+  "preparados",
+  "vajilla",
+  "utensilios",
+  "equipo",
+  "bebidas",
+  "logistica",
+  "otros",
+] as const;
+
+export type EventoChecklistCategoria = (typeof EVENTO_CHECKLIST_CATEGORIAS)[number];
+
+export const ETIQUETA_CHECKLIST_CATEGORIA: Record<EventoChecklistCategoria, string> = {
+  fresco: "Fresco",
+  seco: "Seco",
+  preparados: "Preparados",
+  vajilla: "Vajilla",
+  utensilios: "Utensilios",
+  equipo: "Equipo",
+  bebidas: "Bebidas",
+  logistica: "Logística",
+  otros: "Otros",
+};
+
+const CHECKLIST_CAT_SET = new Set<string>(EVENTO_CHECKLIST_CATEGORIAS);
+
+function esCategoriaChecklist(v: string | null | undefined): v is EventoChecklistCategoria {
+  return Boolean(v && CHECKLIST_CAT_SET.has(v));
+}
+
+/** Clasifica un título de checklist (heurística; se puede corregir a mano). */
+export function inferirCategoriaChecklist(titulo: string): EventoChecklistCategoria {
+  const t = titulo.trim().toLowerCase();
+  if (!t) return "otros";
+
+  if (
+    /bebida|sake|vino|cerveza|agua|chagu[aá]n|refresco|\bt[eé]\b/.test(t)
+  ) {
+    return "bebidas";
+  }
+
+  if (
+    /confirmar men[uú]|revisar ingredientes|mise en place|\bmep\b|impreso|cartel|servilleta|descartable|compra/.test(
+      t
+    )
+  ) {
+    return "logistica";
+  }
+
+  if (
+    /ohitsu|neta box|contenedor de arroz/.test(t)
+  ) {
+    return "equipo";
+  }
+
+  if (
+    /vajilla|platito|plato|bol|bowl|palitos(?! de)|apoyapalitos|cucharita|apoyacucharita|oshibori|apoya oshibori|tenedor/.test(
+      t
+    )
+  ) {
+    return "vajilla";
+  }
+
+  if (
+    /utensilio|tabla|pinza|pincel|rallador|suribachi|saru|colador|brochet|brochette|cuchillo/.test(
+      t
+    )
+  ) {
+    return "utensilios";
+  }
+
+  if (
+    /caja t[eé]rmica|transporte|arrocera|parrill|carb[oó]n|placa para cocinar|recipiente para zuke|contenedor/.test(
+      t
+    ) ||
+    t === "carbón" ||
+    t === "carbon"
+  ) {
+    return "equipo";
+  }
+
+  if (
+    /salsa|nikiri|nitsume|tosazu|\bsu\b|karashi|warabi|pasta negitoro|leche de soja|crema\b|preparado/.test(
+      t
+    )
+  ) {
+    return "preparados";
+  }
+
+  if (
+    /arroz|nori|kombu|alga|s[eé]samo|kuzu|polvo de coco|sal\b|az[uú]car/.test(t)
+  ) {
+    return "seco";
+  }
+
+  if (
+    /akami|anguila|calamar|chipir|chutoro|dorada|erizo|hamachi|ikura|kama|quisquilla|salm[oó]n|shima|vieira|wasabi|jengibre|shiso|myoga|cebolleta|cebollino|ciboulette|yuzu|junsai|hueva|flores|fresco/.test(
+      t
+    )
+  ) {
+    return "fresco";
+  }
+
+  return "otros";
+}
+
+export function agruparChecklistPorCategoria(
+  items: EventoChecklistItem[]
+): { categoria: EventoChecklistCategoria; etiqueta: string; items: EventoChecklistItem[] }[] {
+  const map = new Map<EventoChecklistCategoria, EventoChecklistItem[]>();
+  for (const cat of EVENTO_CHECKLIST_CATEGORIAS) {
+    map.set(cat, []);
+  }
+  for (const item of items) {
+    const cat = esCategoriaChecklist(item.categoria) ? item.categoria : "otros";
+    map.get(cat)!.push(item);
+  }
+  return EVENTO_CHECKLIST_CATEGORIAS.map((categoria) => ({
+    categoria,
+    etiqueta: ETIQUETA_CHECKLIST_CATEGORIA[categoria],
+    items: map.get(categoria) ?? [],
+  })).filter((bloque) => bloque.items.length > 0);
+}
 
 export const ETIQUETA_EVENTO_ESTADO: Record<EventoEstado, string> = {
   borrador: "Borrador",
@@ -174,16 +303,22 @@ export const ETIQUETA_EVENTO_SECCION: Record<EventoMenuSeccion, string> = {
 };
 
 /** Plantilla inicial al crear un evento (logística). La checklist por plato viene después. */
-export const CHECKLIST_PLANTILLA_EVENTO = [
-  "Confirmar menú con cliente",
-  "Revisar ingredientes y compras",
-  "MEP / mise en place del evento",
-  "Bebidas preparadas",
-  "Cajas térmicas / transporte",
-  "Utensilios y tablas",
-  "Servilletas / descartables",
-  "Menú impreso o carteles",
-] as const;
+export const CHECKLIST_PLANTILLA_EVENTO: {
+  titulo: string;
+  categoria: EventoChecklistCategoria;
+}[] = [
+  { titulo: "Confirmar menú con cliente", categoria: "logistica" },
+  { titulo: "Revisar ingredientes y compras", categoria: "logistica" },
+  { titulo: "MEP / mise en place del evento", categoria: "logistica" },
+  { titulo: "Bebidas preparadas", categoria: "bebidas" },
+  { titulo: "Cajas térmicas / transporte", categoria: "equipo" },
+  { titulo: "Utensilios y tablas", categoria: "utensilios" },
+  { titulo: "Servilletas / descartables", categoria: "logistica" },
+  { titulo: "Menú impreso o carteles", categoria: "logistica" },
+  { titulo: "Oshibori", categoria: "vajilla" },
+  { titulo: "Apoya oshibori", categoria: "vajilla" },
+  { titulo: "Tenedores de postre", categoria: "vajilla" },
+];
 
 function esEstadoValido(v: string | null | undefined): v is EventoEstado {
   if (!v) return false;
@@ -246,6 +381,10 @@ function parseChecklistItem(row: EventoChecklistItemDb): EventoChecklistItem {
       ? Math.floor(row.cantidad)
       : 1;
   const unidad = row.unidad?.trim() || "unidad";
+  const categoriaRaw = row.categoria?.trim() || "";
+  const categoria = esCategoriaChecklist(categoriaRaw)
+    ? categoriaRaw
+    : inferirCategoriaChecklist(row.titulo);
   return {
     id: row.id,
     eventoId: row.evento_id,
@@ -253,12 +392,48 @@ function parseChecklistItem(row: EventoChecklistItemDb): EventoChecklistItem {
     orden: row.orden,
     cantidad,
     unidad,
+    categoria,
     completado: row.completado === true,
     completadoAt: row.completado_at ?? null,
     completadoPorId: row.completado_por_id ?? null,
     completadoPorNombre: row.completado_por_nombre ?? null,
     createdAt: row.created_at,
   };
+}
+
+/** Rellena categoría cuando aún no está asignada o quedó en "otros". */
+async function backfillCategoriasChecklist(
+  rows: EventoChecklistItemDb[]
+): Promise<EventoChecklistItem[]> {
+  const pendientes = rows.filter((row) => {
+    const raw = row.categoria?.trim() || "";
+    if (!esCategoriaChecklist(raw)) return true;
+    if (raw !== "otros") return false;
+    return inferirCategoriaChecklist(row.titulo) !== "otros";
+  });
+
+  if (pendientes.length === 0) {
+    return rows.map(parseChecklistItem);
+  }
+
+  const actualizados = await Promise.all(
+    pendientes.map(async (row) => {
+      const categoria = inferirCategoriaChecklist(row.titulo);
+      const { data, error } = await supabase
+        .from("evento_checklist_items")
+        .update({ categoria })
+        .eq("id", row.id)
+        .select(EVENTO_CHECKLIST_SELECT)
+        .single();
+      if (error || !data) {
+        return parseChecklistItem({ ...row, categoria });
+      }
+      return parseChecklistItem(data as EventoChecklistItemDb);
+    })
+  );
+
+  const porId = new Map(actualizados.map((i) => [i.id, i]));
+  return rows.map((row) => porId.get(row.id) ?? parseChecklistItem(row));
 }
 
 export function etiquetaEvento(evento: Pick<Evento, "fecha" | "hora" | "titulo">): string {
@@ -410,12 +585,14 @@ export async function fetchEventoDetalle(id: string): Promise<EventoDetalle | nu
 
   if (checklistRes.error) throw new Error(formatPostgrestError(checklistRes.error));
 
+  const checklistItems = await backfillCategoriasChecklist(
+    (checklistRes.data ?? []) as EventoChecklistItemDb[]
+  );
+
   return {
     ...parseEvento(eventoRow as EventoDb),
     menuItems,
-    checklistItems: ((checklistRes.data ?? []) as EventoChecklistItemDb[]).map(
-      parseChecklistItem
-    ),
+    checklistItems,
   };
 }
 
@@ -458,10 +635,13 @@ export async function crearEvento(input: {
 
   const evento = parseEvento(eventoRow as EventoDb);
 
-  const checklistPayload = CHECKLIST_PLANTILLA_EVENTO.map((tituloItem, index) => ({
+  const checklistPayload = CHECKLIST_PLANTILLA_EVENTO.map((item, index) => ({
     evento_id: evento.id,
-    titulo: tituloItem,
+    titulo: item.titulo,
     orden: (index + 1) * 10,
+    categoria: item.categoria,
+    unidad: "unidad",
+    cantidad: 1,
   }));
 
   const { data: checklistRows, error: checklistError } = await supabase
@@ -647,6 +827,7 @@ export async function crearEventoChecklistItem(input: {
   orden?: number;
   cantidad?: number;
   unidad?: string | null;
+  categoria?: EventoChecklistCategoria | null;
 }): Promise<EventoChecklistItem> {
   const titulo = input.titulo.trim();
   if (!titulo) {
@@ -668,6 +849,10 @@ export async function crearEventoChecklistItem(input: {
   const cantidad =
     input.cantidad != null && input.cantidad > 0 ? Math.floor(input.cantidad) : 1;
   const unidad = input.unidad?.trim() || "unidad";
+  const categoria =
+    input.categoria && esCategoriaChecklist(input.categoria)
+      ? input.categoria
+      : inferirCategoriaChecklist(titulo);
 
   const { data, error } = await supabase
     .from("evento_checklist_items")
@@ -677,6 +862,7 @@ export async function crearEventoChecklistItem(input: {
       orden,
       cantidad,
       unidad,
+      categoria,
     })
     .select(EVENTO_CHECKLIST_SELECT)
     .single();
@@ -709,6 +895,22 @@ export async function actualizarUnidadChecklistItem(
   const { data, error } = await supabase
     .from("evento_checklist_items")
     .update({ unidad: valor })
+    .eq("id", id)
+    .select(EVENTO_CHECKLIST_SELECT)
+    .single();
+
+  if (error) throw new Error(formatPostgrestError(error));
+  return parseChecklistItem(data as EventoChecklistItemDb);
+}
+
+export async function actualizarCategoriaChecklistItem(
+  id: string,
+  categoria: EventoChecklistCategoria
+): Promise<EventoChecklistItem> {
+  const valor = esCategoriaChecklist(categoria) ? categoria : "otros";
+  const { data, error } = await supabase
+    .from("evento_checklist_items")
+    .update({ categoria: valor })
     .eq("id", id)
     .select(EVENTO_CHECKLIST_SELECT)
     .single();
@@ -789,6 +991,7 @@ export async function sincronizarChecklistDesdeMenu(
     orden: maxOrden + (index + 1) * 10,
     cantidad: 1,
     unidad: "unidad",
+    categoria: inferirCategoriaChecklist(titulo),
   }));
 
   const { data: nuevos, error: insertError } = await supabase
