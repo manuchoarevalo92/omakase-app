@@ -7,16 +7,20 @@ import {
   Check,
   CheckCircle2,
   Circle,
+  List,
   Loader2,
+  Pencil,
   Plus,
   RefreshCw,
   Trash2,
 } from "lucide-react";
 
 import { EventoMenuOmakase } from "@/app/components/evento-menu-omakase";
+import { EventoMenuNecesidades } from "@/app/components/evento-menu-necesidades";
 import {
   actualizarEvento,
   actualizarCantidadChecklistItem,
+  actualizarUnidadChecklistItem,
   contarPasosMenu,
   crearEvento,
   crearEventoChecklistItem,
@@ -25,6 +29,7 @@ import {
   eliminarEventoChecklistItem,
   eliminarEventoMenuItem,
   ETIQUETA_EVENTO_ESTADO,
+  EVENTO_CHECKLIST_UNIDADES,
   EVENTO_ESTADOS,
   extrasDesdeMenuItems,
   fetchEventoDetalle,
@@ -90,9 +95,12 @@ export default function EventosPage() {
   const [menuLibre, setMenuLibre] = useState("");
   const [checklistNuevo, setChecklistNuevo] = useState("");
   const [checklistCantidadNueva, setChecklistCantidadNueva] = useState("1");
+  const [checklistUnidadNueva, setChecklistUnidadNueva] = useState("unidad");
   const [menuSlots, setMenuSlots] = useState<EventoMenuOmakaseSlots>(() =>
     slotsVaciosMenuOmakase()
   );
+  /** Como en el Omakase diario: tras guardar, vista lista; editar vuelve al formulario. */
+  const [menuVistaLista, setMenuVistaLista] = useState(false);
 
   const eventosProximos = useMemo(() => {
     const hoy = formatFechaLocalYYYYMMDD(new Date());
@@ -127,8 +135,10 @@ export default function EventosPage() {
     setDetalle(data);
     if (data) {
       setMenuSlots(slotsDesdeMenuItems(data.menuItems));
+      setMenuVistaLista(data.menuItems.length > 0);
     } else {
       setMenuSlots(slotsVaciosMenuOmakase());
+      setMenuVistaLista(false);
     }
     return data;
   }, []);
@@ -172,6 +182,7 @@ export default function EventosPage() {
   const volverALista = () => {
     setDetalle(null);
     setMenuSlots(slotsVaciosMenuOmakase());
+    setMenuVistaLista(false);
     setError(null);
     setSuccess(null);
     void cargarLista();
@@ -268,6 +279,7 @@ export default function EventosPage() {
       setDetalle((prev) =>
         prev ? { ...prev, menuItems, checklistItems: checklist } : prev
       );
+      setMenuVistaLista(true);
       setSuccess(
         `Menú guardado: ${conteo.base}/${conteo.baseObjetivo} base` +
           (!menuSlots.nigiriOnly && conteo.regalo > 0
@@ -357,12 +369,14 @@ export default function EventosPage() {
         eventoId: detalle.id,
         titulo: checklistNuevo.trim(),
         cantidad: Number.isFinite(cantidad) && cantidad > 0 ? cantidad : 1,
+        unidad: checklistUnidadNueva,
       });
       setDetalle((prev) =>
         prev ? { ...prev, checklistItems: [...prev.checklistItems, item] } : prev
       );
       setChecklistNuevo("");
       setChecklistCantidadNueva("1");
+      setChecklistUnidadNueva("unidad");
     } catch (err) {
       setError(err instanceof Error ? err.message : "No se pudo agregar ítem.");
     } finally {
@@ -399,6 +413,38 @@ export default function EventosPage() {
     } catch (err) {
       setError(
         err instanceof Error ? err.message : "No se pudo actualizar la cantidad."
+      );
+    }
+  };
+
+  const cambiarUnidadChecklist = async (itemId: string, unidad: string) => {
+    if (!detalle) return;
+    const valor = unidad.trim() || "unidad";
+    setDetalle((prev) =>
+      prev
+        ? {
+            ...prev,
+            checklistItems: prev.checklistItems.map((i) =>
+              i.id === itemId ? { ...i, unidad: valor } : i
+            ),
+          }
+        : prev
+    );
+    try {
+      const actualizado = await actualizarUnidadChecklistItem(itemId, valor);
+      setDetalle((prev) =>
+        prev
+          ? {
+              ...prev,
+              checklistItems: prev.checklistItems.map((i) =>
+                i.id === itemId ? actualizado : i
+              ),
+            }
+          : prev
+      );
+    } catch (err) {
+      setError(
+        err instanceof Error ? err.message : "No se pudo actualizar la unidad."
       );
     }
   };
@@ -622,21 +668,59 @@ export default function EventosPage() {
             </div>
           </header>
 
-          <EventoMenuOmakase
-            slots={menuSlots}
-            onSlotsChange={setMenuSlots}
-            platos={platos}
-            extras={extrasMenu}
-            isSaving={isSaving}
-            onGuardarMenu={() => void guardarMenuOmakase()}
-            onAgregarExtra={(id) => void agregarExtraPlato(id)}
-            onAgregarLibre={(nombre) => void agregarMenuLibre(nombre)}
-            onQuitarExtra={(item) => void quitarMenuItem(item)}
-            extraPlatoId={platoSeleccionado}
-            onExtraPlatoIdChange={setPlatoSeleccionado}
-            extraLibre={menuLibre}
-            onExtraLibreChange={setMenuLibre}
-          />
+          {menuVistaLista && detalle.menuItems.length > 0 ? (
+            <>
+              <div className="mb-4 flex flex-col gap-2 rounded-lg border border-zinc-800 bg-zinc-950/60 px-3 py-2.5 sm:flex-row sm:flex-wrap sm:items-center sm:justify-between">
+                <p className="text-xs text-zinc-400">
+                  Menú guardado · tocá cada plato para ver qué llevar
+                </p>
+                <button
+                  type="button"
+                  onClick={() => setMenuVistaLista(false)}
+                  className="inline-flex shrink-0 items-center justify-center gap-1.5 rounded-md border border-emerald-900/50 bg-emerald-950/50 px-3 py-2 text-[11px] font-semibold text-emerald-50 transition hover:bg-emerald-900/40"
+                >
+                  <Pencil className="h-3.5 w-3.5 shrink-0" />
+                  Editar menú
+                </button>
+              </div>
+              <EventoMenuNecesidades
+                menuItems={detalle.menuItems}
+                checklistItems={detalle.checklistItems}
+                onToggleChecklistItem={(id) => void toggleChecklist(id)}
+              />
+            </>
+          ) : (
+            <>
+              {detalle.menuItems.length > 0 ? (
+                <div className="mb-4 flex flex-col gap-2 rounded-lg border border-zinc-800 bg-zinc-950/60 px-3 py-2.5 sm:flex-row sm:flex-wrap sm:items-center sm:justify-between">
+                  <p className="text-xs text-zinc-400">Editando menú del evento</p>
+                  <button
+                    type="button"
+                    onClick={() => setMenuVistaLista(true)}
+                    className="inline-flex shrink-0 items-center justify-center gap-1.5 rounded-md border border-zinc-600 bg-zinc-900 px-3 py-2 text-[11px] font-medium text-zinc-200 transition hover:border-zinc-500 hover:bg-zinc-800/90"
+                  >
+                    <List className="h-3.5 w-3.5 shrink-0" />
+                    Ver sólo menú
+                  </button>
+                </div>
+              ) : null}
+              <EventoMenuOmakase
+                slots={menuSlots}
+                onSlotsChange={setMenuSlots}
+                platos={platos}
+                extras={extrasMenu}
+                isSaving={isSaving}
+                onGuardarMenu={() => void guardarMenuOmakase()}
+                onAgregarExtra={(id) => void agregarExtraPlato(id)}
+                onAgregarLibre={(nombre) => void agregarMenuLibre(nombre)}
+                onQuitarExtra={(item) => void quitarMenuItem(item)}
+                extraPlatoId={platoSeleccionado}
+                onExtraPlatoIdChange={setPlatoSeleccionado}
+                extraLibre={menuLibre}
+                onExtraLibreChange={setMenuLibre}
+              />
+            </>
+          )}
 
           <section className="rounded-2xl border border-zinc-800 bg-zinc-900/60 p-5">
             <div className="mb-4 flex flex-wrap items-start justify-between gap-3">
@@ -709,10 +793,7 @@ export default function EventosPage() {
                       </p>
                     ) : null}
                   </div>
-                  <label className="flex shrink-0 items-center gap-1.5 pt-0.5">
-                    <span className="text-[10px] uppercase tracking-wide text-zinc-500">
-                      ud
-                    </span>
+                  <div className="flex shrink-0 items-center gap-1.5 pt-0.5">
                     <input
                       type="number"
                       min={1}
@@ -723,7 +804,25 @@ export default function EventosPage() {
                       className="w-14 border border-zinc-700 bg-zinc-950 px-2 py-1.5 text-center text-sm tabular-nums text-zinc-100 outline-none focus:border-zinc-500 disabled:opacity-50"
                       aria-label={`Cantidad de ${item.titulo}`}
                     />
-                  </label>
+                    <select
+                      value={item.unidad}
+                      onChange={(e) => void cambiarUnidadChecklist(item.id, e.target.value)}
+                      disabled={item.completado}
+                      className="min-w-[5.75rem] border border-zinc-700 bg-zinc-950 px-1.5 py-1.5 text-xs text-zinc-200 outline-none focus:border-zinc-500 disabled:opacity-50"
+                      aria-label={`Unidad de ${item.titulo}`}
+                    >
+                      {!EVENTO_CHECKLIST_UNIDADES.includes(
+                        item.unidad as (typeof EVENTO_CHECKLIST_UNIDADES)[number]
+                      ) ? (
+                        <option value={item.unidad}>{item.unidad}</option>
+                      ) : null}
+                      {EVENTO_CHECKLIST_UNIDADES.map((u) => (
+                        <option key={u} value={u}>
+                          {u}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
                   <button
                     type="button"
                     onClick={() => void quitarChecklist(item.id)}
@@ -747,6 +846,19 @@ export default function EventosPage() {
                 aria-label="Cantidad del nuevo ítem"
                 title="Cantidad"
               />
+              <select
+                value={checklistUnidadNueva}
+                onChange={(e) => setChecklistUnidadNueva(e.target.value)}
+                className="border border-zinc-700 bg-zinc-950 px-2 py-2 text-sm text-zinc-200 outline-none focus:border-zinc-500"
+                aria-label="Unidad del nuevo ítem"
+                title="Unidad"
+              >
+                {EVENTO_CHECKLIST_UNIDADES.map((u) => (
+                  <option key={u} value={u}>
+                    {u}
+                  </option>
+                ))}
+              </select>
               <input
                 value={checklistNuevo}
                 onChange={(e) => setChecklistNuevo(e.target.value)}

@@ -68,6 +68,7 @@ export type EventoChecklistItem = {
   titulo: string;
   orden: number;
   cantidad: number;
+  unidad: string;
   completado: boolean;
   completadoAt: string | null;
   completadoPorId: string | null;
@@ -122,6 +123,7 @@ type EventoChecklistItemDb = {
   titulo: string;
   orden: number;
   cantidad?: number | null;
+  unidad?: string | null;
   completado: boolean;
   completado_at?: string | null;
   completado_por_id?: string | null;
@@ -139,10 +141,22 @@ export const EVENTO_MENU_SELECT_BASE =
   "id, evento_id, plato_id, plato_nombre, categoria, orden, cantidad, notas, created_at";
 
 export const EVENTO_CHECKLIST_SELECT =
-  "id, evento_id, titulo, orden, cantidad, completado, completado_at, completado_por_id, completado_por_nombre, created_at";
+  "id, evento_id, titulo, orden, cantidad, unidad, completado, completado_at, completado_por_id, completado_por_nombre, created_at";
 
 export const EVENTO_CHECKLIST_SELECT_BASE =
-  "id, evento_id, titulo, orden, completado, completado_at, completado_por_id, completado_por_nombre, created_at";
+  "id, evento_id, titulo, orden, cantidad, completado, completado_at, completado_por_id, completado_por_nombre, created_at";
+
+/** Unidades sugeridas en checklist (texto libre también permitido). */
+export const EVENTO_CHECKLIST_UNIDADES = [
+  "unidad",
+  "caja",
+  "saco",
+  "porción",
+  "kg",
+  "g",
+  "L",
+  "pack",
+] as const;
 
 export const ETIQUETA_EVENTO_ESTADO: Record<EventoEstado, string> = {
   borrador: "Borrador",
@@ -231,12 +245,14 @@ function parseChecklistItem(row: EventoChecklistItemDb): EventoChecklistItem {
     row.cantidad != null && Number.isFinite(row.cantidad) && row.cantidad > 0
       ? Math.floor(row.cantidad)
       : 1;
+  const unidad = row.unidad?.trim() || "unidad";
   return {
     id: row.id,
     eventoId: row.evento_id,
     titulo: row.titulo,
     orden: row.orden,
     cantidad,
+    unidad,
     completado: row.completado === true,
     completadoAt: row.completado_at ?? null,
     completadoPorId: row.completado_por_id ?? null,
@@ -630,6 +646,7 @@ export async function crearEventoChecklistItem(input: {
   titulo: string;
   orden?: number;
   cantidad?: number;
+  unidad?: string | null;
 }): Promise<EventoChecklistItem> {
   const titulo = input.titulo.trim();
   if (!titulo) {
@@ -650,6 +667,7 @@ export async function crearEventoChecklistItem(input: {
 
   const cantidad =
     input.cantidad != null && input.cantidad > 0 ? Math.floor(input.cantidad) : 1;
+  const unidad = input.unidad?.trim() || "unidad";
 
   const { data, error } = await supabase
     .from("evento_checklist_items")
@@ -658,6 +676,7 @@ export async function crearEventoChecklistItem(input: {
       titulo,
       orden,
       cantidad,
+      unidad,
     })
     .select(EVENTO_CHECKLIST_SELECT)
     .single();
@@ -674,6 +693,22 @@ export async function actualizarCantidadChecklistItem(
   const { data, error } = await supabase
     .from("evento_checklist_items")
     .update({ cantidad: valor })
+    .eq("id", id)
+    .select(EVENTO_CHECKLIST_SELECT)
+    .single();
+
+  if (error) throw new Error(formatPostgrestError(error));
+  return parseChecklistItem(data as EventoChecklistItemDb);
+}
+
+export async function actualizarUnidadChecklistItem(
+  id: string,
+  unidad: string
+): Promise<EventoChecklistItem> {
+  const valor = unidad.trim() || "unidad";
+  const { data, error } = await supabase
+    .from("evento_checklist_items")
+    .update({ unidad: valor })
     .eq("id", id)
     .select(EVENTO_CHECKLIST_SELECT)
     .single();
@@ -753,6 +788,7 @@ export async function sincronizarChecklistDesdeMenu(
     titulo,
     orden: maxOrden + (index + 1) * 10,
     cantidad: 1,
+    unidad: "unidad",
   }));
 
   const { data: nuevos, error: insertError } = await supabase
