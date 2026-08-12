@@ -3,12 +3,14 @@
 import { FormEvent, useCallback, useEffect, useMemo, useState } from "react";
 import {
   ArrowLeft,
+  Briefcase,
   Calendar,
   Check,
   CheckCircle2,
   Circle,
   List,
   Loader2,
+  Package,
   Pencil,
   Plus,
   RefreshCw,
@@ -46,6 +48,7 @@ import {
   slotsDesdeMenuItems,
   slotsVaciosMenuOmakase,
   sincronizarChecklistDesdeMenu,
+  toggleEventoChecklistEnValija,
   toggleEventoChecklistItem,
   type Evento,
   type EventoChecklistCategoria,
@@ -605,6 +608,49 @@ export default function EventosPage() {
     }
   };
 
+  const toggleValija = async (itemId: string) => {
+    if (!detalle) return;
+    const item = detalle.checklistItems.find((i) => i.id === itemId);
+    if (!item) return;
+    setError(null);
+    const next = !item.enValija;
+    setDetalle((prev) =>
+      prev
+        ? {
+            ...prev,
+            checklistItems: prev.checklistItems.map((i) =>
+              i.id === itemId ? { ...i, enValija: next } : i
+            ),
+          }
+        : prev
+    );
+    try {
+      const actualizado = await toggleEventoChecklistEnValija(item, next);
+      setDetalle((prev) =>
+        prev
+          ? {
+              ...prev,
+              checklistItems: prev.checklistItems.map((i) =>
+                i.id === itemId ? actualizado : i
+              ),
+            }
+          : prev
+      );
+    } catch (err) {
+      setDetalle((prev) =>
+        prev
+          ? {
+              ...prev,
+              checklistItems: prev.checklistItems.map((i) =>
+                i.id === itemId ? item : i
+              ),
+            }
+          : prev
+      );
+      setError(err instanceof Error ? err.message : "No se pudo marcar la valija.");
+    }
+  };
+
   const quitarChecklist = async (id: string) => {
     if (!detalle) return;
     setError(null);
@@ -841,7 +887,8 @@ export default function EventosPage() {
                   Qué llevar / checklist
                 </h2>
                 <p className="mt-1 text-xs text-zinc-500">
-                  {progreso.listos} de {progreso.total} listos · agrupado por categoría
+                  Listos {progreso.listos}/{progreso.total} · en valija{" "}
+                  {progreso.enValija}/{progreso.total}
                 </p>
               </div>
               <div className="flex flex-wrap items-center gap-2">
@@ -894,17 +941,19 @@ export default function EventosPage() {
               ) : null}
               {checklistPorCategoria.map((bloque) => {
                 const listosBloque = bloque.items.filter((i) => i.completado).length;
+                const valijaBloque = bloque.items.filter((i) => i.enValija).length;
                 return (
                   <section
                     key={bloque.categoria}
                     className="rounded-lg border border-zinc-800/90 bg-zinc-950/40 p-2.5 sm:p-3"
                   >
-                    <div className="mb-2 flex items-baseline justify-between gap-2">
+                    <div className="mb-2 flex flex-wrap items-baseline justify-between gap-2">
                       <h3 className="text-[10px] font-semibold uppercase tracking-[0.16em] text-zinc-500">
                         {bloque.etiqueta}
                       </h3>
                       <span className="text-[10px] tabular-nums text-zinc-600">
-                        {listosBloque}/{bloque.items.length}
+                        listos {listosBloque}/{bloque.items.length} · valija{" "}
+                        {valijaBloque}/{bloque.items.length}
                       </span>
                     </div>
                     <ul className="space-y-2">
@@ -912,26 +961,58 @@ export default function EventosPage() {
                         <li
                           key={item.id}
                           className={`rounded-xl border px-3 py-2.5 ${
-                            item.completado
-                              ? "border-emerald-900/40 bg-emerald-950/20"
-                              : "border-zinc-800 bg-zinc-950/40"
+                            item.enValija
+                              ? "border-sky-900/40 bg-sky-950/20"
+                              : item.completado
+                                ? "border-emerald-900/40 bg-emerald-950/20"
+                                : "border-zinc-800 bg-zinc-950/40"
                           }`}
                         >
                           <div className="flex items-start gap-2">
-                            <button
-                              type="button"
-                              onClick={() => void toggleChecklist(item.id)}
-                              className="mt-0.5 shrink-0 text-emerald-400"
-                              aria-label={
-                                item.completado ? "Marcar pendiente" : "Marcar listo"
-                              }
-                            >
-                              {item.completado ? (
-                                <CheckCircle2 className="h-5 w-5" />
-                              ) : (
-                                <Circle className="h-5 w-5 text-zinc-500" />
-                              )}
-                            </button>
+                            <div className="flex shrink-0 flex-col gap-1.5 pt-0.5">
+                              <button
+                                type="button"
+                                onClick={() => void toggleChecklist(item.id)}
+                                className={`inline-flex items-center gap-1 rounded-md border px-1.5 py-1 text-[10px] font-medium ${
+                                  item.completado
+                                    ? "border-emerald-800/60 bg-emerald-950/40 text-emerald-300"
+                                    : "border-zinc-700 text-zinc-500"
+                                }`}
+                                aria-label={
+                                  item.completado ? "Marcar no listo" : "Marcar listo"
+                                }
+                                title="Listo (preparado)"
+                              >
+                                {item.completado ? (
+                                  <CheckCircle2 className="h-3.5 w-3.5" />
+                                ) : (
+                                  <Circle className="h-3.5 w-3.5" />
+                                )}
+                                Listo
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => void toggleValija(item.id)}
+                                className={`inline-flex items-center gap-1 rounded-md border px-1.5 py-1 text-[10px] font-medium ${
+                                  item.enValija
+                                    ? "border-sky-800/60 bg-sky-950/40 text-sky-300"
+                                    : "border-zinc-700 text-zinc-500"
+                                }`}
+                                aria-label={
+                                  item.enValija
+                                    ? "Sacar de la valija"
+                                    : "Marcar en valija"
+                                }
+                                title="Cargado en la valija"
+                              >
+                                {item.enValija ? (
+                                  <Package className="h-3.5 w-3.5" />
+                                ) : (
+                                  <Briefcase className="h-3.5 w-3.5" />
+                                )}
+                                Valija
+                              </button>
+                            </div>
                             <div className="min-w-0 flex-1">
                               <input
                                 value={item.titulo}
@@ -956,9 +1037,9 @@ export default function EventosPage() {
                                     e.currentTarget.blur();
                                   }
                                 }}
-                                disabled={item.completado}
+                                disabled={item.enValija}
                                 className={`w-full min-w-0 border border-transparent bg-transparent px-0 py-0.5 text-sm outline-none focus:border-zinc-600 focus:bg-zinc-950 focus:px-2 disabled:opacity-60 ${
-                                  item.completado
+                                  item.enValija
                                     ? "text-zinc-400 line-through"
                                     : "text-zinc-100"
                                 }`}
@@ -966,7 +1047,7 @@ export default function EventosPage() {
                               />
                               {item.completado && item.completadoPorNombre ? (
                                 <p className="mt-0.5 text-[10px] text-zinc-500">
-                                  {item.completadoPorNombre}
+                                  Listo · {item.completadoPorNombre}
                                 </p>
                               ) : null}
                             </div>
@@ -980,7 +1061,7 @@ export default function EventosPage() {
                             </button>
                           </div>
 
-                          <div className="mt-2 flex flex-wrap items-center gap-2 pl-7">
+                          <div className="mt-2 flex flex-wrap items-center gap-2">
                             <select
                               value={item.categoria}
                               onChange={(e) =>
@@ -989,7 +1070,7 @@ export default function EventosPage() {
                                   e.target.value as EventoChecklistCategoria
                                 )
                               }
-                              disabled={item.completado}
+                              disabled={item.enValija}
                               className="max-w-full flex-1 basis-[8rem] border border-zinc-700 bg-zinc-950 px-2 py-1.5 text-[11px] text-zinc-300 outline-none focus:border-zinc-500 disabled:opacity-50"
                               aria-label={`Categoría de ${item.titulo}`}
                             >
@@ -1007,7 +1088,7 @@ export default function EventosPage() {
                               onChange={(e) =>
                                 void cambiarCantidadChecklist(item.id, e.target.value)
                               }
-                              disabled={item.completado}
+                              disabled={item.enValija}
                               className="w-14 shrink-0 border border-zinc-700 bg-zinc-950 px-2 py-1.5 text-center text-sm tabular-nums text-zinc-100 outline-none focus:border-zinc-500 disabled:opacity-50"
                               aria-label={`Cantidad de ${item.titulo}`}
                             />
@@ -1016,7 +1097,7 @@ export default function EventosPage() {
                               onChange={(e) =>
                                 void cambiarUnidadChecklist(item.id, e.target.value)
                               }
-                              disabled={item.completado}
+                              disabled={item.enValija}
                               className="min-w-0 flex-1 basis-[5.5rem] border border-zinc-700 bg-zinc-950 px-1.5 py-1.5 text-xs text-zinc-200 outline-none focus:border-zinc-500 disabled:opacity-50"
                               aria-label={`Unidad de ${item.titulo}`}
                             >

@@ -46,11 +46,13 @@ function claveTitulo(titulo: string): string {
 function progresoPlato(plato: PlatoConNecesidades): {
   total: number;
   listos: number;
+  enValija: number;
 } {
   const conChecklist = plato.items.filter((i) => i.checklist);
   return {
     total: conChecklist.length,
     listos: conChecklist.filter((i) => i.checklist?.completado).length,
+    enValija: conChecklist.filter((i) => i.checklist?.enValija).length,
   };
 }
 
@@ -248,14 +250,26 @@ export function EventoMenuNecesidades({
                           {plato.nombre}
                         </span>
                         {prog.total > 0 ? (
-                          <span
-                            className={`shrink-0 text-[10px] tabular-nums ${
-                              prog.listos === prog.total
-                                ? "text-emerald-400"
-                                : "text-zinc-500"
-                            }`}
-                          >
-                            {prog.listos}/{prog.total}
+                          <span className="shrink-0 text-[10px] tabular-nums text-zinc-500">
+                            <span
+                              className={
+                                prog.listos === prog.total
+                                  ? "text-emerald-400"
+                                  : undefined
+                              }
+                            >
+                              {prog.listos}/{prog.total}
+                            </span>
+                            {" · "}
+                            <span
+                              className={
+                                prog.enValija === prog.total
+                                  ? "text-sky-400"
+                                  : undefined
+                              }
+                            >
+                              V {prog.enValija}/{prog.total}
+                            </span>
                           </span>
                         ) : null}
                       </button>
@@ -273,6 +287,7 @@ export function EventoMenuNecesidades({
                               {plato.items.map((fila) => {
                                 const check = fila.checklist;
                                 const listo = check?.completado === true;
+                                const enValija = check?.enValija === true;
                                 const contenido = (
                                   <>
                                     {check ? (
@@ -286,7 +301,7 @@ export function EventoMenuNecesidades({
                                     )}
                                     <span
                                       className={`min-w-0 flex-1 text-sm ${
-                                        listo
+                                        enValija
                                           ? "text-zinc-500 line-through"
                                           : "text-zinc-200"
                                       }`}
@@ -296,6 +311,7 @@ export function EventoMenuNecesidades({
                                     {check ? (
                                       <span className="shrink-0 text-[11px] tabular-nums text-zinc-500">
                                         {check.cantidad} {check.unidad}
+                                        {enValija ? " · valija" : listo ? " · listo" : ""}
                                       </span>
                                     ) : (
                                       <span className="shrink-0 text-[10px] text-amber-500/90">

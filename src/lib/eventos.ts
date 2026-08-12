@@ -74,6 +74,7 @@ export type EventoChecklistItem = {
   completadoAt: string | null;
   completadoPorId: string | null;
   completadoPorNombre: string | null;
+  enValija: boolean;
   createdAt: string;
 };
 
@@ -130,6 +131,7 @@ type EventoChecklistItemDb = {
   completado_at?: string | null;
   completado_por_id?: string | null;
   completado_por_nombre?: string | null;
+  en_valija?: boolean | null;
   created_at: string;
 };
 
@@ -143,10 +145,10 @@ export const EVENTO_MENU_SELECT_BASE =
   "id, evento_id, plato_id, plato_nombre, categoria, orden, cantidad, notas, created_at";
 
 export const EVENTO_CHECKLIST_SELECT =
-  "id, evento_id, titulo, orden, cantidad, unidad, categoria, completado, completado_at, completado_por_id, completado_por_nombre, created_at";
+  "id, evento_id, titulo, orden, cantidad, unidad, categoria, completado, completado_at, completado_por_id, completado_por_nombre, en_valija, created_at";
 
 export const EVENTO_CHECKLIST_SELECT_BASE =
-  "id, evento_id, titulo, orden, cantidad, unidad, completado, completado_at, completado_por_id, completado_por_nombre, created_at";
+  "id, evento_id, titulo, orden, cantidad, unidad, categoria, completado, completado_at, completado_por_id, completado_por_nombre, created_at";
 
 /** Unidades sugeridas en checklist (texto libre también permitido). */
 export const EVENTO_CHECKLIST_UNIDADES = [
@@ -412,6 +414,7 @@ function parseChecklistItem(row: EventoChecklistItemDb): EventoChecklistItem {
     completadoAt: row.completado_at ?? null,
     completadoPorId: row.completado_por_id ?? null,
     completadoPorNombre: row.completado_por_nombre ?? null,
+    enValija: row.en_valija === true,
     createdAt: row.created_at,
   };
 }
@@ -459,10 +462,39 @@ export function etiquetaEvento(evento: Pick<Evento, "fecha" | "hora" | "titulo">
 export function progresoChecklist(items: EventoChecklistItem[]): {
   total: number;
   listos: number;
+  enValija: number;
 } {
   const total = items.length;
   const listos = items.filter((i) => i.completado).length;
-  return { total, listos };
+  const enValija = items.filter((i) => i.enValija).length;
+  return { total, listos, enValija };
+}
+
+function checklistColumnMissing(error: { message?: string } | null | undefined): boolean {
+  const msg = (error?.message ?? "").toLowerCase();
+  return msg.includes("en_valija") && (msg.includes("column") || msg.includes("schema"));
+}
+
+async function selectChecklistItems(eventoId: string) {
+  const full = await supabase
+    .from("evento_checklist_items")
+    .select(EVENTO_CHECKLIST_SELECT)
+    .eq("evento_id", eventoId)
+    .order("orden", { ascending: true })
+    .order("created_at", { ascending: true });
+
+  if (!full.error) return full;
+
+  if (checklistColumnMissing(full.error)) {
+    return supabase
+      .from("evento_checklist_items")
+      .select(EVENTO_CHECKLIST_SELECT_BASE)
+      .eq("evento_id", eventoId)
+      .order("orden", { ascending: true })
+      .order("created_at", { ascending: true });
+  }
+
+  return full;
 }
 
 function slotsVacios(): EventoMenuOmakaseSlots {
@@ -590,12 +622,7 @@ export async function fetchEventoDetalle(id: string): Promise<EventoDetalle | nu
 
   const [menuItems, checklistRes] = await Promise.all([
     fetchMenuItems(id),
-    supabase
-      .from("evento_checklist_items")
-      .select(EVENTO_CHECKLIST_SELECT)
-      .eq("evento_id", id)
-      .order("orden", { ascending: true })
-      .order("created_at", { ascending: true }),
+    selectChecklistItems(id),
   ]);
 
   if (checklistRes.error) throw new Error(formatPostgrestError(checklistRes.error));
@@ -972,7 +999,46 @@ export async function toggleEventoChecklistItem(
     .select(EVENTO_CHECKLIST_SELECT)
     .single();
 
-  if (error) throw new Error(formatPostgrestError(error));
+  if (error) {
+    if (checklistColumnMissing(error)) {
+      const legacy = await supabase
+        .from("evento_checklist_items")
+        .update({
+          completado,
+          completado_at: completado ? ahora : null,
+          completado_por_id: completado ? usuario?.id ?? null : null,
+          completado_por_nombre: completado ? usuario?.name ?? null : null,
+        })
+        .eq("id", item.id)
+        .select(EVENTO_CHECKLIST_SELECT_BASE)
+        .single();
+      if (legacy.error) throw new Error(formatPostgrestError(legacy.error));
+      return parseChecklistItem(legacy.data as EventoChecklistItemDb);
+    }
+    throw new Error(formatPostgrestError(error));
+  }
+  return parseChecklistItem(data as EventoChecklistItemDb);
+}
+
+export async function toggleEventoChecklistEnValija(
+  item: EventoChecklistItem,
+  enValija: boolean
+): Promise<EventoChecklistItem> {
+  const { data, error } = await supabase
+    .from("evento_checklist_items")
+    .update({ en_valija: enValija })
+    .eq("id", item.id)
+    .select(EVENTO_CHECKLIST_SELECT)
+    .single();
+
+  if (error) {
+    if (checklistColumnMissing(error)) {
+      throw new Error(
+        "Falta la columna en_valija en Supabase. Hay que aplicar supabase/evento-checklist-en-valija.sql."
+      );
+    }
+    throw new Error(formatPostgrestError(error));
+  }
   return parseChecklistItem(data as EventoChecklistItemDb);
 }
 
@@ -1000,11 +1066,9 @@ export async function sincronizarChecklistDesdeMenu(
   const necesidades = await fetchNecesidadesPorPlatos(platoIds);
   const unicos = consolidarNecesidades(necesidades);
 
-  const { data: checklistRows, error: checklistError } = await supabase
-    .from("evento_checklist_items")
-    .select(EVENTO_CHECKLIST_SELECT)
-    .eq("evento_id", eventoId)
-    .order("orden", { ascending: true });
+  const { data: checklistRows, error: checklistError } = await selectChecklistItems(
+    eventoId
+  );
 
   if (checklistError) throw new Error(formatPostgrestError(checklistError));
 
