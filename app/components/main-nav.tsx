@@ -25,6 +25,7 @@ const ALL_LINKS = [
   { href: "/produccion", label: "Producción" },
   { href: "/produccion-tiempos", label: "Tiempos prep" },
   { href: "/produccion-plan", label: "Plan semanal" },
+  { href: "/eventos", label: "Eventos" },
   { href: "/personal", label: "Personal" },
   { href: "/consumo", label: "Consumo" },
   { href: "/gasto", label: "Gasto" },
@@ -34,7 +35,7 @@ type Href = (typeof ALL_LINKS)[number]["href"];
 
 /** Agrupación de las páginas en el menú desplegable. */
 const GRUPOS: { titulo: string; hrefs: Href[] }[] = [
-  { titulo: "Servicio", hrefs: ["/", "/bebidas", "/mep-deli", "/mep-historial", "/platos", "/mep-cortes", "/receta", "/historial", "/produccion-tiempos", "/produccion-plan"] },
+  { titulo: "Servicio", hrefs: ["/", "/bebidas", "/mep-deli", "/mep-historial", "/platos", "/mep-cortes", "/receta", "/historial", "/produccion-tiempos", "/produccion-plan", "/eventos"] },
   { titulo: "Compras", hrefs: ["/pedidos", "/avisos", "/compras", "/stock", "/inventario"] },
   { titulo: "Análisis", hrefs: ["/consumo", "/gasto", "/estadisticas", "/produccion", "/personal"] },
 ];
@@ -52,6 +53,7 @@ const STAFF_HREFS = new Set<string>([
   "/historial",
   "/produccion-tiempos",
   "/produccion-plan",
+  "/eventos",
 ]);
 
 type SessionInfo = { id: string; name: string; role: "admin" | "staff" };
@@ -192,12 +194,12 @@ export function MainNav() {
   }
 
   return (
-    <nav className="sticky top-0 z-50 w-full max-w-full border-b border-zinc-800 bg-zinc-950/95 pt-[calc(env(safe-area-inset-top,0px)+2rem)] backdrop-blur sm:pt-[calc(env(safe-area-inset-top,0px)+0.5rem)]">
+    <nav className="sticky top-0 z-50 w-full max-w-full border-b border-ink-200/80 bg-paper/90 pt-[calc(env(safe-area-inset-top,0px)+2rem)] backdrop-blur-md sm:pt-[calc(env(safe-area-inset-top,0px)+0.5rem)]">
       <div className="box-border w-full min-w-0 max-w-full px-3 py-3 sm:mx-auto sm:max-w-6xl sm:px-6">
         {session === undefined ? (
           <div className="flex w-full justify-center py-2">
             <Loader2
-              className="h-7 w-7 shrink-0 animate-spin text-zinc-500 sm:h-6 sm:w-6"
+              className="h-7 w-7 shrink-0 animate-spin text-ink-400 sm:h-6 sm:w-6"
               aria-label="Cargando menú"
             />
           </div>
@@ -208,16 +210,18 @@ export function MainNav() {
               onClick={() => setMenuAbierto((v) => !v)}
               aria-expanded={menuAbierto}
               aria-controls="nav-menu-panel"
-              className="inline-flex min-h-11 items-center gap-2 rounded-xl border border-zinc-700 bg-zinc-900 px-3 py-2 text-sm font-semibold text-zinc-100 transition hover:border-zinc-500"
+              className="inline-flex min-h-11 items-center gap-2 border border-ink-200 bg-ink-50 px-3 py-2 text-sm text-ink transition hover:border-ink-400"
             >
               {menuAbierto ? (
                 <X className="h-4 w-4 shrink-0" aria-hidden />
               ) : (
                 <Menu className="h-4 w-4 shrink-0" aria-hidden />
               )}
-              <span className="max-w-[9rem] truncate sm:max-w-none">{paginaActual}</span>
+              <span className="font-display max-w-[9rem] truncate text-[1.05rem] tracking-wide sm:max-w-none">
+                {paginaActual}
+              </span>
               <ChevronDown
-                className={`h-4 w-4 shrink-0 text-zinc-500 transition ${
+                className={`h-4 w-4 shrink-0 text-ink-400 transition ${
                   menuAbierto ? "rotate-180" : ""
                 }`}
                 aria-hidden
@@ -225,11 +229,11 @@ export function MainNav() {
             </button>
 
             {session ? (
-              <div className="flex min-w-0 items-center gap-2 text-zinc-500">
-                <p className="min-w-0 max-w-[9rem] truncate text-right text-sm font-medium sm:max-w-[14rem]">
+              <div className="flex min-w-0 items-center gap-2 text-ink-400">
+                <p className="min-w-0 max-w-[9rem] truncate text-right text-[0.7rem] tracking-[0.12em] uppercase sm:max-w-[14rem]">
                   {session.name}
                   {session.role === "staff" ? (
-                    <span className="text-zinc-600"> · equipo</span>
+                    <span className="text-ink-300"> · equipo</span>
                   ) : null}
                 </p>
                 <button
@@ -238,7 +242,7 @@ export function MainNav() {
                   disabled={loggingOut}
                   title="Salir"
                   aria-label="Cerrar sesión"
-                  className="inline-flex size-10 shrink-0 items-center justify-center rounded-xl border border-zinc-700 bg-zinc-900 text-zinc-400 transition hover:border-zinc-500 hover:text-zinc-100 disabled:opacity-50"
+                  className="inline-flex size-10 shrink-0 items-center justify-center border border-ink-200 bg-ink-50 text-ink-400 transition hover:border-ink-400 hover:text-ink disabled:opacity-50"
                 >
                   {loggingOut ? (
                     <Loader2 className="h-3.5 w-3.5 animate-spin" aria-hidden />
@@ -258,17 +262,23 @@ export function MainNav() {
             type="button"
             aria-label="Cerrar menú"
             onClick={() => setMenuAbierto(false)}
-            className="fixed inset-0 z-40 cursor-default bg-black/40"
+            className="fixed inset-0 z-40 cursor-default bg-black/50"
           />
           <div
             id="nav-menu-panel"
-            className="absolute inset-x-0 top-full z-50 max-h-[70vh] overflow-y-auto overscroll-contain border-b border-zinc-800 bg-zinc-950/98 shadow-2xl backdrop-blur"
+            className="absolute inset-x-0 top-full z-50 max-h-[70vh] overflow-y-auto overscroll-contain border-b border-ink-200 bg-paper/98 shadow-[0_24px_60px_rgba(0,0,0,0.45)] backdrop-blur-md"
           >
-            <div className="mx-auto w-full max-w-6xl px-3 py-4 sm:px-6">
+            <div className="mx-auto w-full max-w-6xl px-3 py-5 sm:px-6">
+              <div className="mb-4 flex items-center gap-3 px-1">
+                <p className="font-display text-xl tracking-[0.14em] text-ink">
+                  OMAKASE
+                </p>
+                <div className="h-px flex-1 bg-seal/50" />
+              </div>
               <div className="grid gap-5 sm:grid-cols-3">
                 {gruposVisibles.map((grupo) => (
                   <section key={grupo.titulo}>
-                    <h2 className="mb-2 px-1 text-[11px] font-semibold uppercase tracking-[0.16em] text-zinc-500">
+                    <h2 className="mb-2 px-1 text-[0.65rem] font-medium uppercase tracking-[0.2em] text-ink-400">
                       {grupo.titulo}
                     </h2>
                     <div className="grid grid-cols-2 gap-2 sm:grid-cols-1">
@@ -282,20 +292,16 @@ export function MainNav() {
                             href={href}
                             onClick={() => setMenuAbierto(false)}
                             aria-current={activo ? "page" : undefined}
-                            className={`inline-flex min-h-11 items-center justify-between gap-2 rounded-xl border px-3 py-2.5 text-sm font-semibold transition ${
+                            className={`inline-flex min-h-11 items-center justify-between gap-2 border px-3 py-2.5 text-sm transition ${
                               activo
-                                ? "border-zinc-200 bg-zinc-100 text-zinc-900"
-                                : "border-zinc-800 bg-zinc-900 text-zinc-300 hover:border-zinc-600 hover:text-zinc-100"
+                                ? "border-seal/60 bg-seal/15 text-ink"
+                                : "border-ink-200 bg-ink-50 text-ink-600 hover:border-ink-400 hover:text-ink"
                             }`}
                           >
-                            <span>{labelPorHref.get(href) ?? href}</span>
+                            <span className="tracking-wide">{labelPorHref.get(href) ?? href}</span>
                             {badgeMep !== null ? (
                               <span
-                                className={`inline-flex min-w-5 items-center justify-center rounded-full px-1.5 py-0.5 text-[10px] font-bold ${
-                                  activo
-                                    ? "bg-amber-500 text-zinc-900"
-                                    : "bg-amber-500/90 text-zinc-950"
-                                }`}
+                                className="inline-flex min-w-5 items-center justify-center bg-amber px-1.5 py-0.5 text-[10px] font-bold text-paper"
                                 title={`${badgeMep} MEP sin cerrar`}
                               >
                                 {badgeMep}
