@@ -322,6 +322,7 @@ export const CHECKLIST_PLANTILLA_EVENTO: {
   { titulo: "Bebidas preparadas", categoria: "bebidas" },
   { titulo: "Cajas térmicas / transporte", categoria: "equipo" },
   { titulo: "Utensilios y tablas", categoria: "utensilios" },
+  { titulo: "Tabla de cortar", categoria: "utensilios" },
   { titulo: "Servilletas / descartables", categoria: "logistica" },
   { titulo: "Menú impreso o carteles", categoria: "logistica" },
   { titulo: "Oshibori", categoria: "vajilla" },
