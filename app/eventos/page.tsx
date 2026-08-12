@@ -12,6 +12,7 @@ import {
   Pencil,
   Plus,
   RefreshCw,
+  Search,
   Trash2,
 } from "lucide-react";
 
@@ -105,6 +106,7 @@ export default function EventosPage() {
   const [checklistUnidadNueva, setChecklistUnidadNueva] = useState("unidad");
   const [checklistCategoriaNueva, setChecklistCategoriaNueva] =
     useState<EventoChecklistCategoria>("otros");
+  const [checklistBusqueda, setChecklistBusqueda] = useState("");
   const [menuSlots, setMenuSlots] = useState<EventoMenuOmakaseSlots>(() =>
     slotsVaciosMenuOmakase()
   );
@@ -135,9 +137,23 @@ export default function EventosPage() {
     [detalle]
   );
 
-  const checklistPorCategoria = useMemo(
-    () => (detalle ? agruparChecklistPorCategoria(detalle.checklistItems) : []),
-    [detalle]
+  const checklistPorCategoria = useMemo(() => {
+    if (!detalle) return [];
+    const q = checklistBusqueda.trim().toLowerCase();
+    const items = q
+      ? detalle.checklistItems.filter((item) => {
+          const titulo = item.titulo.toLowerCase();
+          const cat = ETIQUETA_CHECKLIST_CATEGORIA[item.categoria]?.toLowerCase() ?? "";
+          const unidad = item.unidad.toLowerCase();
+          return titulo.includes(q) || cat.includes(q) || unidad.includes(q);
+        })
+      : detalle.checklistItems;
+    return agruparChecklistPorCategoria(items);
+  }, [detalle, checklistBusqueda]);
+
+  const checklistFiltradosCount = useMemo(
+    () => checklistPorCategoria.reduce((acc, b) => acc + b.items.length, 0),
+    [checklistPorCategoria]
   );
 
   const cargarLista = useCallback(async () => {
@@ -197,6 +213,7 @@ export default function EventosPage() {
     setDetalle(null);
     setMenuSlots(slotsVaciosMenuOmakase());
     setMenuVistaLista(false);
+    setChecklistBusqueda("");
     setError(null);
     setSuccess(null);
     void cargarLista();
@@ -851,7 +868,30 @@ export default function EventosPage() {
               </div>
             </div>
 
+            <label className="relative mb-4 block">
+              <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-zinc-500" />
+              <input
+                value={checklistBusqueda}
+                onChange={(e) => setChecklistBusqueda(e.target.value)}
+                placeholder="Buscar en la checklist…"
+                className="w-full rounded-xl border border-zinc-700 bg-zinc-950 py-2.5 pl-9 pr-3 text-sm outline-none focus:border-zinc-500"
+                aria-label="Buscar en la checklist"
+              />
+            </label>
+
             <div className="mb-4 space-y-4">
+              {checklistPorCategoria.length === 0 ? (
+                <p className="rounded-xl border border-zinc-800 bg-zinc-950/40 px-3 py-3 text-sm text-zinc-500">
+                  {checklistBusqueda.trim()
+                    ? `Nada coincide con “${checklistBusqueda.trim()}”.`
+                    : "Todavía no hay ítems en la checklist."}
+                </p>
+              ) : null}
+              {checklistBusqueda.trim() && checklistPorCategoria.length > 0 ? (
+                <p className="text-[11px] text-zinc-500">
+                  Mostrando {checklistFiltradosCount} de {progreso.total}
+                </p>
+              ) : null}
               {checklistPorCategoria.map((bloque) => {
                 const listosBloque = bloque.items.filter((i) => i.completado).length;
                 return (
