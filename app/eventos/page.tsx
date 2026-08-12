@@ -817,9 +817,9 @@ export default function EventosPage() {
             </>
           )}
 
-          <section className="rounded-2xl border border-zinc-800 bg-zinc-900/60 p-5">
+          <section className="rounded-2xl border border-zinc-800 bg-zinc-900/60 p-3 sm:p-5">
             <div className="mb-4 flex flex-wrap items-start justify-between gap-3">
-              <div>
+              <div className="min-w-0">
                 <h2 className="text-sm font-semibold uppercase tracking-wide text-zinc-400">
                   Qué llevar / checklist
                 </h2>
@@ -857,7 +857,7 @@ export default function EventosPage() {
                 return (
                   <section
                     key={bloque.categoria}
-                    className="rounded-lg border border-zinc-800/90 bg-zinc-950/40 p-3"
+                    className="rounded-lg border border-zinc-800/90 bg-zinc-950/40 p-2.5 sm:p-3"
                   >
                     <div className="mb-2 flex items-baseline justify-between gap-2">
                       <h3 className="text-[10px] font-semibold uppercase tracking-[0.16em] text-zinc-500">
@@ -871,63 +871,76 @@ export default function EventosPage() {
                       {bloque.items.map((item) => (
                         <li
                           key={item.id}
-                          className={`flex flex-wrap items-start gap-2 rounded-xl border px-3 py-2.5 sm:flex-nowrap sm:gap-3 ${
+                          className={`rounded-xl border px-3 py-2.5 ${
                             item.completado
                               ? "border-emerald-900/40 bg-emerald-950/20"
                               : "border-zinc-800 bg-zinc-950/40"
                           }`}
                         >
-                          <button
-                            type="button"
-                            onClick={() => void toggleChecklist(item.id)}
-                            className="mt-0.5 shrink-0 text-emerald-400"
-                            aria-label={
-                              item.completado ? "Marcar pendiente" : "Marcar listo"
-                            }
-                          >
-                            {item.completado ? (
-                              <CheckCircle2 className="h-5 w-5" />
-                            ) : (
-                              <Circle className="h-5 w-5 text-zinc-500" />
-                            )}
-                          </button>
-                          <div className="min-w-0 flex-1">
-                            <input
-                              value={item.titulo}
-                              onChange={(e) => {
-                                const titulo = e.target.value;
-                                setDetalle((prev) =>
-                                  prev
-                                    ? {
-                                        ...prev,
-                                        checklistItems: prev.checklistItems.map((i) =>
-                                          i.id === item.id ? { ...i, titulo } : i
-                                        ),
-                                      }
-                                    : prev
-                                );
-                              }}
-                              onBlur={(e) =>
-                                void cambiarTituloChecklist(item.id, e.target.value)
+                          <div className="flex items-start gap-2">
+                            <button
+                              type="button"
+                              onClick={() => void toggleChecklist(item.id)}
+                              className="mt-0.5 shrink-0 text-emerald-400"
+                              aria-label={
+                                item.completado ? "Marcar pendiente" : "Marcar listo"
                               }
-                              onKeyDown={(e) => {
-                                if (e.key === "Enter") {
-                                  e.currentTarget.blur();
+                            >
+                              {item.completado ? (
+                                <CheckCircle2 className="h-5 w-5" />
+                              ) : (
+                                <Circle className="h-5 w-5 text-zinc-500" />
+                              )}
+                            </button>
+                            <div className="min-w-0 flex-1">
+                              <input
+                                value={item.titulo}
+                                onChange={(e) => {
+                                  const titulo = e.target.value;
+                                  setDetalle((prev) =>
+                                    prev
+                                      ? {
+                                          ...prev,
+                                          checklistItems: prev.checklistItems.map((i) =>
+                                            i.id === item.id ? { ...i, titulo } : i
+                                          ),
+                                        }
+                                      : prev
+                                  );
+                                }}
+                                onBlur={(e) =>
+                                  void cambiarTituloChecklist(item.id, e.target.value)
                                 }
-                              }}
-                              disabled={item.completado}
-                              className={`w-full border border-transparent bg-transparent px-0 py-0.5 text-sm outline-none focus:border-zinc-600 focus:bg-zinc-950 focus:px-2 disabled:opacity-60 ${
-                                item.completado
-                                  ? "text-zinc-400 line-through"
-                                  : "text-zinc-100"
-                              }`}
-                              aria-label={`Nombre de ${item.titulo}`}
-                            />
-                            {item.completado && item.completadoPorNombre ? (
-                              <p className="mt-0.5 text-[10px] text-zinc-500">
-                                {item.completadoPorNombre}
-                              </p>
-                            ) : null}
+                                onKeyDown={(e) => {
+                                  if (e.key === "Enter") {
+                                    e.currentTarget.blur();
+                                  }
+                                }}
+                                disabled={item.completado}
+                                className={`w-full min-w-0 border border-transparent bg-transparent px-0 py-0.5 text-sm outline-none focus:border-zinc-600 focus:bg-zinc-950 focus:px-2 disabled:opacity-60 ${
+                                  item.completado
+                                    ? "text-zinc-400 line-through"
+                                    : "text-zinc-100"
+                                }`}
+                                aria-label={`Nombre de ${item.titulo}`}
+                              />
+                              {item.completado && item.completadoPorNombre ? (
+                                <p className="mt-0.5 text-[10px] text-zinc-500">
+                                  {item.completadoPorNombre}
+                                </p>
+                              ) : null}
+                            </div>
+                            <button
+                              type="button"
+                              onClick={() => void quitarChecklist(item.id)}
+                              className="shrink-0 rounded-lg p-1 text-zinc-600 hover:text-red-400"
+                              aria-label="Eliminar ítem"
+                            >
+                              <Trash2 className="h-3.5 w-3.5" />
+                            </button>
+                          </div>
+
+                          <div className="mt-2 flex flex-wrap items-center gap-2 pl-7">
                             <select
                               value={item.categoria}
                               onChange={(e) =>
@@ -937,7 +950,7 @@ export default function EventosPage() {
                                 )
                               }
                               disabled={item.completado}
-                              className="mt-1.5 border border-zinc-800 bg-transparent py-0.5 text-[10px] text-zinc-500 outline-none focus:border-zinc-600 disabled:opacity-50"
+                              className="max-w-full flex-1 basis-[8rem] border border-zinc-700 bg-zinc-950 px-2 py-1.5 text-[11px] text-zinc-300 outline-none focus:border-zinc-500 disabled:opacity-50"
                               aria-label={`Categoría de ${item.titulo}`}
                             >
                               {EVENTO_CHECKLIST_CATEGORIAS.map((cat) => (
@@ -946,8 +959,6 @@ export default function EventosPage() {
                                 </option>
                               ))}
                             </select>
-                          </div>
-                          <div className="flex shrink-0 items-center gap-1.5">
                             <input
                               type="number"
                               min={1}
@@ -957,7 +968,7 @@ export default function EventosPage() {
                                 void cambiarCantidadChecklist(item.id, e.target.value)
                               }
                               disabled={item.completado}
-                              className="w-14 border border-zinc-700 bg-zinc-950 px-2 py-1.5 text-center text-sm tabular-nums text-zinc-100 outline-none focus:border-zinc-500 disabled:opacity-50"
+                              className="w-14 shrink-0 border border-zinc-700 bg-zinc-950 px-2 py-1.5 text-center text-sm tabular-nums text-zinc-100 outline-none focus:border-zinc-500 disabled:opacity-50"
                               aria-label={`Cantidad de ${item.titulo}`}
                             />
                             <select
@@ -966,7 +977,7 @@ export default function EventosPage() {
                                 void cambiarUnidadChecklist(item.id, e.target.value)
                               }
                               disabled={item.completado}
-                              className="min-w-[5.75rem] border border-zinc-700 bg-zinc-950 px-1.5 py-1.5 text-xs text-zinc-200 outline-none focus:border-zinc-500 disabled:opacity-50"
+                              className="min-w-0 flex-1 basis-[5.5rem] border border-zinc-700 bg-zinc-950 px-1.5 py-1.5 text-xs text-zinc-200 outline-none focus:border-zinc-500 disabled:opacity-50"
                               aria-label={`Unidad de ${item.titulo}`}
                             >
                               {!EVENTO_CHECKLIST_UNIDADES.includes(
@@ -981,14 +992,6 @@ export default function EventosPage() {
                               ))}
                             </select>
                           </div>
-                          <button
-                            type="button"
-                            onClick={() => void quitarChecklist(item.id)}
-                            className="shrink-0 rounded-lg p-1 text-zinc-600 hover:text-red-400"
-                            aria-label="Eliminar ítem"
-                          >
-                            <Trash2 className="h-3.5 w-3.5" />
-                          </button>
                         </li>
                       ))}
                     </ul>
@@ -997,45 +1000,7 @@ export default function EventosPage() {
               })}
             </div>
 
-            <div className="flex flex-wrap gap-2">
-              <input
-                type="number"
-                min={1}
-                inputMode="numeric"
-                value={checklistCantidadNueva}
-                onChange={(e) => setChecklistCantidadNueva(e.target.value)}
-                className="w-16 border border-zinc-700 bg-zinc-950 px-2 py-2 text-center text-sm tabular-nums outline-none focus:border-zinc-500"
-                aria-label="Cantidad del nuevo ítem"
-                title="Cantidad"
-              />
-              <select
-                value={checklistUnidadNueva}
-                onChange={(e) => setChecklistUnidadNueva(e.target.value)}
-                className="border border-zinc-700 bg-zinc-950 px-2 py-2 text-sm text-zinc-200 outline-none focus:border-zinc-500"
-                aria-label="Unidad del nuevo ítem"
-                title="Unidad"
-              >
-                {EVENTO_CHECKLIST_UNIDADES.map((u) => (
-                  <option key={u} value={u}>
-                    {u}
-                  </option>
-                ))}
-              </select>
-              <select
-                value={checklistCategoriaNueva}
-                onChange={(e) =>
-                  setChecklistCategoriaNueva(e.target.value as EventoChecklistCategoria)
-                }
-                className="border border-zinc-700 bg-zinc-950 px-2 py-2 text-sm text-zinc-200 outline-none focus:border-zinc-500"
-                aria-label="Categoría del nuevo ítem"
-                title="Categoría"
-              >
-                {EVENTO_CHECKLIST_CATEGORIAS.map((cat) => (
-                  <option key={cat} value={cat}>
-                    {ETIQUETA_CHECKLIST_CATEGORIA[cat]}
-                  </option>
-                ))}
-              </select>
+            <div className="flex flex-col gap-2">
               <input
                 value={checklistNuevo}
                 onChange={(e) => {
@@ -1052,17 +1017,57 @@ export default function EventosPage() {
                   }
                 }}
                 placeholder="Agregar ítem a la checklist…"
-                className="min-w-0 flex-1 rounded-xl border border-zinc-700 bg-zinc-950 px-3 py-2 text-sm outline-none focus:border-zinc-500"
+                className="w-full min-w-0 rounded-xl border border-zinc-700 bg-zinc-950 px-3 py-2 text-sm outline-none focus:border-zinc-500"
               />
-              <button
-                type="button"
-                onClick={() => void agregarChecklist()}
-                disabled={isSaving || !checklistNuevo.trim()}
-                className="inline-flex items-center gap-1 rounded-xl border border-zinc-600 px-3 py-2 text-sm disabled:opacity-40"
-              >
-                <Plus className="h-4 w-4" />
-                Agregar
-              </button>
+              <div className="flex flex-wrap gap-2">
+                <input
+                  type="number"
+                  min={1}
+                  inputMode="numeric"
+                  value={checklistCantidadNueva}
+                  onChange={(e) => setChecklistCantidadNueva(e.target.value)}
+                  className="w-16 border border-zinc-700 bg-zinc-950 px-2 py-2 text-center text-sm tabular-nums outline-none focus:border-zinc-500"
+                  aria-label="Cantidad del nuevo ítem"
+                  title="Cantidad"
+                />
+                <select
+                  value={checklistUnidadNueva}
+                  onChange={(e) => setChecklistUnidadNueva(e.target.value)}
+                  className="min-w-0 flex-1 basis-[5.5rem] border border-zinc-700 bg-zinc-950 px-2 py-2 text-sm text-zinc-200 outline-none focus:border-zinc-500"
+                  aria-label="Unidad del nuevo ítem"
+                  title="Unidad"
+                >
+                  {EVENTO_CHECKLIST_UNIDADES.map((u) => (
+                    <option key={u} value={u}>
+                      {u}
+                    </option>
+                  ))}
+                </select>
+                <select
+                  value={checklistCategoriaNueva}
+                  onChange={(e) =>
+                    setChecklistCategoriaNueva(e.target.value as EventoChecklistCategoria)
+                  }
+                  className="min-w-0 flex-1 basis-[8rem] border border-zinc-700 bg-zinc-950 px-2 py-2 text-sm text-zinc-200 outline-none focus:border-zinc-500"
+                  aria-label="Categoría del nuevo ítem"
+                  title="Categoría"
+                >
+                  {EVENTO_CHECKLIST_CATEGORIAS.map((cat) => (
+                    <option key={cat} value={cat}>
+                      {ETIQUETA_CHECKLIST_CATEGORIA[cat]}
+                    </option>
+                  ))}
+                </select>
+                <button
+                  type="button"
+                  onClick={() => void agregarChecklist()}
+                  disabled={isSaving || !checklistNuevo.trim()}
+                  className="inline-flex flex-1 items-center justify-center gap-1 rounded-xl border border-zinc-600 px-3 py-2 text-sm disabled:opacity-40 sm:flex-none"
+                >
+                  <Plus className="h-4 w-4" />
+                  Agregar
+                </button>
+              </div>
             </div>
           </section>
         </section>
