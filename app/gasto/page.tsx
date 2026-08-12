@@ -236,7 +236,7 @@ export default function GastoPage() {
       <section className="mx-auto w-full max-w-5xl rounded-2xl border border-zinc-800 bg-zinc-900/60 p-6 shadow-[0_0_0_1px_rgba(255,255,255,0.02)] backdrop-blur">
         <header className="mb-6 flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
           <div>
-            <h1 className="text-2xl font-semibold text-white">Gasto</h1>
+            <h1 className="font-display text-3xl font-medium tracking-tight text-ink">Gasto</h1>
             <p className="mt-1 text-sm text-zinc-400">
               Gasto en euros según albaranes importados, consumo en kilos por ingrediente, y
               proyección según el ritmo de compra de cada ítem de Stock.

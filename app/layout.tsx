@@ -1,17 +1,25 @@
 import type { Metadata, Viewport } from "next";
-import { Geist, Geist_Mono } from "next/font/google";
+import { Cormorant_Garamond, DM_Sans, JetBrains_Mono } from "next/font/google";
 import "./globals.css";
 import { MainNav } from "./components/main-nav";
 import { RegisterServiceWorker } from "./components/register-service-worker";
 
-const geistSans = Geist({
-  variable: "--font-geist-sans",
+const display = Cormorant_Garamond({
+  variable: "--font-display",
   subsets: ["latin"],
+  weight: ["400", "500", "600", "700"],
 });
 
-const geistMono = Geist_Mono({
-  variable: "--font-geist-mono",
+const body = DM_Sans({
+  variable: "--font-body",
   subsets: ["latin"],
+  weight: ["400", "500", "600", "700"],
+});
+
+const mono = JetBrains_Mono({
+  variable: "--font-mono",
+  subsets: ["latin"],
+  weight: ["400", "500"],
 });
 
 /** Base pública para URLs del manifest e íconos; en Vercel suele inferirse, aquí lo fijamos explícito si hay env. */
@@ -49,7 +57,7 @@ export const viewport: Viewport = {
   width: "device-width",
   initialScale: 1,
   viewportFit: "cover",
-  themeColor: "#09090b",
+  themeColor: "#0e0d0b",
 };
 
 export default function RootLayout({
@@ -60,13 +68,16 @@ export default function RootLayout({
   return (
     <html
       lang="es"
-      className={`${geistSans.variable} ${geistMono.variable} h-full max-w-full overflow-x-clip antialiased`}
+      className={`${display.variable} ${body.variable} ${mono.variable} h-full max-w-full overflow-x-clip antialiased`}
     >
-      <body className="flex min-h-full min-w-0 max-w-full flex-col overflow-x-clip bg-zinc-950 pl-[env(safe-area-inset-left)] pr-[env(safe-area-inset-right)]">
-        <RegisterServiceWorker />
-        <MainNav />
-        <div className="flex min-h-0 min-w-0 w-full max-w-full flex-1 flex-col">
-          {children}
+      <body className="relative flex min-h-full min-w-0 max-w-full flex-col overflow-x-clip bg-paper text-ink pl-[env(safe-area-inset-left)] pr-[env(safe-area-inset-right)]">
+        <div className="pointer-events-none fixed inset-0 washi-bg opacity-70" aria-hidden />
+        <div className="relative z-10 flex min-h-full min-w-0 w-full max-w-full flex-1 flex-col">
+          <RegisterServiceWorker />
+          <MainNav />
+          <div className="flex min-h-0 min-w-0 w-full max-w-full flex-1 flex-col">
+            {children}
+          </div>
         </div>
       </body>
     </html>

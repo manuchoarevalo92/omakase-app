@@ -13,8 +13,8 @@ export default function manifest(): MetadataRoute.Manifest {
     /** Preferir siempre ventana propia (sin UI del navegador). */
     display_override: ["standalone", "minimal-ui", "browser"],
     orientation: "portrait-primary",
-    background_color: "#09090b",
-    theme_color: "#09090b",
+    background_color: "#0e0d0b",
+    theme_color: "#0e0d0b",
     icons: [
       {
         src: "/icons/icon-192.png",

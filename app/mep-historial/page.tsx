@@ -162,7 +162,7 @@ export default function MepHistorialPage() {
       <section className="mx-auto w-full max-w-5xl rounded-2xl border border-zinc-800 bg-zinc-900/60 p-6 shadow-[0_0_0_1px_rgba(255,255,255,0.02)] backdrop-blur">
         <header className="mb-6 flex flex-wrap items-start justify-between gap-3">
           <div>
-            <h1 className="text-2xl font-semibold text-white">Historial MEP Deli</h1>
+            <h1 className="font-display text-3xl font-medium tracking-tight text-ink">Historial MEP Deli</h1>
             <p className="mt-1 text-sm text-zinc-400">
               Cargas del delivery nocturno, quién las hizo y cierres (faltó / sobró).
             </p>

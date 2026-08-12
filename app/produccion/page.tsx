@@ -977,7 +977,7 @@ export default function ProduccionPage() {
     <main className="min-h-screen min-w-0 bg-zinc-950 px-4 py-6 text-zinc-100 sm:px-6 sm:py-10">
       <section className="mx-auto w-full max-w-3xl rounded-2xl border border-zinc-800 bg-zinc-900/60 p-6 shadow-[0_0_0_1px_rgba(255,255,255,0.02)] backdrop-blur">
         <header className="mb-6">
-          <h1 className="text-2xl font-semibold text-white">Producción</h1>
+          <h1 className="font-display text-3xl font-medium tracking-tight text-ink">Producción</h1>
           <p className="mt-1 text-sm text-zinc-400">
             Preparaciones de cocina: marcá <span className="text-zinc-300">Hacer pronto</span>{" "}
             cuando tengas que hacerlas, <span className="text-zinc-300">Hecho</span> cuando

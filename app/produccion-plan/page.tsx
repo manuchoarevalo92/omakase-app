@@ -884,7 +884,7 @@ export default function ProduccionPlanPage() {
       <section className="mx-auto w-full max-w-[100rem] rounded-2xl border border-zinc-800 bg-zinc-900/60 p-4 shadow-[0_0_0_1px_rgba(255,255,255,0.02)] backdrop-blur sm:p-6">
         <header className="mb-6 flex flex-wrap items-start justify-between gap-3">
           <div>
-            <h1 className="text-2xl font-semibold text-white">Plan semanal</h1>
+            <h1 className="font-display text-3xl font-medium tracking-tight text-ink">Plan semanal</h1>
             <p className="mt-1 text-sm text-zinc-400">
               Cada preparación es un bloque en la grilla con inicio y fin. Tocá una hora para
               agregar. Duraciones desde{" "}

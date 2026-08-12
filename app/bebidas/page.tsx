@@ -310,7 +310,7 @@ export default function BebidasPage() {
       <section className="mx-auto w-full max-w-5xl rounded-2xl border border-zinc-800 bg-zinc-900/60 p-6 shadow-[0_0_0_1px_rgba(255,255,255,0.02)] backdrop-blur">
         <header className="mb-6">
           <div className="flex flex-wrap items-center justify-between gap-3">
-            <h1 className="text-2xl font-semibold text-white">Bebidas</h1>
+            <h1 className="font-display text-3xl font-medium tracking-tight text-ink">Bebidas</h1>
             <div className="flex flex-wrap gap-2">
               <button
                 type="button"

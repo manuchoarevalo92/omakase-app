@@ -639,10 +639,11 @@ export default function Home() {
     <main className="min-h-screen min-w-0 bg-zinc-950 px-4 py-6 text-zinc-100 sm:px-6 sm:py-10">
       <section className="mx-auto w-full min-w-0 max-w-6xl rounded-2xl border border-zinc-800 bg-zinc-900/60 p-4 shadow-[0_0_0_1px_rgba(255,255,255,0.02)] backdrop-blur sm:p-6">
         <header className="mb-4">
-          <h1 className="text-balance text-xl font-semibold tracking-tight text-white sm:text-2xl md:text-3xl">
+          <h1 className="font-display text-balance text-2xl font-medium tracking-tight text-ink sm:text-3xl md:text-4xl">
             Generador de Menú Diario
           </h1>
-          <p className="mt-2 text-pretty text-sm text-zinc-400">
+          <div className="mt-3 h-px w-12 bg-seal/70" />
+          <p className="mt-3 text-pretty text-sm text-zinc-400">
             Si ya hay registros en historial, ves primero el{" "}
             <span className="text-zinc-300">último menú guardado</span> (solo lectura) con{" "}
             <span className="text-zinc-300">Editar menú</span> o{" "}

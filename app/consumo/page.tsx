@@ -130,7 +130,7 @@ export default function ConsumoPage() {
     <main className="min-h-screen min-w-0 bg-zinc-950 px-4 py-6 text-zinc-100 sm:px-6 sm:py-10">
       <section className="mx-auto w-full max-w-4xl rounded-2xl border border-zinc-800 bg-zinc-900/60 p-6 shadow-[0_0_0_1px_rgba(255,255,255,0.02)] backdrop-blur">
         <header className="mb-6">
-          <h1 className="flex items-center gap-2 text-2xl font-semibold text-white">
+          <h1 className="flex items-center gap-2 font-display text-3xl font-medium tracking-tight text-ink">
             <Package className="h-5 w-5 text-emerald-400" aria-hidden />
             Consumo
           </h1>
