@@ -31,6 +31,7 @@ create table if not exists public.evento_menu_items (
   plato_id uuid references public.platos(id) on delete set null,
   plato_nombre text not null,
   categoria text,
+  seccion text,
   orden integer not null default 0,
   cantidad smallint not null default 1,
   notas text,

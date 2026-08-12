@@ -12,8 +12,10 @@ import {
   Trash2,
 } from "lucide-react";
 
+import { EventoMenuOmakase } from "@/app/components/evento-menu-omakase";
 import {
   actualizarEvento,
+  contarPasosMenu,
   crearEvento,
   crearEventoChecklistItem,
   crearEventoMenuItem,
@@ -22,14 +24,19 @@ import {
   eliminarEventoMenuItem,
   ETIQUETA_EVENTO_ESTADO,
   EVENTO_ESTADOS,
+  extrasDesdeMenuItems,
   fetchEventoDetalle,
   fetchEventos,
+  guardarMenuOmakaseEvento,
   progresoChecklist,
+  slotsDesdeMenuItems,
+  slotsVaciosMenuOmakase,
   toggleEventoChecklistItem,
   type Evento,
   type EventoDetalle,
   type EventoEstado,
   type EventoMenuItem,
+  type EventoMenuOmakaseSlots,
 } from "@/src/lib/eventos";
 import { supabase } from "@/src/lib/supabase";
 
@@ -78,8 +85,10 @@ export default function EventosPage() {
 
   const [platoSeleccionado, setPlatoSeleccionado] = useState("");
   const [menuLibre, setMenuLibre] = useState("");
-  const [menuCantidad, setMenuCantidad] = useState("1");
   const [checklistNuevo, setChecklistNuevo] = useState("");
+  const [menuSlots, setMenuSlots] = useState<EventoMenuOmakaseSlots>(() =>
+    slotsVaciosMenuOmakase()
+  );
 
   const eventosProximos = useMemo(() => {
     const hoy = formatFechaLocalYYYYMMDD(new Date());
@@ -90,15 +99,15 @@ export default function EventosPage() {
     return { futuros, pasados, cerrados };
   }, [eventos]);
 
-  const platosPorCategoria = useMemo(() => {
-    const map = new Map<string, PlatoCatalogo[]>();
-    for (const p of platos) {
-      const lista = map.get(p.categoria) ?? [];
-      lista.push(p);
-      map.set(p.categoria, lista);
-    }
-    return [...map.entries()].sort((a, b) => a[0].localeCompare(b[0], "es"));
-  }, [platos]);
+  const platosPorId = useMemo(
+    () => new Map(platos.map((p) => [p.id, p])),
+    [platos]
+  );
+
+  const extrasMenu = useMemo(
+    () => (detalle ? extrasDesdeMenuItems(detalle.menuItems) : []),
+    [detalle]
+  );
 
   const progreso = useMemo(
     () => (detalle ? progresoChecklist(detalle.checklistItems) : { total: 0, listos: 0 }),
@@ -112,6 +121,11 @@ export default function EventosPage() {
   const cargarDetalle = useCallback(async (id: string) => {
     const data = await fetchEventoDetalle(id);
     setDetalle(data);
+    if (data) {
+      setMenuSlots(slotsDesdeMenuItems(data.menuItems));
+    } else {
+      setMenuSlots(slotsVaciosMenuOmakase());
+    }
     return data;
   }, []);
 
@@ -153,6 +167,7 @@ export default function EventosPage() {
 
   const volverALista = () => {
     setDetalle(null);
+    setMenuSlots(slotsVaciosMenuOmakase());
     setError(null);
     setSuccess(null);
     void cargarLista();
@@ -176,11 +191,12 @@ export default function EventosPage() {
       });
       await cargarLista();
       setDetalle(creado);
+      setMenuSlots(slotsVaciosMenuOmakase());
       setMostrarNuevo(false);
       setNuevoTitulo("");
       setNuevoLugar("");
       setNuevoComensales("");
-      setSuccess("Evento creado con checklist inicial.");
+      setSuccess("Evento creado. Armá el menú Omakase abajo.");
     } catch (err) {
       setError(err instanceof Error ? err.message : "No se pudo crear el evento.");
     } finally {
@@ -228,11 +244,41 @@ export default function EventosPage() {
     }
   };
 
-  const agregarPlatoMenu = async () => {
-    if (!detalle || !platoSeleccionado) return;
-    const plato = platos.find((p) => p.id === platoSeleccionado);
-    if (!plato) return;
+  const guardarMenuOmakase = async () => {
+    if (!detalle) return;
+    const conteo = contarPasosMenu(menuSlots);
+    if (conteo.base === 0) {
+      setError("Elegí al menos un pase del menú antes de guardar.");
+      return;
+    }
+    setIsSaving(true);
+    setError(null);
+    setSuccess(null);
+    try {
+      const menuItems = await guardarMenuOmakaseEvento(
+        detalle.id,
+        menuSlots,
+        platosPorId
+      );
+      setDetalle((prev) => (prev ? { ...prev, menuItems } : prev));
+      setSuccess(
+        `Menú guardado: ${conteo.base}/${conteo.baseObjetivo} base` +
+          (!menuSlots.nigiriOnly && conteo.regalo > 0
+            ? ` + ${conteo.regalo} regalo`
+            : "") +
+          "."
+      );
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "No se pudo guardar el menú.");
+    } finally {
+      setIsSaving(false);
+    }
+  };
 
+  const agregarExtraPlato = async (platoId: string) => {
+    if (!detalle || !platoId) return;
+    const plato = platosPorId.get(platoId);
+    if (!plato) return;
     setIsSaving(true);
     setError(null);
     try {
@@ -241,35 +287,33 @@ export default function EventosPage() {
         platoId: plato.id,
         platoNombre: plato.nombre,
         categoria: plato.categoria,
-        cantidad: Number(menuCantidad) > 0 ? Number(menuCantidad) : 1,
+        seccion: "extra",
       });
       setDetalle((prev) =>
         prev ? { ...prev, menuItems: [...prev.menuItems, item] } : prev
       );
       setPlatoSeleccionado("");
-      setMenuCantidad("1");
     } catch (err) {
-      setError(err instanceof Error ? err.message : "No se pudo agregar al menú.");
+      setError(err instanceof Error ? err.message : "No se pudo agregar extra.");
     } finally {
       setIsSaving(false);
     }
   };
 
-  const agregarMenuLibre = async () => {
-    if (!detalle || !menuLibre.trim()) return;
+  const agregarMenuLibre = async (nombre: string) => {
+    if (!detalle || !nombre.trim()) return;
     setIsSaving(true);
     setError(null);
     try {
       const item = await crearEventoMenuItem({
         eventoId: detalle.id,
-        platoNombre: menuLibre.trim(),
-        cantidad: Number(menuCantidad) > 0 ? Number(menuCantidad) : 1,
+        platoNombre: nombre.trim(),
+        seccion: "extra",
       });
       setDetalle((prev) =>
         prev ? { ...prev, menuItems: [...prev.menuItems, item] } : prev
       );
       setMenuLibre("");
-      setMenuCantidad("1");
     } catch (err) {
       setError(err instanceof Error ? err.message : "No se pudo agregar al menú.");
     } finally {
@@ -351,18 +395,6 @@ export default function EventosPage() {
       setError(err instanceof Error ? err.message : "No se pudo eliminar.");
     }
   };
-
-  const menuAgrupado = useMemo(() => {
-    if (!detalle) return [];
-    const map = new Map<string, EventoMenuItem[]>();
-    for (const item of detalle.menuItems) {
-      const cat = item.categoria?.trim() || "Menú";
-      const lista = map.get(cat) ?? [];
-      lista.push(item);
-      map.set(cat, lista);
-    }
-    return [...map.entries()].sort((a, b) => a[0].localeCompare(b[0], "es"));
-  }, [detalle]);
 
   if (detalle) {
     return (
@@ -524,107 +556,21 @@ export default function EventosPage() {
             </div>
           </header>
 
-          <section className="mb-6 rounded-2xl border border-zinc-800 bg-zinc-900/60 p-5">
-            <h2 className="mb-1 text-sm font-semibold uppercase tracking-wide text-zinc-400">
-              Menú del evento
-            </h2>
-            <p className="mb-4 text-xs text-zinc-500">
-              Platos del catálogo o ítems libres para este servicio.
-            </p>
-
-            <div className="mb-4 flex flex-wrap items-end gap-2">
-              <div className="min-w-[10rem] flex-1">
-                <select
-                  value={platoSeleccionado}
-                  onChange={(e) => setPlatoSeleccionado(e.target.value)}
-                  className="w-full rounded-xl border border-zinc-700 bg-zinc-950 px-3 py-2 text-sm outline-none focus:border-zinc-500"
-                >
-                  <option value="">Elegir plato…</option>
-                  {platosPorCategoria.map(([cat, lista]) => (
-                    <optgroup key={cat} label={cat}>
-                      {lista.map((p) => (
-                        <option key={p.id} value={p.id}>
-                          {p.nombre}
-                        </option>
-                      ))}
-                    </optgroup>
-                  ))}
-                </select>
-              </div>
-              <input
-                type="number"
-                min={1}
-                value={menuCantidad}
-                onChange={(e) => setMenuCantidad(e.target.value)}
-                className="w-16 rounded-xl border border-zinc-700 bg-zinc-950 px-2 py-2 text-center text-sm"
-                aria-label="Cantidad"
-              />
-              <button
-                type="button"
-                onClick={() => void agregarPlatoMenu()}
-                disabled={isSaving || !platoSeleccionado}
-                className="rounded-xl border border-zinc-600 px-3 py-2 text-sm disabled:opacity-40"
-              >
-                Agregar
-              </button>
-            </div>
-
-            <div className="mb-4 flex flex-wrap gap-2">
-              <input
-                value={menuLibre}
-                onChange={(e) => setMenuLibre(e.target.value)}
-                placeholder="Ítem libre (ej. Sake premium)"
-                className="min-w-[12rem] flex-1 rounded-xl border border-zinc-700 bg-zinc-950 px-3 py-2 text-sm outline-none focus:border-zinc-500"
-              />
-              <button
-                type="button"
-                onClick={() => void agregarMenuLibre()}
-                disabled={isSaving || !menuLibre.trim()}
-                className="rounded-xl border border-zinc-600 px-3 py-2 text-sm disabled:opacity-40"
-              >
-                Agregar libre
-              </button>
-            </div>
-
-            {menuAgrupado.length === 0 ? (
-              <p className="text-sm text-zinc-500">Todavía no hay ítems en el menú.</p>
-            ) : (
-              <div className="space-y-4">
-                {menuAgrupado.map(([categoria, items]) => (
-                  <div key={categoria}>
-                    <h3 className="mb-2 text-xs font-medium uppercase tracking-wide text-zinc-500">
-                      {categoria}
-                    </h3>
-                    <ul className="divide-y divide-zinc-800 rounded-xl border border-zinc-800">
-                      {items.map((item) => (
-                        <li
-                          key={item.id}
-                          className="flex items-center justify-between gap-3 px-4 py-2.5"
-                        >
-                          <span className="text-sm text-zinc-100">
-                            {item.cantidad > 1 ? (
-                              <span className="mr-2 tabular-nums text-zinc-400">
-                                ×{item.cantidad}
-                              </span>
-                            ) : null}
-                            {item.platoNombre}
-                          </span>
-                          <button
-                            type="button"
-                            onClick={() => void quitarMenuItem(item)}
-                            className="rounded-lg p-1.5 text-zinc-500 hover:text-red-400"
-                            aria-label={`Quitar ${item.platoNombre}`}
-                          >
-                            <Trash2 className="h-4 w-4" />
-                          </button>
-                        </li>
-                      ))}
-                    </ul>
-                  </div>
-                ))}
-              </div>
-            )}
-          </section>
+          <EventoMenuOmakase
+            slots={menuSlots}
+            onSlotsChange={setMenuSlots}
+            platos={platos}
+            extras={extrasMenu}
+            isSaving={isSaving}
+            onGuardarMenu={() => void guardarMenuOmakase()}
+            onAgregarExtra={(id) => void agregarExtraPlato(id)}
+            onAgregarLibre={(nombre) => void agregarMenuLibre(nombre)}
+            onQuitarExtra={(item) => void quitarMenuItem(item)}
+            extraPlatoId={platoSeleccionado}
+            onExtraPlatoIdChange={setPlatoSeleccionado}
+            extraLibre={menuLibre}
+            onExtraLibreChange={setMenuLibre}
+          />
 
           <section className="rounded-2xl border border-zinc-800 bg-zinc-900/60 p-5">
             <div className="mb-4 flex flex-wrap items-center justify-between gap-2">
@@ -633,7 +579,8 @@ export default function EventosPage() {
                   Qué llevar / checklist
                 </h2>
                 <p className="mt-1 text-xs text-zinc-500">
-                  {progreso.listos} de {progreso.total} listos
+                  {progreso.listos} de {progreso.total} listos · logística general; la lista por
+                  plato la armamos cuando me pases qué hace falta en cada uno
                 </p>
               </div>
               {progreso.total > 0 ? (

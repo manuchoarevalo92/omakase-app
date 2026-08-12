@@ -1,3 +1,8 @@
+import {
+  MENU_GUARDADO_NIGIRI,
+  MENU_GUARDADO_OTSUMAMI,
+  MENU_GUARDADO_POSTRE,
+} from "@/src/lib/menu-omakase-guardado";
 import { fetchSessionUsuario } from "@/src/lib/produccion-sesiones";
 import { formatPostgrestError } from "@/src/lib/supabase-errors";
 import { supabase } from "@/src/lib/supabase";
@@ -10,6 +15,24 @@ export const EVENTO_ESTADOS = [
 ] as const;
 
 export type EventoEstado = (typeof EVENTO_ESTADOS)[number];
+
+export const EVENTO_MENU_SECCIONES = [
+  "otsumami",
+  "regalo",
+  "nigiri",
+  "postre",
+  "extra",
+] as const;
+
+export type EventoMenuSeccion = (typeof EVENTO_MENU_SECCIONES)[number];
+
+/** Misma estructura que el menú diario: 4+12+1 = 17 base, +2 regalos opcionales. */
+export const EVENTO_OTSUMAMI_BASE = MENU_GUARDADO_OTSUMAMI;
+export const EVENTO_OTSUMAMI_REGALO = 2;
+export const EVENTO_NIGIRI_BASE = MENU_GUARDADO_NIGIRI;
+export const EVENTO_POSTRE_BASE = MENU_GUARDADO_POSTRE;
+export const EVENTO_TOTAL_BASE =
+  EVENTO_OTSUMAMI_BASE + EVENTO_NIGIRI_BASE + EVENTO_POSTRE_BASE;
 
 export type Evento = {
   id: string;
@@ -32,6 +55,7 @@ export type EventoMenuItem = {
   platoId: string | null;
   platoNombre: string;
   categoria: string | null;
+  seccion: EventoMenuSeccion | null;
   orden: number;
   cantidad: number;
   notas: string | null;
@@ -55,6 +79,14 @@ export type EventoDetalle = Evento & {
   checklistItems: EventoChecklistItem[];
 };
 
+export type EventoMenuOmakaseSlots = {
+  otsumami: string[];
+  regalo: string[];
+  nigiri: string[];
+  postre: string[];
+  nigiriOnly: boolean;
+};
+
 type EventoDb = {
   id: string;
   fecha: string;
@@ -76,6 +108,7 @@ type EventoMenuItemDb = {
   plato_id?: string | null;
   plato_nombre: string;
   categoria?: string | null;
+  seccion?: string | null;
   orden: number;
   cantidad: number;
   notas?: string | null;
@@ -98,6 +131,9 @@ export const EVENTO_SELECT =
   "id, fecha, hora, titulo, lugar, comensales, estado, notas, creado_por_id, creado_por_nombre, created_at, updated_at";
 
 export const EVENTO_MENU_SELECT =
+  "id, evento_id, plato_id, plato_nombre, categoria, seccion, orden, cantidad, notas, created_at";
+
+export const EVENTO_MENU_SELECT_BASE =
   "id, evento_id, plato_id, plato_nombre, categoria, orden, cantidad, notas, created_at";
 
 export const EVENTO_CHECKLIST_SELECT =
@@ -110,7 +146,15 @@ export const ETIQUETA_EVENTO_ESTADO: Record<EventoEstado, string> = {
   cancelado: "Cancelado",
 };
 
-/** Plantilla inicial al crear un evento. */
+export const ETIQUETA_EVENTO_SECCION: Record<EventoMenuSeccion, string> = {
+  otsumami: "Otsumami",
+  regalo: "Otsumami regalo",
+  nigiri: "Nigiri",
+  postre: "Postre",
+  extra: "Extra",
+};
+
+/** Plantilla inicial al crear un evento (logística). La checklist por plato viene después. */
 export const CHECKLIST_PLANTILLA_EVENTO = [
   "Confirmar menú con cliente",
   "Revisar ingredientes y compras",
@@ -125,6 +169,20 @@ export const CHECKLIST_PLANTILLA_EVENTO = [
 function esEstadoValido(v: string | null | undefined): v is EventoEstado {
   if (!v) return false;
   return (EVENTO_ESTADOS as readonly string[]).includes(v);
+}
+
+function esSeccionValida(v: string | null | undefined): v is EventoMenuSeccion {
+  if (!v) return false;
+  return (EVENTO_MENU_SECCIONES as readonly string[]).includes(v);
+}
+
+function seccionDesdeLegacy(categoria: string | null | undefined): EventoMenuSeccion | null {
+  const cat = categoria?.trim().toLowerCase() ?? "";
+  if (cat === "otsumami") return "otsumami";
+  if (cat === "nigiri") return "nigiri";
+  if (cat === "postre") return "postre";
+  if (cat) return "extra";
+  return null;
 }
 
 function parseEvento(row: EventoDb): Evento {
@@ -146,12 +204,16 @@ function parseEvento(row: EventoDb): Evento {
 }
 
 function parseMenuItem(row: EventoMenuItemDb): EventoMenuItem {
+  const seccionRaw = row.seccion?.trim() || null;
   return {
     id: row.id,
     eventoId: row.evento_id,
     platoId: row.plato_id ?? null,
     platoNombre: row.plato_nombre,
     categoria: row.categoria?.trim() || null,
+    seccion: esSeccionValida(seccionRaw)
+      ? seccionRaw
+      : seccionDesdeLegacy(row.categoria),
     orden: row.orden,
     cantidad: row.cantidad > 0 ? row.cantidad : 1,
     notas: row.notas?.trim() || null,
@@ -187,6 +249,107 @@ export function progresoChecklist(items: EventoChecklistItem[]): {
   return { total, listos };
 }
 
+function slotsVacios(): EventoMenuOmakaseSlots {
+  return {
+    otsumami: Array.from({ length: EVENTO_OTSUMAMI_BASE }, () => ""),
+    regalo: Array.from({ length: EVENTO_OTSUMAMI_REGALO }, () => ""),
+    nigiri: Array.from({ length: EVENTO_NIGIRI_BASE }, () => ""),
+    postre: Array.from({ length: EVENTO_POSTRE_BASE }, () => ""),
+    nigiriOnly: false,
+  };
+}
+
+function rellenarSlots(ids: string[], largo: number): string[] {
+  const out = Array.from({ length: largo }, () => "");
+  ids
+    .filter((id) => id.trim())
+    .slice(0, largo)
+    .forEach((id, i) => {
+      out[i] = id;
+    });
+  return out;
+}
+
+/** Hidrata los selects del menú Omakase desde ítems guardados. */
+export function slotsDesdeMenuItems(items: EventoMenuItem[]): EventoMenuOmakaseSlots {
+  const porSeccion = (seccion: EventoMenuSeccion) =>
+    items
+      .filter((i) => i.seccion === seccion && i.platoId)
+      .sort((a, b) => a.orden - b.orden)
+      .map((i) => i.platoId as string);
+
+  const otsumami = porSeccion("otsumami");
+  const regalo = porSeccion("regalo");
+  const nigiri = porSeccion("nigiri");
+  const postre = porSeccion("postre");
+
+  const tieneOtsumamiOPostre =
+    otsumami.length > 0 || postre.length > 0 || regalo.length > 0;
+  const nigiriOnly = nigiri.length > 0 && !tieneOtsumamiOPostre;
+
+  return {
+    otsumami: rellenarSlots(otsumami, EVENTO_OTSUMAMI_BASE),
+    regalo: rellenarSlots(regalo, EVENTO_OTSUMAMI_REGALO),
+    nigiri: rellenarSlots(nigiri, EVENTO_NIGIRI_BASE),
+    postre: rellenarSlots(postre, EVENTO_POSTRE_BASE),
+    nigiriOnly,
+  };
+}
+
+export function extrasDesdeMenuItems(items: EventoMenuItem[]): EventoMenuItem[] {
+  return items
+    .filter((i) => i.seccion === "extra")
+    .sort((a, b) => a.orden - b.orden);
+}
+
+export function contarPasosMenu(slots: EventoMenuOmakaseSlots): {
+  base: number;
+  baseObjetivo: number;
+  regalo: number;
+} {
+  if (slots.nigiriOnly) {
+    return {
+      base: slots.nigiri.filter((id) => id.trim()).length,
+      baseObjetivo: EVENTO_NIGIRI_BASE,
+      regalo: 0,
+    };
+  }
+  const base =
+    slots.otsumami.filter((id) => id.trim()).length +
+    slots.nigiri.filter((id) => id.trim()).length +
+    slots.postre.filter((id) => id.trim()).length;
+  return {
+    base,
+    baseObjetivo: EVENTO_TOTAL_BASE,
+    regalo: slots.regalo.filter((id) => id.trim()).length,
+  };
+}
+
+async function fetchMenuItems(eventoId: string): Promise<EventoMenuItem[]> {
+  const selects = [EVENTO_MENU_SELECT, EVENTO_MENU_SELECT_BASE] as const;
+  let lastError: { message: string } | null = null;
+  for (const select of selects) {
+    const { data, error } = await supabase
+      .from("evento_menu_items")
+      .select(select as string)
+      .eq("evento_id", eventoId)
+      .order("orden", { ascending: true })
+      .order("created_at", { ascending: true });
+    if (!error) {
+      return ((data ?? []) as unknown as EventoMenuItemDb[]).map(parseMenuItem);
+    }
+    const msg = error.message.toLowerCase();
+    if (msg.includes("seccion") && msg.includes("column")) {
+      lastError = error;
+      continue;
+    }
+    throw new Error(formatPostgrestError(error));
+  }
+  throw new Error(
+    lastError ? formatPostgrestError(lastError as never) : "No se pudo leer el menú."
+  );
+}
+
 export async function fetchEventos(): Promise<Evento[]> {
   const { data, error } = await supabase
     .from("eventos")
@@ -209,13 +372,8 @@ export async function fetchEventoDetalle(id: string): Promise<EventoDetalle | nu
   if (eventoError) throw new Error(formatPostgrestError(eventoError));
   if (!eventoRow) return null;
 
-  const [menuRes, checklistRes] = await Promise.all([
-    supabase
-      .from("evento_menu_items")
-      .select(EVENTO_MENU_SELECT)
-      .eq("evento_id", id)
-      .order("orden", { ascending: true })
-      .order("created_at", { ascending: true }),
+  const [menuItems, checklistRes] = await Promise.all([
+    fetchMenuItems(id),
     supabase
       .from("evento_checklist_items")
       .select(EVENTO_CHECKLIST_SELECT)
@@ -224,12 +382,11 @@ export async function fetchEventoDetalle(id: string): Promise<EventoDetalle | nu
       .order("created_at", { ascending: true }),
   ]);
 
-  if (menuRes.error) throw new Error(formatPostgrestError(menuRes.error));
   if (checklistRes.error) throw new Error(formatPostgrestError(checklistRes.error));
 
   return {
     ...parseEvento(eventoRow as EventoDb),
-    menuItems: ((menuRes.data ?? []) as EventoMenuItemDb[]).map(parseMenuItem),
+    menuItems,
     checklistItems: ((checklistRes.data ?? []) as EventoChecklistItemDb[]).map(
       parseChecklistItem
     ),
@@ -335,11 +492,84 @@ export async function eliminarEvento(id: string): Promise<void> {
   if (error) throw new Error(formatPostgrestError(error));
 }
 
+type PlatoRef = { id: string; nombre: string; categoria: string };
+
+/** Guarda el menú Omakase (17 pases + regalos). Conserva ítems `extra`. */
+export async function guardarMenuOmakaseEvento(
+  eventoId: string,
+  slots: EventoMenuOmakaseSlots,
+  platosPorId: Map<string, PlatoRef>
+): Promise<EventoMenuItem[]> {
+  const existentes = await fetchMenuItems(eventoId);
+  const extras = extrasDesdeMenuItems(existentes);
+  const extraIds = new Set(extras.map((e) => e.id));
+  const idsBorrar = existentes.filter((i) => !extraIds.has(i.id)).map((i) => i.id);
+
+  if (idsBorrar.length > 0) {
+    const { error: delError } = await supabase
+      .from("evento_menu_items")
+      .delete()
+      .in("id", idsBorrar);
+    if (delError) throw new Error(formatPostgrestError(delError));
+  }
+
+  const filas: Array<{
+    evento_id: string;
+    plato_id: string;
+    plato_nombre: string;
+    categoria: string;
+    seccion: EventoMenuSeccion;
+    orden: number;
+    cantidad: number;
+  }> = [];
+
+  let orden = 10;
+  const pushSeccion = (
+    seccion: EventoMenuSeccion,
+    ids: string[],
+    categoriaFallback: string
+  ) => {
+    for (const id of ids) {
+      const platoId = id.trim();
+      if (!platoId) continue;
+      const plato = platosPorId.get(platoId);
+      if (!plato) continue;
+      filas.push({
+        evento_id: eventoId,
+        plato_id: plato.id,
+        plato_nombre: plato.nombre,
+        categoria: plato.categoria || categoriaFallback,
+        seccion,
+        orden,
+        cantidad: 1,
+      });
+      orden += 10;
+    }
+  };
+
+  if (!slots.nigiriOnly) {
+    pushSeccion("otsumami", slots.otsumami, "Otsumami");
+  }
+  pushSeccion("nigiri", slots.nigiri, "Nigiri");
+  if (!slots.nigiriOnly) {
+    pushSeccion("postre", slots.postre, "Postre");
+    pushSeccion("regalo", slots.regalo, "Otsumami");
+  }
+
+  if (filas.length > 0) {
+    const { error: insertError } = await supabase.from("evento_menu_items").insert(filas);
+    if (insertError) throw new Error(formatPostgrestError(insertError));
+  }
+
+  return fetchMenuItems(eventoId);
+}
+
 export async function crearEventoMenuItem(input: {
   eventoId: string;
   platoId?: string | null;
   platoNombre: string;
   categoria?: string | null;
+  seccion?: EventoMenuSeccion | null;
   cantidad?: number;
   notas?: string | null;
   orden?: number;
@@ -368,6 +598,7 @@ export async function crearEventoMenuItem(input: {
       plato_id: input.platoId ?? null,
       plato_nombre: platoNombre,
       categoria: input.categoria?.trim() || null,
+      seccion: input.seccion ?? "extra",
       cantidad: input.cantidad && input.cantidad > 0 ? input.cantidad : 1,
       notas: input.notas?.trim() || null,
       orden,
@@ -446,4 +677,8 @@ export async function toggleEventoChecklistItem(
 export async function eliminarEventoChecklistItem(id: string): Promise<void> {
   const { error } = await supabase.from("evento_checklist_items").delete().eq("id", id);
   if (error) throw new Error(formatPostgrestError(error));
+}
+
+export function slotsVaciosMenuOmakase(): EventoMenuOmakaseSlots {
+  return slotsVacios();
 }
