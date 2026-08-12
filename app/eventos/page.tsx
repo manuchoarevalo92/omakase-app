@@ -136,7 +136,10 @@ export default function EventosPage() {
   );
 
   const progreso = useMemo(
-    () => (detalle ? progresoChecklist(detalle.checklistItems) : { total: 0, listos: 0 }),
+    () =>
+      detalle
+        ? progresoChecklist(detalle.checklistItems)
+        : { total: 0, listos: 0, enValija: 0 },
     [detalle]
   );
 
