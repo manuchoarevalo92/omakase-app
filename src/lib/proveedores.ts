@@ -13,7 +13,8 @@ export const PROVEEDORES = [
   "Nishikidori",
   "Amazon",
   "Frutas Eloy",
-  "Macro",
+  "MAKRO",
+  "BBQ FLAVOUR",
   "Vila Viniteca",
   "Vinalia",
 ] as const;
@@ -22,7 +23,8 @@ export type Proveedor = (typeof PROVEEDORES)[number];
 
 /** Nombres viejos que pueden quedar en localStorage o datos legacy. */
 export const ALIAS_PROVEEDOR: Record<string, Proveedor> = {
-  Supermercado: "Macro",
+  Supermercado: "MAKRO",
+  Macro: "MAKRO",
   Verdulería: "Frutas Eloy",
   Verdurería: "Frutas Eloy",
 };

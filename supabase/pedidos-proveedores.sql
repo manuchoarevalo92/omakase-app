@@ -15,7 +15,8 @@ create table if not exists public.pedidos_proveedores (
       'Nishikidori',
       'Amazon',
       'Frutas Eloy',
-      'Macro',
+      'MAKRO',
+      'BBQ FLAVOUR',
       'Vila Viniteca',
       'Vinalia'
       )

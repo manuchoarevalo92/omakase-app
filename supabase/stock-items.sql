@@ -21,7 +21,8 @@ create table if not exists public.stock_items (
       'Nishikidori',
       'Amazon',
       'Frutas Eloy',
-      'Macro',
+      'MAKRO',
+      'BBQ FLAVOUR',
       'Vila Viniteca',
       'Vinalia'
       )

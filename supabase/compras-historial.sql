@@ -22,7 +22,8 @@ create table if not exists public.compras_historial (
       'Nishikidori',
       'Amazon',
       'Frutas Eloy',
-      'Macro',
+      'MAKRO',
+      'BBQ FLAVOUR',
       'Vila Viniteca',
       'Vinalia'
       )
