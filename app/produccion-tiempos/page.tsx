@@ -162,7 +162,13 @@ export default function ProduccionTiemposPage() {
       fetchSesionesActivasEquipo(),
       esAdmin ? fetchPlatosParaVincular() : Promise.resolve([] as PlatoVinculo[]),
     ]);
-    setPreparaciones(preps);
+    setPreparaciones(
+      esAdmin
+        ? preps
+        : preps.map((p) =>
+            p.recetaSoloAdmin ? { ...p, recetaPlatoId: null, proceso: null } : p
+          )
+    );
     setSesiones(lista);
     setActivasEquipo(activas);
     setPlatosVinculo(platos);

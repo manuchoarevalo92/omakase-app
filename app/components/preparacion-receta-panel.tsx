@@ -139,11 +139,7 @@ export function PreparacionRecetaPanel({
       <div className="rounded-xl border border-zinc-700/80 bg-zinc-950/70 p-3">
         <div className="flex items-start gap-2 text-xs leading-relaxed text-zinc-400">
           <Lock className="mt-0.5 h-4 w-4 shrink-0 text-zinc-500" />
-          <p>
-            {preparacion.recetaSoloAdmin
-              ? "La receta de esta preparación es solo de Manu."
-              : "La receta de este bloque solo la ve quien lo tiene asignado."}
-          </p>
+          <p>No hay receta disponible para este bloque.</p>
         </div>
       </div>
     );
