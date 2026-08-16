@@ -35,6 +35,12 @@ alter table public.preparaciones
   add column if not exists categoria_plan_confirmada boolean not null default false;
 
 alter table public.preparaciones
+  add column if not exists receta_plato_id uuid references public.platos(id) on delete set null;
+
+alter table public.preparaciones
+  add column if not exists proceso text;
+
+alter table public.preparaciones
   drop constraint if exists preparaciones_categoria_plan_check;
 
 alter table public.preparaciones
@@ -108,3 +114,7 @@ comment on column public.preparaciones.ultima_cantidad is
   'Cantidad del último lote hecho; escala el recordatorio proporcionalmente.';
 comment on column public.preparaciones.categoria_plan is
   'Tipo en plan semanal: produ (manual) o servicio (auto al pasar hora_fin).';
+comment on column public.preparaciones.receta_plato_id is
+  'Plato cuya receta se muestra al abrir este bloque en el plan semanal.';
+comment on column public.preparaciones.proceso is
+  'Pasos operativos de la preparación (si no hay receta de plato, o como complemento).';

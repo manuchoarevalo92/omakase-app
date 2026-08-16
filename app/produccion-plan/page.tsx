@@ -13,6 +13,8 @@ import {
   Timer,
   Trash2,
   X,
+  AlertTriangle,
+  BookOpen,
 } from "lucide-react";
 
 import {
@@ -23,10 +25,13 @@ import {
   esUnidadCantidadValida,
   fetchPreparaciones,
   parseCantidadInput,
+  preparacionEstaConectada,
   UNIDADES_CANTIDAD,
   type Preparacion,
   type UnidadCantidad,
 } from "@/src/lib/preparaciones";
+import { fetchPlatosParaVincular, type PlatoVinculo } from "@/src/lib/recetas";
+import { PreparacionRecetaPanel } from "@/app/components/preparacion-receta-panel";
 import { APP_USERS } from "@/src/lib/auth-users";
 import {
   calcularResumenesPorPreparacion,
@@ -140,6 +145,7 @@ export default function ProduccionPlanPage() {
   const [plan, setPlan] = useState<ProduccionPlanItem[]>([]);
   const [pendientesAtrasados, setPendientesAtrasados] = useState<ProduccionPlanItem[]>([]);
   const [preparaciones, setPreparaciones] = useState<Preparacion[]>([]);
+  const [platosVinculo, setPlatosVinculo] = useState<PlatoVinculo[]>([]);
   const [resumenes, setResumenes] = useState(
     () => [] as ReturnType<typeof calcularResumenesPorPreparacion>
   );
@@ -303,13 +309,14 @@ export default function ProduccionPlanPage() {
   );
 
   const refrescar = useCallback(async () => {
-    const [planResult, prepsResult, sesionesResult, pendientesResult, autoServicioResult] =
+    const [planResult, prepsResult, sesionesResult, pendientesResult, autoServicioResult, platosResult] =
       await Promise.allSettled([
         fetchProduccionPlanSemana(lunesSemana),
         fetchPreparaciones(),
         fetchProduccionSesionesRecientes(200),
         fetchProduccionPendientesAtrasados(fechaHoy, 300),
         autoCompletarServiciosVencidos(fechaHoy),
+        fetchPlatosParaVincular(),
       ]);
 
     const errores: string[] = [];
@@ -338,6 +345,12 @@ export default function ProduccionPlanPage() {
           ? prepsResult.reason.message
           : "No se pudieron cargar las preparaciones."
       );
+    }
+
+    if (platosResult.status === "fulfilled") {
+      setPlatosVinculo(platosResult.value);
+    } else {
+      setPlatosVinculo([]);
     }
 
     if (sesionesResult.status === "fulfilled") {
@@ -704,6 +717,10 @@ export default function ProduccionPlanPage() {
     const cant = String(cantidadSugeridaAlMarcar(prep));
     setCantidad(cant);
     aplicarDuracionEstimada(prep, horaInicio, cant, prep.unidadCantidad);
+  };
+
+  const onCambioVinculoPrep = (actualizada: Preparacion) => {
+    setPreparaciones((prev) => prev.map((p) => (p.id === actualizada.id ? actualizada : p)));
   };
 
   const onCambioHoraInicio = (valor: string) => {
@@ -1257,6 +1274,12 @@ export default function ProduccionPlanPage() {
                       {itemsDia.map((item) => {
                         const conflicto = itemTieneConflicto(item, plan);
                         const completada = item.estado === "completada";
+                        const prepBloque = item.preparacionId
+                          ? preparaciones.find((p) => p.id === item.preparacionId)
+                          : undefined;
+                        const recetaConectada = prepBloque
+                          ? preparacionEstaConectada(prepBloque)
+                          : false;
                         const layout = layoutDia.items.get(item.id) ?? {
                           indice: 0,
                           topPx: topItemGrillaPx(item),
@@ -1288,11 +1311,18 @@ export default function ProduccionPlanPage() {
                           >
                             <div className="flex min-h-full flex-col gap-1">
                               <p
-                                className={`break-words text-sm font-semibold leading-snug ${
+                                className={`flex items-start gap-1 break-words text-sm font-semibold leading-snug ${
                                   completada ? "line-through" : ""
                                 }`}
                               >
-                                {item.preparacionNombre}
+                                {prepBloque ? (
+                                  recetaConectada ? (
+                                    <BookOpen className="mt-0.5 h-3.5 w-3.5 shrink-0 opacity-80" />
+                                  ) : (
+                                    <AlertTriangle className="mt-0.5 h-3.5 w-3.5 shrink-0 text-amber-300" />
+                                  )
+                                ) : null}
+                                <span>{item.preparacionNombre}</span>
                               </p>
                               <p className="text-[10px] font-medium uppercase tracking-wide opacity-75">
                                 {ETIQUETA_PLAN_CATEGORIA[item.categoria]}
@@ -1367,7 +1397,7 @@ export default function ProduccionPlanPage() {
 
       {modal ? (
         <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/60 p-4 sm:items-center">
-          <div className="w-full max-w-md rounded-2xl border border-zinc-700 bg-zinc-900 p-5 shadow-2xl">
+          <div className="max-h-[90vh] w-full max-w-lg overflow-y-auto rounded-2xl border border-zinc-700 bg-zinc-900 p-5 shadow-2xl">
             <div className="mb-4 flex items-start justify-between gap-2">
               <div>
                 <h3 className="text-lg font-semibold text-white">
@@ -1461,6 +1491,13 @@ export default function ProduccionPlanPage() {
                   </Link>
                   .
                 </p>
+              ) : null}
+              {prepSeleccionada ? (
+                <PreparacionRecetaPanel
+                  preparacion={prepSeleccionada}
+                  platos={platosVinculo}
+                  onCambio={onCambioVinculoPrep}
+                />
               ) : null}
               <label className="block">
                 <span className="mb-1 block text-xs uppercase tracking-wide text-zinc-500">

@@ -176,6 +176,10 @@ export default function RecetaPage() {
       }
 
       setPlatos((data as Plato[]) ?? []);
+      const fromUrl = new URLSearchParams(window.location.search).get("plato");
+      if (fromUrl && (data as Plato[] | null)?.some((p) => p.id === fromUrl)) {
+        setPlatoId(fromUrl);
+      }
     } catch (err) {
       setError(
         err instanceof Error ? err.message : "Error al conectar con Supabase."

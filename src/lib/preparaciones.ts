@@ -75,6 +75,8 @@ export type Preparacion = {
   unidadCantidad: UnidadCantidad;
   ultimaCantidad: number | null;
   notas: string | null;
+  recetaPlatoId: string | null;
+  proceso: string | null;
 };
 
 export type PreparacionDbRow = {
@@ -92,9 +94,14 @@ export type PreparacionDbRow = {
   unidad_cantidad?: string | null;
   ultima_cantidad?: number | null;
   notas?: string | null;
+  receta_plato_id?: string | null;
+  proceso?: string | null;
 };
 
 export const PREPARACION_SELECT =
+  "id, nombre, area, categoria_plan, categoria_plan_confirmada, duracion_dias, buffer_pct, seguimiento_activo, pendiente, fecha_ultima_produccion, cantidad_referencia, unidad_cantidad, ultima_cantidad, notas, receta_plato_id, proceso";
+
+const PREPARACION_SELECT_SIN_RECETA =
   "id, nombre, area, categoria_plan, categoria_plan_confirmada, duracion_dias, buffer_pct, seguimiento_activo, pendiente, fecha_ultima_produccion, cantidad_referencia, unidad_cantidad, ultima_cantidad, notas";
 
 const PREPARACION_SELECT_SIN_CATEGORIA_PLAN =
@@ -135,11 +142,17 @@ export function preparacionDesdeFila(row: PreparacionDbRow): Preparacion {
     unidadCantidad: esUnidadCantidadValida(row.unidad_cantidad) ? row.unidad_cantidad : "ud",
     ultimaCantidad: parseCantidadDb(row.ultima_cantidad),
     notas: row.notas?.trim() || null,
+    recetaPlatoId: row.receta_plato_id?.trim() || null,
+    proceso: row.proceso?.trim() || null,
   };
 }
 
 export function cantidadSugeridaAlMarcar(prep: Preparacion): number {
   return prep.ultimaCantidad ?? prep.cantidadReferencia;
+}
+
+export function preparacionEstaConectada(prep: Preparacion): boolean {
+  return Boolean(prep.recetaPlatoId || prep.proceso);
 }
 
 export async function fetchPreparaciones(): Promise<Preparacion[]> {
@@ -153,6 +166,19 @@ export async function fetchPreparaciones(): Promise<Preparacion[]> {
   }
 
   const msg = error.message.toLowerCase();
+  if (
+    msg.includes("column") &&
+    (msg.includes("receta_plato_id") || msg.includes("proceso"))
+  ) {
+    const sinReceta = await supabase
+      .from("preparaciones")
+      .select(PREPARACION_SELECT_SIN_RECETA)
+      .order("nombre", { ascending: true });
+    if (sinReceta.error) {
+      throw new Error(formatPostgrestError(sinReceta.error));
+    }
+    return ((sinReceta.data ?? []) as PreparacionDbRow[]).map(preparacionDesdeFila);
+  }
   if (msg.includes("column") && msg.includes("categoria_plan_confirmada")) {
     const sinConfirmacion = await supabase
       .from("preparaciones")
@@ -268,6 +294,35 @@ export async function actualizarCategoriaPlanPreparacion(
     preparacion: preparacionDesdeFila(data as PreparacionDbRow),
     planItemsActualizados: planRows?.length ?? 0,
   };
+}
+
+export async function actualizarVinculoPreparacion(
+  preparacionId: string,
+  input: { recetaPlatoId?: string | null; proceso?: string | null }
+): Promise<Preparacion> {
+  const payload: Record<string, string | null> = {};
+  if (input.recetaPlatoId !== undefined) {
+    payload.receta_plato_id = input.recetaPlatoId?.trim() || null;
+  }
+  if (input.proceso !== undefined) {
+    payload.proceso = input.proceso?.trim() || null;
+  }
+  if (Object.keys(payload).length === 0) {
+    throw new Error("Nada para actualizar.");
+  }
+
+  const { data, error } = await supabase
+    .from("preparaciones")
+    .update(payload)
+    .eq("id", preparacionId)
+    .select(PREPARACION_SELECT)
+    .single();
+
+  if (error) {
+    throw new Error(formatPostgrestError(error));
+  }
+
+  return preparacionDesdeFila(data as PreparacionDbRow);
 }
 
 export function hoyISO(): string {
