@@ -14,6 +14,7 @@ import {
   Timer,
   Trash2,
   X,
+  BookOpen,
 } from "lucide-react";
 import {
   actualizarCategoriaPlanPreparacion,
@@ -27,6 +28,7 @@ import {
   fetchPreparaciones,
   formatearCantidad,
   parseCantidadInput,
+  preparacionEstaConectada,
   UNIDADES_CANTIDAD,
   type CategoriaPlan,
   type Preparacion,
@@ -56,6 +58,8 @@ import {
   type SessionUsuario,
 } from "@/src/lib/produccion-sesiones";
 import { formatPostgrestError } from "@/src/lib/supabase-errors";
+import { fetchPlatosParaVincular, type PlatoVinculo } from "@/src/lib/recetas";
+import { PreparacionRecetaPanel } from "@/app/components/preparacion-receta-panel";
 
 function RelojActivo({ sesion }: { sesion: ProduccionSesion }) {
   const [tick, setTick] = useState(0);
@@ -107,6 +111,8 @@ export default function ProduccionTiemposPage() {
   const [isCreandoPrep, setIsCreandoPrep] = useState(false);
   const [categoriaPlanBusyId, setCategoriaPlanBusyId] = useState<string | null>(null);
   const [categoriaDraft, setCategoriaDraft] = useState<Record<string, CategoriaPlan>>({});
+  const [platosVinculo, setPlatosVinculo] = useState<PlatoVinculo[]>([]);
+  const [modalRecetaPrep, setModalRecetaPrep] = useState<Preparacion | null>(null);
 
   const prepSeleccionada = useMemo(
     () => preparaciones.find((p) => p.id === prepSeleccionadaId) ?? null,
@@ -132,18 +138,34 @@ export default function ProduccionTiemposPage() {
     [preparaciones]
   );
 
+  const preparacionesParaReceta = useMemo(
+    () =>
+      [...preparaciones].sort((a, b) => {
+        const aOk = preparacionEstaConectada(a) ? 1 : 0;
+        const bOk = preparacionEstaConectada(b) ? 1 : 0;
+        if (aOk !== bOk) {
+          return aOk - bOk;
+        }
+        return a.nombre.localeCompare(b.nombre, "es");
+      }),
+    [preparaciones]
+  );
+
   const categoriaDraftPara = (prep: Preparacion): CategoriaPlan =>
     categoriaDraft[prep.id] ?? prep.categoriaPlan;
 
   const refrescar = useCallback(async (usuarioActual: SessionUsuario | null) => {
-    const [preps, lista, activas] = await Promise.all([
+    const esAdmin = usuarioActual?.role === "admin";
+    const [preps, lista, activas, platos] = await Promise.all([
       fetchPreparaciones(),
       fetchProduccionSesionesRecientes(),
       fetchSesionesActivasEquipo(),
+      esAdmin ? fetchPlatosParaVincular() : Promise.resolve([] as PlatoVinculo[]),
     ]);
     setPreparaciones(preps);
     setSesiones(lista);
     setActivasEquipo(activas);
+    setPlatosVinculo(platos);
 
     if (usuarioActual) {
       const propia =
@@ -260,6 +282,11 @@ export default function ProduccionTiemposPage() {
     } finally {
       setCategoriaPlanBusyId(null);
     }
+  };
+
+  const onCambioVinculoPrep = (actualizada: Preparacion) => {
+    setPreparaciones((prev) => prev.map((p) => (p.id === actualizada.id ? actualizada : p)));
+    setModalRecetaPrep(actualizada);
   };
 
   const iniciar = async () => {
@@ -852,6 +879,65 @@ export default function ProduccionTiemposPage() {
           </section>
         ) : null}
 
+        {usuario?.role === "admin" && preparaciones.length > 0 ? (
+          <section className="mb-8">
+            <h2 className="mb-1 flex items-center gap-2 text-sm font-medium uppercase tracking-wide text-zinc-400">
+              <BookOpen className="h-4 w-4" />
+              Recetas de preparaciones
+            </h2>
+            <p className="mb-3 text-xs text-zinc-500">
+              Asociá cada tarea a una receta de plato o escribí el proceso. Eso es lo que se ve al
+              abrir el bloque en el plan semanal.
+            </p>
+            <div className="overflow-x-auto rounded-xl border border-zinc-800">
+              <table className="min-w-full text-left text-sm">
+                <thead className="border-b border-zinc-800 bg-zinc-950/60 text-xs uppercase tracking-wide text-zinc-500">
+                  <tr>
+                    <th className="px-4 py-2.5 font-medium">Preparación</th>
+                    <th className="px-4 py-2.5 font-medium">Receta</th>
+                    <th className="px-4 py-2.5 font-medium" />
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-zinc-800/80">
+                  {preparacionesParaReceta.map((p) => {
+                    const conectada = preparacionEstaConectada(p);
+                    const plato = platosVinculo.find((x) => x.id === p.recetaPlatoId);
+                    return (
+                      <tr key={p.id} className="text-zinc-200">
+                        <td className="px-4 py-2.5">
+                          <span className="font-medium text-zinc-100">{p.nombre}</span>
+                          <span className="ml-2 text-xs text-zinc-500">
+                            {ETIQUETA_AREA_PRODUCCION[p.area]}
+                          </span>
+                          {p.recetaSoloAdmin ? (
+                            <span className="ml-2 text-[10px] uppercase tracking-wide text-amber-400/90">
+                              solo Manu
+                            </span>
+                          ) : null}
+                        </td>
+                        <td className="px-4 py-2.5 text-xs text-zinc-400">
+                          {conectada
+                            ? plato?.nombre ?? (p.proceso ? "Proceso propio" : "Vinculada")
+                            : "Sin receta"}
+                        </td>
+                        <td className="px-4 py-2.5">
+                          <button
+                            type="button"
+                            onClick={() => setModalRecetaPrep(p)}
+                            className="whitespace-nowrap rounded-lg border border-zinc-600 bg-zinc-950 px-3 py-1.5 text-xs font-medium text-zinc-100 hover:border-zinc-400"
+                          >
+                            {conectada ? "Editar" : "Asociar receta"}
+                          </button>
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          </section>
+        ) : null}
+
         {resumenes.length > 0 ? (
           <section className="mb-8">
             <h2 className="mb-3 flex items-center gap-2 text-sm font-medium uppercase tracking-wide text-zinc-400">
@@ -1044,6 +1130,42 @@ export default function ProduccionTiemposPage() {
                 {isBusy ? "Guardando…" : "Guardar"}
               </button>
             </div>
+          </div>
+        </div>
+      ) : null}
+
+      {modalRecetaPrep && usuario?.role === "admin" ? (
+        <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/60 p-4 sm:items-center">
+          <div className="max-h-[90vh] w-full max-w-lg overflow-y-auto rounded-2xl border border-zinc-700 bg-zinc-900 p-5 shadow-2xl">
+            <div className="mb-4 flex items-start justify-between gap-2">
+              <div>
+                <h3 className="text-lg font-semibold text-white">Asociar receta</h3>
+                <p className="text-sm text-zinc-400">
+                  {modalRecetaPrep.nombre} · {ETIQUETA_AREA_PRODUCCION[modalRecetaPrep.area]}
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setModalRecetaPrep(null)}
+                className="rounded-lg p-1 text-zinc-500 hover:text-zinc-200"
+              >
+                <X className="h-4 w-4" />
+              </button>
+            </div>
+            <PreparacionRecetaPanel
+              preparacion={modalRecetaPrep}
+              platos={platosVinculo}
+              onCambio={onCambioVinculoPrep}
+              viewer={usuario}
+              puedeVer
+            />
+            <button
+              type="button"
+              onClick={() => setModalRecetaPrep(null)}
+              className="mt-4 w-full rounded-xl border border-zinc-600 px-4 py-2.5 text-sm text-zinc-200 hover:border-zinc-500"
+            >
+              Cerrar
+            </button>
           </div>
         </div>
       ) : null}
