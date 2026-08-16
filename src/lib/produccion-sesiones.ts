@@ -9,7 +9,7 @@ import {
 import { formatPostgrestError } from "@/src/lib/supabase-errors";
 import { supabase } from "@/src/lib/supabase";
 
-export type SessionUsuario = { id: string; name: string };
+export type SessionUsuario = { id: string; name: string; role: "admin" | "staff" };
 
 export type ProduccionSesion = {
   id: string;
@@ -71,10 +71,14 @@ export async function fetchSessionUsuario(): Promise<SessionUsuario | null> {
   try {
     const res = await fetch("/api/auth/me", { credentials: "include" });
     const data = (await res.json()) as {
-      session: { id: string; name: string } | null;
+      session: { id: string; name: string; role?: "admin" | "staff" } | null;
     };
     if (data.session?.id && data.session?.name) {
-      return { id: data.session.id, name: data.session.name };
+      return {
+        id: data.session.id,
+        name: data.session.name,
+        role: data.session.role === "admin" ? "admin" : "staff",
+      };
     }
   } catch {
     // sin sesión

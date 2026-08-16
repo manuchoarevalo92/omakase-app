@@ -31,6 +31,7 @@ import {
   type UnidadCantidad,
 } from "@/src/lib/preparaciones";
 import { fetchPlatosParaVincular, type PlatoVinculo } from "@/src/lib/recetas";
+import { puedeVerRecetaDeBloque } from "@/src/lib/receta-acceso";
 import { PreparacionRecetaPanel } from "@/app/components/preparacion-receta-panel";
 import { APP_USERS } from "@/src/lib/auth-users";
 import {
@@ -251,6 +252,12 @@ export default function ProduccionPlanPage() {
     [itemEditandoId, plan]
   );
 
+  const puedeVerRecetaModal = puedeVerRecetaDeBloque({
+    viewer: usuario,
+    prep: prepSeleccionada,
+    asignadoAId: itemEditando?.asignadoAId ?? asignadoId,
+  });
+
   const horarioSugeridoActivo = useMemo(() => {
     if (!modal || !asignadoId) {
       return false;
@@ -308,7 +315,8 @@ export default function ProduccionPlanPage() {
     [aplicarDuracionEstimada, sugerirHorarioInicio]
   );
 
-  const refrescar = useCallback(async () => {
+  const refrescar = useCallback(async (usuarioActual: SessionUsuario | null) => {
+    const esAdmin = usuarioActual?.role === "admin";
     const [planResult, prepsResult, sesionesResult, pendientesResult, autoServicioResult, platosResult] =
       await Promise.allSettled([
         fetchProduccionPlanSemana(lunesSemana),
@@ -316,7 +324,7 @@ export default function ProduccionPlanPage() {
         fetchProduccionSesionesRecientes(200),
         fetchProduccionPendientesAtrasados(fechaHoy, 300),
         autoCompletarServiciosVencidos(fechaHoy),
-        fetchPlatosParaVincular(),
+        esAdmin ? fetchPlatosParaVincular() : Promise.resolve([] as PlatoVinculo[]),
       ]);
 
     const errores: string[] = [];
@@ -337,7 +345,16 @@ export default function ProduccionPlanPage() {
     }
 
     if (prepsResult.status === "fulfilled") {
-      setPreparaciones(prepsResult.value);
+      const lista = prepsResult.value;
+      if (usuarioActual?.role === "staff") {
+        setPreparaciones(
+          lista.map((p) =>
+            p.recetaSoloAdmin ? { ...p, recetaPlatoId: null, proceso: null } : p
+          )
+        );
+      } else {
+        setPreparaciones(lista);
+      }
     } else {
       setPreparaciones([]);
       errores.push(
@@ -393,7 +410,7 @@ export default function ProduccionPlanPage() {
         if (u) {
           setAsignadoId(u.id);
         }
-        await refrescar();
+        await refrescar(u);
       } catch (err) {
         if (!cancelled) {
           setError(
@@ -459,7 +476,8 @@ export default function ProduccionPlanPage() {
 
   const abrirModal = (fecha: string, hora: number) => {
     const horaSlot = etiquetaHoraGrilla(hora);
-    const personaId = usuario?.id ?? asignadoId;
+    const personaId =
+      usuario?.role === "staff" ? usuario.id : (usuario?.id ?? asignadoId);
     setModal({ fecha, horaInicio: horaSlot });
     setItemEditandoId(null);
     setPrepId("");
@@ -1277,9 +1295,14 @@ export default function ProduccionPlanPage() {
                         const prepBloque = item.preparacionId
                           ? preparaciones.find((p) => p.id === item.preparacionId)
                           : undefined;
-                        const recetaConectada = prepBloque
-                          ? preparacionEstaConectada(prepBloque)
-                          : false;
+                        const recetaVisible = puedeVerRecetaDeBloque({
+                          viewer: usuario,
+                          prep: prepBloque ?? null,
+                          asignadoAId: item.asignadoAId,
+                        });
+                        const recetaConectada = Boolean(
+                          prepBloque && preparacionEstaConectada(prepBloque) && recetaVisible
+                        );
                         const layout = layoutDia.items.get(item.id) ?? {
                           indice: 0,
                           topPx: topItemGrillaPx(item),
@@ -1315,7 +1338,7 @@ export default function ProduccionPlanPage() {
                                   completada ? "line-through" : ""
                                 }`}
                               >
-                                {prepBloque ? (
+                                {prepBloque && recetaVisible ? (
                                   recetaConectada ? (
                                     <BookOpen className="mt-0.5 h-3.5 w-3.5 shrink-0 opacity-80" />
                                   ) : (
@@ -1497,6 +1520,8 @@ export default function ProduccionPlanPage() {
                   preparacion={prepSeleccionada}
                   platos={platosVinculo}
                   onCambio={onCambioVinculoPrep}
+                  viewer={usuario}
+                  puedeVer={puedeVerRecetaModal}
                 />
               ) : null}
               <label className="block">
@@ -1506,7 +1531,8 @@ export default function ProduccionPlanPage() {
                 <select
                   value={asignadoId}
                   onChange={(e) => onCambioAsignado(e.target.value)}
-                  className="w-full rounded-xl border border-zinc-700 bg-zinc-950 px-4 py-2.5 text-sm"
+                  disabled={usuario?.role === "staff"}
+                  className="w-full rounded-xl border border-zinc-700 bg-zinc-950 px-4 py-2.5 text-sm disabled:opacity-60"
                 >
                   <option value="">Elegir…</option>
                   {equipo.map((m) => (

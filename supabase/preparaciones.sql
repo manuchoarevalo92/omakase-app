@@ -41,6 +41,9 @@ alter table public.preparaciones
   add column if not exists proceso text;
 
 alter table public.preparaciones
+  add column if not exists receta_solo_admin boolean not null default false;
+
+alter table public.preparaciones
   drop constraint if exists preparaciones_categoria_plan_check;
 
 alter table public.preparaciones
@@ -118,3 +121,5 @@ comment on column public.preparaciones.receta_plato_id is
   'Plato cuya receta se muestra al abrir este bloque en el plan semanal.';
 comment on column public.preparaciones.proceso is
   'Pasos operativos de la preparación (si no hay receta de plato, o como complemento).';
+comment on column public.preparaciones.receta_solo_admin is
+  'Si true, solo el admin ve receta/proceso de esta prep.';

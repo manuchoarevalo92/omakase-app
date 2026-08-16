@@ -77,6 +77,7 @@ export type Preparacion = {
   notas: string | null;
   recetaPlatoId: string | null;
   proceso: string | null;
+  recetaSoloAdmin: boolean;
 };
 
 export type PreparacionDbRow = {
@@ -96,10 +97,11 @@ export type PreparacionDbRow = {
   notas?: string | null;
   receta_plato_id?: string | null;
   proceso?: string | null;
+  receta_solo_admin?: boolean | null;
 };
 
 export const PREPARACION_SELECT =
-  "id, nombre, area, categoria_plan, categoria_plan_confirmada, duracion_dias, buffer_pct, seguimiento_activo, pendiente, fecha_ultima_produccion, cantidad_referencia, unidad_cantidad, ultima_cantidad, notas, receta_plato_id, proceso";
+  "id, nombre, area, categoria_plan, categoria_plan_confirmada, duracion_dias, buffer_pct, seguimiento_activo, pendiente, fecha_ultima_produccion, cantidad_referencia, unidad_cantidad, ultima_cantidad, notas, receta_plato_id, proceso, receta_solo_admin";
 
 const PREPARACION_SELECT_SIN_RECETA =
   "id, nombre, area, categoria_plan, categoria_plan_confirmada, duracion_dias, buffer_pct, seguimiento_activo, pendiente, fecha_ultima_produccion, cantidad_referencia, unidad_cantidad, ultima_cantidad, notas";
@@ -144,6 +146,7 @@ export function preparacionDesdeFila(row: PreparacionDbRow): Preparacion {
     notas: row.notas?.trim() || null,
     recetaPlatoId: row.receta_plato_id?.trim() || null,
     proceso: row.proceso?.trim() || null,
+    recetaSoloAdmin: row.receta_solo_admin === true,
   };
 }
 
@@ -168,7 +171,9 @@ export async function fetchPreparaciones(): Promise<Preparacion[]> {
   const msg = error.message.toLowerCase();
   if (
     msg.includes("column") &&
-    (msg.includes("receta_plato_id") || msg.includes("proceso"))
+    (msg.includes("receta_solo_admin") ||
+      msg.includes("receta_plato_id") ||
+      msg.includes("proceso"))
   ) {
     const sinReceta = await supabase
       .from("preparaciones")
@@ -298,14 +303,21 @@ export async function actualizarCategoriaPlanPreparacion(
 
 export async function actualizarVinculoPreparacion(
   preparacionId: string,
-  input: { recetaPlatoId?: string | null; proceso?: string | null }
+  input: {
+    recetaPlatoId?: string | null;
+    proceso?: string | null;
+    recetaSoloAdmin?: boolean;
+  }
 ): Promise<Preparacion> {
-  const payload: Record<string, string | null> = {};
+  const payload: Record<string, string | boolean | null> = {};
   if (input.recetaPlatoId !== undefined) {
     payload.receta_plato_id = input.recetaPlatoId?.trim() || null;
   }
   if (input.proceso !== undefined) {
     payload.proceso = input.proceso?.trim() || null;
+  }
+  if (input.recetaSoloAdmin !== undefined) {
+    payload.receta_solo_admin = input.recetaSoloAdmin;
   }
   if (Object.keys(payload).length === 0) {
     throw new Error("Nada para actualizar.");
