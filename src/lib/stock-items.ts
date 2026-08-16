@@ -4,8 +4,8 @@ import {
 } from "@/src/lib/ingredientes-rubro";
 import { BUFFER_PCT_DEFECTO } from "@/src/lib/compras-prediccion";
 import {
-  esProveedorValido,
   UNIDADES,
+  proveedorCanonico,
   type Proveedor,
   type UnidadMedida,
 } from "@/src/lib/proveedores";
@@ -50,7 +50,7 @@ export function stockItemDesdeFila(row: StockItemDbRow): StockItem {
     id: row.id,
     nombre: row.nombre,
     rubro: normalizarRubro(row.rubro),
-    proveedor: esProveedorValido(row.proveedor) ? row.proveedor : null,
+    proveedor: proveedorCanonico(row.proveedor),
     unidadCompra: normalizarUnidadCompra(row.unidad_compra),
     bufferPct: row.buffer_pct != null ? row.buffer_pct : BUFFER_PCT_DEFECTO,
     activo: row.activo !== false,

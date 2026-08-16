@@ -20,10 +20,10 @@ create table if not exists public.stock_items (
       'García de Pou',
       'Nishikidori',
       'Amazon',
-      'Verdulería',
-        'Supermercado',
-        'Vila Viniteca',
-        'Vinalia'
+      'Frutas Eloy',
+      'Macro',
+      'Vila Viniteca',
+      'Vinalia'
       )
     ),
   constraint stock_items_unidad_compra_check

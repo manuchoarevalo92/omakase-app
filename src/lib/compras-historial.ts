@@ -1,4 +1,4 @@
-import { esProveedorValido, UNIDADES, type Proveedor, type UnidadMedida } from "@/src/lib/proveedores";
+import { proveedorCanonico, UNIDADES, type Proveedor, type UnidadMedida } from "@/src/lib/proveedores";
 import { supabase } from "@/src/lib/supabase";
 
 export type OrigenCompra = "import" | "manual" | "pedido_enviado";
@@ -45,7 +45,7 @@ function compraDesdeFila(row: CompraHistorialDbRow): CompraHistorialRow {
     id: row.id,
     stockItemId: row.stock_item_id,
     stockItemNombre: row.stock_item_nombre,
-    proveedor: esProveedorValido(row.proveedor) ? row.proveedor : null,
+    proveedor: proveedorCanonico(row.proveedor),
     cantidad: row.cantidad,
     unidad: normalizarUnidad(row.unidad),
     fecha: row.fecha,

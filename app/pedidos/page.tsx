@@ -8,6 +8,7 @@ import { supabase } from "@/src/lib/supabase";
 import {
   PROVEEDORES,
   UNIDADES,
+  datoLegacyPorProveedor,
   type Proveedor,
   type UnidadMedida,
 } from "@/src/lib/proveedores";
@@ -59,12 +60,11 @@ const cargarEstadoInicial = (): Record<(typeof PROVEEDORES)[number], PedidoItem[
     if (!raw) {
       return vacio;
     }
-    const parsed = JSON.parse(raw) as Partial<
-      Record<(typeof PROVEEDORES)[number], PedidoItem[]>
-    >;
+    const parsed = JSON.parse(raw) as Partial<Record<string, PedidoItem[]>>;
     return PROVEEDORES.reduce(
       (acc, proveedor) => {
-        const filas = Array.isArray(parsed?.[proveedor]) ? parsed[proveedor] : [];
+        const filasRaw = datoLegacyPorProveedor(parsed, proveedor);
+        const filas = Array.isArray(filasRaw) ? filasRaw : [];
         const normalizadas = filas
           .map((fila) => {
             const unidad = UNIDADES.includes(fila.unidad) ? fila.unidad : "Unidad";
@@ -134,10 +134,11 @@ const cargarEditadoPorProveedor = (): Record<Proveedor, string | null> => {
     if (!raw) {
       return base;
     }
-    const parsed = JSON.parse(raw) as Partial<Record<Proveedor, string | null>>;
+    const parsed = JSON.parse(raw) as Partial<Record<string, string | null>>;
     PROVEEDORES.forEach((p) => {
-      if (typeof parsed[p] === "string") {
-        base[p] = parsed[p] as string;
+      const valor = datoLegacyPorProveedor(parsed, p);
+      if (typeof valor === "string") {
+        base[p] = valor;
       }
     });
   } catch {
@@ -179,10 +180,11 @@ const cargarVistasPorProveedor = (): Record<Proveedor, VistaProveedor> => {
     if (!raw) {
       return base;
     }
-    const parsed = JSON.parse(raw) as Partial<Record<Proveedor, VistaProveedor>>;
+    const parsed = JSON.parse(raw) as Partial<Record<string, VistaProveedor>>;
     PROVEEDORES.forEach((p) => {
-      if (parsed[p] === "lista" || parsed[p] === "editable") {
-        base[p] = parsed[p];
+      const valor = datoLegacyPorProveedor(parsed, p);
+      if (valor === "lista" || valor === "editable") {
+        base[p] = valor;
       }
     });
   } catch {

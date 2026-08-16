@@ -12,19 +12,48 @@ export const PROVEEDORES = [
   "García de Pou",
   "Nishikidori",
   "Amazon",
-  "Verdulería",
-  "Supermercado",
+  "Frutas Eloy",
+  "Macro",
   "Vila Viniteca",
   "Vinalia",
 ] as const;
 
 export type Proveedor = (typeof PROVEEDORES)[number];
 
+/** Nombres viejos que pueden quedar en localStorage o datos legacy. */
+export const ALIAS_PROVEEDOR: Record<string, Proveedor> = {
+  Supermercado: "Macro",
+  Verdulería: "Frutas Eloy",
+  Verdurería: "Frutas Eloy",
+};
+
 export function esProveedorValido(valor: string | null | undefined): valor is Proveedor {
   if (!valor) {
     return false;
   }
   return (PROVEEDORES as readonly string[]).includes(valor);
+}
+
+export function proveedorCanonico(valor: string | null | undefined): Proveedor | null {
+  if (!valor) return null;
+  if (esProveedorValido(valor)) return valor;
+  const alias = ALIAS_PROVEEDOR[valor];
+  return alias ?? null;
+}
+
+/** Lee un mapa keyed por proveedor (localStorage) resolviendo nombres viejos. */
+export function datoLegacyPorProveedor<T>(
+  parsed: Partial<Record<string, T>> | null | undefined,
+  proveedor: Proveedor
+): T | undefined {
+  if (!parsed) return undefined;
+  if (parsed[proveedor] !== undefined) return parsed[proveedor];
+  for (const [viejo, actual] of Object.entries(ALIAS_PROVEEDOR)) {
+    if (actual === proveedor && parsed[viejo] !== undefined) {
+      return parsed[viejo];
+    }
+  }
+  return undefined;
 }
 
 export const UNIDADES: readonly UnidadMedida[] = ["Caja", "Kilo", "Unidad"] as const;

@@ -21,10 +21,10 @@ create table if not exists public.compras_historial (
       'García de Pou',
       'Nishikidori',
       'Amazon',
-      'Verdulería',
-        'Supermercado',
-        'Vila Viniteca',
-        'Vinalia'
+      'Frutas Eloy',
+      'Macro',
+      'Vila Viniteca',
+      'Vinalia'
       )
     ),
   constraint compras_historial_unidad_check

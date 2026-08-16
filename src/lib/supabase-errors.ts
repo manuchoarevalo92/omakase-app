@@ -19,7 +19,7 @@ export function formatPostgrestError(error: {
       msg.includes("proveedor_check"))
   ) {
     bits.push(
-      "El CHECK de la columna proveedor en Supabase está desactualizado (faltan proveedores nuevos en la lista permitida). En Dashboard → SQL Editor ejecutá el SQL del proveedor en supabase/ (p. ej. proveedores-nishikidori.sql) y volvé a cargar la página."
+      "El CHECK de la columna proveedor en Supabase está desactualizado (faltan proveedores nuevos en la lista permitida). En Dashboard → SQL Editor ejecutá el SQL del proveedor en supabase/ (p. ej. proveedores-macro-frutas-eloy.sql) y volvé a cargar la página."
     );
   }
   if (

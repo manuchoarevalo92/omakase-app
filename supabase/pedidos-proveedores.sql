@@ -14,10 +14,10 @@ create table if not exists public.pedidos_proveedores (
       'García de Pou',
       'Nishikidori',
       'Amazon',
-      'Verdulería',
-        'Supermercado',
-        'Vila Viniteca',
-        'Vinalia'
+      'Frutas Eloy',
+      'Macro',
+      'Vila Viniteca',
+      'Vinalia'
       )
     )
 );
