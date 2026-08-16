@@ -11,6 +11,7 @@ export const PROVEEDORES = [
   "Pescaderías Coruñesas",
   "García de Pou",
   "Nishikidori",
+  "Isse Japan",
   "Amazon",
   "Frutas Eloy",
   "MAKRO",
@@ -27,6 +28,9 @@ export const ALIAS_PROVEEDOR: Record<string, Proveedor> = {
   Macro: "MAKRO",
   Verdulería: "Frutas Eloy",
   Verdurería: "Frutas Eloy",
+  "ISSÉ JAPAN": "Isse Japan",
+  "ISSE JAPAN": "Isse Japan",
+  Isse: "Isse Japan",
 };
 
 export function esProveedorValido(valor: string | null | undefined): valor is Proveedor {

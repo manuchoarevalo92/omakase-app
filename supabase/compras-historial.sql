@@ -20,6 +20,7 @@ create table if not exists public.compras_historial (
         'Pescaderías Coruñesas',
       'García de Pou',
       'Nishikidori',
+      'Isse Japan',
       'Amazon',
       'Frutas Eloy',
       'MAKRO',

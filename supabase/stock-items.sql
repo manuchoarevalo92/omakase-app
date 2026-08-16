@@ -19,6 +19,7 @@ create table if not exists public.stock_items (
         'Pescaderías Coruñesas',
       'García de Pou',
       'Nishikidori',
+      'Isse Japan',
       'Amazon',
       'Frutas Eloy',
       'MAKRO',

@@ -13,6 +13,7 @@ create table if not exists public.pedidos_proveedores (
       'Pescaderías Coruñesas',
       'García de Pou',
       'Nishikidori',
+      'Isse Japan',
       'Amazon',
       'Frutas Eloy',
       'MAKRO',
