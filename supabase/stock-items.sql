@@ -25,7 +25,8 @@ create table if not exists public.stock_items (
       'MAKRO',
       'BBQ FLAVOUR',
       'Vila Viniteca',
-      'Vinalia'
+      'Vinalia',
+      'Salvioni y Alomar'
       )
     ),
   constraint stock_items_unidad_compra_check

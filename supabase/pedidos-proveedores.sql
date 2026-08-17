@@ -19,7 +19,8 @@ create table if not exists public.pedidos_proveedores (
       'MAKRO',
       'BBQ FLAVOUR',
       'Vila Viniteca',
-      'Vinalia'
+      'Vinalia',
+      'Salvioni y Alomar'
       )
     )
 );

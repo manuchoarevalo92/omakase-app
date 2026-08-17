@@ -18,6 +18,7 @@ export const PROVEEDORES = [
   "BBQ FLAVOUR",
   "Vila Viniteca",
   "Vinalia",
+  "Salvioni y Alomar",
 ] as const;
 
 export type Proveedor = (typeof PROVEEDORES)[number];

@@ -26,7 +26,8 @@ create table if not exists public.compras_historial (
       'MAKRO',
       'BBQ FLAVOUR',
       'Vila Viniteca',
-      'Vinalia'
+      'Vinalia',
+      'Salvioni y Alomar'
       )
     ),
   constraint compras_historial_unidad_check
