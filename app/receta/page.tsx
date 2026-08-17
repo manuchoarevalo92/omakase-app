@@ -1,30 +1,53 @@
 "use client";
 
+import Link from "next/link";
 import { FormEvent, useEffect, useMemo, useState } from "react";
 import { Loader2, Plus, Trash2 } from "lucide-react";
 
-import { formatPostgrestError } from "@/src/lib/supabase-errors";
-import { supabase } from "@/src/lib/supabase";
 import {
-  borrarPlatoRecetaBase,
-  crearPlatoRecetaBase,
-  fetchPlatosCatalogoRecetas,
-  type PlatoCatalogoReceta,
+  actualizarVinculoPreparacion,
+  ETIQUETA_AREA_PRODUCCION,
+  fetchPreparaciones,
+  guardarRecetaPreparacion,
+  type AreaProduccion,
+  type Preparacion,
+} from "@/src/lib/preparaciones";
+import {
+  fetchPlatosCartaParaRecetas,
+  fetchRecetaPorPlatoId,
+  guardarRecetaPlato,
+  recetaDesdeCampos,
+  recetaTieneIngredientes,
+  type PlatoCartaReceta,
 } from "@/src/lib/recetas";
-
-type Plato = PlatoCatalogoReceta;
 
 type IngredienteReceta = {
   nombre: string;
   gramos: string;
 };
 
-type RecetaRow = {
-  plato_id: string;
-  ingredientes: IngredienteReceta[] | null;
-  preparacion: string | null;
-  pax: number | null;
-};
+type Seleccion =
+  | { origen: "prep"; id: string }
+  | { origen: "plato"; id: string };
+
+function encodeSeleccion(seleccion: Seleccion | null): string {
+  if (!seleccion) {
+    return "";
+  }
+  return seleccion.origen === "prep" ? `prep:${seleccion.id}` : `plato:${seleccion.id}`;
+}
+
+function parseSeleccion(valor: string): Seleccion | null {
+  if (valor.startsWith("prep:")) {
+    const id = valor.slice(5);
+    return id ? { origen: "prep", id } : null;
+  }
+  if (valor.startsWith("plato:")) {
+    const id = valor.slice(6);
+    return id ? { origen: "plato", id } : null;
+  }
+  return null;
+}
 
 const filaVacia = (): IngredienteReceta => ({ nombre: "", gramos: "" });
 
@@ -40,8 +63,9 @@ function sumarGramosTotales(lista: IngredienteReceta[]): number {
 }
 
 export default function RecetaPage() {
-  const [platos, setPlatos] = useState<Plato[]>([]);
-  const [platoId, setPlatoId] = useState<string>("");
+  const [preps, setPreps] = useState<Preparacion[]>([]);
+  const [platos, setPlatos] = useState<PlatoCartaReceta[]>([]);
+  const [seleccion, setSeleccion] = useState<Seleccion | null>(null);
   const [ingredientes, setIngredientes] = useState<IngredienteReceta[]>([filaVacia()]);
   const [preparacion, setPreparacion] = useState("");
   const [preparacionGuardada, setPreparacionGuardada] = useState("");
@@ -54,24 +78,36 @@ export default function RecetaPage() {
   const [isSaving, setIsSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
-  const [creandoBase, setCreandoBase] = useState(false);
-  const [nombreNuevaBase, setNombreNuevaBase] = useState("");
-  const [isCreatingBase, setIsCreatingBase] = useState(false);
-  const [isDeletingBase, setIsDeletingBase] = useState(false);
+  const [soloAdmin, setSoloAdmin] = useState(false);
+  const [guardandoAcceso, setGuardandoAcceso] = useState(false);
 
+  const seleccionKey = encodeSeleccion(seleccion);
+  const hayCatalogo = preps.length > 0 || platos.length > 0;
+
+  const prepSeleccionada = useMemo(
+    () =>
+      seleccion?.origen === "prep" ? (preps.find((p) => p.id === seleccion.id) ?? null) : null,
+    [preps, seleccion]
+  );
   const platoSeleccionado = useMemo(
-    () => platos.find((p) => p.id === platoId),
-    [platos, platoId]
+    () =>
+      seleccion?.origen === "plato"
+        ? (platos.find((p) => p.id === seleccion.id) ?? null)
+        : null,
+    [platos, seleccion]
   );
 
-  const platosBase = useMemo(
-    () => platos.filter((p) => p.tipo === "base"),
-    [platos]
-  );
-  const platosCarta = useMemo(
-    () => platos.filter((p) => p.tipo === "carta"),
-    [platos]
-  );
+  const prepsPorArea = useMemo(() => {
+    const grupos: { area: AreaProduccion; items: Preparacion[] }[] = [
+      { area: "barra", items: [] },
+      { area: "delivery", items: [] },
+    ];
+    for (const prep of preps) {
+      const grupo = grupos.find((g) => g.area === prep.area) ?? grupos[1];
+      grupo.items.push(prep);
+    }
+    return grupos.filter((g) => g.items.length > 0);
+  }, [preps]);
 
   const paxNumero = useMemo(() => {
     const n = Number(String(pax).replace(",", ".").trim());
@@ -177,113 +213,128 @@ export default function RecetaPage() {
     setSuccess("Gramos recalculados según el PAX indicado.");
   };
 
-  const cargarPlatos = async () => {
+  const aplicarContenido = (contenido: {
+    ingredientes: { nombre?: string; gramos?: string | number }[];
+    pasos: string;
+    pax: number | null;
+  }) => {
+    const normalizados = contenido.ingredientes.map((item) => ({
+      nombre: item.nombre ?? "",
+      gramos:
+        typeof item.gramos === "number" ? String(item.gramos) : (item.gramos as string) ?? "",
+    }));
+    setIngredientes(normalizados.length > 0 ? normalizados : [filaVacia()]);
+    setPreparacion(contenido.pasos);
+    setPreparacionGuardada(contenido.pasos);
+    setEditandoPreparacion(contenido.pasos.trim().length === 0);
+    setPax(contenido.pax != null ? String(contenido.pax) : "");
+    const totalG = sumarGramosTotales(normalizados);
+    if (contenido.pax != null && totalG > 0) {
+      setReferenciaPax(contenido.pax);
+      setReferenciaGramosTotales(totalG);
+    } else {
+      setReferenciaPax(contenido.pax);
+      setReferenciaGramosTotales(totalG > 0 ? totalG : null);
+    }
+  };
+
+  const cargarLista = async () => {
     setIsLoading(true);
     setError(null);
     try {
-      const data = await fetchPlatosCatalogoRecetas();
-      setPlatos(data);
-      const fromUrl = new URLSearchParams(window.location.search).get("plato");
-      if (fromUrl && data.some((p) => p.id === fromUrl)) {
-        setPlatoId(fromUrl);
+      const [listaPreps, listaPlatos] = await Promise.all([
+        fetchPreparaciones(),
+        fetchPlatosCartaParaRecetas(),
+      ]);
+      setPreps(listaPreps);
+      setPlatos(listaPlatos);
+      const params = new URLSearchParams(window.location.search);
+      const prepUrl = params.get("prep");
+      const platoUrl = params.get("plato");
+      if (prepUrl && listaPreps.some((p) => p.id === prepUrl)) {
+        setSeleccion({ origen: "prep", id: prepUrl });
+      } else if (platoUrl && listaPlatos.some((p) => p.id === platoUrl)) {
+        setSeleccion({ origen: "plato", id: platoUrl });
       }
     } catch (err) {
-      setError(
-        err instanceof Error ? err.message : "Error al conectar con Supabase."
-      );
+      setError(err instanceof Error ? err.message : "Error al conectar con Supabase.");
     } finally {
       setIsLoading(false);
     }
   };
 
-  const cargarReceta = async (id: string) => {
-    if (!id) {
-      setIngredientes([filaVacia()]);
-      setPreparacion("");
-      setPreparacionGuardada("");
-      setEditandoPreparacion(true);
-      setPax("");
-      setReferenciaPax(null);
-      setReferenciaGramosTotales(null);
+  const cargarReceta = async (actual: Seleccion | null) => {
+    if (!actual) {
+      aplicarContenido({ ingredientes: [], pasos: "", pax: null });
+      setSoloAdmin(false);
       return;
     }
 
     setError(null);
-    let data: unknown = null;
-    let recetaError: { message: string } | null = null;
+
+    if (actual.origen === "plato") {
+      setSoloAdmin(false);
+      try {
+        const receta = await fetchRecetaPorPlatoId(actual.id);
+        if (receta) {
+          aplicarContenido(receta);
+          return;
+        }
+      } catch (err) {
+        setError(err instanceof Error ? err.message : "Error al cargar la receta.");
+        return;
+      }
+      aplicarContenido({ ingredientes: [], pasos: "", pax: null });
+      return;
+    }
+
+    const prep = preps.find((p) => p.id === actual.id);
+    if (!prep) {
+      return;
+    }
+
+    setSoloAdmin(prep.recetaSoloAdmin);
+    const propia = recetaDesdeCampos({
+      ingredientes: prep.recetaIngredientes,
+      pasos: prep.proceso,
+      pax: prep.recetaPax,
+    });
+    if (recetaTieneIngredientes(propia) || propia.pasos) {
+      aplicarContenido(propia);
+      return;
+    }
+
+    if (!prep.recetaPlatoId) {
+      aplicarContenido({ ingredientes: [], pasos: "", pax: null });
+      return;
+    }
+
     try {
-      const result = await supabase
-        .from("recetas")
-        .select("plato_id, ingredientes, preparacion, pax")
-        .eq("plato_id", id)
-        .maybeSingle();
-      data = result.data;
-      recetaError = result.error;
+      const heredada = await fetchRecetaPorPlatoId(prep.recetaPlatoId);
+      if (heredada) {
+        aplicarContenido(heredada);
+        return;
+      }
     } catch (err) {
-      setError(
-        err instanceof Error ? err.message : "Error al cargar la receta desde Supabase."
-      );
+      setError(err instanceof Error ? err.message : "Error al cargar la receta.");
       return;
     }
-
-    if (recetaError) {
-      setError(formatPostgrestError(recetaError));
-      return;
-    }
-
-    const row = data as RecetaRow | null;
-    if (!row) {
-      setIngredientes([filaVacia()]);
-      setPreparacion("");
-      setPreparacionGuardada("");
-      setEditandoPreparacion(true);
-      setPax("");
-      setReferenciaPax(null);
-      setReferenciaGramosTotales(null);
-      return;
-    }
-
-    const lista = (row.ingredientes as IngredienteReceta[] | null) ?? [];
-    const normalizados = lista.map((item) => ({
-      nombre: item.nombre ?? "",
-      gramos:
-        typeof item.gramos === "number"
-          ? String(item.gramos)
-          : (item.gramos as string) ?? "",
-    }));
-    setIngredientes(normalizados.length > 0 ? normalizados : [filaVacia()]);
-    const prep = row.preparacion ?? "";
-    setPreparacion(prep);
-    setPreparacionGuardada(prep);
-    setEditandoPreparacion(prep.trim().length === 0);
-    const paxCargado = row.pax != null && row.pax > 0 ? row.pax : null;
-    setPax(paxCargado != null ? String(paxCargado) : "");
-    const totalG = sumarGramosTotales(normalizados);
-    if (paxCargado != null && totalG > 0) {
-      setReferenciaPax(paxCargado);
-      setReferenciaGramosTotales(totalG);
-    } else {
-      setReferenciaPax(paxCargado);
-      setReferenciaGramosTotales(totalG > 0 ? totalG : null);
-    }
+    aplicarContenido({ ingredientes: [], pasos: "", pax: null });
   };
 
   useEffect(() => {
     const timer = window.setTimeout(() => {
-      void cargarPlatos();
+      void cargarLista();
     }, 0);
     return () => window.clearTimeout(timer);
   }, []);
 
   useEffect(() => {
-    if (!platoId) {
-      return;
-    }
     const timer = window.setTimeout(() => {
-      void cargarReceta(platoId);
+      void cargarReceta(seleccion);
     }, 0);
     return () => window.clearTimeout(timer);
-  }, [platoId]);
+  }, [seleccionKey]);
 
   const actualizarIngrediente = (index: number, patch: Partial<IngredienteReceta>) => {
     setIngredientes((actual) =>
@@ -303,13 +354,13 @@ export default function RecetaPage() {
 
   const guardarReceta = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
-    if (!platoId) {
-      setError("Selecciona una receta.");
+    if (!seleccion) {
+      setError("Seleccioná un ítem de Tiempos Prep o un plato.");
       return;
     }
 
-    if (platoSeleccionado?.tipo !== "base" && paxNumero === null) {
-      setError("Indica el rendimiento en PAX (número mayor que 0).");
+    if (seleccion.origen === "plato" && paxNumero === null) {
+      setError("Indicá el rendimiento en PAX (número mayor que 0).");
       return;
     }
 
@@ -336,89 +387,57 @@ export default function RecetaPage() {
     setError(null);
     setSuccess(null);
 
-    const payload = {
-      plato_id: platoId,
-      pax: paxNumero != null ? Math.round(paxNumero) : null,
-      ingredientes: ingredientesPayload.map((fila) => ({
-        nombre: fila.nombre,
-        gramos: Number(fila.gramosRaw.replace(",", ".")),
-      })),
-      preparacion: preparacion.trim(),
-    };
+    const ingredientesGuardar = ingredientesPayload.map((fila) => ({
+      nombre: fila.nombre,
+      gramos: Number(fila.gramosRaw.replace(",", ".")),
+    }));
+    const paxGuardar = paxNumero != null ? Math.round(paxNumero) : null;
 
-    const { error: upsertError } = await supabase.from("recetas").upsert(payload, {
-      onConflict: "plato_id",
-    });
-
-    if (upsertError) {
-      setError(formatPostgrestError(upsertError));
+    try {
+      if (seleccion.origen === "prep") {
+        const actualizada = await guardarRecetaPreparacion(seleccion.id, {
+          pax: paxGuardar,
+          ingredientes: ingredientesGuardar,
+          proceso: preparacion.trim(),
+        });
+        setPreps((actual) => actual.map((p) => (p.id === actualizada.id ? actualizada : p)));
+        setSuccess(`Receta guardada para ${actualizada.nombre}.`);
+      } else {
+        await guardarRecetaPlato({
+          platoId: seleccion.id,
+          ingredientes: ingredientesGuardar,
+          pasos: preparacion.trim(),
+          pax: paxGuardar,
+        });
+        setSuccess(
+          `Receta guardada para ${platoSeleccionado?.nombre ?? "el plato"}.`
+        );
+      }
+      setPreparacionGuardada(preparacion.trim());
+      setEditandoPreparacion(preparacion.trim().length === 0);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "No se pudo guardar la receta.");
+    } finally {
       setIsSaving(false);
-      return;
-    }
-
-    setPreparacionGuardada(preparacion.trim());
-    setEditandoPreparacion(false);
-    setSuccess(
-      `Receta guardada para ${platoSeleccionado?.nombre ?? "el ítem"}.`
-    );
-    setIsSaving(false);
-  };
-
-  const crearBase = async () => {
-    const limpio = nombreNuevaBase.trim();
-    if (!limpio) {
-      setError("Indicá un nombre para la receta base.");
-      return;
-    }
-    const duplicado = platos.some(
-      (p) => p.nombre.trim().toLowerCase() === limpio.toLowerCase()
-    );
-    if (duplicado) {
-      setError("Ya existe una receta o plato con ese nombre.");
-      return;
-    }
-    setIsCreatingBase(true);
-    setError(null);
-    setSuccess(null);
-    try {
-      const creado = await crearPlatoRecetaBase(limpio);
-      setPlatos((actual) =>
-        [...actual, creado].sort((a, b) => a.nombre.localeCompare(b.nombre, "es"))
-      );
-      setPlatoId(creado.id);
-      setNombreNuevaBase("");
-      setCreandoBase(false);
-      setSuccess(`Creada «${creado.nombre}». Completá ingredientes y preparación.`);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "No se pudo crear la receta base.");
-    } finally {
-      setIsCreatingBase(false);
     }
   };
 
-  const borrarBase = async () => {
-    if (!platoSeleccionado || platoSeleccionado.tipo !== "base") {
+  const guardarSoloAdmin = async (valor: boolean) => {
+    if (seleccion?.origen !== "prep") {
       return;
     }
-    if (
-      !window.confirm(
-        `¿Borrar «${platoSeleccionado.nombre}»? Se elimina la receta base; no afecta platos de carta.`
-      )
-    ) {
-      return;
-    }
-    setIsDeletingBase(true);
-    setError(null);
-    setSuccess(null);
+    setSoloAdmin(valor);
+    setGuardandoAcceso(true);
     try {
-      await borrarPlatoRecetaBase(platoSeleccionado.id);
-      setPlatos((actual) => actual.filter((p) => p.id !== platoSeleccionado.id));
-      setPlatoId("");
-      setSuccess(`Se borró «${platoSeleccionado.nombre}».`);
+      const actualizada = await actualizarVinculoPreparacion(seleccion.id, {
+        recetaSoloAdmin: valor,
+      });
+      setPreps((actual) => actual.map((p) => (p.id === actualizada.id ? actualizada : p)));
     } catch (err) {
-      setError(err instanceof Error ? err.message : "No se pudo borrar la receta base.");
+      setSoloAdmin(!valor);
+      setError(err instanceof Error ? err.message : "No se pudo guardar el acceso.");
     } finally {
-      setIsDeletingBase(false);
+      setGuardandoAcceso(false);
     }
   };
 
@@ -430,8 +449,15 @@ export default function RecetaPage() {
             Recetas y procesos
           </h1>
           <p className="mt-2 text-sm text-zinc-400">
-            Recetas de platos que servimos y recetas base (dashi, nikiri, etc.) para después
-            asociarlas al calendario.
+            Hay dos orígenes: lo que agregás en{" "}
+            <Link href="/produccion-tiempos" className="underline hover:text-zinc-200">
+              Tiempos Prep
+            </Link>{" "}
+            (procesos que hacés) y los platos que se sirven, que se crean en{" "}
+            <Link href="/platos" className="underline hover:text-zinc-200">
+              Platos
+            </Link>
+            . Acá cargás la receta o el proceso de ese ítem.
           </p>
         </header>
 
@@ -452,107 +478,80 @@ export default function RecetaPage() {
             <Loader2 className="h-4 w-4 animate-spin" />
             Cargando recetas...
           </div>
+        ) : !hayCatalogo ? (
+          <p className="text-sm text-zinc-400">
+            Todavía no hay ítems. Agregá una preparación en{" "}
+            <Link href="/produccion-tiempos" className="underline hover:text-zinc-200">
+              Tiempos Prep
+            </Link>{" "}
+            o un plato en{" "}
+            <Link href="/platos" className="underline hover:text-zinc-200">
+              Platos
+            </Link>
+            , y después volvé acá a cargar la receta.
+          </p>
         ) : (
           <form onSubmit={guardarReceta} className="space-y-6">
             <div>
-              <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
-                <label className="block text-xs uppercase tracking-[0.14em] text-zinc-500">
-                  Receta
-                </label>
-                <button
-                  type="button"
-                  onClick={() => {
-                    setCreandoBase((v) => !v);
-                    setError(null);
-                    setSuccess(null);
-                  }}
-                  className="inline-flex items-center gap-1.5 rounded-lg border border-zinc-600 bg-zinc-800 px-3 py-1.5 text-xs text-zinc-100 transition hover:border-zinc-500"
-                >
-                  <Plus className="h-3.5 w-3.5" />
-                  Nueva receta base
-                </button>
-              </div>
-              {creandoBase ? (
-                <div className="mb-3 flex flex-col gap-2 rounded-xl border border-zinc-700 bg-zinc-950/80 p-3 sm:flex-row sm:items-center">
-                  <input
-                    value={nombreNuevaBase}
-                    onChange={(e) => setNombreNuevaBase(e.target.value)}
-                    placeholder="Ej. Dashi, Nikiri, Zu…"
-                    className="min-w-0 flex-1 rounded-lg border border-zinc-700 bg-zinc-900 px-3 py-2 text-sm outline-none focus:border-zinc-500"
-                    onKeyDown={(e) => {
-                      if (e.key === "Enter") {
-                        e.preventDefault();
-                        void crearBase();
-                      }
-                    }}
-                  />
-                  <div className="flex gap-2">
-                    <button
-                      type="button"
-                      onClick={() => void crearBase()}
-                      disabled={isCreatingBase}
-                      className="inline-flex items-center gap-1.5 rounded-lg bg-ink px-3 py-2 text-xs font-medium text-paper disabled:opacity-50"
-                    >
-                      {isCreatingBase ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : null}
-                      Crear
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setCreandoBase(false);
-                        setNombreNuevaBase("");
-                      }}
-                      className="rounded-lg border border-zinc-700 px-3 py-2 text-xs text-zinc-300"
-                    >
-                      Cancelar
-                    </button>
-                  </div>
-                </div>
-              ) : null}
+              <label className="mb-2 block text-xs uppercase tracking-[0.14em] text-zinc-500">
+                Ítem
+              </label>
               <select
-                value={platoId}
+                value={seleccionKey}
                 onChange={(e) => {
-                  setPlatoId(e.target.value);
+                  setSeleccion(parseSeleccion(e.target.value));
                   setSuccess(null);
                 }}
                 className="w-full rounded-xl border border-zinc-700 bg-zinc-950 px-4 py-2.5 text-sm text-zinc-100 outline-none transition focus:border-zinc-500"
               >
-                <option value="">Seleccionar receta…</option>
-                {platosBase.length > 0 ? (
-                  <optgroup label="Recetas base">
-                    {platosBase.map((plato) => (
-                      <option key={plato.id} value={plato.id}>
-                        {plato.nombre}
+                <option value="">Seleccionar…</option>
+                {prepsPorArea.map((grupo) => (
+                  <optgroup
+                    key={grupo.area}
+                    label={`Tiempos Prep · ${ETIQUETA_AREA_PRODUCCION[grupo.area]}`}
+                  >
+                    {grupo.items.map((prep) => (
+                      <option key={prep.id} value={encodeSeleccion({ origen: "prep", id: prep.id })}>
+                        {prep.nombre}
                       </option>
                     ))}
                   </optgroup>
-                ) : null}
-                {platosCarta.length > 0 ? (
-                  <optgroup label="Platos de carta">
-                    {platosCarta.map((plato) => (
-                      <option key={plato.id} value={plato.id}>
+                ))}
+                {platos.length > 0 ? (
+                  <optgroup label="Platos">
+                    {platos.map((plato) => (
+                      <option
+                        key={plato.id}
+                        value={encodeSeleccion({ origen: "plato", id: plato.id })}
+                      >
                         {plato.nombre}
                       </option>
                     ))}
                   </optgroup>
                 ) : null}
               </select>
-              {platoSeleccionado?.tipo === "base" ? (
-                <div className="mt-2 flex items-center justify-between gap-2">
-                  <p className="text-[11px] text-zinc-500">
-                    Receta base: no aparece en el menú ni en Platos. Sí se puede asociar al plan
-                    semanal.
-                  </p>
-                  <button
-                    type="button"
-                    onClick={() => void borrarBase()}
-                    disabled={isDeletingBase}
-                    className="inline-flex shrink-0 items-center gap-1 text-[11px] text-zinc-500 underline hover:text-red-300 disabled:opacity-50"
-                  >
-                    {isDeletingBase ? <Loader2 className="h-3 w-3 animate-spin" /> : null}
-                    Borrar
-                  </button>
-                </div>
+              <p className="mt-2 text-[11px] text-zinc-500">
+                Lo nuevo de cocina se agrega en{" "}
+                <Link href="/produccion-tiempos" className="underline hover:text-zinc-300">
+                  Tiempos Prep
+                </Link>
+                . Los platos que se sirven, en{" "}
+                <Link href="/platos" className="underline hover:text-zinc-300">
+                  Platos
+                </Link>
+                .
+              </p>
+              {prepSeleccionada ? (
+                <label className="mt-3 flex items-center gap-2 text-xs text-zinc-300">
+                  <input
+                    type="checkbox"
+                    checked={soloAdmin}
+                    onChange={(e) => void guardarSoloAdmin(e.target.checked)}
+                    disabled={guardandoAcceso}
+                    className="rounded border-zinc-600"
+                  />
+                  Solo Manu puede ver esta receta en el plan
+                </label>
               ) : null}
             </div>
 
@@ -561,9 +560,9 @@ export default function RecetaPage() {
                 Rendimiento — PAX inicial
               </label>
               <p className="mb-3 text-xs leading-relaxed text-zinc-500">
-                {platoSeleccionado?.tipo === "base"
-                  ? "Cuánto rinde esta receta (opcional en bases). Después podés recalcular PAX o gramos."
-                  : "Cuántas porciones rinden las cantidades en gramos que cargaste (referencia del día). Después podés recalcular PAX o gramos sin reescribir todo a mano."}
+                {seleccion?.origen === "plato"
+                  ? "Cuántas porciones rinden las cantidades en gramos (obligatorio en platos)."
+                  : "Cuánto rinde esta receta (opcional en Tiempos Prep). Después podés recalcular PAX o gramos."}
               </p>
               <div className="flex flex-wrap items-center gap-3">
                 <input
@@ -572,14 +571,14 @@ export default function RecetaPage() {
                   value={pax}
                   onChange={(e) => setPax(e.target.value)}
                   placeholder="Ej. 10"
-                  disabled={!platoId}
+                  disabled={!seleccionKey}
                   className="w-20 rounded-lg border border-zinc-700 bg-zinc-900 px-3 py-2 text-center text-sm text-zinc-100 outline-none transition focus:border-zinc-500 disabled:opacity-50"
                   aria-label="PAX inicial, cuánto rinden esas cantidades"
                 />
                 <button
                   type="button"
                   onClick={recalcularRendimiento}
-                  disabled={!platoId}
+                  disabled={!seleccionKey}
                   className="rounded-lg border border-zinc-600 bg-zinc-800 px-3 py-2 text-sm text-zinc-100 transition hover:border-zinc-500 hover:bg-zinc-700 disabled:opacity-50"
                 >
                   Recalcular rendimiento
@@ -603,7 +602,7 @@ export default function RecetaPage() {
                 <button
                   type="button"
                   onClick={recalcularIngredientes}
-                  disabled={!platoId}
+                  disabled={!seleccionKey}
                   className="shrink-0 rounded-lg border border-zinc-600 bg-zinc-800 px-3 py-2 text-sm text-zinc-100 transition hover:border-zinc-500 hover:bg-zinc-700 disabled:opacity-50"
                 >
                   Recalcular ingredientes
@@ -630,7 +629,7 @@ export default function RecetaPage() {
                       value={fila.nombre}
                       onChange={(e) => actualizarIngrediente(index, { nombre: e.target.value })}
                       placeholder="Ingrediente"
-                      disabled={!platoId}
+                      disabled={!seleccionKey}
                       aria-label={`Ingrediente ${index + 1}`}
                       className="min-w-0 flex-1 rounded-md border border-transparent bg-transparent px-2 py-1 text-sm text-zinc-100 outline-none transition placeholder:text-zinc-600 focus:border-zinc-600 disabled:opacity-50"
                     />
@@ -640,7 +639,7 @@ export default function RecetaPage() {
                       value={fila.gramos}
                       onChange={(e) => actualizarIngrediente(index, { gramos: e.target.value })}
                       placeholder="0"
-                      disabled={!platoId}
+                      disabled={!seleccionKey}
                       aria-label={`Gramos ${index + 1}`}
                       className="w-14 shrink-0 rounded-md border border-zinc-700 bg-zinc-950 px-1.5 py-1 text-center text-sm tabular-nums text-zinc-100 outline-none transition focus:border-zinc-500 disabled:opacity-50 sm:w-16"
                     />
@@ -661,7 +660,7 @@ export default function RecetaPage() {
                     <button
                       type="button"
                       onClick={() => quitarFilaIngrediente(index)}
-                      disabled={!platoId}
+                      disabled={!seleccionKey}
                       className="inline-flex shrink-0 items-center justify-center rounded-md border border-transparent p-1.5 text-zinc-500 transition hover:border-zinc-700 hover:text-red-300 disabled:opacity-50"
                       aria-label="Quitar fila"
                     >
@@ -673,7 +672,7 @@ export default function RecetaPage() {
               <button
                 type="button"
                 onClick={agregarFilaIngrediente}
-                disabled={!platoId}
+                disabled={!seleccionKey}
                 className="mt-3 inline-flex items-center gap-2 rounded-lg border border-zinc-700 bg-zinc-900 px-3 py-2 text-sm text-zinc-200 transition hover:border-zinc-500 hover:text-white disabled:opacity-50"
               >
                 <Plus className="h-4 w-4" />
@@ -686,7 +685,7 @@ export default function RecetaPage() {
                 <h2 className="text-sm uppercase tracking-[0.16em] text-zinc-400">
                   Preparación
                 </h2>
-                {platoId && preparacionGuardada.trim().length > 0 ? (
+                {seleccionKey && preparacionGuardada.trim().length > 0 ? (
                   <button
                     type="button"
                     onClick={() => setEditandoPreparacion((prev) => !prev)}
@@ -702,12 +701,12 @@ export default function RecetaPage() {
                   <textarea
                     value={preparacion}
                     onChange={(e) => setPreparacion(e.target.value)}
-                    disabled={!platoId}
+                    disabled={!seleccionKey}
                     rows={10}
                     placeholder="Pasos, tiempos, temperaturas..."
                     className="w-full resize-y rounded-lg border border-zinc-700 bg-zinc-900 px-3 py-2 text-sm text-zinc-100 outline-none transition focus:border-zinc-500 disabled:opacity-50"
                   />
-                  {platoId && preparacionGuardada.trim().length > 0 ? (
+                  {seleccionKey && preparacionGuardada.trim().length > 0 ? (
                     <div className="mt-2 flex justify-end">
                       <button
                         type="button"
@@ -731,7 +730,7 @@ export default function RecetaPage() {
 
             <button
               type="submit"
-              disabled={isSaving || !platoId}
+              disabled={isSaving || !seleccionKey}
               className="inline-flex w-full items-center justify-center gap-2 rounded-xl border border-zinc-700 bg-zinc-100 py-2.5 text-sm font-medium text-zinc-900 transition hover:bg-zinc-50 disabled:cursor-not-allowed disabled:opacity-60 sm:w-auto sm:px-6"
             >
               {isSaving ? <Loader2 className="h-4 w-4 animate-spin" /> : null}

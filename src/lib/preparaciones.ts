@@ -78,6 +78,8 @@ export type Preparacion = {
   recetaPlatoId: string | null;
   proceso: string | null;
   recetaSoloAdmin: boolean;
+  recetaIngredientes: { nombre: string; gramos: string | number }[];
+  recetaPax: number | null;
 };
 
 export type PreparacionDbRow = {
@@ -98,10 +100,12 @@ export type PreparacionDbRow = {
   receta_plato_id?: string | null;
   proceso?: string | null;
   receta_solo_admin?: boolean | null;
+  receta_ingredientes?: { nombre: string; gramos: string | number }[] | null;
+  receta_pax?: number | null;
 };
 
 export const PREPARACION_SELECT =
-  "id, nombre, area, categoria_plan, categoria_plan_confirmada, duracion_dias, buffer_pct, seguimiento_activo, pendiente, fecha_ultima_produccion, cantidad_referencia, unidad_cantidad, ultima_cantidad, notas, receta_plato_id, proceso, receta_solo_admin";
+  "id, nombre, area, categoria_plan, categoria_plan_confirmada, duracion_dias, buffer_pct, seguimiento_activo, pendiente, fecha_ultima_produccion, cantidad_referencia, unidad_cantidad, ultima_cantidad, notas, receta_plato_id, proceso, receta_solo_admin, receta_ingredientes, receta_pax";
 
 const PREPARACION_SELECT_SIN_RECETA =
   "id, nombre, area, categoria_plan, categoria_plan_confirmada, duracion_dias, buffer_pct, seguimiento_activo, pendiente, fecha_ultima_produccion, cantidad_referencia, unidad_cantidad, ultima_cantidad, notas";
@@ -147,6 +151,8 @@ export function preparacionDesdeFila(row: PreparacionDbRow): Preparacion {
     recetaPlatoId: row.receta_plato_id?.trim() || null,
     proceso: row.proceso?.trim() || null,
     recetaSoloAdmin: row.receta_solo_admin === true,
+    recetaIngredientes: Array.isArray(row.receta_ingredientes) ? row.receta_ingredientes : [],
+    recetaPax: row.receta_pax != null && row.receta_pax > 0 ? row.receta_pax : null,
   };
 }
 
@@ -154,8 +160,25 @@ export function cantidadSugeridaAlMarcar(prep: Preparacion): number {
   return prep.ultimaCantidad ?? prep.cantidadReferencia;
 }
 
+export function ocultarRecetaSiSoloAdmin(prep: Preparacion): Preparacion {
+  if (!prep.recetaSoloAdmin) {
+    return prep;
+  }
+  return {
+    ...prep,
+    recetaPlatoId: null,
+    proceso: null,
+    recetaIngredientes: [],
+    recetaPax: null,
+  };
+}
+
+export function preparacionTieneIngredientesReceta(prep: Preparacion): boolean {
+  return prep.recetaIngredientes.some((ing) => ing.nombre.trim().length > 0);
+}
+
 export function preparacionEstaConectada(prep: Preparacion): boolean {
-  return Boolean(prep.recetaPlatoId || prep.proceso);
+  return Boolean(prep.recetaPlatoId || prep.proceso || preparacionTieneIngredientesReceta(prep));
 }
 
 export async function fetchPreparaciones(): Promise<Preparacion[]> {
@@ -173,7 +196,9 @@ export async function fetchPreparaciones(): Promise<Preparacion[]> {
     msg.includes("column") &&
     (msg.includes("receta_solo_admin") ||
       msg.includes("receta_plato_id") ||
-      msg.includes("proceso"))
+      msg.includes("proceso") ||
+      msg.includes("receta_ingredientes") ||
+      msg.includes("receta_pax"))
   ) {
     const sinReceta = await supabase
       .from("preparaciones")
@@ -326,6 +351,32 @@ export async function actualizarVinculoPreparacion(
   const { data, error } = await supabase
     .from("preparaciones")
     .update(payload)
+    .eq("id", preparacionId)
+    .select(PREPARACION_SELECT)
+    .single();
+
+  if (error) {
+    throw new Error(formatPostgrestError(error));
+  }
+
+  return preparacionDesdeFila(data as PreparacionDbRow);
+}
+
+export async function guardarRecetaPreparacion(
+  preparacionId: string,
+  input: {
+    ingredientes: { nombre: string; gramos: number }[];
+    proceso: string;
+    pax: number | null;
+  }
+): Promise<Preparacion> {
+  const { data, error } = await supabase
+    .from("preparaciones")
+    .update({
+      receta_ingredientes: input.ingredientes,
+      receta_pax: input.pax,
+      proceso: input.proceso.trim() || null,
+    })
     .eq("id", preparacionId)
     .select(PREPARACION_SELECT)
     .single();

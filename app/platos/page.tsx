@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { FormEvent, useEffect, useMemo, useState } from "react";
 import { Loader2, Plus, Trash2 } from "lucide-react";
 
@@ -436,7 +437,7 @@ export default function PlatosPage() {
                           key={plato.id}
                           onClick={(event) => {
                             const target = event.target as HTMLElement;
-                            if (target.closest("button,input,select,textarea")) {
+                            if (target.closest("button,input,select,textarea,a")) {
                               return;
                             }
                             iniciarEdicion(plato);
@@ -452,6 +453,12 @@ export default function PlatosPage() {
                               {plato.nombre}
                             </p>
                             <div className="flex items-center gap-2">
+                              <Link
+                                href={`/receta?plato=${plato.id}`}
+                                className="text-[11px] uppercase tracking-wide text-zinc-500 underline hover:text-zinc-200"
+                              >
+                                Receta
+                              </Link>
                               <span
                                 className={`rounded-full border px-2.5 py-1 text-xs ${
                                   disponible

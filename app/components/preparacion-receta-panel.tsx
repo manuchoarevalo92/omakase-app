@@ -1,27 +1,25 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useState } from "react";
-import { AlertTriangle, BookOpen, Loader2 } from "lucide-react";
+import { AlertTriangle, BookOpen } from "lucide-react";
 
 import { RecetaProtegida } from "@/app/components/receta-protegida";
 import {
   actualizarVinculoPreparacion,
+  preparacionEstaConectada,
+  preparacionTieneIngredientesReceta,
   type Preparacion,
 } from "@/src/lib/preparaciones";
 import type { RecetaViewer } from "@/src/lib/receta-acceso";
 import {
-  fetchRecetaPorPlatoId,
   formatearGramosReceta,
+  recetaDesdeCampos,
   recetaEstaCompleta,
   recetaTieneIngredientes,
-  type PlatoVinculo,
-  type RecetaPlato,
 } from "@/src/lib/recetas";
 
 type Props = {
   preparacion: Preparacion;
-  platos: PlatoVinculo[];
   onCambio: (prep: Preparacion) => void;
   viewer: RecetaViewer | null;
   puedeVer: boolean;
@@ -29,110 +27,19 @@ type Props = {
 
 export function PreparacionRecetaPanel({
   preparacion,
-  platos,
   onCambio,
   viewer,
   puedeVer,
 }: Props) {
   const esAdmin = viewer?.role === "admin";
-  const [receta, setReceta] = useState<RecetaPlato | null>(null);
-  const [cargandoReceta, setCargandoReceta] = useState(false);
-  const [procesoDraft, setProcesoDraft] = useState(preparacion.proceso ?? "");
-  const [guardando, setGuardando] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-
-  useEffect(() => {
-    setProcesoDraft(preparacion.proceso ?? "");
-  }, [preparacion.id, preparacion.proceso]);
-
-  useEffect(() => {
-    const platoId = preparacion.recetaPlatoId;
-    if (!puedeVer || !platoId) {
-      setReceta(null);
-      return;
-    }
-    let cancelled = false;
-    setCargandoReceta(true);
-    setError(null);
-    void fetchRecetaPorPlatoId(platoId)
-      .then((row) => {
-        if (!cancelled) {
-          setReceta(row);
-        }
-      })
-      .catch((err: unknown) => {
-        if (!cancelled) {
-          setReceta(null);
-          setError(err instanceof Error ? err.message : "No se pudo cargar la receta.");
-        }
-      })
-      .finally(() => {
-        if (!cancelled) {
-          setCargandoReceta(false);
-        }
-      });
-    return () => {
-      cancelled = true;
-    };
-  }, [preparacion.recetaPlatoId, puedeVer]);
-
-  const guardarVinculo = async (platoId: string | null) => {
-    if (!esAdmin) {
-      return;
-    }
-    setGuardando(true);
-    setError(null);
-    try {
-      const actualizada = await actualizarVinculoPreparacion(preparacion.id, {
-        recetaPlatoId: platoId,
-      });
-      onCambio(actualizada);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "No se pudo vincular la receta.");
-    } finally {
-      setGuardando(false);
-    }
-  };
-
-  const guardarProceso = async () => {
-    if (!esAdmin) {
-      return;
-    }
-    setGuardando(true);
-    setError(null);
-    try {
-      const actualizada = await actualizarVinculoPreparacion(preparacion.id, {
-        proceso: procesoDraft,
-      });
-      onCambio(actualizada);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "No se pudo guardar el proceso.");
-    } finally {
-      setGuardando(false);
-    }
-  };
-
-  const guardarSoloAdmin = async (valor: boolean) => {
-    if (!esAdmin) {
-      return;
-    }
-    setGuardando(true);
-    setError(null);
-    try {
-      const actualizada = await actualizarVinculoPreparacion(preparacion.id, {
-        recetaSoloAdmin: valor,
-      });
-      onCambio(actualizada);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "No se pudo guardar el acceso.");
-    } finally {
-      setGuardando(false);
-    }
-  };
-
-  const platoVinculado = platos.find((p) => p.id === preparacion.recetaPlatoId) ?? null;
-  const conectada = Boolean(preparacion.recetaPlatoId || preparacion.proceso);
-  const recetaIncompleta = receta != null && !recetaEstaCompleta(receta);
+  const receta = recetaDesdeCampos({
+    ingredientes: preparacion.recetaIngredientes,
+    pasos: preparacion.proceso,
+    pax: preparacion.recetaPax,
+  });
+  const conectada = preparacionEstaConectada(preparacion);
+  const recetaIncompleta = conectada && !recetaEstaCompleta(receta);
+  const hrefReceta = `/receta?prep=${preparacion.id}`;
 
   if (!puedeVer) {
     return null;
@@ -140,24 +47,21 @@ export function PreparacionRecetaPanel({
 
   const cuerpoReceta = (
     <>
-      {receta ? (
+      {conectada ? (
         <div className="mb-3 space-y-2">
           {esAdmin && recetaIncompleta ? (
             <p className="text-xs text-amber-200/90">
               Receta incompleta
               {!recetaTieneIngredientes(receta) ? ": faltan ingredientes" : ""}
               {receta.pasos.length === 0 ? ": faltan los pasos" : ""}.{" "}
-              <Link
-                href={`/receta?plato=${preparacion.recetaPlatoId}`}
-                className="underline hover:text-white"
-              >
+              <Link href={hrefReceta} className="underline hover:text-white">
                 Completar
               </Link>
             </p>
           ) : null}
           {esAdmin && !recetaIncompleta ? (
             <Link
-              href={`/receta?plato=${preparacion.recetaPlatoId}`}
+              href={hrefReceta}
               className="text-xs text-zinc-400 underline hover:text-white"
             >
               Abrir receta completa
@@ -190,6 +94,20 @@ export function PreparacionRecetaPanel({
     </>
   );
 
+  const guardarSoloAdmin = async (valor: boolean) => {
+    if (!esAdmin) {
+      return;
+    }
+    try {
+      const actualizada = await actualizarVinculoPreparacion(preparacion.id, {
+        recetaSoloAdmin: valor,
+      });
+      onCambio(actualizada);
+    } catch {
+      /* el padre muestra errores de carga; acá no bloqueamos la vista */
+    }
+  };
+
   return (
     <div className="rounded-xl border border-zinc-700/80 bg-zinc-950/70 p-3">
       <div className="mb-2 flex items-center gap-2">
@@ -205,121 +123,43 @@ export function PreparacionRecetaPanel({
 
       {esAdmin && !conectada ? (
         <p className="mb-3 text-xs leading-relaxed text-amber-200/90">
-          Esta preparación no está conectada. Asociá una receta (plato o base) o escribí el
-          proceso para que aparezca al abrir el bloque.
-        </p>
-      ) : null}
-
-      {error ? <p className="mb-2 text-xs text-red-400">{error}</p> : null}
-
-      {esAdmin ? (
-        <label className="mb-3 block">
-          <span className="mb-1 block text-[10px] uppercase tracking-wide text-zinc-500">
-            Receta
-          </span>
-          <select
-            value={preparacion.recetaPlatoId ?? ""}
-            onChange={(e) => void guardarVinculo(e.target.value || null)}
-            disabled={guardando}
-            className="w-full rounded-lg border border-zinc-700 bg-zinc-900 px-3 py-2 text-sm disabled:opacity-50"
-          >
-            <option value="">Sin receta</option>
-            {platos.some((p) => p.tipo === "base") ? (
-              <optgroup label="Recetas base">
-                {platos
-                  .filter((p) => p.tipo === "base")
-                  .map((plato) => (
-                    <option key={plato.id} value={plato.id}>
-                      {plato.nombre}
-                      {plato.tieneReceta ? (plato.recetaCompleta ? "" : " (incompleta)") : " (sin receta)"}
-                    </option>
-                  ))}
-              </optgroup>
-            ) : null}
-            {platos.some((p) => p.tipo === "carta") ? (
-              <optgroup label="Platos de carta">
-                {platos
-                  .filter((p) => p.tipo === "carta")
-                  .map((plato) => (
-                    <option key={plato.id} value={plato.id}>
-                      {plato.nombre}
-                      {plato.tieneReceta ? (plato.recetaCompleta ? "" : " (incompleta)") : " (sin receta)"}
-                    </option>
-                  ))}
-              </optgroup>
-            ) : null}
-          </select>
-        </label>
-      ) : null}
-
-      {cargandoReceta ? (
-        <p className="mb-3 flex items-center gap-2 text-xs text-zinc-500">
-          <Loader2 className="h-3.5 w-3.5 animate-spin" />
-          Cargando receta…
-        </p>
-      ) : null}
-
-      {esAdmin && preparacion.recetaPlatoId && !cargandoReceta && !receta ? (
-        <p className="mb-3 text-xs text-amber-200/90">
-          El plato está vinculado pero no tiene receta cargada. Completala en{" "}
-          <Link
-            href={`/receta?plato=${preparacion.recetaPlatoId}`}
-            className="underline hover:text-white"
-          >
-            Receta
+          Esta preparación todavía no tiene receta. Cargala en{" "}
+          <Link href={hrefReceta} className="underline hover:text-white">
+            Recetas y procesos
           </Link>
-          {platoVinculado ? ` (${platoVinculado.nombre})` : ""}.
+          .
+        </p>
+      ) : null}
+
+      {esAdmin &&
+      preparacion.recetaPlatoId &&
+      !preparacionTieneIngredientesReceta(preparacion) &&
+      !preparacion.proceso ? (
+        <p className="mb-3 text-xs text-amber-200/90">
+          Había un vínculo viejo a un plato. Completá la receta en{" "}
+          <Link href={hrefReceta} className="underline hover:text-white">
+            Recetas y procesos
+          </Link>
+          .
         </p>
       ) : null}
 
       {esAdmin ? (
         cuerpoReceta
       ) : (
-        <RecetaProtegida viewerName={viewer?.name ?? "staff"}>
-          {cuerpoReceta}
-          {preparacion.proceso ? (
-            <pre className="mb-3 max-h-40 overflow-y-auto whitespace-pre-wrap rounded-lg bg-zinc-900/80 p-2 text-xs leading-relaxed text-zinc-300">
-              {preparacion.proceso}
-            </pre>
-          ) : null}
-        </RecetaProtegida>
+        <RecetaProtegida viewerName={viewer?.name ?? "staff"}>{cuerpoReceta}</RecetaProtegida>
       )}
 
       {esAdmin ? (
-        <>
-          <label className="mb-3 flex items-center gap-2 text-xs text-zinc-300">
-            <input
-              type="checkbox"
-              checked={preparacion.recetaSoloAdmin}
-              onChange={(e) => void guardarSoloAdmin(e.target.checked)}
-              disabled={guardando}
-              className="rounded border-zinc-600"
-            />
-            Solo Manu puede ver esta receta
-          </label>
-          <label className="block">
-            <span className="mb-1 block text-[10px] uppercase tracking-wide text-zinc-500">
-              Proceso (pasos de esta prep)
-            </span>
-            <textarea
-              value={procesoDraft}
-              onChange={(e) => setProcesoDraft(e.target.value)}
-              rows={4}
-              placeholder="Cómo se hace este bloque: tiempos, temperaturas, mis-en-place…"
-              className="w-full rounded-lg border border-zinc-700 bg-zinc-900 px-3 py-2 text-sm leading-relaxed"
-            />
-          </label>
-          {procesoDraft !== (preparacion.proceso ?? "") ? (
-            <button
-              type="button"
-              onClick={() => void guardarProceso()}
-              disabled={guardando}
-              className="mt-2 rounded-lg border border-emerald-700/70 bg-emerald-950/50 px-3 py-1.5 text-xs font-medium text-emerald-100 hover:bg-emerald-900/50 disabled:opacity-50"
-            >
-              {guardando ? "Guardando…" : "Guardar proceso"}
-            </button>
-          ) : null}
-        </>
+        <label className="flex items-center gap-2 text-xs text-zinc-300">
+          <input
+            type="checkbox"
+            checked={preparacion.recetaSoloAdmin}
+            onChange={(e) => void guardarSoloAdmin(e.target.checked)}
+            className="rounded border-zinc-600"
+          />
+          Solo Manu puede ver esta receta
+        </label>
       ) : null}
     </div>
   );

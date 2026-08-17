@@ -25,12 +25,12 @@ import {
   esUnidadCantidadValida,
   fetchPreparaciones,
   parseCantidadInput,
+  ocultarRecetaSiSoloAdmin,
   preparacionEstaConectada,
   UNIDADES_CANTIDAD,
   type Preparacion,
   type UnidadCantidad,
 } from "@/src/lib/preparaciones";
-import { fetchPlatosParaVincular, type PlatoVinculo } from "@/src/lib/recetas";
 import { puedeVerRecetaDeBloque } from "@/src/lib/receta-acceso";
 import { PreparacionRecetaPanel } from "@/app/components/preparacion-receta-panel";
 import { APP_USERS } from "@/src/lib/auth-users";
@@ -146,7 +146,6 @@ export default function ProduccionPlanPage() {
   const [plan, setPlan] = useState<ProduccionPlanItem[]>([]);
   const [pendientesAtrasados, setPendientesAtrasados] = useState<ProduccionPlanItem[]>([]);
   const [preparaciones, setPreparaciones] = useState<Preparacion[]>([]);
-  const [platosVinculo, setPlatosVinculo] = useState<PlatoVinculo[]>([]);
   const [resumenes, setResumenes] = useState(
     () => [] as ReturnType<typeof calcularResumenesPorPreparacion>
   );
@@ -316,15 +315,13 @@ export default function ProduccionPlanPage() {
   );
 
   const refrescar = useCallback(async (usuarioActual: SessionUsuario | null) => {
-    const esAdmin = usuarioActual?.role === "admin";
-    const [planResult, prepsResult, sesionesResult, pendientesResult, autoServicioResult, platosResult] =
+    const [planResult, prepsResult, sesionesResult, pendientesResult, autoServicioResult] =
       await Promise.allSettled([
         fetchProduccionPlanSemana(lunesSemana),
         fetchPreparaciones(),
         fetchProduccionSesionesRecientes(200),
         fetchProduccionPendientesAtrasados(fechaHoy, 300),
         autoCompletarServiciosVencidos(fechaHoy),
-        esAdmin ? fetchPlatosParaVincular() : Promise.resolve([] as PlatoVinculo[]),
       ]);
 
     const errores: string[] = [];
@@ -347,11 +344,7 @@ export default function ProduccionPlanPage() {
     if (prepsResult.status === "fulfilled") {
       const lista = prepsResult.value;
       if (usuarioActual?.role === "staff") {
-        setPreparaciones(
-          lista.map((p) =>
-            p.recetaSoloAdmin ? { ...p, recetaPlatoId: null, proceso: null } : p
-          )
-        );
+        setPreparaciones(lista.map(ocultarRecetaSiSoloAdmin));
       } else {
         setPreparaciones(lista);
       }
@@ -362,12 +355,6 @@ export default function ProduccionPlanPage() {
           ? prepsResult.reason.message
           : "No se pudieron cargar las preparaciones."
       );
-    }
-
-    if (platosResult.status === "fulfilled") {
-      setPlatosVinculo(platosResult.value);
-    } else {
-      setPlatosVinculo([]);
     }
 
     if (sesionesResult.status === "fulfilled") {
@@ -1518,7 +1505,6 @@ export default function ProduccionPlanPage() {
               {prepSeleccionada ? (
                 <PreparacionRecetaPanel
                   preparacion={prepSeleccionada}
-                  platos={platosVinculo}
                   onCambio={onCambioVinculoPrep}
                   viewer={usuario}
                   puedeVer={puedeVerRecetaModal}
