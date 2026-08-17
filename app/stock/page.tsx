@@ -247,7 +247,7 @@ export default function StockPage() {
           <button
             type="submit"
             disabled={isSubmitting}
-            className="inline-flex shrink-0 items-center justify-center rounded-xl border border-zinc-700 bg-zinc-100 px-4 py-2.5 text-zinc-900 transition hover:bg-white disabled:cursor-not-allowed disabled:opacity-60 sm:mb-0.5"
+            className="inline-flex shrink-0 items-center justify-center rounded-xl border border-zinc-700 bg-zinc-100 px-4 py-2.5 text-zinc-900 transition hover:bg-zinc-50 disabled:cursor-not-allowed disabled:opacity-60 sm:mb-0.5"
             aria-label="Agregar ítem de stock"
           >
             {isSubmitting ? (

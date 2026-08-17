@@ -5,6 +5,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { Loader2 } from "lucide-react";
 
 import { APP_USERS } from "@/src/lib/auth-users";
+import { TemaToggle } from "@/app/components/tema-toggle";
 
 function LoginForm() {
   const router = useRouter();
@@ -159,6 +160,9 @@ function LoginForm() {
 export default function LoginPage() {
   return (
     <main className="relative flex min-h-screen flex-col items-center justify-center px-4 py-10 text-ink">
+      <div className="absolute right-4 top-[calc(env(safe-area-inset-top,0px)+1rem)]">
+        <TemaToggle />
+      </div>
       <Suspense
         fallback={
           <div className="flex min-h-[50vh] items-center justify-center">

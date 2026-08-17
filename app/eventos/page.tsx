@@ -812,7 +812,7 @@ export default function EventosPage() {
                 type="button"
                 onClick={() => void guardarCabecera()}
                 disabled={isSaving}
-                className="inline-flex items-center gap-2 rounded-xl bg-white px-4 py-2 text-sm font-semibold text-zinc-950 disabled:opacity-50"
+                className="inline-flex items-center gap-2 rounded-xl bg-ink px-4 py-2 text-sm font-semibold text-paper disabled:opacity-50"
               >
                 {isSaving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Check className="h-4 w-4" />}
                 Guardar
@@ -1216,7 +1216,7 @@ export default function EventosPage() {
               setError(null);
               setSuccess(null);
             }}
-            className="inline-flex items-center gap-2 rounded-xl bg-white px-4 py-2 text-sm font-semibold text-zinc-950"
+            className="inline-flex items-center gap-2 rounded-xl bg-ink px-4 py-2 text-sm font-semibold text-paper"
           >
             <Plus className="h-4 w-4" />
             Nuevo evento
@@ -1273,7 +1273,7 @@ export default function EventosPage() {
             <button
               type="submit"
               disabled={isSaving || !nuevoTitulo.trim()}
-              className="inline-flex items-center gap-2 rounded-xl bg-white px-4 py-2 text-sm font-semibold text-zinc-950 disabled:opacity-50"
+              className="inline-flex items-center gap-2 rounded-xl bg-ink px-4 py-2 text-sm font-semibold text-paper disabled:opacity-50"
             >
               {isSaving ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
               Crear con checklist

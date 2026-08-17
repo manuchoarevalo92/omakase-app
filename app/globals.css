@@ -1,7 +1,8 @@
 @import "tailwindcss";
 
-:root {
-  /* YUKU dark — misma identidad, tinta sobre papel invertido */
+:root,
+html[data-theme="noche"] {
+  /* YUKU noche — tinta clara sobre papel oscuro */
   --ink: #f3f0ea;
   --ink-600: #d4cfc6;
   --ink-500: #b0aaa0;
@@ -20,6 +21,52 @@
   --ok: #4a9a6e;
   --background: var(--paper);
   --foreground: var(--ink);
+  --zinc-50: #faf8f4;
+  --zinc-100: #f3f0ea;
+  --zinc-200: #e8e4dc;
+  --zinc-300: #d4cfc6;
+  --zinc-400: #b0aaa0;
+  --zinc-500: #8a847a;
+  --zinc-600: #5c574f;
+  --zinc-700: #3d3a36;
+  --zinc-800: #2a2824;
+  --zinc-900: #1a1916;
+  --zinc-950: #0e0d0b;
+  color-scheme: dark;
+}
+
+html[data-theme="dia"] {
+  /* YUKU día — tinta sobre papel crema */
+  --ink: #1a1916;
+  --ink-600: #3d3a36;
+  --ink-500: #5c574f;
+  --ink-400: #8a847a;
+  --ink-300: #b0aaa0;
+  --ink-200: #d4cfc6;
+  --ink-100: #e8e4dc;
+  --ink-50: #f3f0ea;
+  --paper: #f7f3ec;
+  --paper-elevated: #fffcf7;
+  --seal: #c43a2e;
+  --seal-muted: #b43024;
+  --indigo: #5d7388;
+  --amber: #b8860b;
+  --amber-bg: #f4ead0;
+  --ok: #2f7a52;
+  --background: var(--paper);
+  --foreground: var(--ink);
+  --zinc-50: #0e0d0b;
+  --zinc-100: #1a1916;
+  --zinc-200: #2a2824;
+  --zinc-300: #3d3a36;
+  --zinc-400: #5c574f;
+  --zinc-500: #8a847a;
+  --zinc-600: #b0aaa0;
+  --zinc-700: #cfc9be;
+  --zinc-800: #e4dfd4;
+  --zinc-900: #f0ebe3;
+  --zinc-950: #f7f3ec;
+  color-scheme: light;
 }
 
 @theme inline {
@@ -45,22 +92,18 @@
   --font-display: var(--font-display);
   --font-mono: var(--font-mono);
 
-  /* Remap zinc → paleta cálida YUKU dark (las pantallas actuales usan zinc-*) */
-  --color-zinc-50: #faf8f4;
-  --color-zinc-100: #f3f0ea;
-  --color-zinc-200: #e8e4dc;
-  --color-zinc-300: #d4cfc6;
-  --color-zinc-400: #b0aaa0;
-  --color-zinc-500: #8a847a;
-  --color-zinc-600: #5c574f;
-  --color-zinc-700: #3d3a36;
-  --color-zinc-800: #2a2824;
-  --color-zinc-900: #1a1916;
-  --color-zinc-950: #0e0d0b;
-
-  /* Botones "blancos" → papel crema YUKU */
-  --color-white: #f3f0ea;
-  --color-black: #0e0d0b;
+  /* zinc sigue data-theme (día vs noche); white/black quedan literales para overlays y botones de color */
+  --color-zinc-50: var(--zinc-50);
+  --color-zinc-100: var(--zinc-100);
+  --color-zinc-200: var(--zinc-200);
+  --color-zinc-300: var(--zinc-300);
+  --color-zinc-400: var(--zinc-400);
+  --color-zinc-500: var(--zinc-500);
+  --color-zinc-600: var(--zinc-600);
+  --color-zinc-700: var(--zinc-700);
+  --color-zinc-800: var(--zinc-800);
+  --color-zinc-900: var(--zinc-900);
+  --color-zinc-950: var(--zinc-950);
 }
 
 @layer base {
@@ -106,6 +149,14 @@
       radial-gradient(circle at 60% 70%, rgba(143, 163, 184, 0.03), transparent 30%),
       url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.04'/%3E%3C/svg%3E");
     background-size: auto, auto, auto, 180px 180px;
+  }
+
+  html[data-theme="dia"] .washi-bg {
+    background-image:
+      radial-gradient(circle at 18% 22%, rgba(26, 25, 22, 0.03), transparent 28%),
+      radial-gradient(circle at 78% 12%, rgba(196, 58, 46, 0.06), transparent 24%),
+      radial-gradient(circle at 60% 70%, rgba(93, 115, 136, 0.04), transparent 30%),
+      url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.03'/%3E%3C/svg%3E");
   }
 
   .animate-fade-up {

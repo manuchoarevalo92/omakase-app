@@ -3,6 +3,8 @@ import { Cormorant_Garamond, DM_Sans, JetBrains_Mono } from "next/font/google";
 import "./globals.css";
 import { MainNav } from "./components/main-nav";
 import { RegisterServiceWorker } from "./components/register-service-worker";
+import { TemaProvider } from "./components/tema-provider";
+import { TEMA_BOOTSTRAP_SCRIPT } from "@/src/lib/tema";
 
 const display = Cormorant_Garamond({
   variable: "--font-display",
@@ -57,7 +59,10 @@ export const viewport: Viewport = {
   width: "device-width",
   initialScale: 1,
   viewportFit: "cover",
-  themeColor: "#0e0d0b",
+  themeColor: [
+    { media: "(prefers-color-scheme: light)", color: "#f7f3ec" },
+    { media: "(prefers-color-scheme: dark)", color: "#0e0d0b" },
+  ],
 };
 
 export default function RootLayout({
@@ -68,17 +73,23 @@ export default function RootLayout({
   return (
     <html
       lang="es"
+      suppressHydrationWarning
       className={`${display.variable} ${body.variable} ${mono.variable} h-full max-w-full overflow-x-clip antialiased`}
     >
+      <head>
+        <script dangerouslySetInnerHTML={{ __html: TEMA_BOOTSTRAP_SCRIPT }} />
+      </head>
       <body className="relative flex min-h-full min-w-0 max-w-full flex-col overflow-x-clip bg-paper text-ink pl-[env(safe-area-inset-left)] pr-[env(safe-area-inset-right)]">
-        <div className="pointer-events-none fixed inset-0 washi-bg opacity-70" aria-hidden />
-        <div className="relative z-10 flex min-h-full min-w-0 w-full max-w-full flex-1 flex-col">
-          <RegisterServiceWorker />
-          <MainNav />
-          <div className="flex min-h-0 min-w-0 w-full max-w-full flex-1 flex-col">
-            {children}
+        <TemaProvider>
+          <div className="pointer-events-none fixed inset-0 washi-bg opacity-70" aria-hidden />
+          <div className="relative z-10 flex min-h-full min-w-0 w-full max-w-full flex-1 flex-col">
+            <RegisterServiceWorker />
+            <MainNav />
+            <div className="flex min-h-0 min-w-0 w-full max-w-full flex-1 flex-col">
+              {children}
+            </div>
           </div>
-        </div>
+        </TemaProvider>
       </body>
     </html>
   );

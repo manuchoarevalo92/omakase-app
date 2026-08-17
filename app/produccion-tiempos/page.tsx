@@ -699,7 +699,7 @@ export default function ProduccionTiemposPage() {
                 type="button"
                 onClick={() => void iniciar()}
                 disabled={isBusy || !prepSeleccionada}
-                className="inline-flex w-full items-center justify-center gap-2 rounded-xl bg-white py-3.5 text-sm font-semibold text-zinc-950 transition hover:bg-zinc-200 disabled:cursor-not-allowed disabled:opacity-50 sm:w-auto sm:px-8"
+                className="inline-flex w-full items-center justify-center gap-2 rounded-xl bg-ink py-3.5 text-sm font-semibold text-paper transition hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50 sm:w-auto sm:px-8"
               >
                 {isBusy ? (
                   <Loader2 className="h-4 w-4 animate-spin" />

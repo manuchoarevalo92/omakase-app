@@ -4,6 +4,7 @@ import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { ChevronDown, Loader2, LogOut, Menu, X } from "lucide-react";
+import { TemaToggle } from "@/app/components/tema-toggle";
 
 import { fetchMepCargasSinCerrarRecientes } from "@/src/lib/mep-deli";
 
@@ -197,11 +198,12 @@ export function MainNav() {
     <nav className="sticky top-0 z-50 w-full max-w-full border-b border-ink-200/80 bg-paper/90 pt-[calc(env(safe-area-inset-top,0px)+2rem)] backdrop-blur-md sm:pt-[calc(env(safe-area-inset-top,0px)+0.5rem)]">
       <div className="box-border w-full min-w-0 max-w-full px-3 py-3 sm:mx-auto sm:max-w-6xl sm:px-6">
         {session === undefined ? (
-          <div className="flex w-full justify-center py-2">
+          <div className="relative flex w-full items-center justify-end py-2">
             <Loader2
-              className="h-7 w-7 shrink-0 animate-spin text-ink-400 sm:h-6 sm:w-6"
+              className="absolute left-1/2 h-7 w-7 shrink-0 -translate-x-1/2 animate-spin text-ink-400 sm:h-6 sm:w-6"
               aria-label="Cargando menú"
             />
+            <TemaToggle />
           </div>
         ) : (
           <div className="flex items-center justify-between gap-3">
@@ -236,6 +238,7 @@ export function MainNav() {
                     <span className="text-ink-300"> · equipo</span>
                   ) : null}
                 </p>
+                <TemaToggle />
                 <button
                   type="button"
                   onClick={() => void logout()}

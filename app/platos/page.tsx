@@ -350,7 +350,7 @@ export default function PlatosPage() {
             <button
               type="submit"
               disabled={isSaving}
-              className="inline-flex items-center justify-center rounded-xl border border-zinc-700 bg-zinc-100 p-2 text-zinc-900 transition hover:bg-white disabled:cursor-not-allowed disabled:opacity-60"
+              className="inline-flex items-center justify-center rounded-xl border border-zinc-700 bg-zinc-100 p-2 text-zinc-900 transition hover:bg-zinc-50 disabled:cursor-not-allowed disabled:opacity-60"
               aria-label="Crear plato"
             >
               {isSaving ? (
@@ -551,7 +551,7 @@ export default function PlatosPage() {
                                       type="button"
                                       onClick={() => void confirmarSelectorIngredientes()}
                                       disabled={isUpdatingIngredientes}
-                                      className="inline-flex items-center gap-2 rounded-md border border-zinc-700 bg-zinc-100 px-3 py-1.5 text-sm text-zinc-900 transition hover:bg-white disabled:cursor-not-allowed disabled:opacity-60"
+                                      className="inline-flex items-center gap-2 rounded-md border border-zinc-700 bg-zinc-100 px-3 py-1.5 text-sm text-zinc-900 transition hover:bg-zinc-50 disabled:cursor-not-allowed disabled:opacity-60"
                                     >
                                       {isUpdatingIngredientes ? (
                                         <Loader2 className="h-4 w-4 animate-spin" />

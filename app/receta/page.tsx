@@ -580,7 +580,7 @@ export default function RecetaPage() {
             <button
               type="submit"
               disabled={isSaving || !platoId}
-              className="inline-flex w-full items-center justify-center gap-2 rounded-xl border border-zinc-700 bg-zinc-100 py-2.5 text-sm font-medium text-zinc-900 transition hover:bg-white disabled:cursor-not-allowed disabled:opacity-60 sm:w-auto sm:px-6"
+              className="inline-flex w-full items-center justify-center gap-2 rounded-xl border border-zinc-700 bg-zinc-100 py-2.5 text-sm font-medium text-zinc-900 transition hover:bg-zinc-50 disabled:cursor-not-allowed disabled:opacity-60 sm:w-auto sm:px-6"
             >
               {isSaving ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
               Guardar receta
