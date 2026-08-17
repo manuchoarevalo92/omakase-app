@@ -395,6 +395,7 @@ export default function Home() {
           supabase
             .from("platos")
             .select("id, nombre, categoria, ingredientes_requeridos")
+            .eq("tipo", "carta")
             .order("nombre", { ascending: true }),
           supabase
             .from("historial_servicios")

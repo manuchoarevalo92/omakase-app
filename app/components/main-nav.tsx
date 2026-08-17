@@ -18,7 +18,7 @@ const ALL_LINKS = [
   { href: "/mep-cortes", label: "Catálogo MEP" },
   { href: "/inventario", label: "Ingredientes" },
   { href: "/stock", label: "Stock" },
-  { href: "/receta", label: "Receta" },
+  { href: "/receta", label: "Recetas y procesos" },
   { href: "/historial", label: "Historial" },
   { href: "/mep-historial", label: "MEP Historial" },
   { href: "/estadisticas", label: "Stats" },

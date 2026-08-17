@@ -185,7 +185,7 @@ export default function EventosPage() {
     try {
       const [lista, platosRes] = await Promise.all([
         fetchEventos(),
-        supabase.from("platos").select("id, nombre, categoria").order("categoria").order("nombre"),
+        supabase.from("platos").select("id, nombre, categoria").eq("tipo", "carta").order("categoria").order("nombre"),
       ]);
       setEventos(lista);
       if (platosRes.error) throw platosRes.error;

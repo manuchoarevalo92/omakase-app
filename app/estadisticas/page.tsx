@@ -325,7 +325,8 @@ export default function EstadisticasPage() {
             .order("fecha", { ascending: false }),
           supabase
             .from("platos")
-            .select("id, nombre, categoria, ingredientes_requeridos"),
+            .select("id, nombre, categoria, ingredientes_requeridos")
+            .eq("tipo", "carta"),
           supabase.from("ingredientes").select("id, nombre, rubro"),
         ]);
 

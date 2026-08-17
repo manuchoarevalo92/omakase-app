@@ -5,11 +5,14 @@ import { Loader2, Plus, Trash2 } from "lucide-react";
 
 import { formatPostgrestError } from "@/src/lib/supabase-errors";
 import { supabase } from "@/src/lib/supabase";
+import {
+  borrarPlatoRecetaBase,
+  crearPlatoRecetaBase,
+  fetchPlatosCatalogoRecetas,
+  type PlatoCatalogoReceta,
+} from "@/src/lib/recetas";
 
-type Plato = {
-  id: string;
-  nombre: string;
-};
+type Plato = PlatoCatalogoReceta;
 
 type IngredienteReceta = {
   nombre: string;
@@ -51,10 +54,23 @@ export default function RecetaPage() {
   const [isSaving, setIsSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
+  const [creandoBase, setCreandoBase] = useState(false);
+  const [nombreNuevaBase, setNombreNuevaBase] = useState("");
+  const [isCreatingBase, setIsCreatingBase] = useState(false);
+  const [isDeletingBase, setIsDeletingBase] = useState(false);
 
   const platoSeleccionado = useMemo(
     () => platos.find((p) => p.id === platoId),
     [platos, platoId]
+  );
+
+  const platosBase = useMemo(
+    () => platos.filter((p) => p.tipo === "base"),
+    [platos]
+  );
+  const platosCarta = useMemo(
+    () => platos.filter((p) => p.tipo === "carta"),
+    [platos]
   );
 
   const paxNumero = useMemo(() => {
@@ -165,19 +181,10 @@ export default function RecetaPage() {
     setIsLoading(true);
     setError(null);
     try {
-      const { data, error: fetchError } = await supabase
-        .from("platos")
-        .select("id, nombre")
-        .order("nombre", { ascending: true });
-
-      if (fetchError) {
-        setError(formatPostgrestError(fetchError));
-        return;
-      }
-
-      setPlatos((data as Plato[]) ?? []);
+      const data = await fetchPlatosCatalogoRecetas();
+      setPlatos(data);
       const fromUrl = new URLSearchParams(window.location.search).get("plato");
-      if (fromUrl && (data as Plato[] | null)?.some((p) => p.id === fromUrl)) {
+      if (fromUrl && data.some((p) => p.id === fromUrl)) {
         setPlatoId(fromUrl);
       }
     } catch (err) {
@@ -297,11 +304,11 @@ export default function RecetaPage() {
   const guardarReceta = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     if (!platoId) {
-      setError("Selecciona un plato.");
+      setError("Selecciona una receta.");
       return;
     }
 
-    if (paxNumero === null) {
+    if (platoSeleccionado?.tipo !== "base" && paxNumero === null) {
       setError("Indica el rendimiento en PAX (número mayor que 0).");
       return;
     }
@@ -331,7 +338,7 @@ export default function RecetaPage() {
 
     const payload = {
       plato_id: platoId,
-      pax: Math.round(paxNumero),
+      pax: paxNumero != null ? Math.round(paxNumero) : null,
       ingredientes: ingredientesPayload.map((fila) => ({
         nombre: fila.nombre,
         gramos: Number(fila.gramosRaw.replace(",", ".")),
@@ -351,17 +358,80 @@ export default function RecetaPage() {
 
     setPreparacionGuardada(preparacion.trim());
     setEditandoPreparacion(false);
-    setSuccess(`Receta guardada para ${platoSeleccionado?.nombre ?? "el plato"}.`);
+    setSuccess(
+      `Receta guardada para ${platoSeleccionado?.nombre ?? "el ítem"}.`
+    );
     setIsSaving(false);
+  };
+
+  const crearBase = async () => {
+    const limpio = nombreNuevaBase.trim();
+    if (!limpio) {
+      setError("Indicá un nombre para la receta base.");
+      return;
+    }
+    const duplicado = platos.some(
+      (p) => p.nombre.trim().toLowerCase() === limpio.toLowerCase()
+    );
+    if (duplicado) {
+      setError("Ya existe una receta o plato con ese nombre.");
+      return;
+    }
+    setIsCreatingBase(true);
+    setError(null);
+    setSuccess(null);
+    try {
+      const creado = await crearPlatoRecetaBase(limpio);
+      setPlatos((actual) =>
+        [...actual, creado].sort((a, b) => a.nombre.localeCompare(b.nombre, "es"))
+      );
+      setPlatoId(creado.id);
+      setNombreNuevaBase("");
+      setCreandoBase(false);
+      setSuccess(`Creada «${creado.nombre}». Completá ingredientes y preparación.`);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "No se pudo crear la receta base.");
+    } finally {
+      setIsCreatingBase(false);
+    }
+  };
+
+  const borrarBase = async () => {
+    if (!platoSeleccionado || platoSeleccionado.tipo !== "base") {
+      return;
+    }
+    if (
+      !window.confirm(
+        `¿Borrar «${platoSeleccionado.nombre}»? Se elimina la receta base; no afecta platos de carta.`
+      )
+    ) {
+      return;
+    }
+    setIsDeletingBase(true);
+    setError(null);
+    setSuccess(null);
+    try {
+      await borrarPlatoRecetaBase(platoSeleccionado.id);
+      setPlatos((actual) => actual.filter((p) => p.id !== platoSeleccionado.id));
+      setPlatoId("");
+      setSuccess(`Se borró «${platoSeleccionado.nombre}».`);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "No se pudo borrar la receta base.");
+    } finally {
+      setIsDeletingBase(false);
+    }
   };
 
   return (
     <main className="min-h-screen min-w-0 bg-zinc-950 px-4 py-6 text-zinc-100 sm:px-6 sm:py-10">
       <section className="mx-auto w-full max-w-3xl rounded-2xl border border-zinc-800 bg-zinc-900/60 p-6 shadow-[0_0_0_1px_rgba(255,255,255,0.02)] backdrop-blur">
         <header className="mb-6">
-          <h1 className="font-display text-3xl font-medium tracking-tight text-ink">Receta</h1>
+          <h1 className="font-display text-3xl font-medium tracking-tight text-ink">
+            Recetas y procesos
+          </h1>
           <p className="mt-2 text-sm text-zinc-400">
-            Elige un plato y completa ingredientes con peso en gramos y la preparación.
+            Recetas de platos que servimos y recetas base (dashi, nikiri, etc.) para después
+            asociarlas al calendario.
           </p>
         </header>
 
@@ -380,14 +450,65 @@ export default function RecetaPage() {
         {isLoading ? (
           <div className="flex items-center gap-2 text-sm text-zinc-400">
             <Loader2 className="h-4 w-4 animate-spin" />
-            Cargando platos...
+            Cargando recetas...
           </div>
         ) : (
           <form onSubmit={guardarReceta} className="space-y-6">
             <div>
-              <label className="mb-2 block text-xs uppercase tracking-[0.14em] text-zinc-500">
-                Plato
-              </label>
+              <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
+                <label className="block text-xs uppercase tracking-[0.14em] text-zinc-500">
+                  Receta
+                </label>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setCreandoBase((v) => !v);
+                    setError(null);
+                    setSuccess(null);
+                  }}
+                  className="inline-flex items-center gap-1.5 rounded-lg border border-zinc-600 bg-zinc-800 px-3 py-1.5 text-xs text-zinc-100 transition hover:border-zinc-500"
+                >
+                  <Plus className="h-3.5 w-3.5" />
+                  Nueva receta base
+                </button>
+              </div>
+              {creandoBase ? (
+                <div className="mb-3 flex flex-col gap-2 rounded-xl border border-zinc-700 bg-zinc-950/80 p-3 sm:flex-row sm:items-center">
+                  <input
+                    value={nombreNuevaBase}
+                    onChange={(e) => setNombreNuevaBase(e.target.value)}
+                    placeholder="Ej. Dashi, Nikiri, Zu…"
+                    className="min-w-0 flex-1 rounded-lg border border-zinc-700 bg-zinc-900 px-3 py-2 text-sm outline-none focus:border-zinc-500"
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter") {
+                        e.preventDefault();
+                        void crearBase();
+                      }
+                    }}
+                  />
+                  <div className="flex gap-2">
+                    <button
+                      type="button"
+                      onClick={() => void crearBase()}
+                      disabled={isCreatingBase}
+                      className="inline-flex items-center gap-1.5 rounded-lg bg-ink px-3 py-2 text-xs font-medium text-paper disabled:opacity-50"
+                    >
+                      {isCreatingBase ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : null}
+                      Crear
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setCreandoBase(false);
+                        setNombreNuevaBase("");
+                      }}
+                      className="rounded-lg border border-zinc-700 px-3 py-2 text-xs text-zinc-300"
+                    >
+                      Cancelar
+                    </button>
+                  </div>
+                </div>
+              ) : null}
               <select
                 value={platoId}
                 onChange={(e) => {
@@ -396,13 +517,43 @@ export default function RecetaPage() {
                 }}
                 className="w-full rounded-xl border border-zinc-700 bg-zinc-950 px-4 py-2.5 text-sm text-zinc-100 outline-none transition focus:border-zinc-500"
               >
-                <option value="">Seleccionar plato...</option>
-                {platos.map((plato) => (
-                  <option key={plato.id} value={plato.id}>
-                    {plato.nombre}
-                  </option>
-                ))}
+                <option value="">Seleccionar receta…</option>
+                {platosBase.length > 0 ? (
+                  <optgroup label="Recetas base">
+                    {platosBase.map((plato) => (
+                      <option key={plato.id} value={plato.id}>
+                        {plato.nombre}
+                      </option>
+                    ))}
+                  </optgroup>
+                ) : null}
+                {platosCarta.length > 0 ? (
+                  <optgroup label="Platos de carta">
+                    {platosCarta.map((plato) => (
+                      <option key={plato.id} value={plato.id}>
+                        {plato.nombre}
+                      </option>
+                    ))}
+                  </optgroup>
+                ) : null}
               </select>
+              {platoSeleccionado?.tipo === "base" ? (
+                <div className="mt-2 flex items-center justify-between gap-2">
+                  <p className="text-[11px] text-zinc-500">
+                    Receta base: no aparece en el menú ni en Platos. Sí se puede asociar al plan
+                    semanal.
+                  </p>
+                  <button
+                    type="button"
+                    onClick={() => void borrarBase()}
+                    disabled={isDeletingBase}
+                    className="inline-flex shrink-0 items-center gap-1 text-[11px] text-zinc-500 underline hover:text-red-300 disabled:opacity-50"
+                  >
+                    {isDeletingBase ? <Loader2 className="h-3 w-3 animate-spin" /> : null}
+                    Borrar
+                  </button>
+                </div>
+              ) : null}
             </div>
 
             <div className="rounded-xl border border-zinc-800 bg-zinc-950/60 p-4">
@@ -410,8 +561,9 @@ export default function RecetaPage() {
                 Rendimiento — PAX inicial
               </label>
               <p className="mb-3 text-xs leading-relaxed text-zinc-500">
-                Cuántas porciones rinden las cantidades en gramos que cargaste (referencia del
-                día). Después podés recalcular PAX o gramos sin reescribir todo a mano.
+                {platoSeleccionado?.tipo === "base"
+                  ? "Cuánto rinde esta receta (opcional en bases). Después podés recalcular PAX o gramos."
+                  : "Cuántas porciones rinden las cantidades en gramos que cargaste (referencia del día). Después podés recalcular PAX o gramos sin reescribir todo a mano."}
               </p>
               <div className="flex flex-wrap items-center gap-3">
                 <input

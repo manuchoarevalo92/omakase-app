@@ -13,12 +13,29 @@ export type RecetaPlato = {
   pax: number | null;
 };
 
+export const TIPOS_PLATO = ["carta", "base"] as const;
+export type TipoPlato = (typeof TIPOS_PLATO)[number];
+
+/** Categoría técnica para filas tipo base (no se muestran en carta / omakase). */
+export const CATEGORIA_RECETA_BASE = "Base";
+
 export type PlatoVinculo = {
   id: string;
   nombre: string;
+  tipo: TipoPlato;
   tieneReceta: boolean;
   recetaCompleta: boolean;
 };
+
+export type PlatoCatalogoReceta = {
+  id: string;
+  nombre: string;
+  tipo: TipoPlato;
+};
+
+function normalizarTipoPlato(valor: string | null | undefined): TipoPlato {
+  return valor === "base" ? "base" : "carta";
+}
 
 type RecetaDbRow = {
   plato_id: string;
@@ -69,9 +86,61 @@ export async function fetchRecetaPorPlatoId(platoId: string): Promise<RecetaPlat
   return recetaDesdeFila(data as RecetaDbRow);
 }
 
+export async function fetchPlatosCatalogoRecetas(): Promise<PlatoCatalogoReceta[]> {
+  const { data, error } = await supabase
+    .from("platos")
+    .select("id, nombre, tipo")
+    .order("nombre", { ascending: true });
+
+  if (error) {
+    throw new Error(formatPostgrestError(error));
+  }
+
+  return ((data ?? []) as { id: string; nombre: string; tipo: string | null }[]).map((plato) => ({
+    id: plato.id,
+    nombre: plato.nombre,
+    tipo: normalizarTipoPlato(plato.tipo),
+  }));
+}
+
+export async function crearPlatoRecetaBase(nombre: string): Promise<PlatoCatalogoReceta> {
+  const limpio = nombre.trim();
+  if (!limpio) {
+    throw new Error("Indicá un nombre para la receta base.");
+  }
+
+  const { data, error } = await supabase
+    .from("platos")
+    .insert({
+      nombre: limpio,
+      categoria: CATEGORIA_RECETA_BASE,
+      tipo: "base",
+      ingredientes_requeridos: [],
+    })
+    .select("id, nombre, tipo")
+    .single();
+
+  if (error) {
+    throw new Error(formatPostgrestError(error));
+  }
+
+  return {
+    id: (data as { id: string }).id,
+    nombre: (data as { nombre: string }).nombre,
+    tipo: "base",
+  };
+}
+
+export async function borrarPlatoRecetaBase(id: string): Promise<void> {
+  const { error } = await supabase.from("platos").delete().eq("id", id).eq("tipo", "base");
+  if (error) {
+    throw new Error(formatPostgrestError(error));
+  }
+}
+
 export async function fetchPlatosParaVincular(): Promise<PlatoVinculo[]> {
   const [platosRes, recetasRes] = await Promise.all([
-    supabase.from("platos").select("id, nombre").order("nombre", { ascending: true }),
+    supabase.from("platos").select("id, nombre, tipo").order("nombre", { ascending: true }),
     supabase.from("recetas").select("plato_id, ingredientes, preparacion"),
   ]);
 
@@ -87,13 +156,23 @@ export async function fetchPlatosParaVincular(): Promise<PlatoVinculo[]> {
     recetaPorPlato.set(row.plato_id, recetaDesdeFila(row));
   }
 
-  return ((platosRes.data ?? []) as { id: string; nombre: string }[]).map((plato) => {
+  const lista = (
+    (platosRes.data ?? []) as { id: string; nombre: string; tipo: string | null }[]
+  ).map((plato) => {
     const receta = recetaPorPlato.get(plato.id) ?? null;
     return {
       id: plato.id,
       nombre: plato.nombre,
+      tipo: normalizarTipoPlato(plato.tipo),
       tieneReceta: receta != null,
       recetaCompleta: receta != null && recetaEstaCompleta(receta),
     };
+  });
+
+  return lista.sort((a, b) => {
+    if (a.tipo !== b.tipo) {
+      return a.tipo === "base" ? -1 : 1;
+    }
+    return a.nombre.localeCompare(b.nombre, "es");
   });
 }

@@ -95,6 +95,7 @@ export default function PlatosPage() {
         supabase
           .from("platos")
           .select("id, nombre, categoria, ingredientes_requeridos")
+          .eq("tipo", "carta")
           .order("nombre", { ascending: true }),
       ]);
 
@@ -242,6 +243,7 @@ export default function PlatosPage() {
     const payload = {
       nombre: nombreLimpio,
       categoria,
+      tipo: "carta",
       ingredientes_requeridos: [] as string[],
     };
 

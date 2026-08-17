@@ -892,7 +892,7 @@ export default function ProduccionTiemposPage() {
               Recetas de preparaciones
             </h2>
             <p className="mb-3 text-xs text-zinc-500">
-              Asociá cada tarea a una receta de plato o escribí el proceso. Eso es lo que se ve al
+              Asociá cada tarea a una receta (plato o base) o escribí el proceso. Eso es lo que se ve al
               abrir el bloque en el plan semanal.
             </p>
             <div className="overflow-x-auto rounded-xl border border-zinc-800">

@@ -205,7 +205,7 @@ export function PreparacionRecetaPanel({
 
       {esAdmin && !conectada ? (
         <p className="mb-3 text-xs leading-relaxed text-amber-200/90">
-          Esta preparación no está conectada. Asociá una receta de plato o escribí el
+          Esta preparación no está conectada. Asociá una receta (plato o base) o escribí el
           proceso para que aparezca al abrir el bloque.
         </p>
       ) : null}
@@ -215,7 +215,7 @@ export function PreparacionRecetaPanel({
       {esAdmin ? (
         <label className="mb-3 block">
           <span className="mb-1 block text-[10px] uppercase tracking-wide text-zinc-500">
-            Receta de plato
+            Receta
           </span>
           <select
             value={preparacion.recetaPlatoId ?? ""}
@@ -223,13 +223,31 @@ export function PreparacionRecetaPanel({
             disabled={guardando}
             className="w-full rounded-lg border border-zinc-700 bg-zinc-900 px-3 py-2 text-sm disabled:opacity-50"
           >
-            <option value="">Sin receta de plato</option>
-            {platos.map((plato) => (
-              <option key={plato.id} value={plato.id}>
-                {plato.nombre}
-                {plato.tieneReceta ? (plato.recetaCompleta ? "" : " (incompleta)") : " (sin receta)"}
-              </option>
-            ))}
+            <option value="">Sin receta</option>
+            {platos.some((p) => p.tipo === "base") ? (
+              <optgroup label="Recetas base">
+                {platos
+                  .filter((p) => p.tipo === "base")
+                  .map((plato) => (
+                    <option key={plato.id} value={plato.id}>
+                      {plato.nombre}
+                      {plato.tieneReceta ? (plato.recetaCompleta ? "" : " (incompleta)") : " (sin receta)"}
+                    </option>
+                  ))}
+              </optgroup>
+            ) : null}
+            {platos.some((p) => p.tipo === "carta") ? (
+              <optgroup label="Platos de carta">
+                {platos
+                  .filter((p) => p.tipo === "carta")
+                  .map((plato) => (
+                    <option key={plato.id} value={plato.id}>
+                      {plato.nombre}
+                      {plato.tieneReceta ? (plato.recetaCompleta ? "" : " (incompleta)") : " (sin receta)"}
+                    </option>
+                  ))}
+              </optgroup>
+            ) : null}
           </select>
         </label>
       ) : null}
