@@ -10,7 +10,13 @@ import {
   type RubroIngrediente,
 } from "@/src/lib/ingredientes-rubro";
 import { BUFFER_PCT_DEFECTO } from "@/src/lib/compras-prediccion";
-import { PROVEEDORES, UNIDADES, type Proveedor, type UnidadMedida } from "@/src/lib/proveedores";
+import {
+  PROVEEDORES,
+  UNIDADES,
+  fetchProveedores,
+  type Proveedor,
+  type UnidadMedida,
+} from "@/src/lib/proveedores";
 import {
   STOCK_ITEM_SELECT,
   stockItemDesdeFila,
@@ -32,6 +38,7 @@ const RUBRO_EXPANDIDO_INICIAL: Record<RubroIngrediente, boolean> =
 
 export default function StockPage() {
   const [items, setItems] = useState<StockItem[]>([]);
+  const [proveedores, setProveedores] = useState<Proveedor[]>([...PROVEEDORES]);
   const [nuevoNombre, setNuevoNombre] = useState("");
   const [nuevoRubro, setNuevoRubro] = useState<RubroIngrediente>("Despensa/Prep");
   const [rubroExpandido, setRubroExpandido] =
@@ -61,10 +68,13 @@ export default function StockPage() {
     setIsLoading(true);
     setError(null);
     try {
-      const { data, error: fetchError } = await supabase
-        .from("stock_items")
-        .select(STOCK_ITEM_SELECT)
-        .order("nombre", { ascending: true });
+      const [{ data, error: fetchError }, listaProveedores] = await Promise.all([
+        supabase
+          .from("stock_items")
+          .select(STOCK_ITEM_SELECT)
+          .order("nombre", { ascending: true }),
+        fetchProveedores().catch(() => [...PROVEEDORES]),
+      ]);
 
       if (fetchError) {
         setError(formatPostgrestError(fetchError));
@@ -72,6 +82,7 @@ export default function StockPage() {
       }
 
       setItems(((data ?? []) as StockItemDbRow[]).map(stockItemDesdeFila));
+      setProveedores(listaProveedores);
     } catch (err) {
       setError(
         err instanceof Error ? err.message : "Error al conectar con Supabase."
@@ -392,7 +403,7 @@ export default function StockPage() {
                                   className={selectClass}
                                 >
                                   <option value="">Sin proveedor</option>
-                                  {PROVEEDORES.map((p) => (
+                                  {proveedores.map((p) => (
                                     <option key={p} value={p}>
                                       {p}
                                     </option>

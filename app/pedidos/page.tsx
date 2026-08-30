@@ -9,6 +9,8 @@ import {
   PROVEEDORES,
   UNIDADES,
   datoLegacyPorProveedor,
+  fetchProveedores,
+  ordenarProveedores,
   type Proveedor,
   type UnidadMedida,
 } from "@/src/lib/proveedores";
@@ -41,16 +43,16 @@ const crearItem = (): PedidoItem => ({
   unidad: "Unidad",
 });
 
-const crearEstadoVacio = (): Record<(typeof PROVEEDORES)[number], PedidoItem[]> =>
+const crearEstadoVacio = (): Record<string, PedidoItem[]> =>
   PROVEEDORES.reduce(
     (acc, proveedor) => {
       acc[proveedor] = [crearItem()];
       return acc;
     },
-    {} as Record<(typeof PROVEEDORES)[number], PedidoItem[]>
+    {} as Record<string, PedidoItem[]>
   );
 
-const cargarEstadoInicial = (): Record<(typeof PROVEEDORES)[number], PedidoItem[]> => {
+const cargarEstadoInicial = (): Record<string, PedidoItem[]> => {
   const vacio = crearEstadoVacio();
   if (typeof window === "undefined") {
     return vacio;
@@ -79,7 +81,7 @@ const cargarEstadoInicial = (): Record<(typeof PROVEEDORES)[number], PedidoItem[
         acc[proveedor] = normalizadas.length > 0 ? normalizadas : [crearItem()];
         return acc;
       },
-      {} as Record<(typeof PROVEEDORES)[number], PedidoItem[]>
+      {} as Record<string, PedidoItem[]>
     );
   } catch {
     return vacio;
@@ -103,17 +105,33 @@ const normalizarFilas = (filas: PedidoItem[] | null | undefined): PedidoItem[] =
 };
 
 const mergeDesdeNube = (
-  rows: PedidoProveedorRow[]
-): Record<(typeof PROVEEDORES)[number], PedidoItem[]> => {
-  return PROVEEDORES.reduce(
+  rows: PedidoProveedorRow[],
+  lista: string[]
+): Record<string, PedidoItem[]> => {
+  const nombres = ordenarProveedores([...lista, ...rows.map((r) => r.proveedor)]);
+  return nombres.reduce(
     (acc, proveedor) => {
       const row = rows.find((r) => r.proveedor === proveedor);
       acc[proveedor] = normalizarFilas(row?.items);
       return acc;
     },
-    {} as Record<(typeof PROVEEDORES)[number], PedidoItem[]>
+    {} as Record<string, PedidoItem[]>
   );
 };
+
+function expandirHuecos<T>(
+  record: Record<string, T>,
+  lista: string[],
+  factory: () => T
+): Record<string, T> {
+  const next = { ...record };
+  for (const p of lista) {
+    if (next[p] === undefined) {
+      next[p] = factory();
+    }
+  }
+  return next;
+}
 
 const crearEditadoVacio = (): Record<Proveedor, string | null> =>
   PROVEEDORES.reduce(
@@ -433,8 +451,9 @@ function PedidoFilaEditableRow(props: {
 }
 
 export default function PedidosPage() {
+  const [proveedores, setProveedores] = useState<Proveedor[]>([...PROVEEDORES]);
   const [pedidosPorProveedor, setPedidosPorProveedor] = useState<
-    Record<(typeof PROVEEDORES)[number], PedidoItem[]>
+    Record<string, PedidoItem[]>
   >(cargarEstadoInicial);
   const [isSyncing, setIsSyncing] = useState(false);
   const [syncError, setSyncError] = useState<string | null>(null);
@@ -458,33 +477,36 @@ export default function PedidosPage() {
 
   useEffect(() => {
     const cargarDesdeNube = async () => {
-      const { data, error } = await supabase
-        .from("pedidos_proveedores")
-        .select("proveedor, items, updated_at")
-        .in("proveedor", [...PROVEEDORES]);
+      const [remote, lista] = await Promise.all([
+        supabase.from("pedidos_proveedores").select("proveedor, items, updated_at"),
+        fetchProveedores().catch(() => [...PROVEEDORES]),
+      ]);
 
-      if (error) {
-        setSyncError(formatPostgrestError(error));
+      if (remote.error) {
+        setSyncError(formatPostgrestError(remote.error));
         cargadoRemotoRef.current = true;
         return;
       }
 
-      const rows = (data ?? []) as PedidoProveedorRow[];
-      if (rows.length > 0) {
-        setPedidosPorProveedor(mergeDesdeNube(rows));
-        setEditadoPorProveedor((prev) => {
-          const next = { ...prev };
-          rows.forEach((r) => {
-            if (
-              PROVEEDORES.includes(r.proveedor) &&
-              typeof r.updated_at === "string"
-            ) {
-              next[r.proveedor] = r.updated_at;
-            }
-          });
-          return next;
+      const rows = (remote.data ?? []) as PedidoProveedorRow[];
+      const listaFinal = ordenarProveedores([
+        ...lista,
+        ...rows.map((r) => r.proveedor),
+      ]);
+      setProveedores(listaFinal);
+      setPedidosPorProveedor(mergeDesdeNube(rows, listaFinal));
+      setVistaPorProveedor((prev) =>
+        expandirHuecos(prev, listaFinal, () => "editable" as VistaProveedor)
+      );
+      setEditadoPorProveedor((prev) => {
+        const next = expandirHuecos(prev, listaFinal, () => null);
+        rows.forEach((r) => {
+          if (typeof r.updated_at === "string") {
+            next[r.proveedor] = r.updated_at;
+          }
         });
-      }
+        return next;
+      });
       setSyncError(null);
       cargadoRemotoRef.current = true;
     };
@@ -553,9 +575,9 @@ export default function PedidosPage() {
     timerSyncRef.current = window.setTimeout(() => {
       const sync = async () => {
         setIsSyncing(true);
-        const payload = PROVEEDORES.map((proveedor) => ({
+        const payload = proveedores.map((proveedor) => ({
           proveedor,
-          items: pedidosPorProveedor[proveedor],
+          items: pedidosPorProveedor[proveedor] ?? [crearItem()],
           updated_at:
             editadoPorProveedor[proveedor] ?? new Date().toISOString(),
         }));
@@ -581,17 +603,17 @@ export default function PedidosPage() {
         window.clearTimeout(timerSyncRef.current);
       }
     };
-  }, [pedidosPorProveedor]);
+  }, [pedidosPorProveedor, proveedores]);
 
   const totalItemsCargados = useMemo(() => {
-    return PROVEEDORES.reduce(
+    return proveedores.reduce(
       (acc, proveedor) =>
         acc +
-        pedidosPorProveedor[proveedor].filter((fila) => fila.item.trim().length > 0)
+        (pedidosPorProveedor[proveedor] ?? []).filter((fila) => fila.item.trim().length > 0)
           .length,
       0
     );
-  }, [pedidosPorProveedor]);
+  }, [pedidosPorProveedor, proveedores]);
 
   const lineasBulkPreview = useMemo(() => {
     if (!bulkProveedor) {
@@ -620,7 +642,7 @@ export default function PedidosPage() {
   };
 
   const actualizarFila = (
-    proveedor: (typeof PROVEEDORES)[number],
+    proveedor: Proveedor,
     itemId: string,
     patch: Partial<PedidoItem>
   ) => {
@@ -633,7 +655,7 @@ export default function PedidosPage() {
     marcarEditado(proveedor);
   };
 
-  const agregarFila = (proveedor: (typeof PROVEEDORES)[number]) => {
+  const agregarFila = (proveedor: Proveedor) => {
     const nuevo = crearItem();
     setPedidosPorProveedor((actual) => ({
       ...actual,
@@ -681,7 +703,7 @@ export default function PedidosPage() {
     cerrarModalBulk();
   };
 
-  const quitarFila = (proveedor: (typeof PROVEEDORES)[number], itemId: string) => {
+  const quitarFila = (proveedor: Proveedor, itemId: string) => {
     setPedidosPorProveedor((actual) => {
       const filas = actual[proveedor];
       return {
@@ -693,7 +715,7 @@ export default function PedidosPage() {
   };
 
   const solicitarEliminarFila = (
-    proveedor: (typeof PROVEEDORES)[number],
+    proveedor: Proveedor,
     itemId: string
   ) => {
     const ok = window.confirm(
@@ -789,9 +811,9 @@ export default function PedidosPage() {
         ) : null}
 
         <div className="grid gap-4 sm:grid-cols-2">
-          {PROVEEDORES.map((proveedor) => {
+          {proveedores.map((proveedor) => {
             const { conNombreYcantidad, conNombreSinCantidad, borradorVacio } =
-              segmentarFilasPedido(pedidosPorProveedor[proveedor], filaCongelada);
+              segmentarFilasPedido(pedidosPorProveedor[proveedor] ?? [crearItem()], filaCongelada);
             const ultimaEdicion = formatearFechaEdicion(editadoPorProveedor[proveedor]);
             return (
             <section

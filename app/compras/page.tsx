@@ -53,6 +53,8 @@ import {
 import {
   PROVEEDORES,
   UNIDADES,
+  fetchProveedores,
+  ordenarProveedores,
   type Proveedor,
   type UnidadMedida,
 } from "@/src/lib/proveedores";
@@ -198,6 +200,7 @@ function EstadoBadge(props: { estado: EstadoCompra }) {
 export default function ComprasPage() {
   const [stockItems, setStockItems] = useState<StockItem[]>([]);
   const [compras, setCompras] = useState<CompraHistorialRow[]>([]);
+  const [proveedores, setProveedores] = useState<Proveedor[]>([...PROVEEDORES]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -260,12 +263,14 @@ export default function ComprasPage() {
     setIsLoading(true);
     setError(null);
     try {
-      const [items, historial] = await Promise.all([
+      const [items, historial, listaProveedores] = await Promise.all([
         fetchStockItems(),
         fetchComprasHistorial(),
+        fetchProveedores(),
       ]);
       setStockItems(items);
       setCompras(historial);
+      setProveedores(listaProveedores);
     } catch (err) {
       setError(
         err instanceof Error ? err.message : "Error al conectar con Supabase."
@@ -377,10 +382,18 @@ export default function ComprasPage() {
       l.sort((a, b) => compararPorUrgencia(a.prediccion, b.prediccion));
     });
     const ordenados: [string, ItemConPrediccion[]][] = [];
-    PROVEEDORES.forEach((p) => {
+    const vistos = new Set<string>();
+    ordenarProveedores([...proveedores, ...grupos.keys()]).forEach((p) => {
+      if (p === SIN_PROVEEDOR) return;
       const l = grupos.get(p);
       if (l && l.length > 0) {
         ordenados.push([p, l]);
+        vistos.add(p);
+      }
+    });
+    grupos.forEach((l, clave) => {
+      if (clave !== SIN_PROVEEDOR && !vistos.has(clave) && l.length > 0) {
+        ordenados.push([clave, l]);
       }
     });
     const sinProveedor = grupos.get(SIN_PROVEEDOR);
@@ -1799,7 +1812,7 @@ export default function ComprasPage() {
                       className="w-full rounded-lg border border-zinc-700 bg-zinc-950 px-3 py-2 text-sm text-zinc-100 outline-none transition focus:border-zinc-500"
                     >
                       <option value="">Elegir...</option>
-                      {PROVEEDORES.map((p) => (
+                      {proveedores.map((p) => (
                         <option key={p} value={p}>
                           {p}
                         </option>
@@ -2332,7 +2345,7 @@ export default function ComprasPage() {
                       className="w-full rounded-lg border border-zinc-700 bg-zinc-950 px-2 py-2 text-xs text-zinc-100 outline-none transition focus:border-zinc-500"
                     >
                       <option value="">Sin proveedor</option>
-                      {PROVEEDORES.map((p) => (
+                      {proveedores.map((p) => (
                         <option key={p} value={p}>
                           {p}
                         </option>

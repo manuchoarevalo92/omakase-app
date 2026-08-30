@@ -19,7 +19,7 @@ export function formatPostgrestError(error: {
       msg.includes("proveedor_check"))
   ) {
     bits.push(
-      "El CHECK de la columna proveedor en Supabase está desactualizado (faltan proveedores nuevos en la lista permitida). En Dashboard → SQL Editor ejecutá el SQL del proveedor en supabase/ (p. ej. proveedores-isse-japan.sql) y volvé a cargar la página."
+      "El proveedor no está en el catálogo. Crealo desde Avisos (Nuevo proveedor) y volvé a intentar."
     );
   }
   if (
@@ -221,7 +221,7 @@ export function formatPostgrestError(error: {
     (msg.includes("stock_items_proveedor_check") || msg.includes("proveedor_check"))
   ) {
     bits.push(
-      "El CHECK de la columna proveedor en stock_items no incluye ese valor. Revisá supabase/stock-items.sql y agregá el proveedor nuevo a la lista permitida."
+      "Ese proveedor no existe todavía. Crealo desde Avisos (Nuevo proveedor) y volvé a intentar."
     );
   }
   return bits.filter(Boolean).join(" ");

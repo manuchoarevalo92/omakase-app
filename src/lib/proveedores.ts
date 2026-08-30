@@ -1,10 +1,11 @@
 /**
- * Lista única de proveedores y unidades de medida, compartida entre Pedidos,
- * Stock y Compras. Debe coincidir con los CHECK de proveedor en Supabase
- * (pedidos_proveedores, stock_items, compras_historial): si agregás uno acá,
- * corré también supabase/pedidos-proveedores-extend-proveedores.sql (o el
- * equivalente para las tablas nuevas) con el proveedor agregado.
+ * Lista de proveedores y unidades de medida, compartida entre Pedidos,
+ * Stock, Compras y Avisos. La fuente de verdad es public.proveedores;
+ * PROVEEDORES es semilla + fallback si falla el fetch.
  */
+import { formatPostgrestError } from "@/src/lib/supabase-errors";
+import { supabase } from "@/src/lib/supabase";
+
 export const PROVEEDORES = [
   "Cominport",
   "Arrom",
@@ -21,7 +22,9 @@ export const PROVEEDORES = [
   "Salvioni y Alomar",
 ] as const;
 
-export type Proveedor = (typeof PROVEEDORES)[number];
+export type Proveedor = string;
+
+const SEMILLA = new Set<string>(PROVEEDORES);
 
 /** Nombres viejos que pueden quedar en localStorage o datos legacy. */
 export const ALIAS_PROVEEDOR: Record<string, Proveedor> = {
@@ -35,17 +38,83 @@ export const ALIAS_PROVEEDOR: Record<string, Proveedor> = {
 };
 
 export function esProveedorValido(valor: string | null | undefined): valor is Proveedor {
-  if (!valor) {
-    return false;
-  }
-  return (PROVEEDORES as readonly string[]).includes(valor);
+  return Boolean(valor?.trim());
 }
 
 export function proveedorCanonico(valor: string | null | undefined): Proveedor | null {
-  if (!valor) return null;
-  if (esProveedorValido(valor)) return valor;
-  const alias = ALIAS_PROVEEDOR[valor];
-  return alias ?? null;
+  if (!valor?.trim()) return null;
+  const t = valor.trim();
+  return ALIAS_PROVEEDOR[t] ?? t;
+}
+
+export function ordenarProveedores(lista: Iterable<string>): Proveedor[] {
+  const set = new Set<string>();
+  for (const raw of lista) {
+    const n = proveedorCanonico(raw);
+    if (n) set.add(n);
+  }
+  const cabeza = PROVEEDORES.filter((p) => set.has(p));
+  const cola = [...set]
+    .filter((p) => !SEMILLA.has(p))
+    .sort((a, b) => a.localeCompare(b, "es"));
+  return [...cabeza, ...cola];
+}
+
+export async function fetchProveedores(): Promise<Proveedor[]> {
+  const { data, error } = await supabase
+    .from("proveedores")
+    .select("nombre")
+    .order("nombre", { ascending: true });
+
+  if (error) {
+    throw new Error(formatPostgrestError(error));
+  }
+  const nombres = ((data ?? []) as { nombre: string }[])
+    .map((r) => r.nombre)
+    .filter(Boolean);
+  return ordenarProveedores(nombres.length > 0 ? nombres : PROVEEDORES);
+}
+
+export async function crearProveedor(nombre: string): Promise<Proveedor> {
+  const limpio = nombre.trim().replace(/\s+/g, " ");
+  if (!limpio) {
+    throw new Error("El nombre del proveedor es obligatorio.");
+  }
+  const alias = ALIAS_PROVEEDOR[limpio];
+  const canonico = alias ?? limpio;
+
+  const { error } = await supabase.from("proveedores").insert({ nombre: canonico });
+  if (error) {
+    const msg = error.message.toLowerCase();
+    const duplicado =
+      msg.includes("duplicate") ||
+      msg.includes("unique") ||
+      msg.includes("proveedores_nombre");
+    if (!duplicado) {
+      throw new Error(formatPostgrestError(error));
+    }
+    const { data: existente } = await supabase
+      .from("proveedores")
+      .select("nombre")
+      .ilike("nombre", limpio)
+      .maybeSingle();
+    if (existente?.nombre) {
+      return existente.nombre;
+    }
+  }
+
+  const { error: pedidoError } = await supabase
+    .from("pedidos_proveedores")
+    .insert({ proveedor: canonico, items: [] });
+  if (pedidoError) {
+    const msg = pedidoError.message.toLowerCase();
+    const duplicado = msg.includes("duplicate") || msg.includes("unique");
+    if (!duplicado) {
+      throw new Error(formatPostgrestError(pedidoError));
+    }
+  }
+
+  return canonico;
 }
 
 /** Lee un mapa keyed por proveedor (localStorage) resolviendo nombres viejos. */

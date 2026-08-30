@@ -9,7 +9,7 @@ import {
   type ConsumoItem,
 } from "@/src/lib/consumo-stats";
 import { fetchStockItems, type StockItem } from "@/src/lib/stock-items";
-import { PROVEEDORES, type Proveedor } from "@/src/lib/proveedores";
+import { ordenarProveedores, type Proveedor } from "@/src/lib/proveedores";
 
 type OrdenConsumo = "frecuencia" | "nombre" | "compras" | "reciente";
 
@@ -123,7 +123,7 @@ export default function ConsumoPage() {
     consumo.forEach((c) => {
       if (c.proveedor) set.add(c.proveedor);
     });
-    return PROVEEDORES.filter((p) => set.has(p));
+    return ordenarProveedores(set);
   }, [consumo]);
 
   return (

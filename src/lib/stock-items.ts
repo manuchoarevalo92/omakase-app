@@ -69,6 +69,35 @@ export const STOCK_ITEM_SELECT =
 
 const STOCK_ITEM_SELECT_CON_INTERVALO = `${STOCK_ITEM_SELECT}, intervalo_estimado_dias`;
 
+export async function crearStockItem(input: {
+  nombre: string;
+  rubro?: RubroIngrediente;
+  proveedor?: string | null;
+  unidadCompra?: UnidadMedida;
+}): Promise<StockItem> {
+  const nombre = input.nombre.trim().replace(/\s+/g, " ");
+  if (!nombre) {
+    throw new Error("El nombre del ítem es obligatorio.");
+  }
+  const { data, error } = await supabase
+    .from("stock_items")
+    .insert({
+      nombre,
+      rubro: input.rubro ?? "Despensa/Prep",
+      proveedor: proveedorCanonico(input.proveedor),
+      unidad_compra: input.unidadCompra ?? "Unidad",
+      buffer_pct: BUFFER_PCT_DEFECTO,
+      activo: true,
+    })
+    .select(STOCK_ITEM_SELECT)
+    .single();
+
+  if (error) {
+    throw new Error(formatPostgrestError(error));
+  }
+  return stockItemDesdeFila(data as StockItemDbRow);
+}
+
 export async function fetchStockItems(): Promise<StockItem[]> {
   const { data, error } = await supabase
     .from("stock_items")

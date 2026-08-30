@@ -20,12 +20,27 @@ import {
   type PedidoAviso,
 } from "@/src/lib/pedido-avisos";
 import {
+  crearStockItem,
   fetchStockItems,
   normalizarNombreClave,
   type StockItem,
 } from "@/src/lib/stock-items";
-import { PROVEEDORES, type Proveedor } from "@/src/lib/proveedores";
+import {
+  RUBROS_INGREDIENTE,
+  type RubroIngrediente,
+} from "@/src/lib/ingredientes-rubro";
+import {
+  PROVEEDORES,
+  UNIDADES,
+  crearProveedor,
+  fetchProveedores,
+  ordenarProveedores,
+  type Proveedor,
+  type UnidadMedida,
+} from "@/src/lib/proveedores";
 import { supabase } from "@/src/lib/supabase";
+
+const PROVEEDOR_NUEVO = "__nuevo__";
 
 const UNDO_MS = 8000;
 
@@ -74,12 +89,19 @@ export default function AvisosPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
+  const [proveedores, setProveedores] = useState<Proveedor[]>([...PROVEEDORES]);
   const [query, setQuery] = useState("");
   const [itemSeleccionado, setItemSeleccionado] = useState<StockItem | null>(null);
   const [nota, setNota] = useState("");
   const [dropdownAbierto, setDropdownAbierto] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [avisoDuplicado, setAvisoDuplicado] = useState<string | null>(null);
+  const [creandoItem, setCreandoItem] = useState(false);
+  const [nuevoProveedorModo, setNuevoProveedorModo] = useState(false);
+  const [proveedorElegido, setProveedorElegido] = useState("");
+  const [proveedorNuevoNombre, setProveedorNuevoNombre] = useState("");
+  const [unidadNueva, setUnidadNueva] = useState<UnidadMedida>("Unidad");
+  const [rubroNuevo, setRubroNuevo] = useState<RubroIngrediente>("Despensa/Prep");
 
   const [resolviendoId, setResolviendoId] = useState<string | null>(null);
   const [undoSnapshot, setUndoSnapshot] = useState<SnapshotResuelto | null>(null);
@@ -89,12 +111,14 @@ export default function AvisosPage() {
     setIsLoading(true);
     setError(null);
     try {
-      const [itemsData, avisosData] = await Promise.all([
+      const [itemsData, avisosData, proveedoresData] = await Promise.all([
         fetchStockItems(),
         fetchAvisosPendientes(),
+        fetchProveedores(),
       ]);
       setItems(itemsData.filter((it) => it.activo));
       setAvisos(avisosData);
+      setProveedores(proveedoresData);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Error al conectar con Supabase.");
     } finally {
@@ -117,11 +141,19 @@ export default function AvisosPage() {
     return items.filter((it) => normalizarNombreClave(it.nombre).includes(clave)).slice(0, 8);
   }, [items, query, itemSeleccionado]);
 
+  const coincideExacto = useMemo(() => {
+    const clave = normalizarNombreClave(query);
+    if (!clave) return null;
+    return items.find((it) => normalizarNombreClave(it.nombre) === clave) ?? null;
+  }, [items, query]);
+
   const seleccionarItem = (item: StockItem) => {
     setItemSeleccionado(item);
     setQuery(item.nombre);
     setDropdownAbierto(false);
     setAvisoDuplicado(null);
+    setCreandoItem(false);
+    setNuevoProveedorModo(false);
   };
 
   const onCambiarQuery = (valor: string) => {
@@ -137,6 +169,19 @@ export default function AvisosPage() {
     setQuery("");
     setItemSeleccionado(null);
     setNota("");
+    setDropdownAbierto(false);
+    setAvisoDuplicado(null);
+    setCreandoItem(false);
+    setNuevoProveedorModo(false);
+    setProveedorElegido("");
+    setProveedorNuevoNombre("");
+    setUnidadNueva("Unidad");
+    setRubroNuevo("Despensa/Prep");
+  };
+
+  const abrirCrearItem = () => {
+    setCreandoItem(true);
+    setItemSeleccionado(null);
     setDropdownAbierto(false);
     setAvisoDuplicado(null);
   };
@@ -159,6 +204,40 @@ export default function AvisosPage() {
       inputRef.current?.focus();
     } catch (err) {
       setError(err instanceof Error ? err.message : "No se pudo agregar el aviso.");
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  const crearItemYAviso = async () => {
+    const nombre = query.trim().replace(/\s+/g, " ");
+    if (!nombre) {
+      return;
+    }
+    setIsSubmitting(true);
+    setError(null);
+    try {
+      let proveedor: Proveedor | null = proveedorElegido.trim() || null;
+      if (nuevoProveedorModo || proveedorElegido === PROVEEDOR_NUEVO) {
+        const creado = await crearProveedor(proveedorNuevoNombre);
+        proveedor = creado;
+        setProveedores((prev) => ordenarProveedores([...prev, creado]));
+      }
+      const item = await crearStockItem({
+        nombre,
+        rubro: rubroNuevo,
+        proveedor,
+        unidadCompra: unidadNueva,
+      });
+      setItems((prev) =>
+        [...prev, item].sort((a, b) => a.nombre.localeCompare(b.nombre, "es"))
+      );
+      const nuevo = await crearAviso(item.id, nota);
+      setAvisos((prev) => [...prev, nuevo]);
+      limpiarFormulario();
+      inputRef.current?.focus();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "No se pudo crear el ítem.");
     } finally {
       setIsSubmitting(false);
     }
@@ -249,7 +328,13 @@ export default function AvisosPage() {
   };
 
   const gruposPorProveedor = useMemo(() => {
-    const orden: (Proveedor | "Sin proveedor")[] = [...PROVEEDORES, "Sin proveedor"];
+    const extras = avisos
+      .map((a) => a.proveedor)
+      .filter((p): p is Proveedor => Boolean(p));
+    const orden: (Proveedor | "Sin proveedor")[] = [
+      ...ordenarProveedores([...proveedores, ...extras]),
+      "Sin proveedor",
+    ];
     const grupos = new Map<Proveedor | "Sin proveedor", PedidoAviso[]>();
     avisos.forEach((aviso) => {
       const clave = aviso.proveedor ?? "Sin proveedor";
@@ -260,7 +345,7 @@ export default function AvisosPage() {
     return orden
       .map((proveedor) => ({ proveedor, avisos: grupos.get(proveedor) ?? [] }))
       .filter((g) => g.avisos.length > 0);
-  }, [avisos]);
+  }, [avisos, proveedores]);
 
   return (
     <main className="min-h-screen min-w-0 bg-zinc-950 px-4 py-6 text-zinc-100 sm:px-6 sm:py-10">
@@ -271,9 +356,9 @@ export default function AvisosPage() {
             Avisos de pedido
           </h1>
           <p className="mt-1 text-sm text-zinc-400">
-            Cuando algo se está por acabar, cargalo acá. Queda en la lista para que alguien
-            lo pida, y lo marca como <span className="text-zinc-300">Pedido</span> cuando lo
-            haga.
+            Cuando algo se está por acabar, cargalo acá. Si el ítem o el proveedor no
+            existen, los podés crear acá mismo. Queda en la lista para que alguien lo pida,
+            y lo marca como <span className="text-zinc-300">Pedido</span> cuando lo haga.
           </p>
         </header>
 
@@ -304,7 +389,7 @@ export default function AvisosPage() {
               autoComplete="off"
               className="w-full rounded-lg border border-zinc-700 bg-zinc-900 py-2.5 pl-9 pr-3 text-sm text-zinc-100 outline-none transition focus:border-zinc-500"
             />
-            {dropdownAbierto && sugerencias.length > 0 ? (
+            {dropdownAbierto && !creandoItem && (sugerencias.length > 0 || query.trim()) ? (
               <ul className="absolute z-20 mt-1 max-h-64 w-full overflow-y-auto rounded-lg border border-zinc-700 bg-zinc-900 shadow-xl">
                 {sugerencias.map((item) => (
                   <li key={item.id}>
@@ -319,11 +404,138 @@ export default function AvisosPage() {
                     </button>
                   </li>
                 ))}
+                {query.trim() && !coincideExacto ? (
+                  <li>
+                    <button
+                      type="button"
+                      onMouseDown={(e) => e.preventDefault()}
+                      onClick={abrirCrearItem}
+                      className="flex w-full items-center gap-2 border-t border-zinc-800 px-3 py-2.5 text-left text-sm font-medium text-amber-200 transition hover:bg-zinc-800"
+                    >
+                      <Plus className="h-4 w-4 shrink-0" aria-hidden />
+                      Crear «{query.trim()}»
+                    </button>
+                  </li>
+                ) : null}
               </ul>
             ) : null}
           </div>
 
-          {itemSeleccionado ? (
+          {creandoItem ? (
+            <div className="mt-3 space-y-3 rounded-lg border border-zinc-800 bg-zinc-900/80 p-3">
+              <p className="text-xs text-zinc-400">
+                Ítem nuevo: <span className="font-medium text-zinc-200">{query.trim() || "—"}</span>
+              </p>
+              <div className="grid gap-2 sm:grid-cols-2">
+                <label className="text-xs text-zinc-500">
+                  Proveedor
+                  <select
+                    value={nuevoProveedorModo ? PROVEEDOR_NUEVO : proveedorElegido}
+                    onChange={(e) => {
+                      const v = e.target.value;
+                      if (v === PROVEEDOR_NUEVO) {
+                        setNuevoProveedorModo(true);
+                        setProveedorElegido(PROVEEDOR_NUEVO);
+                      } else {
+                        setNuevoProveedorModo(false);
+                        setProveedorElegido(v);
+                      }
+                    }}
+                    className="mt-1 block w-full rounded-lg border border-zinc-700 bg-zinc-950 px-3 py-2 text-sm text-white"
+                  >
+                    <option value="">Sin proveedor</option>
+                    {proveedores.map((p) => (
+                      <option key={p} value={p}>
+                        {p}
+                      </option>
+                    ))}
+                    <option value={PROVEEDOR_NUEVO}>Nuevo proveedor…</option>
+                  </select>
+                </label>
+                <label className="text-xs text-zinc-500">
+                  Unidad
+                  <select
+                    value={unidadNueva}
+                    onChange={(e) => setUnidadNueva(e.target.value as UnidadMedida)}
+                    className="mt-1 block w-full rounded-lg border border-zinc-700 bg-zinc-950 px-3 py-2 text-sm text-white"
+                  >
+                    {UNIDADES.map((u) => (
+                      <option key={u} value={u}>
+                        {u}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+              </div>
+              {nuevoProveedorModo ? (
+                <label className="block text-xs text-zinc-500">
+                  Nombre del proveedor
+                  <input
+                    type="text"
+                    value={proveedorNuevoNombre}
+                    onChange={(e) => setProveedorNuevoNombre(e.target.value)}
+                    placeholder="Ej. Salvioni y Alomar"
+                    className="mt-1 block w-full rounded-lg border border-zinc-700 bg-zinc-950 px-3 py-2 text-sm text-white placeholder:text-zinc-600"
+                  />
+                </label>
+              ) : null}
+              <label className="block text-xs text-zinc-500">
+                Rubro
+                <select
+                  value={rubroNuevo}
+                  onChange={(e) => setRubroNuevo(e.target.value as RubroIngrediente)}
+                  className="mt-1 block w-full rounded-lg border border-zinc-700 bg-zinc-950 px-3 py-2 text-sm text-white"
+                >
+                  {RUBROS_INGREDIENTE.map((r) => (
+                    <option key={r} value={r}>
+                      {r}
+                    </option>
+                  ))}
+                </select>
+              </label>
+              <label className="block text-xs text-zinc-500">
+                Nota (opcional)
+                <input
+                  type="text"
+                  value={nota}
+                  onChange={(e) => setNota(e.target.value)}
+                  placeholder="Casi no queda, para el finde…"
+                  className="mt-1 block w-full rounded-lg border border-zinc-700 bg-zinc-950 px-3 py-2 text-sm text-white placeholder:text-zinc-600"
+                />
+              </label>
+              <div className="flex flex-wrap gap-2">
+                <button
+                  type="button"
+                  disabled={
+                    isSubmitting ||
+                    !query.trim() ||
+                    (nuevoProveedorModo && !proveedorNuevoNombre.trim())
+                  }
+                  onClick={() => void crearItemYAviso()}
+                  className="inline-flex items-center justify-center gap-1.5 rounded-xl border border-emerald-800/80 bg-emerald-900/50 px-4 py-2.5 text-sm font-semibold text-emerald-50 transition hover:bg-emerald-800/50 disabled:opacity-50"
+                >
+                  {isSubmitting ? (
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                  ) : (
+                    <Plus className="h-4 w-4" />
+                  )}
+                  Crear y avisar
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setCreandoItem(false);
+                    setNuevoProveedorModo(false);
+                    setProveedorElegido("");
+                    setProveedorNuevoNombre("");
+                  }}
+                  className="inline-flex items-center rounded-xl border border-zinc-700 px-3 py-2.5 text-sm text-zinc-300 transition hover:bg-zinc-800"
+                >
+                  Cancelar
+                </button>
+              </div>
+            </div>
+          ) : itemSeleccionado ? (
             <div className="mt-3 flex flex-col gap-2 sm:flex-row sm:items-end">
               <label className="text-xs text-zinc-500 sm:flex-1">
                 Nota (opcional)
