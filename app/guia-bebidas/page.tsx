@@ -14,6 +14,7 @@ import {
 } from "@/src/lib/guia-bebidas";
 
 import { Etiquetas, FichaBebida } from "./ficha";
+import { Procesos } from "./procesos";
 import { Repaso } from "./repaso";
 import { Bloques, FotoBotella, Md } from "./ui";
 
@@ -27,7 +28,7 @@ const MODOS: { id: Modo; label: string; icono: typeof BookOpen }[] = [
 
 const MODO_STORAGE_KEY = "omakase_guia_bebidas_modo";
 
-type SeccionEstudio = "teoria" | "glosario" | CategoriaGuia;
+type SeccionEstudio = "teoria" | "elaboracion" | "glosario" | CategoriaGuia;
 
 function Chip(props: { activo: boolean; onClick: () => void; children: React.ReactNode }) {
   return (
@@ -94,9 +95,8 @@ function Estudiar(props: {
     return areas;
   }, [guia, filtroGlosario]);
 
-  const deCategoria = seccion !== "teoria" && seccion !== "glosario"
-    ? visibles.filter((b) => b.categoria === seccion)
-    : [];
+  const esCategoria = seccion !== "teoria" && seccion !== "glosario" && seccion !== "elaboracion";
+  const deCategoria = esCategoria ? visibles.filter((b) => b.categoria === seccion) : [];
   const intro = guia.capitulos.find((c) => c.slug === `intro-${seccion}`);
 
   return (
@@ -104,6 +104,9 @@ function Estudiar(props: {
       <FilaChips>
         <Chip activo={seccion === "teoria"} onClick={() => setSeccion("teoria")}>
           Teoría
+        </Chip>
+        <Chip activo={seccion === "elaboracion"} onClick={() => setSeccion("elaboracion")}>
+          Elaboración
         </Chip>
         {CATEGORIAS_GUIA.map((c) => (
           <Chip key={c.id} activo={seccion === c.id} onClick={() => setSeccion(c.id)}>
@@ -174,7 +177,9 @@ function Estudiar(props: {
         </div>
       ) : null}
 
-      {seccion !== "teoria" && seccion !== "glosario" ? (
+      {seccion === "elaboracion" ? <Procesos /> : null}
+
+      {esCategoria ? (
         <div className="space-y-6">
           {intro ? (
             <div className="rounded-xl border border-zinc-800 bg-zinc-900/60 px-4 py-4">

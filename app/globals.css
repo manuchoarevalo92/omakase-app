@@ -184,3 +184,23 @@ html[data-theme="dia"] {
     transform: translateY(0);
   }
 }
+
+/* Guía de bebidas · Elaboración: gota que recorre la línea del proceso. */
+.guia-gota {
+  animation: guia-gota 7s linear infinite;
+}
+
+@keyframes guia-gota {
+  0% {
+    top: 0;
+    opacity: 0;
+  }
+  6%,
+  94% {
+    opacity: 1;
+  }
+  100% {
+    top: 100%;
+    opacity: 0;
+  }
+}
