@@ -620,13 +620,18 @@ export function Fecha(props: {
   label?: string;
   min?: string;
   max?: string;
+  disabled?: boolean;
+  /** Texto de ayuda (p. ej. por qué está bloqueada). */
+  ayuda?: string;
 }) {
-  const { valor, onChange, label, min, max } = props;
+  const { valor, onChange, label, min, max, disabled = false, ayuda } = props;
   const id = useId();
-  const puedeAtras = !min || !valor || sumarDias(valor, -1) >= min;
-  const puedeAdelante = !max || !valor || sumarDias(valor, 1) <= max;
+  const puedeAtras =
+    !disabled && (!min || !valor || sumarDias(valor, -1) >= min);
+  const puedeAdelante =
+    !disabled && (!max || !valor || sumarDias(valor, 1) <= max);
   return (
-    <Envoltura id={id} label={label}>
+    <Envoltura id={id} label={label} ayuda={ayuda}>
       <div className="flex min-h-12 items-center rounded-control bg-fill">
         <button
           type="button"
@@ -642,7 +647,10 @@ export function Fecha(props: {
         </button>
         <label
           htmlFor={id}
-          className="relative flex min-h-12 flex-1 cursor-pointer items-center justify-center"
+          className={cx(
+            "relative flex min-h-12 flex-1 items-center justify-center",
+            disabled ? "opacity-50" : "cursor-pointer",
+          )}
         >
           <span className="text-[1rem] font-medium text-label">
             {fechaLegible(valor)}
@@ -650,6 +658,7 @@ export function Fecha(props: {
           <input
             id={id}
             type="date"
+            disabled={disabled}
             value={valor}
             min={min}
             max={max}

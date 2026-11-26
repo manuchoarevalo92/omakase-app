@@ -21,11 +21,13 @@ import {
 
 const RESULTADOS: MepResultadoCierre[] = ["ok", "falto", "sobro"];
 
-function claseBotonResultado(resultado: MepResultadoCierre, activo: boolean): string {
-  const base =
-    "rounded-lg px-2.5 py-1 text-xs font-medium transition border";
+function claseBotonResultado(
+  resultado: MepResultadoCierre,
+  activo: boolean,
+): string {
+  const base = "rounded-lg px-2.5 py-1 text-xs font-medium transition border";
   if (!activo) {
-    return `${base} border-zinc-800 bg-zinc-950 text-zinc-500 hover:border-zinc-600 hover:text-zinc-300`;
+    return `${base} border-separator bg-fill text-label-3 hover:border-label-3 hover:text-label`;
   }
   if (resultado === "falto") {
     return `${base} border-red-800 bg-red-950/60 text-red-200`;
@@ -42,7 +44,9 @@ export function MepCierrePanel(props: {
   onCierreGuardado: (carga: MepDeliCarga) => void;
 }) {
   const { carga, cortesPorId, onCierreGuardado } = props;
-  const [lineas, setLineas] = useState<MepLineaCierre[]>(() => cierreInicialDesdeCarga(carga));
+  const [lineas, setLineas] = useState<MepLineaCierre[]>(() =>
+    cierreInicialDesdeCarga(carga),
+  );
   const [abierto, setAbierto] = useState(!tieneCierre(carga));
   const [isSaving, setIsSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -55,14 +59,21 @@ export function MepCierrePanel(props: {
 
   const actualizarLinea = (corteId: string, patch: Partial<MepLineaCierre>) => {
     setLineas((prev) =>
-      prev.map((l) => (l.corte_id === corteId ? { ...l, ...patch } : l))
+      prev.map((l) => (l.corte_id === corteId ? { ...l, ...patch } : l)),
     );
     setError(null);
     setSuccess(null);
   };
 
   const marcarTodosOk = () => {
-    setLineas((prev) => prev.map((l) => ({ ...l, resultado: "ok", cantidad: undefined, nota: undefined })));
+    setLineas((prev) =>
+      prev.map((l) => ({
+        ...l,
+        resultado: "ok",
+        cantidad: undefined,
+        nota: undefined,
+      })),
+    );
   };
 
   const guardarCierre = async () => {
@@ -81,15 +92,17 @@ export function MepCierrePanel(props: {
         cerrado_por_nombre: usuario?.name ?? null,
       });
       onCierreGuardado(actualizada);
-    setLineas(cierreInicialDesdeCarga(actualizada));
-    setAbierto(false);
-    setSuccess("Cierre guardado.");
-    setIsSaving(false);
+      setLineas(cierreInicialDesdeCarga(actualizada));
+      setAbierto(false);
+      setSuccess("Cierre guardado.");
+      setIsSaving(false);
     } catch (err) {
       setError(
         err && typeof err === "object" && "message" in err
-          ? formatPostgrestError(err as Parameters<typeof formatPostgrestError>[0])
-          : "No se pudo guardar el cierre."
+          ? formatPostgrestError(
+              err as Parameters<typeof formatPostgrestError>[0],
+            )
+          : "No se pudo guardar el cierre.",
       );
       setIsSaving(false);
     }
@@ -100,9 +113,9 @@ export function MepCierrePanel(props: {
     const conVarianza = cerradas.filter((l) => l.resultado !== "ok");
 
     return (
-      <div className="mt-4 rounded-xl border border-zinc-800 bg-zinc-950/50 p-4">
+      <div className="mt-4 rounded-xl border border-separator bg-surface-3 p-4">
         <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
-          <p className="text-xs font-semibold uppercase tracking-wide text-zinc-500">
+          <p className="text-xs font-semibold uppercase tracking-wide text-label-3">
             Cierre de servicio
           </p>
           <button
@@ -112,14 +125,15 @@ export function MepCierrePanel(props: {
               setAbierto(true);
               setSuccess(null);
             }}
-            className="text-xs text-zinc-400 underline hover:text-zinc-200"
+            className="text-xs text-label-2 underline hover:text-label"
           >
             Editar cierre
           </button>
         </div>
         {carga.cerrado_por_nombre ? (
-          <p className="mb-2 text-xs text-zinc-500">
-            Cerrado por <span className="text-zinc-300">{carga.cerrado_por_nombre}</span>
+          <p className="mb-2 text-xs text-label-3">
+            Cerrado por{" "}
+            <span className="text-label-2">{carga.cerrado_por_nombre}</span>
           </p>
         ) : null}
         {conVarianza.length === 0 ? (
@@ -131,17 +145,20 @@ export function MepCierrePanel(props: {
           <ul className="space-y-1 text-sm">
             {conVarianza.map((l) => (
               <li key={l.corte_id}>
-                <span className="text-zinc-500">{l.categoria} ·</span> {l.nombre}:{" "}
+                <span className="text-label-3">{l.categoria} ·</span> {l.nombre}
+                :{" "}
                 <span
                   className={
                     l.resultado === "falto" ? "text-red-300" : "text-amber-300"
                   }
                 >
                   {etiquetaResultadoCierre(l.resultado)}
-                  {l.cantidad ? ` (${l.cantidad} ${etiquetaUnidadMep(l.unidad)})` : ""}
+                  {l.cantidad
+                    ? ` (${l.cantidad} ${etiquetaUnidadMep(l.unidad)})`
+                    : ""}
                 </span>
                 {l.nota ? (
-                  <span className="text-zinc-500"> — {l.nota}</span>
+                  <span className="text-label-3"> — {l.nota}</span>
                 ) : null}
               </li>
             ))}
@@ -154,16 +171,18 @@ export function MepCierrePanel(props: {
   return (
     <div className="mt-4 rounded-xl border border-sky-900/40 bg-sky-950/20 p-4">
       <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
-        <p className="text-sm font-medium text-sky-200">Cerrar MEP del servicio</p>
+        <p className="text-sm font-medium text-sky-200">
+          Cerrar MEP del servicio
+        </p>
         <button
           type="button"
           onClick={marcarTodosOk}
-          className="text-xs text-zinc-400 underline hover:text-zinc-200"
+          className="text-xs text-label-2 underline hover:text-label"
         >
           Marcar todo OK
         </button>
       </div>
-      <p className="mb-4 text-xs text-zinc-400">
+      <p className="mb-4 text-xs text-label-2">
         Al final del servicio: ¿faltó o sobró algo respecto a lo preparado?
       </p>
 
@@ -171,13 +190,13 @@ export function MepCierrePanel(props: {
         {lineasUi.map((l) => (
           <li
             key={l.corte_id}
-            className="rounded-lg border border-zinc-800/80 bg-zinc-950/60 px-3 py-2.5"
+            className="rounded-lg border border-separator/80 bg-surface-3 px-3 py-2.5"
           >
             <div className="mb-2 flex flex-wrap items-baseline justify-between gap-2">
-              <span className="text-sm text-zinc-100">
-                <span className="text-zinc-500">{l.categoria} ·</span> {l.nombre}
+              <span className="text-sm text-label">
+                <span className="text-label-3">{l.categoria} ·</span> {l.nombre}
               </span>
-              <span className="text-xs text-zinc-500">
+              <span className="text-xs text-label-3">
                 Plan: {l.cantidad_plan} {etiquetaUnidadMep(l.unidad)}
               </span>
             </div>
@@ -189,7 +208,9 @@ export function MepCierrePanel(props: {
                   onClick={() =>
                     actualizarLinea(l.corte_id, {
                       resultado: r,
-                      ...(r === "ok" ? { cantidad: undefined, nota: undefined } : {}),
+                      ...(r === "ok"
+                        ? { cantidad: undefined, nota: undefined }
+                        : {}),
                     })
                   }
                   className={claseBotonResultado(r, l.resultado === r)}
@@ -208,7 +229,7 @@ export function MepCierrePanel(props: {
                       cantidad: e.target.value || undefined,
                     })
                   }
-                  className="w-20 rounded-lg border border-zinc-700 bg-zinc-900 px-2 py-1 text-right text-xs text-zinc-100 outline-none focus:border-zinc-500"
+                  className="w-20 rounded-lg border border-separator bg-fill px-2 py-1 text-right text-xs text-label outline-none focus:border-accent"
                 />
               )}
             </div>
@@ -216,9 +237,7 @@ export function MepCierrePanel(props: {
         ))}
       </ul>
 
-      {error ? (
-        <p className="mt-3 text-sm text-red-300">{error}</p>
-      ) : null}
+      {error ? <p className="mt-3 text-sm text-red-300">{error}</p> : null}
       {success ? (
         <p className="mt-3 text-sm text-emerald-300">{success}</p>
       ) : null}
@@ -229,7 +248,11 @@ export function MepCierrePanel(props: {
         disabled={isSaving}
         className="mt-4 inline-flex items-center gap-2 rounded-xl bg-sky-600 px-4 py-2.5 text-sm font-medium text-white transition hover:bg-sky-500 disabled:opacity-50"
       >
-        {isSaving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
+        {isSaving ? (
+          <Loader2 className="h-4 w-4 animate-spin" />
+        ) : (
+          <Save className="h-4 w-4" />
+        )}
         Guardar cierre
       </button>
     </div>
