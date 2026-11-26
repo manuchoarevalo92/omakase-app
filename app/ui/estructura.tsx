@@ -128,7 +128,7 @@ export function Seccion(props: {
   return (
     <section className={cx("mt-6 first:mt-2", className)}>
       {titulo || accion ? (
-        <div className="mb-2 flex min-h-8 items-end justify-between gap-3 px-1">
+        <div className="mb-2 flex min-h-8 items-center justify-between gap-3 px-1">
           {titulo ? (
             <h2 className="text-[0.8rem] font-semibold uppercase tracking-[0.07em] text-label-3">
               {titulo}

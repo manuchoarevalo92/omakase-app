@@ -1,7 +1,21 @@
 "use client";
 
-import { FilePlus, Loader2, Plus, Trash2 } from "lucide-react";
+import { CircleAlert, FilePlus, Plus, Trash2, Wine } from "lucide-react";
+import Link from "next/link";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+
+import {
+  Boton,
+  BotonIcono,
+  EstadoVacio,
+  Esqueleto,
+  EsqueletoLista,
+  Etiqueta,
+  Pantalla,
+  Seccion,
+  cx,
+  useAvisos,
+} from "@/app/ui";
 
 import { formatPostgrestError } from "@/src/lib/supabase-errors";
 import {
@@ -39,7 +53,9 @@ const crearItem = (): BebidaItem => ({
 const crearEstadoVacio = (): BebidaItem[][] =>
   Array.from({ length: TOTAL_ASIENTOS }, () => [crearItem()]);
 
-const normalizarConsumos = (consumos: BebidaItem[] | null | undefined): BebidaItem[] => {
+const normalizarConsumos = (
+  consumos: BebidaItem[] | null | undefined,
+): BebidaItem[] => {
   const lista = Array.isArray(consumos) ? consumos : [];
   const normalizados = lista
     .map((item) => ({
@@ -55,13 +71,16 @@ const hayConsumosCargados = (asientos: BebidaItem[][]): boolean =>
   asientos.some((items) => items.some((item) => item.bebida.trim().length > 0));
 
 export default function BebidasPage() {
-  const [bebidasPorAsiento, setBebidasPorAsiento] = useState<BebidaItem[][]>(crearEstadoVacio);
-  const [servicioActivo, setServicioActivo] = useState<HistorialServicioRow | null>(null);
+  const [bebidasPorAsiento, setBebidasPorAsiento] =
+    useState<BebidaItem[][]>(crearEstadoVacio);
+  const [servicioActivo, setServicioActivo] =
+    useState<HistorialServicioRow | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isSyncing, setIsSyncing] = useState(false);
   const [syncError, setSyncError] = useState<string | null>(null);
   const [lastSyncLabel, setLastSyncLabel] = useState<string | null>(null);
-  const [infoMessage, setInfoMessage] = useState<string | null>(null);
+  const [sugerencias, setSugerencias] = useState<string[]>([]);
+  const { aviso, confirmar } = useAvisos();
   const cargadoRemotoRef = useRef(false);
   const timerSyncRef = useRef<number | null>(null);
   const servicioActivoIdRef = useRef<string | null>(null);
@@ -87,17 +106,22 @@ export default function BebidasPage() {
   }, []);
 
   const activarServicio = useCallback(
-    async (row: HistorialServicioRow, opts?: { limpiarSiSinDatosEnNube?: boolean }) => {
+    async (
+      row: HistorialServicioRow,
+      opts?: { limpiarSiSinDatosEnNube?: boolean },
+    ) => {
       setSyncError(null);
       let asientos = crearEstadoVacio();
       try {
         asientos = await cargarBebidasParaServicio(row.id);
       } catch (err) {
         const msg =
-          err instanceof Error ? err.message : "No se pudieron cargar las bebidas del servicio.";
+          err instanceof Error
+            ? err.message
+            : "No se pudieron cargar las bebidas del servicio.";
         if (msg.includes("historial_servicio_id") || msg.includes("column")) {
           setSyncError(
-            `${msg} — Ejecutá en Supabase el script supabase/bebidas-asientos-historial-servicio.sql`
+            `${msg} — Ejecutá en Supabase el script supabase/bebidas-asientos-historial-servicio.sql`,
           );
         } else {
           setSyncError(formatPostgrestError(err as { message: string }));
@@ -116,7 +140,7 @@ export default function BebidasPage() {
       setBebidasPorAsiento(asientos);
       cargadoRemotoRef.current = true;
     },
-    [cargarBebidasParaServicio]
+    [cargarBebidasParaServicio],
   );
 
   useEffect(() => {
@@ -132,14 +156,11 @@ export default function BebidasPage() {
           return;
         }
         await activarServicio(ultimo);
-        setInfoMessage(
-          `Bebidas asociadas al último menú guardado (${etiquetaServicioHistorial(ultimo)}).`
-        );
       } catch (err) {
         setSyncError(
           err instanceof Error
             ? formatPostgrestError(err as { message: string })
-            : "Error al cargar el último servicio."
+            : "Error al cargar el último servicio.",
         );
         cargadoRemotoRef.current = true;
       } finally {
@@ -150,13 +171,34 @@ export default function BebidasPage() {
   }, [activarServicio]);
 
   useEffect(() => {
+    // Nombres de la Guía de bebidas para autocompletar (si falla, se escribe a mano).
+    let cancelado = false;
+    void supabase
+      .from("guia_bebidas")
+      .select("nombre")
+      .eq("activa", true)
+      .order("orden", { ascending: true })
+      .then(({ data }) => {
+        if (!cancelado && data) {
+          setSugerencias(data.map((d: { nombre: string }) => d.nombre));
+        }
+      });
+    return () => {
+      cancelado = true;
+    };
+  }, []);
+
+  useEffect(() => {
     if (!servicioActivo?.id) {
       return;
     }
     try {
       window.localStorage.setItem(
         STORAGE_KEY,
-        JSON.stringify({ historialServicioId: servicioActivo.id, asientos: bebidasPorAsiento })
+        JSON.stringify({
+          historialServicioId: servicioActivo.id,
+          asientos: bebidasPorAsiento,
+        }),
       );
     } catch {
       // Ignora fallos de almacenamiento local.
@@ -195,7 +237,10 @@ export default function BebidasPage() {
 
         setSyncError(null);
         setLastSyncLabel(
-          new Date().toLocaleTimeString("es-ES", { hour: "2-digit", minute: "2-digit" })
+          new Date().toLocaleTimeString("es-ES", {
+            hour: "2-digit",
+            minute: "2-digit",
+          }),
         );
         setIsSyncing(false);
       };
@@ -213,27 +258,31 @@ export default function BebidasPage() {
     return bebidasPorAsiento.reduce(
       (acc, asiento) =>
         acc + asiento.filter((item) => item.bebida.trim().length > 0).length,
-      0
+      0,
     );
   }, [bebidasPorAsiento]);
 
   const actualizarItem = (
     asientoIndex: number,
     itemId: string,
-    patch: Partial<BebidaItem>
+    patch: Partial<BebidaItem>,
   ) => {
     setBebidasPorAsiento((actual) =>
       actual.map((items, i) =>
         i !== asientoIndex
           ? items
-          : items.map((item) => (item.id === itemId ? { ...item, ...patch } : item))
-      )
+          : items.map((item) =>
+              item.id === itemId ? { ...item, ...patch } : item,
+            ),
+      ),
     );
   };
 
   const agregarItem = (asientoIndex: number) => {
     setBebidasPorAsiento((actual) =>
-      actual.map((items, i) => (i === asientoIndex ? [...items, crearItem()] : items))
+      actual.map((items, i) =>
+        i === asientoIndex ? [...items, crearItem()] : items,
+      ),
     );
   };
 
@@ -247,7 +296,7 @@ export default function BebidasPage() {
           return [crearItem()];
         }
         return items.filter((item) => item.id !== itemId);
-      })
+      }),
     );
   };
 
@@ -256,47 +305,49 @@ export default function BebidasPage() {
   };
 
   const iniciarNuevoServicio = async () => {
-    setInfoMessage(null);
     setSyncError(null);
     setIsLoading(true);
     try {
       const ultimo = await fetchUltimoHistorialServicio();
       if (!ultimo) {
         setSyncError(
-          "No hay ningún menú guardado en historial. Cerrá un menú en la página principal antes de tomar bebidas."
+          "No hay ningún menú guardado en historial. Cerrá un menú en la página principal antes de tomar bebidas.",
         );
         return;
       }
 
       const mismoServicio = servicioActivo?.id === ultimo.id;
       if (mismoServicio && hayConsumosCargados(bebidasPorAsiento)) {
-        const ok = window.confirm(
-          `¿Empezar de cero las bebidas para ${etiquetaServicioHistorial(ultimo)}? Se borrarán las líneas actuales de este servicio.`
-        );
+        const ok = await confirmar({
+          titulo: "¿Empezar de cero las bebidas?",
+          texto: `Se borran las líneas actuales de ${etiquetaServicioHistorial(ultimo)}.`,
+          confirmar: "Empezar de cero",
+          peligro: true,
+        });
         if (!ok) {
           return;
         }
         await activarServicio(ultimo, { limpiarSiSinDatosEnNube: true });
         setBebidasPorAsiento(crearEstadoVacio());
-        setInfoMessage(`Toma de bebidas reiniciada para ${etiquetaServicioHistorial(ultimo)}.`);
+        aviso(`Toma reiniciada: ${etiquetaServicioHistorial(ultimo)}`);
         return;
       }
 
       if (!mismoServicio) {
         await activarServicio(ultimo, { limpiarSiSinDatosEnNube: true });
-        setInfoMessage(
-          `Ahora las bebidas quedan ligadas a ${etiquetaServicioHistorial(ultimo)} (último menú guardado).`
-        );
+        aviso(`Bebidas ligadas a ${etiquetaServicioHistorial(ultimo)}`, {
+          tono: "exito",
+        });
         return;
       }
 
       await activarServicio(ultimo, { limpiarSiSinDatosEnNube: true });
-      setInfoMessage(`Servicio activo: ${etiquetaServicioHistorial(ultimo)}.`);
+      aviso(`Servicio activo: ${etiquetaServicioHistorial(ultimo)}`);
     } catch (err) {
       setSyncError(
         err instanceof Error
           ? formatPostgrestError(err as { message: string })
-          : "No se pudo actualizar el servicio activo."
+          : "No se pudo actualizar el servicio activo.",
       );
     } finally {
       setIsLoading(false);
@@ -305,158 +356,238 @@ export default function BebidasPage() {
 
   const sinServicio = !isLoading && !servicioActivo;
 
+  const confirmarLimpiar = async () => {
+    if (hayConsumosCargados(bebidasPorAsiento)) {
+      const ok = await confirmar({
+        titulo: "¿Vaciar todos los asientos?",
+        texto: "Se borran las bebidas cargadas en este servicio.",
+        confirmar: "Vaciar asientos",
+        peligro: true,
+      });
+      if (!ok) {
+        return;
+      }
+    }
+    limpiarAsientosActuales();
+    aviso("Asientos vaciados");
+  };
+
+  const irAlAsiento = (index: number) => {
+    document
+      .getElementById(`asiento-${index}`)
+      ?.scrollIntoView({ behavior: "smooth", block: "start" });
+  };
+
+  const estadoSync = isSyncing
+    ? { texto: "Guardando…", tono: "neutro" as const }
+    : syncError
+      ? { texto: "Sin guardar", tono: "peligro" as const }
+      : lastSyncLabel
+        ? { texto: `Guardado ${lastSyncLabel}`, tono: "exito" as const }
+        : { texto: "Al día", tono: "neutro" as const };
+
   return (
-    <main className="min-h-screen min-w-0 bg-zinc-950 px-4 py-6 text-zinc-100 sm:px-6 sm:py-10">
-      <section className="mx-auto w-full max-w-5xl rounded-2xl border border-zinc-800 bg-zinc-900/60 p-6 shadow-[0_0_0_1px_rgba(255,255,255,0.02)] backdrop-blur">
-        <header className="mb-6">
-          <div className="flex flex-wrap items-center justify-between gap-3">
-            <h1 className="font-display text-3xl font-medium tracking-tight text-ink">Bebidas</h1>
-            <div className="flex flex-wrap gap-2">
-              <button
-                type="button"
-                onClick={() => void iniciarNuevoServicio()}
-                disabled={isLoading}
-                className="inline-flex items-center gap-1.5 rounded-lg border border-emerald-900/50 bg-emerald-950/40 px-3 py-1.5 text-xs font-medium text-emerald-100 transition hover:bg-emerald-900/35 disabled:opacity-50"
+    <Pantalla
+      titulo="Bebidas"
+      subtitulo={
+        isLoading
+          ? "Cargando…"
+          : servicioActivo
+            ? etiquetaServicioHistorial(servicioActivo)
+            : "Sin servicio activo"
+      }
+      ayuda={
+        <>
+          <p>
+            Las bebidas se guardan ligadas al{" "}
+            <strong className="text-label">último menú cerrado</strong> en el
+            historial, asiento por asiento, y se sincronizan solas mientras
+            escribís.
+          </p>
+          <p>
+            Cuando cerraste otro menú y arranca otro servicio, tocá{" "}
+            <strong className="text-label">Nuevo servicio</strong> para empezar
+            una toma en blanco ligada a ese menú.
+          </p>
+          <p>Al escribir, la app sugiere nombres de la Guía de bebidas.</p>
+        </>
+      }
+    >
+      {syncError ? (
+        <div
+          role="alert"
+          className="mb-4 flex gap-3 rounded-card bg-danger-soft px-4 py-3 text-[0.94rem] text-danger"
+        >
+          <CircleAlert
+            className="mt-0.5 h-[18px] w-[18px] shrink-0"
+            aria-hidden
+          />
+          <p className="min-w-0 flex-1">{syncError}</p>
+        </div>
+      ) : null}
+
+      {isLoading ? (
+        <div className="space-y-4">
+          <Esqueleto className="h-24 w-full rounded-card" />
+          <EsqueletoLista filas={4} />
+        </div>
+      ) : sinServicio ? (
+        <div className="rounded-card bg-surface-3">
+          <EstadoVacio
+            icono={<Wine className="h-6 w-6" aria-hidden />}
+            titulo="Todavía no hay menús cerrados"
+            texto="Cerrá un servicio en Omakase con «Cerrar menú y guardar» y volvé para tomar bebidas."
+            accion={
+              <Link
+                href="/"
+                className="inline-flex min-h-11 items-center rounded-control bg-accent px-4 font-semibold text-on-accent"
               >
-                <FilePlus className="h-3.5 w-3.5" aria-hidden />
-                Nuevo servicio
-              </button>
-              {servicioActivo ? (
-                <button
-                  type="button"
-                  onClick={() => {
-                    if (hayConsumosCargados(bebidasPorAsiento)) {
-                      const ok = window.confirm(
-                        "¿Vaciar todos los asientos de este servicio?"
-                      );
-                      if (!ok) {
-                        return;
-                      }
-                    }
-                    limpiarAsientosActuales();
-                  }}
-                  disabled={isLoading}
-                  className="inline-flex items-center gap-1.5 rounded-lg border border-red-900/60 bg-red-950/40 px-3 py-1.5 text-xs text-red-200 transition hover:bg-red-950/70 disabled:opacity-50"
-                >
-                  Limpiar asientos
-                </button>
-              ) : null}
-            </div>
-          </div>
-          <p className="mt-1 text-sm text-zinc-400">
-            Las bebidas se guardan ligadas al <span className="text-zinc-300">último menú cerrado</span>{" "}
-            en historial. Usá <span className="text-zinc-300">Nuevo servicio</span> cuando cerraste otro
-            menú y querés una toma en blanco para ese servicio.
-          </p>
-          {servicioActivo ? (
-            <div className="mt-3 rounded-lg border border-zinc-600/80 bg-zinc-950/80 px-3 py-2.5">
-              <p className="text-[10px] font-semibold uppercase tracking-[0.16em] text-zinc-500">
-                Servicio activo
+                Ir a Omakase
+              </Link>
+            }
+          />
+        </div>
+      ) : (
+        <>
+          <div className="rounded-card bg-surface-3 p-4 shadow-[0_1px_2px_rgb(0_0_0/0.04)]">
+            <div className="flex items-center justify-between gap-3">
+              <p className="text-[0.94rem] text-label-2">
+                <span className="font-semibold tabular-nums text-label">
+                  {totalItemsCargados}
+                </span>{" "}
+                {totalItemsCargados === 1 ? "bebida" : "bebidas"}
               </p>
-              <p className="mt-0.5 text-sm font-medium text-zinc-100">
-                {etiquetaServicioHistorial(servicioActivo)}
-              </p>
+              <Etiqueta tono={estadoSync.tono}>{estadoSync.texto}</Etiqueta>
             </div>
-          ) : null}
-          <p className="mt-1 text-xs text-zinc-500">
-            Ítems cargados: <span className="font-medium text-zinc-300">{totalItemsCargados}</span>
-          </p>
-          <p className="mt-1 text-xs text-zinc-500">
-            {isLoading
-              ? "Cargando servicio y bebidas..."
-              : isSyncing
-                ? "Sincronizando con Supabase..."
-                : lastSyncLabel
-                  ? `Sincronizado a las ${lastSyncLabel}`
-                  : "Sin cambios sincronizados todavía"}
-          </p>
-        </header>
-
-        {syncError ? (
-          <p className="mb-4 rounded-lg border border-red-900/70 bg-red-950/50 px-3 py-2 text-sm text-red-200">
-            {syncError}
-          </p>
-        ) : null}
-
-        {infoMessage ? (
-          <p className="mb-4 rounded-lg border border-emerald-900/70 bg-emerald-950/40 px-3 py-2 text-sm text-emerald-200">
-            {infoMessage}
-          </p>
-        ) : null}
-
-        {isLoading ? (
-          <div className="flex items-center gap-2 text-sm text-zinc-400">
-            <Loader2 className="h-4 w-4 animate-spin" />
-            Cargando...
-          </div>
-        ) : sinServicio ? (
-          <p className="rounded-lg border border-zinc-800 bg-zinc-950/60 px-4 py-6 text-sm text-zinc-400">
-            Todavía no hay menús en historial. Andá a la página{" "}
-            <span className="text-zinc-200">Menú</span>, cerrá un servicio con{" "}
-            <span className="text-zinc-200">Cerrar Menú y Guardar</span>, y volvé acá para tomar
-            bebidas.
-          </p>
-        ) : (
-          <div className="grid gap-4 sm:grid-cols-2">
-            {bebidasPorAsiento.map((items, asientoIndex) => (
-              <section
-                key={asientoIndex}
-                className="rounded-xl border border-zinc-800 bg-zinc-950/60 p-4"
-              >
-                <div className="mb-3 flex items-center justify-between">
-                  <h2 className="text-sm uppercase tracking-[0.14em] text-zinc-400">
-                    Asiento {ASIENTOS_NUMEROS[asientoIndex]}
-                  </h2>
+            <div
+              className="mt-3 grid grid-cols-5 gap-1.5"
+              role="navigation"
+              aria-label="Ir al asiento"
+            >
+              {bebidasPorAsiento.map((items, index) => {
+                const n = items.filter(
+                  (item) => item.bebida.trim().length > 0,
+                ).length;
+                return (
                   <button
+                    key={index}
                     type="button"
-                    onClick={() => agregarItem(asientoIndex)}
-                    className="inline-flex items-center gap-1.5 rounded-lg border border-zinc-700 bg-zinc-900 px-2.5 py-1.5 text-xs text-zinc-200 transition hover:border-zinc-500 hover:text-white"
-                    aria-label={`Agregar bebida en asiento ${ASIENTOS_NUMEROS[asientoIndex]}`}
+                    onClick={() => irAlAsiento(index)}
+                    aria-label={`Asiento ${ASIENTOS_NUMEROS[index]}: ${n} bebidas`}
+                    className={cx(
+                      "flex min-h-12 flex-col items-center justify-center rounded-control transition active:scale-95",
+                      n > 0
+                        ? "bg-accent-soft text-accent"
+                        : "bg-fill text-label-2",
+                    )}
                   >
-                    <Plus className="h-3.5 w-3.5" />
-                    Añadir
+                    <span className="font-mono text-[1rem] font-semibold tabular-nums">
+                      {ASIENTOS_NUMEROS[index]}
+                    </span>
+                    <span className="text-[0.66rem] leading-none opacity-80">
+                      {n > 0 ? `${n} beb.` : "—"}
+                    </span>
                   </button>
-                </div>
+                );
+              })}
+            </div>
+          </div>
 
-                <div className="space-y-2">
-                  {items.map((item) => (
-                    <div
-                      key={item.id}
-                      className="flex items-center gap-2 rounded-lg border border-zinc-800 bg-zinc-900/50 px-2 py-2"
+          <datalist id="bebidas-sugeridas">
+            {sugerencias.map((nombre) => (
+              <option key={nombre} value={nombre} />
+            ))}
+          </datalist>
+
+          <div className="grid gap-x-6 sm:grid-cols-2">
+            {bebidasPorAsiento.map((items, asientoIndex) => (
+              <div
+                key={asientoIndex}
+                id={`asiento-${asientoIndex}`}
+                className="scroll-mt-4"
+              >
+                <Seccion
+                  titulo={`Asiento ${ASIENTOS_NUMEROS[asientoIndex]}`}
+                  accion={
+                    <Boton
+                      variante="terciario"
+                      tamano="chico"
+                      icono={<Plus className="h-4 w-4" aria-hidden />}
+                      onClick={() => agregarItem(asientoIndex)}
+                      aria-label={`Agregar bebida en asiento ${ASIENTOS_NUMEROS[asientoIndex]}`}
                     >
-                      <input
-                        value={item.bebida}
-                        onChange={(e) =>
-                          actualizarItem(asientoIndex, item.id, { bebida: e.target.value })
-                        }
-                        placeholder="Qué tomó..."
-                        className="min-w-0 flex-1 rounded-md border border-zinc-700 bg-zinc-950 px-2.5 py-2 text-sm text-zinc-100 outline-none transition focus:border-zinc-500"
-                      />
-                      <input
-                        value={item.cantidad}
-                        onChange={(e) =>
-                          actualizarItem(asientoIndex, item.id, { cantidad: e.target.value })
-                        }
-                        placeholder="Cant."
-                        inputMode="decimal"
-                        className="w-20 shrink-0 rounded-md border border-zinc-700 bg-zinc-950 px-2 py-2 text-center text-sm text-zinc-100 outline-none transition focus:border-zinc-500"
-                      />
-                      <button
-                        type="button"
-                        onClick={() => quitarItem(asientoIndex, item.id)}
-                        className="inline-flex shrink-0 items-center justify-center rounded-md border border-transparent p-2 text-zinc-500 transition hover:border-zinc-700 hover:text-red-300"
-                        aria-label="Eliminar fila de bebida"
+                      Añadir
+                    </Boton>
+                  }
+                >
+                  <ul className="overflow-hidden rounded-card bg-surface-3 shadow-[0_1px_2px_rgb(0_0_0/0.04)]">
+                    {items.map((item) => (
+                      <li
+                        key={item.id}
+                        className="flex min-h-14 items-center gap-2 border-b border-separator py-1.5 pl-4 pr-1.5 last:border-0"
                       >
-                        <Trash2 className="h-4 w-4" />
-                      </button>
-                    </div>
-                  ))}
-                </div>
-              </section>
+                        <input
+                          value={item.bebida}
+                          onChange={(e) =>
+                            actualizarItem(asientoIndex, item.id, {
+                              bebida: e.target.value,
+                            })
+                          }
+                          placeholder="Qué tomó…"
+                          list="bebidas-sugeridas"
+                          aria-label={`Bebida, asiento ${ASIENTOS_NUMEROS[asientoIndex]}`}
+                          className="min-w-0 flex-1 bg-transparent py-2 text-[1rem] text-label outline-none placeholder:text-label-3"
+                        />
+                        <input
+                          value={item.cantidad}
+                          onChange={(e) =>
+                            actualizarItem(asientoIndex, item.id, {
+                              cantidad: e.target.value,
+                            })
+                          }
+                          placeholder="Cant."
+                          inputMode="decimal"
+                          aria-label={`Cantidad, asiento ${ASIENTOS_NUMEROS[asientoIndex]}`}
+                          className="h-10 w-16 shrink-0 rounded-[0.6rem] bg-fill text-center text-[1rem] tabular-nums text-label outline-none ring-accent/60 placeholder:text-label-3 focus:ring-2"
+                        />
+                        <BotonIcono
+                          etiqueta="Quitar esta bebida"
+                          variante="plano"
+                          icono={
+                            <Trash2 className="h-[18px] w-[18px]" aria-hidden />
+                          }
+                          onClick={() => quitarItem(asientoIndex, item.id)}
+                          className="text-label-3 hover:text-danger"
+                        />
+                      </li>
+                    ))}
+                  </ul>
+                </Seccion>
+              </div>
             ))}
           </div>
-        )}
-      </section>
-    </main>
+
+          <Seccion titulo="Servicio">
+            <div className="grid grid-cols-2 gap-2">
+              <Boton
+                variante="secundario"
+                icono={<FilePlus className="h-[18px] w-[18px]" aria-hidden />}
+                onClick={() => void iniciarNuevoServicio()}
+                disabled={isLoading}
+              >
+                Nuevo servicio
+              </Boton>
+              <Boton
+                variante="peligro"
+                onClick={() => void confirmarLimpiar()}
+                disabled={isLoading}
+              >
+                Vaciar asientos
+              </Boton>
+            </div>
+          </Seccion>
+        </>
+      )}
+    </Pantalla>
   );
 }
