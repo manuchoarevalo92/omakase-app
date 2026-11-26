@@ -13,7 +13,6 @@ import {
 } from "@/src/lib/preparaciones";
 import {
   estimarDuracionSegundosPorCantidad,
-  formatearDuracionLegible,
   type ProduccionResumenPreparacion,
 } from "@/src/lib/produccion-sesiones";
 import { formatPostgrestError } from "@/src/lib/supabase-errors";
@@ -112,10 +111,6 @@ export const PRODUCCION_PLAN_SELECT =
 /** Sin categoria (tablas creadas antes de produccion-plan-categoria.sql). */
 const PRODUCCION_PLAN_SELECT_SIN_CATEGORIA =
   "id, fecha, hora_inicio, hora_fin, preparacion_id, preparacion_nombre, area, duracion_estimada_segundos, cantidad_planificada, unidad_cantidad, asignado_a_id, asignado_a_nombre, notas, estado, creado_por_id, creado_por_nombre, created_at";
-
-/** Sin hora_inicio/hora_fin (tablas creadas antes de produccion-plan-horarios.sql). */
-const PRODUCCION_PLAN_SELECT_SIN_HORARIOS =
-  "id, fecha, preparacion_id, preparacion_nombre, area, categoria, duracion_estimada_segundos, cantidad_planificada, unidad_cantidad, asignado_a_id, asignado_a_nombre, notas, estado, creado_por_id, creado_por_nombre, created_at";
 
 const PRODUCCION_PLAN_SELECT_LEGACY =
   "id, fecha, preparacion_id, preparacion_nombre, area, duracion_estimada_segundos, cantidad_planificada, unidad_cantidad, asignado_a_id, asignado_a_nombre, notas, estado, creado_por_id, creado_por_nombre, created_at";

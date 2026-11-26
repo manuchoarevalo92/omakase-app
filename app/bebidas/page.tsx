@@ -85,7 +85,10 @@ export default function BebidasPage() {
   const timerSyncRef = useRef<number | null>(null);
   const servicioActivoIdRef = useRef<string | null>(null);
 
-  servicioActivoIdRef.current = servicioActivo?.id ?? null;
+  // Va antes del efecto de sincronización: en el mismo commit se actualiza primero.
+  useEffect(() => {
+    servicioActivoIdRef.current = servicioActivo?.id ?? null;
+  }, [servicioActivo?.id]);
 
   const cargarBebidasParaServicio = useCallback(async (historialId: string) => {
     const { data, error } = await supabase

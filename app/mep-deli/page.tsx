@@ -1,6 +1,12 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import {
+  useCallback,
+  useEffect,
+  useMemo,
+  useState,
+  useEffectEvent,
+} from "react";
 import {
   CalendarDays,
   Check,
@@ -103,27 +109,6 @@ export default function MepDeliPage() {
     () => new Map(cortes.map((c) => [c.id, c])),
     [cortes],
   );
-
-  const lineasConDatos = useMemo(() => {
-    return lineasDesdeCantidades(cantidades)
-      .map((l) => {
-        const corte = cortesPorId.get(l.corte_id);
-        return corte
-          ? {
-              ...l,
-              categoria: corte.categoria,
-              nombre: corte.nombre,
-              unidad: corte.unidad,
-            }
-          : null;
-      })
-      .filter((x): x is NonNullable<typeof x> => x !== null)
-      .sort(
-        (a, b) =>
-          a.categoria.localeCompare(b.categoria, "es") ||
-          a.nombre.localeCompare(b.nombre, "es"),
-      );
-  }, [cantidades, cortesPorId]);
 
   const lineasResumen = useMemo(() => {
     if (!resumenGuardado) {
@@ -308,10 +293,12 @@ export default function MepDeliPage() {
     setIsLoading(false);
   };
 
+  const cargarAlMontar = useEffectEvent(() => {
+    void cargarDatos();
+  });
+
   useEffect(() => {
-    const timer = window.setTimeout(() => {
-      void cargarDatos();
-    }, 0);
+    const timer = window.setTimeout(cargarAlMontar, 0);
     return () => window.clearTimeout(timer);
   }, []);
 
@@ -618,8 +605,10 @@ export default function MepDeliPage() {
   const sugerenciasActivas = sugerencias.length;
   const totalConfirmados = confirmados.size;
   const cantidadesCargadas = hayCantidadesCargadas(cantidades);
+  // Relee el borrador de localStorage cuando cambian las cantidades o los confirmados.
   const borradorRestaurado = useMemo(
     () => leerBorradorMepDeli(fechaServicio),
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- cantidades y totalConfirmados son el disparador de la relectura
     [fechaServicio, totalConfirmados, cantidades],
   );
 

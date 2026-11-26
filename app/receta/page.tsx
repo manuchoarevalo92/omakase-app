@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, useEffectEvent } from "react";
 import {
   CircleAlert,
   CircleCheck,
@@ -410,10 +410,13 @@ export default function RecetaPage() {
     window.scrollTo({ top: 0 });
   };
 
+  // Carga la receta cada vez que cambia el ítem elegido.
+  const cargarSeleccion = useEffectEvent(() => {
+    void cargarReceta(seleccion);
+  });
+
   useEffect(() => {
-    const timer = window.setTimeout(() => {
-      void cargarReceta(seleccion);
-    }, 0);
+    const timer = window.setTimeout(cargarSeleccion, 0);
     return () => window.clearTimeout(timer);
   }, [seleccionKey]);
 

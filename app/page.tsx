@@ -1,6 +1,13 @@
 "use client";
 
-import { Dispatch, SetStateAction, useEffect, useMemo, useState } from "react";
+import {
+  Dispatch,
+  SetStateAction,
+  useEffect,
+  useMemo,
+  useState,
+  useEffectEvent,
+} from "react";
 import {
   ChevronDown,
   ChevronRight,
@@ -479,10 +486,13 @@ export default function Home() {
     }
   };
 
+  // Carga inicial (una sola vez); useEffectEvent evita re-ejecutarla al cambiar cargarDatos.
+  const cargarAlMontar = useEffectEvent(() => {
+    void cargarDatos();
+  });
+
   useEffect(() => {
-    const timer = window.setTimeout(() => {
-      void cargarDatos();
-    }, 0);
+    const timer = window.setTimeout(cargarAlMontar, 0);
 
     return () => {
       window.clearTimeout(timer);

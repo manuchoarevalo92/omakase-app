@@ -90,6 +90,7 @@ export default async function InstagramWidgetPage() {
                     aria-label={altFor(post)}
                     className="group block overflow-hidden bg-neutral-900/40"
                   >
+                    {/* eslint-disable-next-line @next/next/no-img-element -- URLs firmadas del CDN de Instagram que vencen: no conviene pasarlas por next/image */}
                     <img
                       src={post.imageUrl}
                       alt={altFor(post)}
