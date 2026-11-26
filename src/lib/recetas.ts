@@ -61,7 +61,9 @@ export function formatearGramosReceta(gramos: string | number): string {
   return t.length > 0 ? t : "—";
 }
 
-export async function fetchRecetaPorPlatoId(platoId: string): Promise<RecetaPlato | null> {
+export async function fetchRecetaPorPlatoId(
+  platoId: string,
+): Promise<RecetaPlato | null> {
   const { data, error } = await supabase
     .from("recetas")
     .select("plato_id, ingredientes, preparacion, pax")
@@ -77,12 +79,30 @@ export async function fetchRecetaPorPlatoId(platoId: string): Promise<RecetaPlat
   return recetaDesdeFila(data as RecetaDbRow);
 }
 
+/** Todas las recetas de platos, para mostrar cuáles faltan (solo lectura). */
+export async function fetchRecetasPlatos(): Promise<Map<string, RecetaPlato>> {
+  const { data, error } = await supabase
+    .from("recetas")
+    .select("plato_id, ingredientes, preparacion, pax");
+  if (error) {
+    throw new Error(formatPostgrestError(error));
+  }
+  return new Map(
+    ((data ?? []) as RecetaDbRow[]).map((row) => [
+      row.plato_id,
+      recetaDesdeFila(row),
+    ]),
+  );
+}
+
 export type PlatoCartaReceta = {
   id: string;
   nombre: string;
 };
 
-export async function fetchPlatosCartaParaRecetas(): Promise<PlatoCartaReceta[]> {
+export async function fetchPlatosCartaParaRecetas(): Promise<
+  PlatoCartaReceta[]
+> {
   const { data, error } = await supabase
     .from("platos")
     .select("id, nombre")
@@ -112,7 +132,7 @@ export async function guardarRecetaPlato(input: {
       preparacion: input.pasos,
       pax: input.pax,
     },
-    { onConflict: "plato_id" }
+    { onConflict: "plato_id" },
   );
 
   if (error) {

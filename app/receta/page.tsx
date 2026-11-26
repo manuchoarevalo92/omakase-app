@@ -1,8 +1,34 @@
 "use client";
 
 import Link from "next/link";
-import { FormEvent, useEffect, useMemo, useState } from "react";
-import { Loader2, Plus, Trash2 } from "lucide-react";
+import { useEffect, useMemo, useState } from "react";
+import {
+  CircleAlert,
+  CircleCheck,
+  List,
+  NotebookText,
+  Pencil,
+  Plus,
+  Save,
+  Trash2,
+} from "lucide-react";
+
+import {
+  AreaTexto,
+  Boton,
+  BotonIcono,
+  CampoBusqueda,
+  EstadoVacio,
+  EsqueletoLista,
+  Etiqueta,
+  Fila,
+  Interruptor,
+  Lista,
+  Pantalla,
+  Seccion,
+  Segmentado,
+  useAvisos,
+} from "@/app/ui";
 
 import {
   actualizarVinculoPreparacion,
@@ -15,10 +41,13 @@ import {
 import {
   fetchPlatosCartaParaRecetas,
   fetchRecetaPorPlatoId,
+  fetchRecetasPlatos,
   guardarRecetaPlato,
   recetaDesdeCampos,
+  recetaEstaCompleta,
   recetaTieneIngredientes,
   type PlatoCartaReceta,
+  type RecetaPlato,
 } from "@/src/lib/recetas";
 
 type IngredienteReceta = {
@@ -26,27 +55,18 @@ type IngredienteReceta = {
   gramos: string;
 };
 
+type Filtro = "faltan" | "todas" | "completas";
+
 type Seleccion =
-  | { origen: "prep"; id: string }
-  | { origen: "plato"; id: string };
+  { origen: "prep"; id: string } | { origen: "plato"; id: string };
 
 function encodeSeleccion(seleccion: Seleccion | null): string {
   if (!seleccion) {
     return "";
   }
-  return seleccion.origen === "prep" ? `prep:${seleccion.id}` : `plato:${seleccion.id}`;
-}
-
-function parseSeleccion(valor: string): Seleccion | null {
-  if (valor.startsWith("prep:")) {
-    const id = valor.slice(5);
-    return id ? { origen: "prep", id } : null;
-  }
-  if (valor.startsWith("plato:")) {
-    const id = valor.slice(6);
-    return id ? { origen: "plato", id } : null;
-  }
-  return null;
+  return seleccion.origen === "prep"
+    ? `prep:${seleccion.id}`
+    : `plato:${seleccion.id}`;
 }
 
 const filaVacia = (): IngredienteReceta => ({ nombre: "", gramos: "" });
@@ -66,18 +86,27 @@ export default function RecetaPage() {
   const [preps, setPreps] = useState<Preparacion[]>([]);
   const [platos, setPlatos] = useState<PlatoCartaReceta[]>([]);
   const [seleccion, setSeleccion] = useState<Seleccion | null>(null);
-  const [ingredientes, setIngredientes] = useState<IngredienteReceta[]>([filaVacia()]);
+  const [ingredientes, setIngredientes] = useState<IngredienteReceta[]>([
+    filaVacia(),
+  ]);
   const [preparacion, setPreparacion] = useState("");
   const [preparacionGuardada, setPreparacionGuardada] = useState("");
   const [editandoPreparacion, setEditandoPreparacion] = useState(true);
   const [pax, setPax] = useState("");
   /** Última referencia usada para relación PAX ↔ gramos totales (se actualiza al recalcular o al cargar). */
   const [referenciaPax, setReferenciaPax] = useState<number | null>(null);
-  const [referenciaGramosTotales, setReferenciaGramosTotales] = useState<number | null>(null);
+  const [referenciaGramosTotales, setReferenciaGramosTotales] = useState<
+    number | null
+  >(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [success, setSuccess] = useState<string | null>(null);
+  const { aviso } = useAvisos();
+  const [recetasPlatos, setRecetasPlatos] = useState<Map<string, RecetaPlato>>(
+    () => new Map(),
+  );
+  const [busqueda, setBusqueda] = useState("");
+  const [filtro, setFiltro] = useState<Filtro>("faltan");
   const [soloAdmin, setSoloAdmin] = useState(false);
   const [guardandoAcceso, setGuardandoAcceso] = useState(false);
 
@@ -86,15 +115,17 @@ export default function RecetaPage() {
 
   const prepSeleccionada = useMemo(
     () =>
-      seleccion?.origen === "prep" ? (preps.find((p) => p.id === seleccion.id) ?? null) : null,
-    [preps, seleccion]
+      seleccion?.origen === "prep"
+        ? (preps.find((p) => p.id === seleccion.id) ?? null)
+        : null,
+    [preps, seleccion],
   );
   const platoSeleccionado = useMemo(
     () =>
       seleccion?.origen === "plato"
         ? (platos.find((p) => p.id === seleccion.id) ?? null)
         : null,
-    [platos, seleccion]
+    [platos, seleccion],
   );
 
   const prepsPorArea = useMemo(() => {
@@ -119,20 +150,25 @@ export default function RecetaPage() {
 
   const formatearGramos = (valor: number) => {
     const redondeado = Math.round(valor * 10) / 10;
-    return Number.isInteger(redondeado) ? String(redondeado) : redondeado.toFixed(1);
+    return Number.isInteger(redondeado)
+      ? String(redondeado)
+      : redondeado.toFixed(1);
   };
 
   const formatearPax = (valor: number) => {
     const redondeado = Math.round(valor * 10) / 10;
-    return Number.isInteger(redondeado) ? String(redondeado) : redondeado.toFixed(1);
+    return Number.isInteger(redondeado)
+      ? String(redondeado)
+      : redondeado.toFixed(1);
   };
 
   const recalcularRendimiento = () => {
     setError(null);
-    setSuccess(null);
     const G = sumarGramosTotales(ingredientes);
     if (G <= 0) {
-      setError("Necesitás al menos un ingrediente con nombre y gramos para recalcular el PAX.");
+      setError(
+        "Necesitás al menos un ingrediente con nombre y gramos para recalcular el PAX.",
+      );
       return;
     }
 
@@ -147,31 +183,32 @@ export default function RecetaPage() {
       setPax(formatearPax(limpio));
       setReferenciaPax(limpio);
       setReferenciaGramosTotales(G);
-      setSuccess("PAX recalculado según el peso total de ingredientes.");
+      aviso("PAX recalculado según el peso total de ingredientes.");
       return;
     }
 
     if (paxNumero == null) {
       setError(
-        "Indicá primero cuánto rinden esas cantidades (PAX inicial) y completá los gramos."
+        "Indicá primero cuánto rinden esas cantidades (PAX inicial) y completá los gramos.",
       );
       return;
     }
 
     setReferenciaPax(paxNumero);
     setReferenciaGramosTotales(G);
-    setSuccess(
-      "Referencia lista: PAX y gramos totales guardados. Volvé a usar este botón cuando cambie el peso total."
+    aviso(
+      "Referencia lista: PAX y gramos totales guardados. Volvé a usar este botón cuando cambie el peso total.",
     );
   };
 
   const recalcularIngredientes = () => {
     setError(null);
-    setSuccess(null);
     const G = sumarGramosTotales(ingredientes);
 
     if (paxNumero == null) {
-      setError("Indicá el PAX (cuántos querés servir) para escalar las cantidades.");
+      setError(
+        "Indicá el PAX (cuántos querés servir) para escalar las cantidades.",
+      );
       return;
     }
 
@@ -184,11 +221,13 @@ export default function RecetaPage() {
       if (G > 0) {
         setReferenciaPax(paxNumero);
         setReferenciaGramosTotales(G);
-        setSuccess(
-          "Referencia fijada con el PAX y los gramos actuales. Ajustá el PAX y tocá de nuevo para escalar."
+        aviso(
+          "Referencia fijada con el PAX y los gramos actuales. Ajustá el PAX y tocá de nuevo para escalar.",
         );
       } else {
-        setError("Completá ingredientes con gramos o usá antes «Recalcular rendimiento».");
+        setError(
+          "Completá ingredientes con gramos o usá antes «Recalcular rendimiento».",
+        );
       }
       return;
     }
@@ -204,13 +243,13 @@ export default function RecetaPage() {
           return fila;
         }
         return { ...fila, gramos: formatearGramos(g * factor) };
-      })
+      }),
     );
 
     const gramosNuevosTotales = referenciaGramosTotales * factor;
     setReferenciaPax(paxNumero);
     setReferenciaGramosTotales(Math.round(gramosNuevosTotales * 10) / 10);
-    setSuccess("Gramos recalculados según el PAX indicado.");
+    aviso("Gramos recalculados según el PAX indicado.");
   };
 
   const aplicarContenido = (contenido: {
@@ -221,7 +260,9 @@ export default function RecetaPage() {
     const normalizados = contenido.ingredientes.map((item) => ({
       nombre: item.nombre ?? "",
       gramos:
-        typeof item.gramos === "number" ? String(item.gramos) : (item.gramos as string) ?? "",
+        typeof item.gramos === "number"
+          ? String(item.gramos)
+          : ((item.gramos as string) ?? ""),
     }));
     setIngredientes(normalizados.length > 0 ? normalizados : [filaVacia()]);
     setPreparacion(contenido.pasos);
@@ -242,12 +283,14 @@ export default function RecetaPage() {
     setIsLoading(true);
     setError(null);
     try {
-      const [listaPreps, listaPlatos] = await Promise.all([
+      const [listaPreps, listaPlatos, mapaRecetas] = await Promise.all([
         fetchPreparaciones(),
         fetchPlatosCartaParaRecetas(),
+        fetchRecetasPlatos().catch(() => new Map<string, RecetaPlato>()),
       ]);
       setPreps(listaPreps);
       setPlatos(listaPlatos);
+      setRecetasPlatos(mapaRecetas);
       const params = new URLSearchParams(window.location.search);
       const prepUrl = params.get("prep");
       const platoUrl = params.get("plato");
@@ -257,7 +300,9 @@ export default function RecetaPage() {
         setSeleccion({ origen: "plato", id: platoUrl });
       }
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Error al conectar con Supabase.");
+      setError(
+        err instanceof Error ? err.message : "Error al conectar con Supabase.",
+      );
     } finally {
       setIsLoading(false);
     }
@@ -281,7 +326,9 @@ export default function RecetaPage() {
           return;
         }
       } catch (err) {
-        setError(err instanceof Error ? err.message : "Error al cargar la receta.");
+        setError(
+          err instanceof Error ? err.message : "Error al cargar la receta.",
+        );
         return;
       }
       aplicarContenido({ ingredientes: [], pasos: "", pax: null });
@@ -316,7 +363,9 @@ export default function RecetaPage() {
         return;
       }
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Error al cargar la receta.");
+      setError(
+        err instanceof Error ? err.message : "Error al cargar la receta.",
+      );
       return;
     }
     aplicarContenido({ ingredientes: [], pasos: "", pax: null });
@@ -329,6 +378,38 @@ export default function RecetaPage() {
     return () => window.clearTimeout(timer);
   }, []);
 
+  // El botón «atrás» del teléfono vuelve del editor a la lista.
+  useEffect(() => {
+    const onPop = () => {
+      const params = new URLSearchParams(window.location.search);
+      const prepUrl = params.get("prep");
+      const platoUrl = params.get("plato");
+      setSeleccion(
+        prepUrl
+          ? { origen: "prep", id: prepUrl }
+          : platoUrl
+            ? { origen: "plato", id: platoUrl }
+            : null,
+      );
+    };
+    window.addEventListener("popstate", onPop);
+    return () => window.removeEventListener("popstate", onPop);
+  }, []);
+
+  const elegir = (nueva: Seleccion | null) => {
+    setError(null);
+    setSeleccion(nueva);
+    const url = nueva
+      ? `?${nueva.origen}=${nueva.id}`
+      : window.location.pathname;
+    if (nueva) {
+      window.history.pushState(null, "", url);
+    } else {
+      window.history.replaceState(null, "", url);
+    }
+    window.scrollTo({ top: 0 });
+  };
+
   useEffect(() => {
     const timer = window.setTimeout(() => {
       void cargarReceta(seleccion);
@@ -336,9 +417,12 @@ export default function RecetaPage() {
     return () => window.clearTimeout(timer);
   }, [seleccionKey]);
 
-  const actualizarIngrediente = (index: number, patch: Partial<IngredienteReceta>) => {
+  const actualizarIngrediente = (
+    index: number,
+    patch: Partial<IngredienteReceta>,
+  ) => {
     setIngredientes((actual) =>
-      actual.map((fila, i) => (i === index ? { ...fila, ...patch } : fila))
+      actual.map((fila, i) => (i === index ? { ...fila, ...patch } : fila)),
     );
   };
 
@@ -348,20 +432,20 @@ export default function RecetaPage() {
 
   const quitarFilaIngrediente = (index: number) => {
     setIngredientes((actual) =>
-      actual.length <= 1 ? [filaVacia()] : actual.filter((_, i) => i !== index)
+      actual.length <= 1 ? [filaVacia()] : actual.filter((_, i) => i !== index),
     );
   };
 
-  const guardarReceta = async (event: FormEvent<HTMLFormElement>) => {
-    event.preventDefault();
+  const guardar = async (): Promise<boolean> => {
     if (!seleccion) {
       setError("Seleccioná un ítem de Tiempos Prep o un plato.");
-      return;
+      return false;
     }
 
     if (seleccion.origen === "plato" && paxNumero === null) {
       setError("Indicá el rendimiento en PAX (número mayor que 0).");
-      return;
+      aviso("Falta el PAX: cuántas porciones rinde.", { tono: "error" });
+      return false;
     }
 
     const ingredientesPayload = ingredientes
@@ -374,18 +458,19 @@ export default function RecetaPage() {
     for (const fila of ingredientesPayload) {
       if (fila.gramosRaw === "") {
         setError(`Indica los gramos para: ${fila.nombre}`);
-        return;
+        aviso(`Faltan los gramos de ${fila.nombre}.`, { tono: "error" });
+        return false;
       }
       const gramos = Number(fila.gramosRaw.replace(",", "."));
       if (Number.isNaN(gramos) || gramos < 0) {
         setError("Revisa los gramos: deben ser números válidos.");
-        return;
+        aviso("Revisá los gramos: tienen que ser números.", { tono: "error" });
+        return false;
       }
     }
 
     setIsSaving(true);
     setError(null);
-    setSuccess(null);
 
     const ingredientesGuardar = ingredientesPayload.map((fila) => ({
       nombre: fila.nombre,
@@ -400,8 +485,10 @@ export default function RecetaPage() {
           ingredientes: ingredientesGuardar,
           proceso: preparacion.trim(),
         });
-        setPreps((actual) => actual.map((p) => (p.id === actualizada.id ? actualizada : p)));
-        setSuccess(`Receta guardada para ${actualizada.nombre}.`);
+        setPreps((actual) =>
+          actual.map((p) => (p.id === actualizada.id ? actualizada : p)),
+        );
+        aviso(`Receta guardada para ${actualizada.nombre}.`);
       } else {
         await guardarRecetaPlato({
           platoId: seleccion.id,
@@ -409,14 +496,30 @@ export default function RecetaPage() {
           pasos: preparacion.trim(),
           pax: paxGuardar,
         });
-        setSuccess(
-          `Receta guardada para ${platoSeleccionado?.nombre ?? "el plato"}.`
+        const platoId = seleccion.id;
+        setRecetasPlatos((actual) => {
+          const next = new Map(actual);
+          next.set(platoId, {
+            platoId,
+            ingredientes: ingredientesGuardar,
+            pasos: preparacion.trim(),
+            pax: paxGuardar,
+          });
+          return next;
+        });
+        aviso(
+          `Receta guardada para ${platoSeleccionado?.nombre ?? "el plato"}.`,
         );
       }
       setPreparacionGuardada(preparacion.trim());
       setEditandoPreparacion(preparacion.trim().length === 0);
+      return true;
     } catch (err) {
-      setError(err instanceof Error ? err.message : "No se pudo guardar la receta.");
+      setError(
+        err instanceof Error ? err.message : "No se pudo guardar la receta.",
+      );
+      aviso("No se pudo guardar la receta.", { tono: "error" });
+      return false;
     } finally {
       setIsSaving(false);
     }
@@ -432,313 +535,487 @@ export default function RecetaPage() {
       const actualizada = await actualizarVinculoPreparacion(seleccion.id, {
         recetaSoloAdmin: valor,
       });
-      setPreps((actual) => actual.map((p) => (p.id === actualizada.id ? actualizada : p)));
+      setPreps((actual) =>
+        actual.map((p) => (p.id === actualizada.id ? actualizada : p)),
+      );
     } catch (err) {
       setSoloAdmin(!valor);
-      setError(err instanceof Error ? err.message : "No se pudo guardar el acceso.");
+      setError(
+        err instanceof Error ? err.message : "No se pudo guardar el acceso.",
+      );
     } finally {
       setGuardandoAcceso(false);
     }
   };
 
+  /** Estado de cada ítem para la lista: completa, a medias, vacía o heredada de un plato. */
+  const estadoDe = (item: Seleccion): EstadoReceta => {
+    if (item.origen === "plato") {
+      const r = recetasPlatos.get(item.id);
+      if (!r) return "vacia";
+      return recetaEstaCompleta(r)
+        ? "completa"
+        : recetaTieneIngredientes(r) || r.pasos
+          ? "parcial"
+          : "vacia";
+    }
+    const prep = preps.find((p) => p.id === item.id);
+    if (!prep) return "vacia";
+    const propia = recetaDesdeCampos({
+      ingredientes: prep.recetaIngredientes,
+      pasos: prep.proceso,
+      pax: prep.recetaPax,
+    });
+    if (recetaEstaCompleta(propia)) return "completa";
+    if (recetaTieneIngredientes(propia) || propia.pasos) return "parcial";
+    if (prep.recetaPlatoId) {
+      const r = recetasPlatos.get(prep.recetaPlatoId);
+      if (r && (recetaTieneIngredientes(r) || r.pasos)) return "heredada";
+    }
+    return "vacia";
+  };
+
+  const catalogo = useMemo(() => {
+    const grupos: {
+      titulo: string;
+      items: { sel: Seleccion; nombre: string }[];
+    }[] = [
+      ...prepsPorArea.map((g) => ({
+        titulo: `Tiempos Prep · ${ETIQUETA_AREA_PRODUCCION[g.area]}`,
+        items: g.items.map((p) => ({
+          sel: { origen: "prep" as const, id: p.id },
+          nombre: p.nombre,
+        })),
+      })),
+      {
+        titulo: "Platos",
+        items: platos.map((p) => ({
+          sel: { origen: "plato" as const, id: p.id },
+          nombre: p.nombre,
+        })),
+      },
+    ];
+    return grupos.filter((g) => g.items.length > 0);
+  }, [prepsPorArea, platos]);
+
+  const todos = catalogo.flatMap((g) => g.items);
+  const listos = todos.filter((i) => {
+    const e = estadoDe(i.sel);
+    return e === "completa" || e === "heredada";
+  }).length;
+
+  const gruposVisibles = catalogo
+    .map((g) => ({
+      ...g,
+      items: g.items.filter((i) => {
+        const e = estadoDe(i.sel);
+        if (filtro === "faltan" && (e === "completa" || e === "heredada"))
+          return false;
+        if (filtro === "completas" && !(e === "completa" || e === "heredada"))
+          return false;
+        const q = normalizarTexto(busqueda);
+        return !q || normalizarTexto(i.nombre).includes(q);
+      }),
+    }))
+    .filter((g) => g.items.length > 0);
+
+  const nombreSeleccion =
+    prepSeleccionada?.nombre ?? platoSeleccionado?.nombre ?? "";
+  const estadoActual = seleccion ? estadoDe(seleccion) : "vacia";
+  const siguienteQueFalta = (() => {
+    if (!seleccion) return null;
+    const idx = todos.findIndex((i) => encodeSeleccion(i.sel) === seleccionKey);
+    const resto = [
+      ...todos.slice(idx + 1),
+      ...todos.slice(0, Math.max(0, idx)),
+    ];
+    return (
+      resto.find((i) => {
+        const e = estadoDe(i.sel);
+        return e === "vacia" || e === "parcial";
+      }) ?? null
+    );
+  })();
+
+  const gramosPorPax = (gramos: string) => {
+    if (!paxNumero || !gramos.trim()) return "—";
+    const g = Number(gramos.replace(",", ".").trim());
+    if (!(g > 0) || Number.isNaN(g)) return "—";
+    return (g / paxNumero).toFixed(1);
+  };
+
   return (
-    <main className="min-h-screen min-w-0 bg-zinc-950 px-4 py-6 text-zinc-100 sm:px-6 sm:py-10">
-      <section className="mx-auto w-full max-w-3xl rounded-2xl border border-zinc-800 bg-zinc-900/60 p-6 shadow-[0_0_0_1px_rgba(255,255,255,0.02)] backdrop-blur">
-        <header className="mb-6">
-          <h1 className="font-display text-3xl font-medium tracking-tight text-ink">
-            Recetas y procesos
-          </h1>
-          <p className="mt-2 text-sm text-zinc-400">
-            Hay dos orígenes: lo que agregás en{" "}
-            <Link href="/produccion-tiempos" className="underline hover:text-zinc-200">
+    <Pantalla
+      titulo={seleccion ? nombreSeleccion || "Receta" : "Recetas"}
+      subtitulo={
+        seleccion
+          ? seleccion.origen === "plato"
+            ? "Plato de la carta"
+            : `Tiempos Prep · ${prepSeleccionada ? ETIQUETA_AREA_PRODUCCION[prepSeleccionada.area] : ""}`
+          : isLoading
+            ? "Cargando…"
+            : "Recetas y procesos de cocina"
+      }
+      acciones={
+        seleccion ? (
+          <BotonIcono
+            etiqueta="Volver a la lista"
+            icono={<List className="h-[22px] w-[22px]" aria-hidden />}
+            onClick={() => elegir(null)}
+          />
+        ) : undefined
+      }
+      ayuda={
+        <>
+          <p>
+            Hay dos orígenes: lo que se agrega en{" "}
+            <Link href="/produccion-tiempos" className="text-accent underline">
               Tiempos Prep
             </Link>{" "}
-            (procesos que hacés) y los platos que se sirven, que se crean en{" "}
-            <Link href="/platos" className="underline hover:text-zinc-200">
+            (procesos de cocina) y los platos de la carta, que se crean en{" "}
+            <Link href="/platos" className="text-accent underline">
               Platos
             </Link>
-            . Acá cargás la receta o el proceso de ese ítem.
+            . Acá se carga la receta de cada uno.
           </p>
-        </header>
+          <p>
+            <strong className="text-label">Rendimiento</strong>: cuántas
+            porciones (PAX) rinden los gramos cargados. Si cambiás los gramos,
+            «Recalcular PAX» actualiza el rendimiento; si cambiás el PAX,
+            «Escalar gramos» ajusta todos los ingredientes en la misma
+            proporción.
+          </p>
+          <p>
+            «De plato» significa que el proceso de Tiempos Prep usa la receta
+            del plato vinculado mientras no tenga una propia.
+          </p>
+        </>
+      }
+    >
+      {error ? (
+        <div
+          role="alert"
+          className="mb-4 flex gap-3 rounded-card bg-danger-soft px-4 py-3 text-[0.94rem] text-danger"
+        >
+          <CircleAlert
+            className="mt-0.5 h-[18px] w-[18px] shrink-0"
+            aria-hidden
+          />
+          <p className="min-w-0 flex-1">{error}</p>
+        </div>
+      ) : null}
 
-        {error ? (
-          <p className="mb-4 rounded-lg border border-red-900/70 bg-red-950/40 px-3 py-2 text-sm text-red-200">
-            {error}
-          </p>
-        ) : null}
-
-        {success ? (
-          <p className="mb-4 rounded-lg border border-emerald-900/70 bg-emerald-950/40 px-3 py-2 text-sm text-emerald-200">
-            {success}
-          </p>
-        ) : null}
-
-        {isLoading ? (
-          <div className="flex items-center gap-2 text-sm text-zinc-400">
-            <Loader2 className="h-4 w-4 animate-spin" />
-            Cargando recetas...
-          </div>
-        ) : !hayCatalogo ? (
-          <p className="text-sm text-zinc-400">
-            Todavía no hay ítems. Agregá una preparación en{" "}
-            <Link href="/produccion-tiempos" className="underline hover:text-zinc-200">
-              Tiempos Prep
-            </Link>{" "}
-            o un plato en{" "}
-            <Link href="/platos" className="underline hover:text-zinc-200">
-              Platos
-            </Link>
-            , y después volvé acá a cargar la receta.
-          </p>
-        ) : (
-          <form onSubmit={guardarReceta} className="space-y-6">
-            <div>
-              <label className="mb-2 block text-xs uppercase tracking-[0.14em] text-zinc-500">
-                Ítem
-              </label>
-              <select
-                value={seleccionKey}
-                onChange={(e) => {
-                  setSeleccion(parseSeleccion(e.target.value));
-                  setSuccess(null);
+      {isLoading ? (
+        <EsqueletoLista filas={7} />
+      ) : !hayCatalogo ? (
+        <div className="rounded-card bg-surface-3">
+          <EstadoVacio
+            icono={<NotebookText className="h-6 w-6" aria-hidden />}
+            titulo="Todavía no hay ítems"
+            texto="Agregá una preparación en Tiempos Prep o un plato en Platos, y después volvé a cargar la receta."
+          />
+        </div>
+      ) : !seleccion ? (
+        <>
+          <div className="rounded-card bg-surface-3 px-4 py-3 shadow-[0_1px_2px_rgb(0_0_0/0.04)]">
+            <p className="text-[0.94rem] text-label-2">
+              <span className="font-semibold tabular-nums text-label">
+                {listos}/{todos.length}
+              </span>{" "}
+              con receta
+            </p>
+            <div className="mt-2.5 h-1.5 overflow-hidden rounded-full bg-fill">
+              <div
+                className="h-full rounded-full bg-success transition-all duration-300"
+                style={{
+                  width: `${todos.length ? (listos / todos.length) * 100 : 0}%`,
                 }}
-                className="w-full rounded-xl border border-zinc-700 bg-zinc-950 px-4 py-2.5 text-sm text-zinc-100 outline-none transition focus:border-zinc-500"
-              >
-                <option value="">Seleccionar…</option>
-                {prepsPorArea.map((grupo) => (
-                  <optgroup
-                    key={grupo.area}
-                    label={`Tiempos Prep · ${ETIQUETA_AREA_PRODUCCION[grupo.area]}`}
-                  >
-                    {grupo.items.map((prep) => (
-                      <option key={prep.id} value={encodeSeleccion({ origen: "prep", id: prep.id })}>
-                        {prep.nombre}
-                      </option>
-                    ))}
-                  </optgroup>
-                ))}
-                {platos.length > 0 ? (
-                  <optgroup label="Platos">
-                    {platos.map((plato) => (
-                      <option
-                        key={plato.id}
-                        value={encodeSeleccion({ origen: "plato", id: plato.id })}
-                      >
-                        {plato.nombre}
-                      </option>
-                    ))}
-                  </optgroup>
-                ) : null}
-              </select>
-              <p className="mt-2 text-[11px] text-zinc-500">
-                Lo nuevo de cocina se agrega en{" "}
-                <Link href="/produccion-tiempos" className="underline hover:text-zinc-300">
-                  Tiempos Prep
-                </Link>
-                . Los platos que se sirven, en{" "}
-                <Link href="/platos" className="underline hover:text-zinc-300">
-                  Platos
-                </Link>
-                .
-              </p>
-              {prepSeleccionada ? (
-                <label className="mt-3 flex items-center gap-2 text-xs text-zinc-300">
-                  <input
-                    type="checkbox"
-                    checked={soloAdmin}
-                    onChange={(e) => void guardarSoloAdmin(e.target.checked)}
-                    disabled={guardandoAcceso}
-                    className="rounded border-zinc-600"
-                  />
-                  Solo Manu puede ver esta receta en el plan
-                </label>
-              ) : null}
+              />
             </div>
-
-            <div className="rounded-xl border border-zinc-800 bg-zinc-950/60 p-4">
-              <label className="mb-2 block text-xs uppercase tracking-[0.14em] text-zinc-500">
-                Rendimiento — PAX inicial
-              </label>
-              <p className="mb-3 text-xs leading-relaxed text-zinc-500">
-                {seleccion?.origen === "plato"
-                  ? "Cuántas porciones rinden las cantidades en gramos (obligatorio en platos)."
-                  : "Cuánto rinde esta receta (opcional en Tiempos Prep). Después podés recalcular PAX o gramos."}
-              </p>
-              <div className="flex flex-wrap items-center gap-3">
-                <input
-                  type="text"
-                  inputMode="numeric"
-                  value={pax}
-                  onChange={(e) => setPax(e.target.value)}
-                  placeholder="Ej. 10"
-                  disabled={!seleccionKey}
-                  className="w-20 rounded-lg border border-zinc-700 bg-zinc-900 px-3 py-2 text-center text-sm text-zinc-100 outline-none transition focus:border-zinc-500 disabled:opacity-50"
-                  aria-label="PAX inicial, cuánto rinden esas cantidades"
+          </div>
+          <div className="mt-4 space-y-3">
+            <CampoBusqueda
+              value={busqueda}
+              onChange={(e) => setBusqueda(e.target.value)}
+              placeholder="Buscar receta"
+              etiqueta="Buscar receta"
+            />
+            <Segmentado<Filtro>
+              etiqueta="Mostrar"
+              valor={filtro}
+              onChange={setFiltro}
+              opciones={[
+                { valor: "faltan", label: "Faltan" },
+                { valor: "todas", label: "Todas" },
+                { valor: "completas", label: "Listas" },
+              ]}
+            />
+          </div>
+          {gruposVisibles.length === 0 ? (
+            <div className="mt-6 rounded-card bg-surface-3">
+              <EstadoVacio
+                icono={<CircleCheck className="h-6 w-6" aria-hidden />}
+                titulo={
+                  filtro === "faltan" && !busqueda
+                    ? "No falta ninguna"
+                    : "Sin resultados"
+                }
+                texto={
+                  filtro === "faltan" && !busqueda
+                    ? "Todas las recetas tienen ingredientes y preparación."
+                    : undefined
+                }
+              />
+            </div>
+          ) : (
+            gruposVisibles.map((g) => (
+              <Seccion
+                key={g.titulo}
+                titulo={`${g.titulo} · ${g.items.length}`}
+              >
+                <Lista>
+                  {g.items.map((i) => (
+                    <Fila
+                      key={encodeSeleccion(i.sel)}
+                      titulo={i.nombre}
+                      valor={<EtiquetaEstado estado={estadoDe(i.sel)} />}
+                      onClick={() => elegir(i.sel)}
+                    />
+                  ))}
+                </Lista>
+              </Seccion>
+            ))
+          )}
+        </>
+      ) : (
+        <>
+          <div className="flex flex-wrap items-center gap-2">
+            <EtiquetaEstado estado={estadoActual} />
+            {prepSeleccionada ? (
+              <label className="ml-auto flex min-h-11 items-center gap-3 text-[0.9rem] text-label-2">
+                Solo Manu la ve en el plan
+                <Interruptor
+                  etiqueta="Solo Manu la ve en el plan"
+                  activo={soloAdmin}
+                  onChange={(v) => {
+                    if (!guardandoAcceso) void guardarSoloAdmin(v);
+                  }}
                 />
-                <button
-                  type="button"
-                  onClick={recalcularRendimiento}
-                  disabled={!seleccionKey}
-                  className="rounded-lg border border-zinc-600 bg-zinc-800 px-3 py-2 text-sm text-zinc-100 transition hover:border-zinc-500 hover:bg-zinc-700 disabled:opacity-50"
-                >
-                  Recalcular rendimiento
-                </button>
-              </div>
-              {referenciaPax != null && referenciaGramosTotales != null ? (
-                <p className="mt-2 text-[11px] text-zinc-600">
-                  Referencia actual: {referenciaPax} PAX · {referenciaGramosTotales} g total
-                </p>
-              ) : (
-                <p className="mt-2 text-[11px] text-zinc-600">
-                  Sin referencia: completá PAX y gramos, luego «Recalcular rendimiento» para
-                  fijarla.
-                </p>
-              )}
-            </div>
+              </label>
+            ) : null}
+          </div>
 
-            <div className="rounded-xl border border-zinc-800 bg-zinc-950/60 p-4">
-              <div className="mb-3 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-                <h2 className="text-sm uppercase tracking-[0.16em] text-zinc-400">Ingredientes</h2>
-                <button
-                  type="button"
-                  onClick={recalcularIngredientes}
-                  disabled={!seleccionKey}
-                  className="shrink-0 rounded-lg border border-zinc-600 bg-zinc-800 px-3 py-2 text-sm text-zinc-100 transition hover:border-zinc-500 hover:bg-zinc-700 disabled:opacity-50"
-                >
-                  Recalcular ingredientes
-                </button>
-              </div>
-              <p className="mb-3 text-xs leading-relaxed text-zinc-500">
-                Ajustá el PAX arriba (ej. más o menos comensales) y tocá «Recalcular
-                ingredientes» para escalar todos los gramos en la misma proporción. Si
-                cambiás solo los gramos, usá «Recalcular rendimiento» para actualizar el PAX.
-              </p>
-              <div className="mb-1.5 flex items-center gap-2 text-[10px] uppercase tracking-wide text-zinc-500">
-                <span className="min-w-0 flex-1 pl-2">Ingrediente</span>
-                <span className="w-14 shrink-0 text-center sm:w-16">g</span>
-                <span className="w-12 shrink-0 text-center text-zinc-600">g/PAX</span>
-                <span className="inline-block w-8 shrink-0" aria-hidden />
-              </div>
-              <div className="space-y-1.5">
-                {ingredientes.map((fila, index) => (
-                  <div
-                    key={index}
-                    className="flex items-center gap-2 rounded-lg border border-zinc-800/80 bg-zinc-900/50 px-2 py-1.5"
-                  >
-                    <input
-                      value={fila.nombre}
-                      onChange={(e) => actualizarIngrediente(index, { nombre: e.target.value })}
-                      placeholder="Ingrediente"
-                      disabled={!seleccionKey}
-                      aria-label={`Ingrediente ${index + 1}`}
-                      className="min-w-0 flex-1 rounded-md border border-transparent bg-transparent px-2 py-1 text-sm text-zinc-100 outline-none transition placeholder:text-zinc-600 focus:border-zinc-600 disabled:opacity-50"
-                    />
-                    <input
-                      type="text"
-                      inputMode="decimal"
-                      value={fila.gramos}
-                      onChange={(e) => actualizarIngrediente(index, { gramos: e.target.value })}
-                      placeholder="0"
-                      disabled={!seleccionKey}
-                      aria-label={`Gramos ${index + 1}`}
-                      className="w-14 shrink-0 rounded-md border border-zinc-700 bg-zinc-950 px-1.5 py-1 text-center text-sm tabular-nums text-zinc-100 outline-none transition focus:border-zinc-500 disabled:opacity-50 sm:w-16"
-                    />
-                    <span
-                      className="w-12 shrink-0 text-center text-[11px] tabular-nums text-zinc-500"
-                      title="Gramos por porción (PAX)"
-                    >
-                      {paxNumero && fila.gramos.trim()
-                        ? (() => {
-                            const g = Number(fila.gramos.replace(",", ".").trim());
-                            if (!(g > 0) || Number.isNaN(g)) {
-                              return "—";
-                            }
-                            return (g / paxNumero).toFixed(1);
-                          })()
-                        : "—"}
-                    </span>
-                    <button
-                      type="button"
-                      onClick={() => quitarFilaIngrediente(index)}
-                      disabled={!seleccionKey}
-                      className="inline-flex shrink-0 items-center justify-center rounded-md border border-transparent p-1.5 text-zinc-500 transition hover:border-zinc-700 hover:text-red-300 disabled:opacity-50"
-                      aria-label="Quitar fila"
-                    >
-                      <Trash2 className="h-3.5 w-3.5" />
-                    </button>
-                  </div>
-                ))}
-              </div>
-              <button
-                type="button"
-                onClick={agregarFilaIngrediente}
-                disabled={!seleccionKey}
-                className="mt-3 inline-flex items-center gap-2 rounded-lg border border-zinc-700 bg-zinc-900 px-3 py-2 text-sm text-zinc-200 transition hover:border-zinc-500 hover:text-white disabled:opacity-50"
+          <Seccion
+            titulo="Rendimiento"
+            pie={
+              referenciaPax != null && referenciaGramosTotales != null
+                ? `Referencia: ${referenciaPax} PAX · ${referenciaGramosTotales} g en total.`
+                : seleccion.origen === "plato"
+                  ? "Obligatorio en platos: cuántas porciones rinden los gramos."
+                  : "Opcional: cuántas porciones rinde la receta."
+            }
+          >
+            <div className="flex items-center gap-2 rounded-card bg-surface-3 p-2 pl-4 shadow-[0_1px_2px_rgb(0_0_0/0.04)]">
+              <label
+                htmlFor="receta-pax"
+                className="flex-1 text-[1rem] text-label"
               >
-                <Plus className="h-4 w-4" />
-                Añadir ingrediente
-              </button>
+                PAX
+              </label>
+              <input
+                id="receta-pax"
+                type="text"
+                inputMode="decimal"
+                value={pax}
+                onChange={(e) => setPax(e.target.value)}
+                placeholder="10"
+                className="h-11 w-20 rounded-[0.65rem] bg-fill text-center font-mono text-[1.05rem] tabular-nums text-label outline-none ring-accent/60 placeholder:text-label-3 focus:ring-2"
+              />
+              <Boton
+                variante="secundario"
+                tamano="chico"
+                className="min-h-11"
+                onClick={recalcularRendimiento}
+              >
+                Recalcular PAX
+              </Boton>
             </div>
+          </Seccion>
 
-            <div className="rounded-xl border border-zinc-800 bg-zinc-950/60 p-4">
-              <div className="mb-3 flex items-center justify-between gap-3">
-                <h2 className="text-sm uppercase tracking-[0.16em] text-zinc-400">
-                  Preparación
-                </h2>
-                {seleccionKey && preparacionGuardada.trim().length > 0 ? (
-                  <button
-                    type="button"
-                    onClick={() => setEditandoPreparacion((prev) => !prev)}
-                    className="rounded-lg border border-zinc-700 bg-zinc-900 px-3 py-1.5 text-xs text-zinc-200 transition hover:border-zinc-500 hover:text-white"
-                  >
-                    {editandoPreparacion ? "Ver compacto" : "Editar"}
-                  </button>
-                ) : null}
-              </div>
-
-              {editandoPreparacion ? (
-                <>
+          <Seccion
+            titulo="Ingredientes"
+            accion={
+              <Boton
+                variante="terciario"
+                tamano="chico"
+                onClick={recalcularIngredientes}
+              >
+                Escalar gramos
+              </Boton>
+            }
+          >
+            <ul className="overflow-hidden rounded-card bg-surface-3 shadow-[0_1px_2px_rgb(0_0_0/0.04)]">
+              <li className="flex items-center gap-2 border-b border-separator py-2 pl-4 pr-2 text-[0.72rem] font-semibold uppercase tracking-[0.06em] text-label-3">
+                <span className="flex-1">Ingrediente</span>
+                <span className="w-[4.25rem] text-center">g</span>
+                <span className="w-11 text-center">g/PAX</span>
+                <span className="w-11" aria-hidden />
+              </li>
+              {ingredientes.map((fila, index) => (
+                <li
+                  key={index}
+                  className="flex min-h-14 items-center gap-2 border-b border-separator py-1.5 pl-4 pr-2 last:border-0"
+                >
                   <textarea
-                    value={preparacion}
-                    onChange={(e) => setPreparacion(e.target.value)}
-                    disabled={!seleccionKey}
-                    rows={10}
-                    placeholder="Pasos, tiempos, temperaturas..."
-                    className="w-full resize-y rounded-lg border border-zinc-700 bg-zinc-900 px-3 py-2 text-sm text-zinc-100 outline-none transition focus:border-zinc-500 disabled:opacity-50"
+                    rows={1}
+                    value={fila.nombre}
+                    onChange={(e) =>
+                      actualizarIngrediente(index, { nombre: e.target.value })
+                    }
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter") e.preventDefault();
+                    }}
+                    ref={ajustarAlto}
+                    onInput={(e) => ajustarAlto(e.currentTarget)}
+                    placeholder="Ingrediente"
+                    enterKeyHint="next"
+                    aria-label={`Ingrediente ${index + 1}`}
+                    className="min-w-0 flex-1 resize-none bg-transparent py-2 text-[1rem] leading-snug text-label outline-none placeholder:text-label-3"
                   />
-                  {seleccionKey && preparacionGuardada.trim().length > 0 ? (
-                    <div className="mt-2 flex justify-end">
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setPreparacion(preparacionGuardada);
-                          setEditandoPreparacion(false);
-                        }}
-                        className="rounded-lg border border-zinc-700 bg-zinc-900 px-3 py-1.5 text-xs text-zinc-300 transition hover:border-zinc-500 hover:text-white"
-                      >
-                        Cancelar edición
-                      </button>
-                    </div>
-                  ) : null}
-                </>
-              ) : (
-                <article className="rounded-lg border border-zinc-800 bg-zinc-900/60 px-3 py-2 text-sm leading-relaxed text-zinc-200 whitespace-pre-wrap">
-                  {preparacionGuardada}
-                </article>
-              )}
-            </div>
-
-            <button
-              type="submit"
-              disabled={isSaving || !seleccionKey}
-              className="inline-flex w-full items-center justify-center gap-2 rounded-xl border border-zinc-700 bg-zinc-100 py-2.5 text-sm font-medium text-zinc-900 transition hover:bg-zinc-50 disabled:cursor-not-allowed disabled:opacity-60 sm:w-auto sm:px-6"
+                  <input
+                    type="text"
+                    inputMode="decimal"
+                    value={fila.gramos}
+                    onChange={(e) =>
+                      actualizarIngrediente(index, { gramos: e.target.value })
+                    }
+                    placeholder="0"
+                    aria-label={`Gramos de ${fila.nombre || `ingrediente ${index + 1}`}`}
+                    className="h-11 w-[4.25rem] shrink-0 rounded-[0.65rem] bg-fill text-center font-mono text-[1rem] tabular-nums text-label outline-none ring-accent/60 placeholder:text-label-3 focus:ring-2"
+                  />
+                  <span
+                    className="w-11 shrink-0 text-center font-mono text-[0.8rem] tabular-nums text-label-3"
+                    title="Gramos por porción"
+                  >
+                    {gramosPorPax(fila.gramos)}
+                  </span>
+                  <BotonIcono
+                    etiqueta="Quitar ingrediente"
+                    variante="plano"
+                    icono={<Trash2 className="h-[18px] w-[18px]" aria-hidden />}
+                    onClick={() => quitarFilaIngrediente(index)}
+                    className="text-label-3 hover:text-danger"
+                  />
+                </li>
+              ))}
+            </ul>
+            <Boton
+              variante="terciario"
+              className="mt-2"
+              icono={<Plus className="h-[18px] w-[18px]" aria-hidden />}
+              onClick={agregarFilaIngrediente}
             >
-              {isSaving ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
-              Guardar receta
-            </button>
-          </form>
-        )}
-      </section>
-    </main>
+              Añadir ingrediente
+            </Boton>
+          </Seccion>
+
+          <Seccion
+            titulo="Preparación"
+            accion={
+              preparacionGuardada.trim().length > 0 ? (
+                <Boton
+                  variante="terciario"
+                  tamano="chico"
+                  icono={
+                    editandoPreparacion ? undefined : (
+                      <Pencil className="h-4 w-4" aria-hidden />
+                    )
+                  }
+                  onClick={() => {
+                    if (editandoPreparacion) {
+                      setPreparacion(preparacionGuardada);
+                      setEditandoPreparacion(false);
+                    } else {
+                      setEditandoPreparacion(true);
+                    }
+                  }}
+                >
+                  {editandoPreparacion ? "Cancelar" : "Editar"}
+                </Boton>
+              ) : undefined
+            }
+          >
+            {editandoPreparacion ? (
+              <AreaTexto
+                aria-label="Preparación"
+                value={preparacion}
+                onChange={(e) => setPreparacion(e.target.value)}
+                rows={10}
+                placeholder={"1. Pasos, tiempos y temperaturas…\n2. …"}
+                className="min-h-56 resize-y bg-surface-3"
+              />
+            ) : (
+              <article className="whitespace-pre-wrap rounded-card bg-surface-3 px-4 py-3 text-[1rem] leading-relaxed text-label shadow-[0_1px_2px_rgb(0_0_0/0.04)]">
+                {preparacionGuardada}
+              </article>
+            )}
+          </Seccion>
+
+          <div className="sticky bottom-[calc(env(safe-area-inset-bottom,0px)+4.75rem)] z-20 -mx-4 mt-6 grid grid-cols-2 gap-2 px-4 pb-1 sm:bottom-4 sm:mx-0 sm:px-0">
+            <Boton
+              tamano="grande"
+              cargando={isSaving}
+              icono={<Save className="h-[18px] w-[18px]" aria-hidden />}
+              onClick={() => void guardar()}
+              className="shadow-[0_8px_24px_rgb(0_0_0/0.18)]"
+            >
+              Guardar
+            </Boton>
+            {siguienteQueFalta ? (
+              <Boton
+                tamano="grande"
+                variante="secundario"
+                disabled={isSaving}
+                onClick={async () => {
+                  const ok = await guardar();
+                  if (ok) elegir(siguienteQueFalta.sel);
+                }}
+                className="bg-surface-3 shadow-[0_8px_24px_rgb(0_0_0/0.18)]"
+                aria-label={`Guardar y pasar a ${siguienteQueFalta.nombre}`}
+                title={`Guardar y pasar a ${siguienteQueFalta.nombre}`}
+              >
+                <span className="whitespace-nowrap">Guardar y seguir</span>
+              </Boton>
+            ) : null}
+          </div>
+        </>
+      )}
+    </Pantalla>
   );
+}
+
+/** Textarea de una línea que crece si el nombre del ingrediente es largo. */
+function ajustarAlto(el: HTMLTextAreaElement | null) {
+  if (!el) return;
+  el.style.height = "auto";
+  el.style.height = `${el.scrollHeight}px`;
+}
+
+type EstadoReceta = "completa" | "parcial" | "vacia" | "heredada";
+
+function EtiquetaEstado(props: { estado: EstadoReceta }) {
+  switch (props.estado) {
+    case "completa":
+      return <Etiqueta tono="exito">Lista</Etiqueta>;
+    case "parcial":
+      return <Etiqueta tono="alerta">A medias</Etiqueta>;
+    case "heredada":
+      return <Etiqueta tono="info">De plato</Etiqueta>;
+    default:
+      return <Etiqueta>Falta</Etiqueta>;
+  }
+}
+
+function normalizarTexto(t: string): string {
+  return t.normalize("NFKD").replace(/[̀-ͯ]/g, "").toLowerCase().trim();
 }

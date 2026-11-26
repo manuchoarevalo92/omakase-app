@@ -218,12 +218,14 @@ export function BarraInferior() {
                 strokeWidth={!enPestana ? 2.3 : 1.8}
                 aria-hidden
               />
-              {!enPestana
-                ? (LABEL.get(
-                    ALL_LINKS.find((l) => esHrefActivo(pathname, l.href))
-                      ?.href ?? "",
-                  ) ?? "Más")
-                : "Más"}
+              <span className="max-w-full truncate px-1">
+                {!enPestana
+                  ? (LABEL.get(
+                      ALL_LINKS.find((l) => esHrefActivo(pathname, l.href))
+                        ?.href ?? "",
+                    ) ?? "Más")
+                  : "Más"}
+              </span>
             </button>
           </li>
         </ul>
