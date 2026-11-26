@@ -130,7 +130,7 @@ export function FotoBotella(props: {
   return (
     <div
       className={`relative flex items-center justify-center overflow-hidden ${
-        fotoUrl ? "bg-white" : "border border-dashed border-zinc-700 bg-zinc-900"
+        fotoUrl ? "bg-[#fff]" : "border border-dashed border-zinc-700 bg-zinc-900"
       } ${className}`}
     >
       {fotoUrl ? (

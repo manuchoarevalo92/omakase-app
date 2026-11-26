@@ -100,16 +100,16 @@ export default async function InstagramWidgetPage() {
                       <span className="absolute bottom-2 right-2 rounded-md bg-black/55 p-1.5">
                         {post.mediaType === "VIDEO" ? (
                           <Play
-                            className="h-3.5 w-3.5 fill-white text-white"
+                            className="h-3.5 w-3.5 fill-[#fff] text-[#fff]"
                             aria-hidden
                           />
                         ) : (
-                          <Copy className="h-3.5 w-3.5 text-white" aria-hidden />
+                          <Copy className="h-3.5 w-3.5 text-[#fff]" aria-hidden />
                         )}
                       </span>
                     ) : null}
                     <span className="pointer-events-none absolute inset-0 flex items-center justify-center bg-black/0 opacity-0 transition duration-300 group-hover:bg-black/35 group-hover:opacity-100">
-                      <InstagramGlyph className="h-6 w-6 text-white" />
+                      <InstagramGlyph className="h-6 w-6 text-[#fff]" />
                     </span>
                   </a>
                 </li>

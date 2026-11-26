@@ -44,7 +44,8 @@ export async function proxy(request: NextRequest) {
     (pathname.startsWith("/platos") ||
       pathname.startsWith("/receta") ||
       pathname.startsWith("/estadisticas") ||
-      pathname.startsWith("/personal"))
+      pathname.startsWith("/personal") ||
+      pathname.startsWith("/diseno"))
   ) {
     return NextResponse.redirect(new URL("/", request.url));
   }

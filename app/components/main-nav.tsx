@@ -8,58 +8,8 @@ import { TemaToggle } from "@/app/components/tema-toggle";
 
 import { fetchMepCargasSinCerrarRecientes } from "@/src/lib/mep-deli";
 
-const ALL_LINKS = [
-  { href: "/", label: "Omakase" },
-  { href: "/bebidas", label: "Bebidas" },
-  { href: "/guia-bebidas", label: "Guía de bebidas" },
-  { href: "/mep-deli", label: "MEP Deli" },
-  { href: "/pedidos", label: "Pedidos" },
-  { href: "/avisos", label: "Avisos" },
-  { href: "/platos", label: "Platos" },
-  { href: "/mep-cortes", label: "Catálogo MEP" },
-  { href: "/inventario", label: "Ingredientes" },
-  { href: "/stock", label: "Stock" },
-  { href: "/receta", label: "Recetas y procesos" },
-  { href: "/historial", label: "Historial" },
-  { href: "/mep-historial", label: "MEP Historial" },
-  { href: "/estadisticas", label: "Stats" },
-  { href: "/compras", label: "Compras" },
-  { href: "/produccion", label: "Producción" },
-  { href: "/produccion-tiempos", label: "Tiempos prep" },
-  { href: "/produccion-plan", label: "Plan semanal" },
-  { href: "/eventos", label: "Eventos" },
-  { href: "/personal", label: "Personal" },
-  { href: "/consumo", label: "Consumo" },
-  { href: "/gasto", label: "Gasto" },
-] as const;
+import { ALL_LINKS, GRUPOS, STAFF_HREFS, type SessionInfo } from "./navegacion";
 
-type Href = (typeof ALL_LINKS)[number]["href"];
-
-/** Agrupación de las páginas en el menú desplegable. */
-const GRUPOS: { titulo: string; hrefs: Href[] }[] = [
-  { titulo: "Servicio", hrefs: ["/", "/bebidas", "/guia-bebidas", "/mep-deli", "/mep-historial", "/platos", "/mep-cortes", "/receta", "/historial", "/produccion-tiempos", "/produccion-plan", "/eventos"] },
-  { titulo: "Compras", hrefs: ["/pedidos", "/avisos", "/compras", "/stock", "/inventario"] },
-  { titulo: "Análisis", hrefs: ["/consumo", "/gasto", "/estadisticas", "/produccion", "/personal"] },
-];
-
-const STAFF_HREFS = new Set<string>([
-  "/",
-  "/bebidas",
-  "/guia-bebidas",
-  "/mep-deli",
-  "/mep-cortes",
-  "/mep-historial",
-  "/pedidos",
-  "/avisos",
-  "/inventario",
-  "/stock",
-  "/historial",
-  "/produccion-tiempos",
-  "/produccion-plan",
-  "/eventos",
-]);
-
-type SessionInfo = { id: string; name: string; role: "admin" | "staff" };
 
 export function MainNav() {
   const pathname = usePathname();
@@ -197,7 +147,7 @@ export function MainNav() {
   }
 
   return (
-    <nav className="sticky top-0 z-50 w-full max-w-full border-b border-ink-200/80 bg-paper/90 pt-[calc(env(safe-area-inset-top,0px)+2rem)] backdrop-blur-md sm:pt-[calc(env(safe-area-inset-top,0px)+0.5rem)]">
+    <nav className="sticky top-0 z-50 hidden w-full max-w-full sm:block border-b border-ink-200/80 bg-paper/90 pt-[calc(env(safe-area-inset-top,0px)+2rem)] backdrop-blur-md sm:pt-[calc(env(safe-area-inset-top,0px)+0.5rem)]">
       <div className="box-border w-full min-w-0 max-w-full px-3 py-3 sm:mx-auto sm:max-w-6xl sm:px-6">
         {session === undefined ? (
           <div className="relative flex w-full items-center justify-end py-2">

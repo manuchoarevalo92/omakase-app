@@ -223,7 +223,7 @@ function FormularioFicha(props: {
           type="button"
           onClick={() => void guardar()}
           disabled={guardando}
-          className="inline-flex min-h-11 flex-1 items-center justify-center gap-2 rounded-lg bg-seal px-4 text-sm font-medium text-white disabled:opacity-60"
+          className="inline-flex min-h-11 flex-1 items-center justify-center gap-2 rounded-lg bg-seal px-4 text-sm font-medium text-[#fff] disabled:opacity-60"
         >
           {guardando ? <Loader2 className="h-4 w-4 animate-spin" aria-hidden /> : null}
           Guardar
@@ -346,7 +346,7 @@ export function FichaBebida(props: {
                     type="button"
                     onClick={() => inputFoto.current?.click()}
                     disabled={subiendo}
-                    className="absolute bottom-2 right-2 inline-flex min-h-10 items-center gap-1.5 rounded-full bg-black/75 px-3 text-xs font-medium text-white backdrop-blur"
+                    className="absolute bottom-2 right-2 inline-flex min-h-10 items-center gap-1.5 rounded-full bg-black/75 px-3 text-xs font-medium text-[#fff] backdrop-blur"
                   >
                     {subiendo ? (
                       <Loader2 className="h-3.5 w-3.5 animate-spin" aria-hidden />

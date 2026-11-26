@@ -235,7 +235,7 @@ function Machete(props: {
 
   return (
     <div className="space-y-4">
-      <div className="sticky top-[calc(env(safe-area-inset-top,0px)+6.5rem)] z-20 -mx-4 space-y-3 bg-zinc-950/95 px-4 pb-2 pt-1 backdrop-blur sm:top-[4.75rem] sm:mx-0 sm:px-0">
+      <div className="sticky top-[env(safe-area-inset-top,0px)] z-20 -mx-4 space-y-3 bg-zinc-950/95 px-4 pb-2 pt-1 backdrop-blur sm:top-[4.75rem] sm:mx-0 sm:px-0">
         <div className="relative">
           <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-zinc-500" aria-hidden />
           <input
@@ -438,7 +438,7 @@ export default function GuiaBebidasPage() {
                 aria-selected={activo}
                 onClick={() => cambiarModo(m.id)}
                 className={`inline-flex min-h-11 items-center justify-center gap-2 rounded-lg text-sm transition ${
-                  activo ? "bg-seal text-white" : "text-zinc-400 hover:text-ink"
+                  activo ? "bg-seal text-[#fff]" : "text-zinc-400 hover:text-ink"
                 }`}
               >
                 <Icono className="h-4 w-4" aria-hidden />

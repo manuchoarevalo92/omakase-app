@@ -1,6 +1,9 @@
 import type { Metadata, Viewport } from "next";
 import { Cormorant_Garamond, DM_Sans, JetBrains_Mono } from "next/font/google";
 import "./globals.css";
+import { AvisosProvider } from "@/app/ui";
+
+import { BarraInferior } from "./components/barra-inferior";
 import { MainNav } from "./components/main-nav";
 import { RegisterServiceWorker } from "./components/register-service-worker";
 import { TemaProvider } from "./components/tema-provider";
@@ -81,14 +84,20 @@ export default function RootLayout({
       </head>
       <body className="relative flex min-h-full min-w-0 max-w-full flex-col overflow-x-clip bg-paper text-ink pl-[env(safe-area-inset-left)] pr-[env(safe-area-inset-right)]">
         <TemaProvider>
-          <div className="pointer-events-none fixed inset-0 washi-bg opacity-70" aria-hidden />
-          <div className="relative z-10 flex min-h-full min-w-0 w-full max-w-full flex-1 flex-col">
-            <RegisterServiceWorker />
-            <MainNav />
-            <div className="flex min-h-0 min-w-0 w-full max-w-full flex-1 flex-col">
-              {children}
+          <AvisosProvider>
+            <div
+              className="pointer-events-none fixed inset-0 washi-bg opacity-70"
+              aria-hidden
+            />
+            <div className="relative z-10 flex min-h-full min-w-0 w-full max-w-full flex-1 flex-col">
+              <RegisterServiceWorker />
+              <MainNav />
+              <div className="flex min-h-0 min-w-0 w-full max-w-full flex-1 flex-col pt-[env(safe-area-inset-top,0px)] sm:pt-0">
+                {children}
+              </div>
+              <BarraInferior />
             </div>
-          </div>
+          </AvisosProvider>
         </TemaProvider>
       </body>
     </html>

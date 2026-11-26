@@ -247,7 +247,7 @@ export function Repaso(props: { guia: GuiaCompleta }) {
             <button
               type="button"
               onClick={() => empezar(mazo, falladas)}
-              className="inline-flex min-h-11 items-center justify-center gap-2 rounded-lg bg-seal px-5 text-sm font-medium text-white"
+              className="inline-flex min-h-11 items-center justify-center gap-2 rounded-lg bg-seal px-5 text-sm font-medium text-[#fff]"
             >
               <RotateCcw className="h-4 w-4" aria-hidden />
               Repasar las falladas
@@ -318,7 +318,7 @@ export function Repaso(props: { guia: GuiaCompleta }) {
           <button
             type="button"
             onClick={() => responder(true)}
-            className="inline-flex min-h-12 flex-1 items-center justify-center gap-2 rounded-lg bg-ok text-sm font-medium text-white"
+            className="inline-flex min-h-12 flex-1 items-center justify-center gap-2 rounded-lg bg-ok text-sm font-medium text-[#fff]"
           >
             <Check className="h-4 w-4" aria-hidden />
             La sabía

@@ -121,7 +121,7 @@ function BotonChip(props: { activo: boolean; onClick: () => void; children: Reac
       onClick={props.onClick}
       aria-pressed={props.activo}
       className={`min-h-10 rounded-full border px-3.5 text-left text-sm transition ${
-        props.activo ? "border-seal bg-seal text-white" : "border-zinc-800 text-zinc-300 hover:border-zinc-600"
+        props.activo ? "border-seal bg-seal text-[#fff]" : "border-zinc-800 text-zinc-300 hover:border-zinc-600"
       }`}
     >
       {props.children}
@@ -215,7 +215,7 @@ export function Procesos() {
       ) : null}
 
       {/* Términos: barra fija para ir cambiando sin perder de vista la línea de pasos. */}
-      <div className="sticky top-[calc(env(safe-area-inset-top,0px)+6.5rem)] z-20 -mx-4 border-b border-zinc-800 bg-zinc-950/95 backdrop-blur sm:top-[4.75rem] sm:mx-0">
+      <div className="sticky top-[env(safe-area-inset-top,0px)] z-20 -mx-4 border-b border-zinc-800 bg-zinc-950/95 backdrop-blur sm:top-[4.75rem] sm:mx-0">
         <div className="flex items-center gap-2 overflow-x-auto px-4 py-2 [scrollbar-width:none] sm:px-0">
           {grupos.map((g) => (
             <div key={g.grupo} className="flex shrink-0 items-center gap-2">
@@ -281,7 +281,7 @@ export function Procesos() {
                   afectado
                     ? p.estado === "salta"
                       ? "border-zinc-600 bg-zinc-950 text-zinc-500"
-                      : "border-seal bg-seal text-white"
+                      : "border-seal bg-seal text-[#fff]"
                     : "border-zinc-700 bg-zinc-950 text-zinc-400"
                 }`}
               >
@@ -321,7 +321,7 @@ export function Procesos() {
                   {afectado ? (
                     <span
                       className={`rounded-full px-2 py-0.5 text-[0.6rem] font-semibold uppercase tracking-wider ${
-                        p.estado === "salta" ? "border border-zinc-600 text-zinc-400" : "bg-seal text-white"
+                        p.estado === "salta" ? "border border-zinc-600 text-zinc-400" : "bg-seal text-[#fff]"
                       }`}
                     >
                       {ETIQUETA_ESTADO[p.estado as keyof typeof ETIQUETA_ESTADO]}
