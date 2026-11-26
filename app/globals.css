@@ -204,3 +204,104 @@ html[data-theme="dia"] {
     opacity: 0;
   }
 }
+
+/* Guía de bebidas · dibujos de Elaboración (app/guia-bebidas/ilustraciones.tsx). */
+.guia-burbuja,
+.guia-vapor,
+.guia-gotea,
+.guia-llama,
+.guia-vaiven,
+.guia-desliza,
+.guia-gira,
+.guia-rueda,
+.guia-pisa {
+  transform-box: fill-box;
+}
+
+.guia-burbuja {
+  animation: guia-burbuja 2.6s ease-in infinite;
+}
+.guia-vapor {
+  animation: guia-vapor 3.2s ease-in-out infinite;
+}
+.guia-gotea {
+  animation: guia-gotea 1.7s ease-in infinite;
+}
+.guia-llama {
+  transform-origin: 50% 100%;
+  animation: guia-llama 0.7s ease-in-out infinite alternate;
+}
+.guia-vaiven {
+  transform-origin: 0% 0%;
+  animation: guia-vaiven 1.6s ease-in-out infinite alternate;
+}
+.guia-desliza {
+  animation: guia-desliza 1.8s ease-in-out infinite alternate;
+}
+.guia-gira {
+  transform-origin: 50% 50%;
+  animation: guia-gira 3s linear infinite;
+}
+.guia-rueda {
+  transform-origin: 50% 50%;
+  animation: guia-gira 5s linear infinite;
+}
+.guia-pisa {
+  animation: guia-pisa 1.2s ease-in-out infinite alternate;
+}
+.guia-fluye {
+  animation: guia-fluye 1s linear infinite;
+}
+
+@keyframes guia-burbuja {
+  0% { transform: translateY(0); opacity: 0; }
+  20% { opacity: 1; }
+  100% { transform: translateY(-13px); opacity: 0; }
+}
+@keyframes guia-vapor {
+  0% { transform: translateY(2px); opacity: 0.15; }
+  50% { opacity: 0.9; }
+  100% { transform: translateY(-5px); opacity: 0; }
+}
+@keyframes guia-gotea {
+  0% { transform: translateY(0); opacity: 1; }
+  100% { transform: translateY(9px); opacity: 0; }
+}
+@keyframes guia-llama {
+  from { transform: scale(0.92, 0.9); }
+  to { transform: scale(1.05, 1.12); }
+}
+@keyframes guia-vaiven {
+  from { transform: rotate(-5deg); }
+  to { transform: rotate(5deg); }
+}
+@keyframes guia-desliza {
+  from { transform: translateX(-4px); }
+  to { transform: translateX(4px); }
+}
+@keyframes guia-gira {
+  to { transform: rotate(360deg); }
+}
+@keyframes guia-pisa {
+  from { transform: translateY(-3px); }
+  to { transform: translateY(3px); }
+}
+@keyframes guia-fluye {
+  to { stroke-dashoffset: -10; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .guia-burbuja,
+  .guia-vapor,
+  .guia-gotea,
+  .guia-llama,
+  .guia-vaiven,
+  .guia-desliza,
+  .guia-gira,
+  .guia-rueda,
+  .guia-pisa,
+  .guia-fluye,
+  .guia-gota {
+    animation: none;
+  }
+}

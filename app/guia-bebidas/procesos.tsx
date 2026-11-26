@@ -2,10 +2,13 @@
 
 import { useMemo, useRef, useState } from "react";
 
+import { IlustracionPaso } from "./ilustraciones";
 import { PROCESOS, type Efecto, type Paso, type Proceso, type Termino } from "./procesos-data";
 
 type PasoVista = {
   clave: string;
+  /** Clave del dibujo dentro del proceso. */
+  dibujo: string;
   paso: Paso;
   estado: "normal" | "cambia" | "salta" | "nuevo";
   nota: string | null;
@@ -21,6 +24,7 @@ function armarPasos(proceso: Proceso, pasosRuta: string[], termino: Termino | nu
     const directo = efectos.find((e) => e.tipo !== "nuevo");
     out.push({
       clave: id,
+      dibujo: id,
       paso: proceso.pasos[id],
       estado: directo ? directo.tipo : "normal",
       nota: directo ? directo.texto : null,
@@ -29,6 +33,7 @@ function armarPasos(proceso: Proceso, pasosRuta: string[], termino: Termino | nu
       if (e.tipo === "nuevo") {
         out.push({
           clave: `${id}-nuevo`,
+          dibujo: "alcohol",
           paso: { titulo: e.titulo, texto: e.texto },
           estado: "nuevo",
           nota: null,
@@ -296,6 +301,14 @@ export function Procesos() {
                         : "border-zinc-800 bg-zinc-900/60"
                 }`}
               >
+                <div className="mb-3 sm:float-right sm:mb-2 sm:ml-4 sm:w-56">
+                  <IlustracionPaso
+                    proceso={proceso.id}
+                    paso={p.dibujo}
+                    titulo={p.paso.titulo}
+                    apagada={p.estado === "salta"}
+                  />
+                </div>
                 <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
                   <h4
                     className={`font-display text-lg font-medium leading-tight ${
@@ -324,6 +337,7 @@ export function Procesos() {
                 >
                   {p.paso.texto}
                 </p>
+                <div className="clear-both" />
               </div>
             </li>
           );
