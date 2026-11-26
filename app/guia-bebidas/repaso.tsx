@@ -60,29 +60,29 @@ function Frente(props: { tarjeta: Tarjeta }) {
           categoria={tarjeta.bebida.categoria}
           className="h-72 w-full max-w-[16rem] rounded-xl"
         />
-        <p className="text-sm text-zinc-400">¿Qué botella es y de dónde viene?</p>
+        <p className="text-sm text-label-2">¿Qué botella es y de dónde viene?</p>
       </div>
     ) : (
       <div className="space-y-3 text-center">
-        <p className="text-[0.65rem] font-medium uppercase tracking-[0.2em] text-zinc-500">
+        <p className="text-[0.65rem] font-medium uppercase tracking-[0.2em] text-label-3">
           {labelCategoria(tarjeta.bebida.categoria)}
         </p>
         <p className="font-display text-3xl font-medium leading-tight text-ink">{tarjeta.bebida.nombre}</p>
-        <p className="text-sm text-zinc-400">¿Quién la hace, cómo es y cómo la presentás?</p>
+        <p className="text-sm text-label-2">¿Quién la hace, cómo es y cómo la presentás?</p>
       </div>
     );
   }
   if (tarjeta.tipo === "glosario") {
     return (
       <div className="space-y-3 text-center">
-        <p className="text-[0.65rem] font-medium uppercase tracking-[0.2em] text-zinc-500">{tarjeta.area}</p>
+        <p className="text-[0.65rem] font-medium uppercase tracking-[0.2em] text-label-3">{tarjeta.area}</p>
         <p className="font-display text-3xl font-medium leading-tight text-ink">{tarjeta.termino}</p>
       </div>
     );
   }
   return (
     <div className="space-y-3 text-center">
-      <p className="text-[0.65rem] font-medium uppercase tracking-[0.2em] text-zinc-500">{tarjeta.area}</p>
+      <p className="text-[0.65rem] font-medium uppercase tracking-[0.2em] text-label-3">{tarjeta.area}</p>
       <p className="font-display text-2xl font-medium leading-snug text-ink">
         <Md texto={tarjeta.pregunta} />
       </p>
@@ -107,7 +107,7 @@ function Dorso(props: { tarjeta: Tarjeta }) {
           <div className="min-w-0 space-y-1">
             <p className="font-display text-xl font-medium leading-tight text-ink">{b.nombre}</p>
             {b.precio ? <p className="font-mono text-xs text-seal">{b.precio}</p> : null}
-            {b.meta ? <p className="text-sm text-zinc-400">{b.meta}</p> : null}
+            {b.meta ? <p className="text-sm text-label-2">{b.meta}</p> : null}
           </div>
         </div>
         {b.enSala ? (
@@ -116,7 +116,7 @@ function Dorso(props: { tarjeta: Tarjeta }) {
             <Md texto={b.enSala} />
           </p>
         ) : null}
-        <ul className="list-disc space-y-1.5 pl-5 text-sm leading-relaxed text-zinc-300 marker:text-seal">
+        <ul className="list-disc space-y-1.5 pl-5 text-sm leading-relaxed text-label-2 marker:text-seal">
           {b.datos.map((d, i) => (
             <li key={i}>
               <Md texto={d} />
@@ -130,14 +130,14 @@ function Dorso(props: { tarjeta: Tarjeta }) {
     return (
       <div className="space-y-2 text-center">
         <p className="font-display text-xl text-ink">{tarjeta.termino}</p>
-        <p className="text-base leading-relaxed text-zinc-300">
+        <p className="text-base leading-relaxed text-label-2">
           <Md texto={tarjeta.definicion} />
         </p>
       </div>
     );
   }
   return (
-    <p className="text-center text-sm leading-relaxed text-zinc-400">
+    <p className="text-center text-sm leading-relaxed text-label-2">
       Esta pregunta no tiene una única respuesta escrita: respondela en voz alta y, si dudaste,
       buscá la ficha en Machete o el tema en Estudiar.
     </p>
@@ -186,7 +186,7 @@ export function Repaso(props: { guia: GuiaCompleta }) {
     return (
       <div className="space-y-5">
         <div>
-          <p className="mb-2 text-xs font-medium text-zinc-500">Botellas de</p>
+          <p className="mb-2 text-xs font-medium text-label-3">Botellas de</p>
           <div className="-mx-4 flex gap-2 overflow-x-auto px-4 pb-1 [scrollbar-width:none] sm:mx-0 sm:flex-wrap sm:px-0">
             {[{ id: "todas" as const, label: "Toda la carta" }, ...CATEGORIAS_GUIA].map((c) => (
               <button
@@ -197,7 +197,7 @@ export function Repaso(props: { guia: GuiaCompleta }) {
                 className={`min-h-10 shrink-0 rounded-full border px-3.5 text-sm transition ${
                   categoria === c.id
                     ? "border-seal/60 bg-seal/15 text-ink"
-                    : "border-zinc-800 text-zinc-400 hover:text-ink"
+                    : "border-separator text-label-2 hover:text-ink"
                 }`}
               >
                 {c.label}
@@ -214,11 +214,11 @@ export function Repaso(props: { guia: GuiaCompleta }) {
                 type="button"
                 disabled={n === 0}
                 onClick={() => empezar(m.id, armarMazo(guia, m.id, categoria))}
-                className="flex min-h-24 flex-col items-start justify-between rounded-xl border border-zinc-800 bg-zinc-900/60 p-4 text-left transition hover:border-zinc-600 disabled:opacity-40"
+                className="flex min-h-24 flex-col items-start justify-between rounded-card bg-surface-3 shadow-[0_1px_2px_rgb(0_0_0/0.04)] p-4 text-left transition hover:border-fill-strong disabled:opacity-40"
               >
                 <span className="font-display text-xl font-medium text-ink">{m.titulo}</span>
-                <span className="mt-1 text-sm text-zinc-400">{m.detalle}</span>
-                <span className="mt-3 font-mono text-xs text-zinc-500">
+                <span className="mt-1 text-sm text-label-2">{m.detalle}</span>
+                <span className="mt-3 font-mono text-xs text-label-3">
                   {n === 0 ? "Sin tarjetas todavía" : `${n} tarjetas`}
                 </span>
               </button>
@@ -233,11 +233,11 @@ export function Repaso(props: { guia: GuiaCompleta }) {
 
   if (!actual) {
     return (
-      <div className="space-y-5 rounded-xl border border-zinc-800 bg-zinc-900/60 p-6 text-center">
+      <div className="space-y-5 rounded-card bg-surface-3 shadow-[0_1px_2px_rgb(0_0_0/0.04)] p-6 text-center">
         <p className="font-display text-3xl font-medium text-ink">
           {sabidas} de {total}
         </p>
-        <p className="text-sm text-zinc-400">
+        <p className="text-sm text-label-2">
           {falladas.length === 0
             ? "Las sabías todas."
             : `Te quedaron ${falladas.length} para repasar.`}
@@ -256,7 +256,7 @@ export function Repaso(props: { guia: GuiaCompleta }) {
           <button
             type="button"
             onClick={() => setMazo(null)}
-            className="min-h-11 rounded-lg border border-zinc-700 px-5 text-sm text-zinc-300"
+            className="min-h-11 rounded-lg border border-separator px-5 text-sm text-label-2"
           >
             Elegir otro mazo
           </button>
@@ -273,12 +273,12 @@ export function Repaso(props: { guia: GuiaCompleta }) {
         <button
           type="button"
           onClick={() => setMazo(null)}
-          className="min-h-10 shrink-0 text-sm text-zinc-400 underline-offset-4 hover:text-ink hover:underline"
+          className="min-h-10 shrink-0 text-sm text-label-2 underline-offset-4 hover:text-ink hover:underline"
         >
           Salir
         </button>
         <div
-          className="h-1.5 flex-1 overflow-hidden rounded-full bg-zinc-800"
+          className="h-1.5 flex-1 overflow-hidden rounded-full bg-fill-strong"
           role="progressbar"
           aria-valuenow={hechas}
           aria-valuemin={0}
@@ -286,7 +286,7 @@ export function Repaso(props: { guia: GuiaCompleta }) {
         >
           <div className="h-full bg-seal transition-all" style={{ width: `${(hechas / total) * 100}%` }} />
         </div>
-        <p className="shrink-0 font-mono text-xs text-zinc-500">
+        <p className="shrink-0 font-mono text-xs text-label-3">
           {hechas + 1}/{total}
         </p>
       </div>
@@ -295,11 +295,11 @@ export function Repaso(props: { guia: GuiaCompleta }) {
         type="button"
         onClick={() => setVolteada(true)}
         disabled={volteada}
-        className="flex min-h-[24rem] w-full flex-col items-stretch justify-center rounded-2xl border border-zinc-800 bg-zinc-900/60 p-5 disabled:cursor-default"
+        className="flex min-h-[24rem] w-full flex-col items-stretch justify-center rounded-2xl bg-surface-3 p-5 disabled:cursor-default"
       >
         {volteada ? <Dorso tarjeta={actual} /> : <Frente tarjeta={actual} />}
         {!volteada ? (
-          <span className="mt-6 text-center text-xs uppercase tracking-[0.2em] text-zinc-500">
+          <span className="mt-6 text-center text-xs uppercase tracking-[0.2em] text-label-3">
             Tocá para ver la respuesta
           </span>
         ) : null}
@@ -310,7 +310,7 @@ export function Repaso(props: { guia: GuiaCompleta }) {
           <button
             type="button"
             onClick={() => responder(false)}
-            className="inline-flex min-h-12 flex-1 items-center justify-center gap-2 rounded-lg border border-zinc-700 text-sm text-zinc-200"
+            className="inline-flex min-h-12 flex-1 items-center justify-center gap-2 rounded-lg border border-separator text-sm text-label"
           >
             <X className="h-4 w-4" aria-hidden />
             No la sabía

@@ -30,7 +30,7 @@ export function Md(props: { texto: string }) {
 /** Render de los bloques de un capítulo (títulos, párrafos, listas y tablas). */
 export function Bloques(props: { bloques: BloqueGuia[] }) {
   return (
-    <div className="space-y-3 text-[0.95rem] leading-relaxed text-zinc-300">
+    <div className="space-y-3 text-[0.95rem] leading-relaxed text-label-2">
       {props.bloques.map((b, i) => {
         if (b.t === "h") {
           return (
@@ -69,7 +69,7 @@ export function Bloques(props: { bloques: BloqueGuia[] }) {
                   {b.head.map((h, j) => (
                     <th
                       key={j}
-                      className="border-b border-zinc-700 px-2 py-2 text-[0.7rem] font-medium uppercase tracking-wider text-zinc-500"
+                      className="border-b border-separator px-2 py-2 text-[0.7rem] font-medium uppercase tracking-wider text-label-3"
                     >
                       {h}
                     </th>
@@ -82,7 +82,7 @@ export function Bloques(props: { bloques: BloqueGuia[] }) {
                     {fila.map((celda, k) => (
                       <td
                         key={k}
-                        className={`border-b border-zinc-800 px-2 py-2 ${k === 0 ? "font-medium text-ink" : ""}`}
+                        className={`border-b border-separator px-2 py-2 ${k === 0 ? "font-medium text-ink" : ""}`}
                       >
                         <Md texto={celda} />
                       </td>
@@ -130,7 +130,7 @@ export function FotoBotella(props: {
   return (
     <div
       className={`relative flex items-center justify-center overflow-hidden ${
-        fotoUrl ? "bg-[#fff]" : "border border-dashed border-zinc-700 bg-zinc-900"
+        fotoUrl ? "bg-[#fff]" : "border border-dashed border-separator bg-fill"
       } ${className}`}
     >
       {fotoUrl ? (
@@ -142,7 +142,7 @@ export function FotoBotella(props: {
           className="h-full w-full object-contain p-1.5"
         />
       ) : (
-        <IconoCategoria categoria={categoria} className={`${iconoClassName} text-zinc-600`} />
+        <IconoCategoria categoria={categoria} className={`${iconoClassName} text-label-3`} />
       )}
       {children}
     </div>

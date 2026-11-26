@@ -59,7 +59,7 @@ function PulidoVisual() {
   const escala = Math.sqrt(queda / 100);
 
   return (
-    <section className="rounded-xl border border-zinc-800 bg-zinc-900/60 p-4">
+    <section className="rounded-card bg-surface-3 shadow-[0_1px_2px_rgb(0_0_0/0.04)] p-4">
       <h3 className="font-display text-xl font-medium text-ink">El pulido, a la vista</h3>
       <div className="mt-3 flex items-center gap-4">
         <svg viewBox="0 0 120 150" className="h-32 w-24 shrink-0" role="img" aria-label={`Grano con el ${queda} % restante`}>
@@ -88,10 +88,10 @@ function PulidoVisual() {
         <div className="min-w-0 flex-1">
           <p className="font-display text-3xl font-medium text-ink">
             {queda} %
-            <span className="ml-2 font-sans text-sm font-normal text-zinc-400">del grano queda</span>
+            <span className="ml-2 font-sans text-sm font-normal text-label-2">del grano queda</span>
           </p>
-          <p className="mt-1 text-sm text-zinc-300">{categoria}</p>
-          <p className="mt-1 text-xs leading-snug text-zinc-500">
+          <p className="mt-1 text-sm text-label-2">{categoria}</p>
+          <p className="mt-1 text-xs leading-snug text-label-3">
             El centro es almidón; afuera hay proteínas y grasas. Más pulido: más finura y aroma, menos cuerpo.
           </p>
         </div>
@@ -106,7 +106,7 @@ function PulidoVisual() {
         aria-label="Porcentaje del grano que queda tras el pulido"
         className="mt-3 h-11 w-full accent-[var(--seal)]"
       />
-      <div className="flex justify-between text-[0.65rem] uppercase tracking-wider text-zinc-500">
+      <div className="flex justify-between text-[0.65rem] uppercase tracking-wider text-label-3">
         <span>Más pulido</span>
         <span>Menos pulido</span>
       </div>
@@ -121,7 +121,7 @@ function BotonChip(props: { activo: boolean; onClick: () => void; children: Reac
       onClick={props.onClick}
       aria-pressed={props.activo}
       className={`min-h-10 rounded-full border px-3.5 text-left text-sm transition ${
-        props.activo ? "border-seal bg-seal text-[#fff]" : "border-zinc-800 text-zinc-300 hover:border-zinc-600"
+        props.activo ? "border-seal bg-seal text-[#fff]" : "border-separator text-label-2 hover:border-fill-strong"
       }`}
     >
       {props.children}
@@ -169,7 +169,7 @@ export function Procesos() {
 
   return (
     <div className="space-y-5">
-      <div className="grid grid-cols-3 gap-1 rounded-xl border border-zinc-800 bg-zinc-900/60 p-1">
+      <div className="grid grid-cols-3 gap-1 rounded-card bg-surface-3 shadow-[0_1px_2px_rgb(0_0_0/0.04)] p-1">
         {PROCESOS.map((p) => (
           <button
             key={p.id}
@@ -181,7 +181,7 @@ export function Procesos() {
               setTerminoId(null);
             }}
             className={`min-h-10 rounded-lg text-sm transition ${
-              p.id === proceso.id ? "bg-ink text-paper" : "text-zinc-400 hover:text-ink"
+              p.id === proceso.id ? "bg-ink text-paper" : "text-label-2 hover:text-ink"
             }`}
           >
             {p.label}
@@ -189,13 +189,13 @@ export function Procesos() {
         ))}
       </div>
 
-      <p className="text-[0.95rem] leading-relaxed text-zinc-300">{proceso.intro}</p>
+      <p className="text-[0.95rem] leading-relaxed text-label-2">{proceso.intro}</p>
 
       {proceso.id === "sake" ? <PulidoVisual /> : null}
 
       {variasRutas ? (
         <section>
-          <h3 className="mb-2 text-[0.7rem] font-medium uppercase tracking-[0.2em] text-zinc-500">Tipo</h3>
+          <h3 className="mb-2 text-[0.7rem] font-medium uppercase tracking-[0.2em] text-label-3">Tipo</h3>
           <div className="flex flex-wrap gap-2">
             {proceso.rutas.map((r) => (
               <BotonChip
@@ -210,17 +210,17 @@ export function Procesos() {
               </BotonChip>
             ))}
           </div>
-          <p className="mt-2 text-sm text-zinc-400">{ruta.resumen}</p>
+          <p className="mt-2 text-sm text-label-2">{ruta.resumen}</p>
         </section>
       ) : null}
 
       {/* Términos: barra fija para ir cambiando sin perder de vista la línea de pasos. */}
-      <div className="sticky top-[env(safe-area-inset-top,0px)] z-20 -mx-4 border-b border-zinc-800 bg-zinc-950/95 backdrop-blur sm:top-[4.75rem] sm:mx-0">
+      <div className="sticky top-[env(safe-area-inset-top,0px)] z-20 -mx-4 border-b border-separator bg-surface/95 backdrop-blur sm:top-[4.75rem] sm:mx-0">
         <div className="flex items-center gap-2 overflow-x-auto px-4 py-2 [scrollbar-width:none] sm:px-0">
           {grupos.map((g) => (
             <div key={g.grupo} className="flex shrink-0 items-center gap-2">
               {!variasRutas ? (
-                <span className="pl-1 text-[0.6rem] font-medium uppercase tracking-[0.16em] text-zinc-500">
+                <span className="pl-1 text-[0.6rem] font-medium uppercase tracking-[0.16em] text-label-3">
                   {g.grupo}
                 </span>
               ) : null}
@@ -243,19 +243,19 @@ export function Procesos() {
               {termino.enCopa ? (
                 <div>
                   <dt className="text-[0.65rem] font-semibold uppercase tracking-[0.18em] text-seal">En la copa</dt>
-                  <dd className="text-zinc-300">{termino.enCopa}</dd>
+                  <dd className="text-label-2">{termino.enCopa}</dd>
                 </div>
               ) : null}
               {termino.enCarta ? (
                 <div>
                   <dt className="text-[0.65rem] font-semibold uppercase tracking-[0.18em] text-seal">En la carta</dt>
-                  <dd className="text-zinc-300">{termino.enCarta}</dd>
+                  <dd className="text-label-2">{termino.enCarta}</dd>
                 </div>
               ) : null}
             </dl>
           </section>
         ) : (
-          <p className="rounded-xl border border-dashed border-zinc-700 px-4 py-3 text-sm text-zinc-500">
+          <p className="rounded-xl border border-dashed border-separator px-4 py-3 text-sm text-label-3">
             Deslizá la barra de términos y tocá uno para ver qué paso cambia.
           </p>
         )}
@@ -263,7 +263,7 @@ export function Procesos() {
 
       <ol key={`${proceso.id}-${ruta.id}`} className="relative space-y-3 pl-10">
         {/* Línea del proceso con una gota que la recorre. */}
-        <span aria-hidden className="absolute bottom-4 left-[0.95rem] top-4 w-px bg-zinc-700">
+        <span aria-hidden className="absolute bottom-4 left-[0.95rem] top-4 w-px bg-fill-strong">
           <span className="guia-gota absolute -left-[3px] h-[7px] w-[7px] rounded-full bg-seal motion-reduce:hidden" />
         </span>
         {pasos.map((p, i) => {
@@ -280,9 +280,9 @@ export function Procesos() {
                 className={`absolute -left-10 top-3 flex size-8 items-center justify-center rounded-full border font-mono text-xs transition-colors duration-300 ${
                   afectado
                     ? p.estado === "salta"
-                      ? "border-zinc-600 bg-zinc-950 text-zinc-500"
+                      ? "border-fill-strong bg-surface text-label-3"
                       : "border-seal bg-seal text-[#fff]"
-                    : "border-zinc-700 bg-zinc-950 text-zinc-400"
+                    : "border-separator bg-surface text-label-2"
                 }`}
               >
                 {afectado && p.estado !== "salta" ? (
@@ -293,12 +293,12 @@ export function Procesos() {
               <div
                 className={`rounded-xl border px-4 py-3 transition-colors duration-300 ${
                   p.estado === "salta"
-                    ? "border-dashed border-zinc-700 bg-transparent"
+                    ? "border-dashed border-separator bg-transparent"
                     : afectado
                       ? "border-seal/60 bg-seal/10"
                       : termino
-                        ? "border-zinc-800 bg-zinc-900/30 opacity-60"
-                        : "border-zinc-800 bg-zinc-900/60"
+                        ? "border-separator bg-fill opacity-60"
+                        : "border-separator bg-surface-3"
                 }`}
               >
                 <div className="mb-3 sm:float-right sm:mb-2 sm:ml-4 sm:w-56">
@@ -313,7 +313,7 @@ export function Procesos() {
                 <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
                   <h4
                     className={`font-display text-lg font-medium leading-tight ${
-                      p.estado === "salta" ? "text-zinc-500 line-through" : "text-ink"
+                      p.estado === "salta" ? "text-label-3 line-through" : "text-ink"
                     }`}
                   >
                     {p.paso.titulo}
@@ -321,7 +321,7 @@ export function Procesos() {
                   {afectado ? (
                     <span
                       className={`rounded-full px-2 py-0.5 text-[0.6rem] font-semibold uppercase tracking-wider ${
-                        p.estado === "salta" ? "border border-zinc-600 text-zinc-400" : "bg-seal text-[#fff]"
+                        p.estado === "salta" ? "border border-fill-strong text-label-2" : "bg-seal text-[#fff]"
                       }`}
                     >
                       {ETIQUETA_ESTADO[p.estado as keyof typeof ETIQUETA_ESTADO]}
@@ -333,8 +333,8 @@ export function Procesos() {
                 ) : null}
                 <p
                   className={`mt-1 text-sm leading-relaxed ${
-                    p.nota ? "text-zinc-500" : "text-zinc-400"
-                  } ${p.estado === "salta" ? "line-through decoration-zinc-600" : ""}`}
+                    p.nota ? "text-label-3" : "text-label-2"
+                  } ${p.estado === "salta" ? "line-through decoration-label-3" : ""}`}
                 >
                   {p.paso.texto}
                 </p>

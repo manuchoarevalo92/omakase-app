@@ -1,6 +1,15 @@
 "use client";
 
-import { BookOpen, GraduationCap, Loader2, Plus, Search, X, Zap } from "lucide-react";
+import { Boton, EsqueletoLista, Pantalla, Segmentado } from "@/app/ui";
+import {
+  BookOpen,
+  CircleAlert,
+  GraduationCap,
+  Plus,
+  Search,
+  X,
+  Zap,
+} from "lucide-react";
 import { useCallback, useEffect, useMemo, useState } from "react";
 
 import {
@@ -30,16 +39,20 @@ const MODO_STORAGE_KEY = "omakase_guia_bebidas_modo";
 
 type SeccionEstudio = "elaboracion" | "glosario" | CategoriaGuia;
 
-function Chip(props: { activo: boolean; onClick: () => void; children: React.ReactNode }) {
+function Chip(props: {
+  activo: boolean;
+  onClick: () => void;
+  children: React.ReactNode;
+}) {
   return (
     <button
       type="button"
       onClick={props.onClick}
       aria-pressed={props.activo}
-      className={`min-h-10 shrink-0 rounded-full border px-3.5 text-sm transition ${
+      className={`min-h-10 shrink-0 rounded-full px-3.5 text-[0.92rem] transition active:scale-95 ${
         props.activo
-          ? "border-seal/60 bg-seal/15 text-ink"
-          : "border-zinc-800 text-zinc-400 hover:text-ink"
+          ? "bg-accent-soft font-semibold text-accent"
+          : "bg-fill text-label-2"
       }`}
     >
       {props.children}
@@ -56,7 +69,9 @@ function FilaChips(props: { children: React.ReactNode }) {
 }
 
 /** Agrupa por subgrupo respetando el orden de la carta. */
-function porSubgrupo(bebidas: GuiaBebida[]): { subgrupo: string | null; bebidas: GuiaBebida[] }[] {
+function porSubgrupo(
+  bebidas: GuiaBebida[],
+): { subgrupo: string | null; bebidas: GuiaBebida[] }[] {
   const grupos: { subgrupo: string | null; bebidas: GuiaBebida[] }[] = [];
   bebidas.forEach((b) => {
     const ultimo = grupos[grupos.length - 1];
@@ -82,7 +97,10 @@ function Estudiar(props: {
     const q = normalizarBusqueda(filtroGlosario.trim());
     const areas: { area: string; terminos: GuiaCompleta["glosario"] }[] = [];
     guia.glosario
-      .filter((g) => !q || normalizarBusqueda(`${g.termino} ${g.definicion}`).includes(q))
+      .filter(
+        (g) =>
+          !q || normalizarBusqueda(`${g.termino} ${g.definicion}`).includes(q),
+      )
       .forEach((g) => {
         const ultimo = areas[areas.length - 1];
         if (ultimo && ultimo.area === g.area) {
@@ -95,21 +113,33 @@ function Estudiar(props: {
   }, [guia, filtroGlosario]);
 
   const esCategoria = seccion !== "glosario" && seccion !== "elaboracion";
-  const deCategoria = esCategoria ? visibles.filter((b) => b.categoria === seccion) : [];
+  const deCategoria = esCategoria
+    ? visibles.filter((b) => b.categoria === seccion)
+    : [];
   const intro = guia.capitulos.find((c) => c.slug === `intro-${seccion}`);
 
   return (
     <div className="space-y-5">
       <FilaChips>
-        <Chip activo={seccion === "elaboracion"} onClick={() => setSeccion("elaboracion")}>
+        <Chip
+          activo={seccion === "elaboracion"}
+          onClick={() => setSeccion("elaboracion")}
+        >
           Elaboración
         </Chip>
         {CATEGORIAS_GUIA.map((c) => (
-          <Chip key={c.id} activo={seccion === c.id} onClick={() => setSeccion(c.id)}>
+          <Chip
+            key={c.id}
+            activo={seccion === c.id}
+            onClick={() => setSeccion(c.id)}
+          >
             {c.label}
           </Chip>
         ))}
-        <Chip activo={seccion === "glosario"} onClick={() => setSeccion("glosario")}>
+        <Chip
+          activo={seccion === "glosario"}
+          onClick={() => setSeccion("glosario")}
+        >
           Glosario
         </Chip>
       </FilaChips>
@@ -117,29 +147,32 @@ function Estudiar(props: {
       {seccion === "glosario" ? (
         <div className="space-y-5">
           <div className="relative">
-            <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-zinc-500" aria-hidden />
+            <Search
+              className="pointer-events-none absolute left-3.5 top-1/2 h-[18px] w-[18px] -translate-y-1/2 text-label-3"
+              aria-hidden
+            />
             <input
               type="search"
               value={filtroGlosario}
               onChange={(e) => setFiltroGlosario(e.target.value)}
               placeholder="Buscar un término"
               aria-label="Buscar en el glosario"
-              className="w-full rounded-lg border border-zinc-700 bg-zinc-950 py-3 pl-10 pr-3 text-base text-zinc-100 outline-none focus:border-zinc-500"
+              className="min-h-12 w-full rounded-control bg-fill pl-10 pr-3.5 text-[1rem] text-label outline-none ring-accent/60 placeholder:text-label-3 focus:ring-2"
             />
           </div>
           {glosarioPorArea.length === 0 ? (
-            <p className="text-sm text-zinc-500">Ningún término coincide.</p>
+            <p className="text-sm text-label-3">Ningún término coincide.</p>
           ) : null}
           {glosarioPorArea.map((grupo) => (
             <section key={grupo.area}>
-              <h2 className="mb-2 text-[0.7rem] font-medium uppercase tracking-[0.2em] text-zinc-500">
+              <h2 className="mb-2 text-[0.7rem] font-medium uppercase tracking-[0.2em] text-label-3">
                 {grupo.area}
               </h2>
-              <dl className="divide-y divide-zinc-800 rounded-xl border border-zinc-800 bg-zinc-900/60">
+              <dl className="divide-y divide-separator rounded-card bg-surface-3 shadow-[0_1px_2px_rgb(0_0_0/0.04)]">
                 {grupo.terminos.map((t) => (
                   <div key={t.id} className="px-4 py-3">
                     <dt className="font-medium text-ink">{t.termino}</dt>
-                    <dd className="mt-0.5 text-sm leading-relaxed text-zinc-400">
+                    <dd className="mt-0.5 text-sm leading-relaxed text-label-2">
                       <Md texto={t.definicion} />
                     </dd>
                   </div>
@@ -155,7 +188,7 @@ function Estudiar(props: {
       {esCategoria ? (
         <div className="space-y-6">
           {intro ? (
-            <div className="rounded-xl border border-zinc-800 bg-zinc-900/60 px-4 py-4">
+            <div className="rounded-card bg-surface-3 shadow-[0_1px_2px_rgb(0_0_0/0.04)] px-4 py-4">
               <Bloques bloques={intro.bloques} />
             </div>
           ) : null}
@@ -164,7 +197,7 @@ function Estudiar(props: {
               {grupo.subgrupo ? (
                 <h2 className="mb-3 flex items-center gap-3 font-display text-xl font-medium text-ink">
                   {grupo.subgrupo}
-                  <span className="h-px flex-1 bg-zinc-800" />
+                  <span className="h-px flex-1 bg-fill-strong" />
                 </h2>
               ) : null}
               <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
@@ -173,7 +206,7 @@ function Estudiar(props: {
                     key={b.id}
                     type="button"
                     onClick={() => onAbrir(b, deCategoria)}
-                    className={`flex flex-col overflow-hidden rounded-xl border border-zinc-800 bg-zinc-900/60 text-left transition hover:border-zinc-600 ${
+                    className={`flex flex-col overflow-hidden rounded-card bg-surface-3 shadow-[0_1px_2px_rgb(0_0_0/0.04)] text-left transition hover:border-fill-strong ${
                       b.activa ? "" : "opacity-50"
                     }`}
                   >
@@ -188,9 +221,15 @@ function Estudiar(props: {
                       <p className="font-display text-[1.05rem] font-medium leading-tight text-ink">
                         {b.nombre}
                       </p>
-                      {b.precio ? <p className="font-mono text-[0.7rem] text-seal">{b.precio}</p> : null}
+                      {b.precio ? (
+                        <p className="font-mono text-[0.7rem] text-seal">
+                          {b.precio}
+                        </p>
+                      ) : null}
                       {b.meta ? (
-                        <p className="line-clamp-2 text-xs leading-snug text-zinc-500">{b.meta}</p>
+                        <p className="line-clamp-2 text-xs leading-snug text-label-3">
+                          {b.meta}
+                        </p>
                       ) : null}
                     </div>
                   </button>
@@ -219,50 +258,64 @@ function Machete(props: {
       visibles.map((b) => ({
         bebida: b,
         texto: normalizarBusqueda(
-          [b.nombre, b.meta, b.subgrupo, b.precio, b.enSala, ...b.datos].filter(Boolean).join(" ")
+          [b.nombre, b.meta, b.subgrupo, b.precio, b.enSala, ...b.datos]
+            .filter(Boolean)
+            .join(" "),
         ),
       })),
-    [visibles]
+    [visibles],
   );
 
   const resultado = useMemo(() => {
     const palabras = normalizarBusqueda(busqueda).split(/\s+/).filter(Boolean);
     return indice
-      .filter(({ bebida }) => categoria === "todas" || bebida.categoria === categoria)
+      .filter(
+        ({ bebida }) => categoria === "todas" || bebida.categoria === categoria,
+      )
       .filter(({ texto }) => palabras.every((p) => texto.includes(p)))
       .map(({ bebida }) => bebida);
   }, [indice, busqueda, categoria]);
 
   return (
     <div className="space-y-4">
-      <div className="sticky top-[env(safe-area-inset-top,0px)] z-20 -mx-4 space-y-3 bg-zinc-950/95 px-4 pb-2 pt-1 backdrop-blur sm:top-[4.75rem] sm:mx-0 sm:px-0">
+      <div className="sticky top-[env(safe-area-inset-top,0px)] z-20 -mx-4 space-y-3 bg-surface/90 px-4 pb-2 pt-2 backdrop-blur-xl sm:top-[4.75rem] sm:mx-0 sm:px-0">
         <div className="relative">
-          <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-zinc-500" aria-hidden />
+          <Search
+            className="pointer-events-none absolute left-3.5 top-1/2 h-[18px] w-[18px] -translate-y-1/2 text-label-3"
+            aria-hidden
+          />
           <input
             type="search"
             value={busqueda}
             onChange={(e) => setBusqueda(e.target.value)}
             placeholder="Botella, productor, uva, zona…"
             aria-label="Buscar en la carta"
-            className="w-full rounded-lg border border-zinc-700 bg-zinc-950 py-3 pl-10 pr-10 text-base text-zinc-100 outline-none focus:border-zinc-500"
+            className="min-h-12 w-full rounded-control bg-fill pl-10 pr-12 text-[1rem] text-label outline-none ring-accent/60 placeholder:text-label-3 focus:ring-2"
           />
           {busqueda ? (
             <button
               type="button"
               onClick={() => setBusqueda("")}
               aria-label="Borrar búsqueda"
-              className="absolute right-0 top-0 inline-flex size-12 items-center justify-center text-zinc-500"
+              className="absolute right-0 top-0 inline-flex size-12 items-center justify-center text-label-3"
             >
               <X className="h-4 w-4" aria-hidden />
             </button>
           ) : null}
         </div>
         <FilaChips>
-          <Chip activo={categoria === "todas"} onClick={() => setCategoria("todas")}>
+          <Chip
+            activo={categoria === "todas"}
+            onClick={() => setCategoria("todas")}
+          >
             Todo
           </Chip>
           {CATEGORIAS_GUIA.map((c) => (
-            <Chip key={c.id} activo={categoria === c.id} onClick={() => setCategoria(c.id)}>
+            <Chip
+              key={c.id}
+              activo={categoria === c.id}
+              onClick={() => setCategoria(c.id)}
+            >
               {c.label}
             </Chip>
           ))}
@@ -270,33 +323,34 @@ function Machete(props: {
       </div>
 
       <div className="flex items-center justify-between gap-3">
-        <p className="text-xs text-zinc-500">
+        <p className="text-xs text-label-3">
           {resultado.length} {resultado.length === 1 ? "bebida" : "bebidas"}
         </p>
         {esAdmin ? (
-          <button
-            type="button"
+          <Boton
+            variante="terciario"
+            tamano="chico"
+            icono={<Plus className="h-4 w-4" aria-hidden />}
             onClick={() => onNueva(categoria === "todas" ? "sake" : categoria)}
-            className="inline-flex min-h-10 items-center gap-1.5 rounded-lg border border-zinc-700 px-3 text-sm text-zinc-300 hover:text-ink"
           >
-            <Plus className="h-4 w-4" aria-hidden />
             Nueva bebida
-          </button>
+          </Boton>
         ) : null}
       </div>
 
       {resultado.length === 0 ? (
-        <p className="rounded-xl border border-zinc-800 bg-zinc-900/60 px-4 py-6 text-center text-sm text-zinc-400">
-          Nada coincide con esa búsqueda. Probá con menos palabras o cambiá de categoría.
+        <p className="rounded-card bg-surface-3 shadow-[0_1px_2px_rgb(0_0_0/0.04)] px-4 py-6 text-center text-sm text-label-2">
+          Nada coincide con esa búsqueda. Probá con menos palabras o cambiá de
+          categoría.
         </p>
       ) : (
-        <ul className="divide-y divide-zinc-800 overflow-hidden rounded-xl border border-zinc-800 bg-zinc-900/60">
+        <ul className="divide-y divide-separator overflow-hidden rounded-card bg-surface-3 shadow-[0_1px_2px_rgb(0_0_0/0.04)]">
           {resultado.map((b) => (
             <li key={b.id}>
               <button
                 type="button"
                 onClick={() => onAbrir(b, resultado)}
-                className={`flex w-full items-start gap-3 px-3 py-3 text-left transition hover:bg-zinc-900 ${
+                className={`flex w-full items-start gap-3 px-3 py-3 text-left transition hover:bg-fill ${
                   b.activa ? "" : "opacity-50"
                 }`}
               >
@@ -309,17 +363,23 @@ function Machete(props: {
                 />
                 <div className="min-w-0 flex-1 space-y-1">
                   <div className="flex items-baseline justify-between gap-2">
-                    <p className="font-display text-[1.1rem] font-medium leading-tight text-ink">{b.nombre}</p>
+                    <p className="font-display text-[1.1rem] font-medium leading-tight text-ink">
+                      {b.nombre}
+                    </p>
                     {b.precio ? (
-                      <p className="shrink-0 font-mono text-[0.7rem] text-seal">{b.precio.split(" / ")[0]}</p>
+                      <p className="shrink-0 font-mono text-[0.7rem] text-seal">
+                        {b.precio.split(" / ")[0]}
+                      </p>
                     ) : null}
                   </div>
-                  <p className="truncate text-xs text-zinc-500">
-                    {categoria === "todas" ? `${labelCategoria(b.categoria)} · ` : ""}
+                  <p className="truncate text-xs text-label-3">
+                    {categoria === "todas"
+                      ? `${labelCategoria(b.categoria)} · `
+                      : ""}
                     {b.meta ?? b.subgrupo}
                   </p>
                   {b.enSala ? (
-                    <p className="line-clamp-2 text-sm leading-snug text-zinc-300 first-letter:uppercase">
+                    <p className="line-clamp-2 text-sm leading-snug text-label-2 first-letter:uppercase">
                       <Md texto={b.enSala} />
                     </p>
                   ) : null}
@@ -339,7 +399,10 @@ export default function GuiaBebidasPage() {
   const [error, setError] = useState<string | null>(null);
   const [esAdmin, setEsAdmin] = useState(false);
   const [modo, setModo] = useState<Modo>("estudiar");
-  const [abierta, setAbierta] = useState<{ id: string; lista: string[] } | null>(null);
+  const [abierta, setAbierta] = useState<{
+    id: string;
+    lista: string[];
+  } | null>(null);
   const [nueva, setNueva] = useState<CategoriaGuia | null>(null);
 
   useEffect(() => {
@@ -349,7 +412,10 @@ export default function GuiaBebidasPage() {
         if (!cancelado) setGuia(data);
       })
       .catch((e: unknown) => {
-        if (!cancelado) setError(e instanceof Error ? e.message : "No se pudo cargar la guía.");
+        if (!cancelado)
+          setError(
+            e instanceof Error ? e.message : "No se pudo cargar la guía.",
+          );
       });
     fetch("/api/auth/me", { credentials: "include" })
       .then((res) => res.json())
@@ -383,7 +449,7 @@ export default function GuiaBebidasPage() {
   /** El equipo ve solo lo que está en carta; admin ve también lo dado de baja (atenuado). */
   const visibles = useMemo(
     () => (guia ? guia.bebidas.filter((b) => esAdmin || b.activa) : []),
-    [guia, esAdmin]
+    [guia, esAdmin],
   );
 
   const abrir = useCallback((bebida: GuiaBebida, lista: GuiaBebida[]) => {
@@ -407,67 +473,92 @@ export default function GuiaBebidasPage() {
     setAbierta((a) => a ?? { id: bebida.id, lista: [bebida.id] });
   }, []);
 
-  const bebidaAbierta = abierta && guia ? guia.bebidas.find((b) => b.id === abierta.id) ?? null : null;
+  const bebidaAbierta =
+    abierta && guia
+      ? (guia.bebidas.find((b) => b.id === abierta.id) ?? null)
+      : null;
   const posicion = abierta ? abierta.lista.indexOf(abierta.id) : -1;
   const mover = (delta: number) => {
     if (!abierta) return undefined;
     const destino = abierta.lista[posicion + delta];
     return destino ? () => setAbierta({ ...abierta, id: destino }) : undefined;
   };
-  const ordenNuevo = guia ? Math.max(0, ...guia.bebidas.map((b) => b.orden)) + 1 : 1;
+  const ordenNuevo = guia
+    ? Math.max(0, ...guia.bebidas.map((b) => b.orden)) + 1
+    : 1;
 
   return (
-    <main className="min-h-screen min-w-0 bg-zinc-950 px-4 py-6 text-zinc-100 sm:px-6 sm:py-10">
-      <div className="mx-auto w-full max-w-3xl">
-        <header className="mb-5">
-          <h1 className="font-display text-3xl font-medium tracking-tight text-ink">Guía de bebidas</h1>
-          <p className="mt-1 text-sm text-zinc-400">
-            Todo lo que servimos en la barra: para estudiar con calma, consultar en servicio y repasar.
+    <Pantalla
+      titulo="Guía de bebidas"
+      subtitulo="Para estudiar, consultar en servicio y repasar"
+      ayuda={
+        <>
+          <p>
+            <strong className="text-label">Estudiar</strong>: cómo se elabora
+            cada bebida, las fichas por categoría y el glosario.
           </p>
-        </header>
-
-        <div className="mb-5 grid grid-cols-3 gap-1 rounded-xl border border-zinc-800 bg-zinc-900/60 p-1" role="tablist">
-          {MODOS.map((m) => {
+          <p>
+            <strong className="text-label">Machete</strong>: buscador rápido
+            para el servicio, con la línea «En sala» de cada botella a la vista.
+          </p>
+          <p>
+            <strong className="text-label">Repasar</strong>: tarjetas para
+            practicar; las falladas vuelven a salir.
+          </p>
+        </>
+      }
+    >
+      <div className="mb-5">
+        <Segmentado<Modo>
+          etiqueta="Modo"
+          valor={modo}
+          onChange={cambiarModo}
+          opciones={MODOS.map((m) => {
             const Icono = m.icono;
-            const activo = modo === m.id;
-            return (
-              <button
-                key={m.id}
-                type="button"
-                role="tab"
-                aria-selected={activo}
-                onClick={() => cambiarModo(m.id)}
-                className={`inline-flex min-h-11 items-center justify-center gap-2 rounded-lg text-sm transition ${
-                  activo ? "bg-seal text-[#fff]" : "text-zinc-400 hover:text-ink"
-                }`}
-              >
-                <Icono className="h-4 w-4" aria-hidden />
-                {m.label}
-              </button>
-            );
+            return {
+              valor: m.id,
+              label: (
+                <>
+                  <Icono className="h-4 w-4" aria-hidden />
+                  {m.label}
+                </>
+              ),
+            };
           })}
-        </div>
-
-        {error ? (
-          <p className="rounded-lg border border-red-900/70 bg-red-950/50 px-3 py-2 text-sm text-red-200">{error}</p>
-        ) : null}
-
-        {!guia && !error ? (
-          <div className="flex justify-center py-16">
-            <Loader2 className="h-6 w-6 animate-spin text-zinc-500" aria-label="Cargando la guía" />
-          </div>
-        ) : null}
-
-        {guia ? (
-          <>
-            {modo === "estudiar" ? <Estudiar guia={guia} visibles={visibles} onAbrir={abrir} /> : null}
-            {modo === "machete" ? (
-              <Machete visibles={visibles} esAdmin={esAdmin} onAbrir={abrir} onNueva={setNueva} />
-            ) : null}
-            {modo === "repasar" ? <Repaso guia={guia} /> : null}
-          </>
-        ) : null}
+        />
       </div>
+
+      {error ? (
+        <div
+          role="alert"
+          className="mb-4 flex gap-3 rounded-card bg-danger-soft px-4 py-3 text-[0.94rem] text-danger"
+        >
+          <CircleAlert
+            className="mt-0.5 h-[18px] w-[18px] shrink-0"
+            aria-hidden
+          />
+          <p className="min-w-0 flex-1">{error}</p>
+        </div>
+      ) : null}
+
+      {!guia && !error ? <EsqueletoLista filas={6} /> : null}
+
+      {guia ? (
+        <>
+          {modo === "estudiar" ? (
+            <Estudiar guia={guia} visibles={visibles} onAbrir={abrir} />
+          ) : null}
+          {modo === "machete" ? (
+            <Machete
+              visibles={visibles}
+              esAdmin={esAdmin}
+              onAbrir={abrir}
+              onNueva={setNueva}
+            />
+          ) : null}
+          {modo === "repasar" ? <Repaso guia={guia} /> : null}
+        </>
+      ) : null}
 
       {bebidaAbierta || nueva ? (
         <FichaBebida
@@ -482,6 +573,6 @@ export default function GuiaBebidasPage() {
           onGuardada={guardada}
         />
       ) : null}
-    </main>
+    </Pantalla>
   );
 }

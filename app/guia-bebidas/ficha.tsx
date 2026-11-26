@@ -17,8 +17,8 @@ import {
 import { FotoBotella, Md } from "./ui";
 
 const INPUT =
-  "w-full rounded-lg border border-zinc-700 bg-zinc-950 px-3 py-2.5 text-base text-zinc-100 outline-none focus:border-zinc-500";
-const LABEL = "mb-1 block text-xs font-medium text-zinc-500";
+  "w-full rounded-lg border border-separator bg-surface px-3 py-2.5 text-base text-label outline-none focus:border-accent";
+const LABEL = "mb-1 block text-xs font-medium text-label-3";
 
 export function Etiquetas(props: { bebida: GuiaBebida }) {
   const { bebida } = props;
@@ -40,7 +40,7 @@ export function Etiquetas(props: { bebida: GuiaBebida }) {
         </span>
       ) : null}
       {!bebida.activa ? (
-        <span className="inline-flex items-center rounded-full border border-zinc-600 px-2 py-0.5 text-[0.65rem] font-medium uppercase tracking-wide text-zinc-400">
+        <span className="inline-flex items-center rounded-full border border-fill-strong px-2 py-0.5 text-[0.65rem] font-medium uppercase tracking-wide text-label-2">
           Fuera de carta
         </span>
       ) : null}
@@ -187,7 +187,7 @@ function FormularioFicha(props: {
           onChange={(e) => setDatosTexto(e.target.value)}
         />
       </div>
-      <div className="space-y-2 text-sm text-zinc-300">
+      <div className="space-y-2 text-sm text-label-2">
         {(
           [
             ["minimaIntervencion", "Mínima intervención"],
@@ -215,7 +215,7 @@ function FormularioFicha(props: {
         <button
           type="button"
           onClick={onCancelar}
-          className="min-h-11 flex-1 rounded-lg border border-zinc-700 px-4 text-sm text-zinc-300"
+          className="min-h-11 flex-1 rounded-lg border border-separator px-4 text-sm text-label-2"
         >
           Cancelar
         </button>
@@ -291,10 +291,10 @@ export function FichaBebida(props: {
         role="dialog"
         aria-modal="true"
         aria-label={bebida?.nombre ?? "Nueva bebida"}
-        className="relative flex h-[100dvh] w-full flex-col bg-zinc-950 sm:h-auto sm:max-h-[90vh] sm:max-w-xl sm:rounded-2xl sm:border sm:border-zinc-800"
+        className="relative flex h-[100dvh] w-full flex-col bg-surface sm:h-auto sm:max-h-[90vh] sm:max-w-xl sm:rounded-2xl sm:border sm:border-separator"
       >
-        <div className="flex items-center justify-between gap-2 border-b border-zinc-800 px-3 py-2 pt-[calc(env(safe-area-inset-top,0px)+0.5rem)] sm:pt-2">
-          <p className="truncate pl-1 text-[0.7rem] font-medium uppercase tracking-[0.18em] text-zinc-500">
+        <div className="flex items-center justify-between gap-2 border-b border-separator px-3 py-2 pt-[calc(env(safe-area-inset-top,0px)+0.5rem)] sm:pt-2">
+          <p className="truncate pl-1 text-[0.7rem] font-medium uppercase tracking-[0.18em] text-label-3">
             {bebida ? labelCategoria(bebida.categoria) : "Nueva bebida"}
             {bebida?.subgrupo ? ` · ${bebida.subgrupo.split(" · ")[0]}` : ""}
           </p>
@@ -303,7 +303,7 @@ export function FichaBebida(props: {
               <button
                 type="button"
                 onClick={() => setEditando(true)}
-                className="inline-flex size-11 items-center justify-center rounded-lg text-zinc-400 hover:text-ink"
+                className="inline-flex size-11 items-center justify-center rounded-lg text-label-2 hover:text-ink"
                 aria-label="Editar ficha"
               >
                 <Pencil className="h-4 w-4" aria-hidden />
@@ -312,7 +312,7 @@ export function FichaBebida(props: {
             <button
               type="button"
               onClick={onCerrar}
-              className="inline-flex size-11 items-center justify-center rounded-lg text-zinc-400 hover:text-ink"
+              className="inline-flex size-11 items-center justify-center rounded-lg text-label-2 hover:text-ink"
               aria-label="Cerrar"
             >
               <X className="h-5 w-5" aria-hidden />
@@ -373,7 +373,7 @@ export function FichaBebida(props: {
               <header className="space-y-2">
                 <h2 className="font-display text-[1.7rem] font-medium leading-tight text-ink">{bebida.nombre}</h2>
                 {bebida.precio ? <p className="font-mono text-sm text-seal">{bebida.precio}</p> : null}
-                {bebida.meta ? <p className="text-sm text-zinc-400">{bebida.meta}</p> : null}
+                {bebida.meta ? <p className="text-sm text-label-2">{bebida.meta}</p> : null}
                 <Etiquetas bebida={bebida} />
               </header>
 
@@ -387,7 +387,7 @@ export function FichaBebida(props: {
               ) : null}
 
               {bebida.datos.length > 0 ? (
-                <ul className="list-disc space-y-2.5 pl-5 text-[0.95rem] leading-relaxed text-zinc-300 marker:text-seal">
+                <ul className="list-disc space-y-2.5 pl-5 text-[0.95rem] leading-relaxed text-label-2 marker:text-seal">
                   {bebida.datos.map((dato, i) => (
                     <li key={i}>
                       <Md texto={dato} />
@@ -400,12 +400,12 @@ export function FichaBebida(props: {
         </div>
 
         {!editando && (onAnterior || onSiguiente) ? (
-          <div className="flex gap-2 border-t border-zinc-800 px-3 py-2 pb-[calc(env(safe-area-inset-bottom,0px)+0.5rem)]">
+          <div className="flex gap-2 border-t border-separator px-3 py-2 pb-[calc(env(safe-area-inset-bottom,0px)+0.5rem)]">
             <button
               type="button"
               onClick={onAnterior}
               disabled={!onAnterior}
-              className="inline-flex min-h-11 flex-1 items-center justify-center gap-1 rounded-lg border border-zinc-800 text-sm text-zinc-300 disabled:opacity-30"
+              className="inline-flex min-h-11 flex-1 items-center justify-center gap-1 rounded-lg border border-separator text-sm text-label-2 disabled:opacity-30"
             >
               <ChevronLeft className="h-4 w-4" aria-hidden />
               Anterior
@@ -414,7 +414,7 @@ export function FichaBebida(props: {
               type="button"
               onClick={onSiguiente}
               disabled={!onSiguiente}
-              className="inline-flex min-h-11 flex-1 items-center justify-center gap-1 rounded-lg border border-zinc-800 text-sm text-zinc-300 disabled:opacity-30"
+              className="inline-flex min-h-11 flex-1 items-center justify-center gap-1 rounded-lg border border-separator text-sm text-label-2 disabled:opacity-30"
             >
               Siguiente
               <ChevronRight className="h-4 w-4" aria-hidden />
