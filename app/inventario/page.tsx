@@ -1,13 +1,36 @@
 "use client";
 
 import { FormEvent, useEffect, useMemo, useState } from "react";
-import { ChevronDown, ChevronRight, Loader2, Plus, Trash2 } from "lucide-react";
-import { EsqueletoLista } from "@/app/ui";
+import {
+  ChevronDown,
+  ChevronRight,
+  CircleAlert,
+  Plus,
+  Search,
+  Shapes,
+  Trash2,
+} from "lucide-react";
+import {
+  Boton,
+  Campo,
+  CampoBusqueda,
+  cx,
+  EsqueletoLista,
+  EstadoVacio,
+  Fila,
+  HojaOpciones,
+  Interruptor,
+  Lista,
+  Pantalla,
+  Seccion,
+  Selector,
+  useAvisos,
+  vibrar,
+} from "@/app/ui";
 
 import {
   normalizarRubro,
   RUBROS_INGREDIENTE,
-  RUBRO_SECTION_BORDER,
   type RubroIngrediente,
 } from "@/src/lib/ingredientes-rubro";
 import { formatPostgrestError } from "@/src/lib/supabase-errors";
@@ -32,22 +55,37 @@ const RUBRO_EXPANDIDO_INICIAL: Record<RubroIngrediente, boolean> =
       acc[r] = false;
       return acc;
     },
-    {} as Record<RubroIngrediente, boolean>
+    {} as Record<RubroIngrediente, boolean>,
   );
+
+/** A partir de cuántos ingredientes se muestra el buscador. */
+const MINIMO_PARA_BUSCAR = 8;
+
+function normalizarBusqueda(t: string): string {
+  return t.normalize("NFKD").replace(/[̀-ͯ]/g, "").toLowerCase().trim();
+}
 
 export default function InventarioPage() {
   const [ingredientes, setIngredientes] = useState<Ingrediente[]>([]);
+  const { confirmar } = useAvisos();
   const [nuevoIngrediente, setNuevoIngrediente] = useState("");
-  const [nuevoRubro, setNuevoRubro] = useState<RubroIngrediente>(
-    "Despensa/Prep"
-  );
-  const [rubroExpandido, setRubroExpandido] =
-    useState<Record<RubroIngrediente, boolean>>(RUBRO_EXPANDIDO_INICIAL);
+  const [nuevoRubro, setNuevoRubro] =
+    useState<RubroIngrediente>("Despensa/Prep");
+  const [rubroExpandido, setRubroExpandido] = useState<
+    Record<RubroIngrediente, boolean>
+  >(RUBRO_EXPANDIDO_INICIAL);
   const [isLoading, setIsLoading] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [busqueda, setBusqueda] = useState("");
+  const [cambiandoRubro, setCambiandoRubro] = useState<Ingrediente | null>(
+    null,
+  );
 
-  const hasItems = useMemo(() => ingredientes.length > 0, [ingredientes.length]);
+  const hasItems = useMemo(
+    () => ingredientes.length > 0,
+    [ingredientes.length],
+  );
 
   const porRubro = useMemo(() => {
     const map = new Map<RubroIngrediente, Ingrediente[]>();
@@ -63,6 +101,14 @@ export default function InventarioPage() {
     });
     return map;
   }, [ingredientes]);
+
+  const clave = normalizarBusqueda(busqueda);
+  const buscando = clave.length > 0;
+
+  const agotados = useMemo(
+    () => ingredientes.filter((i) => !i.disponible).length,
+    [ingredientes],
+  );
 
   const cargarIngredientes = async () => {
     setIsLoading(true);
@@ -91,11 +137,11 @@ export default function InventarioPage() {
           nombre: row.nombre,
           disponible: row.disponible,
           rubro: normalizarRubro(row.rubro),
-        }))
+        })),
       );
     } catch (err) {
       setError(
-        err instanceof Error ? err.message : "Error al conectar con Supabase."
+        err instanceof Error ? err.message : "Error al conectar con Supabase.",
       );
     } finally {
       setIsLoading(false);
@@ -116,9 +162,7 @@ export default function InventarioPage() {
     const previous = ingredientes;
 
     setIngredientes((current) =>
-      current.map((item) =>
-        item.id === id ? { ...item, disponible } : item
-      )
+      current.map((item) => (item.id === id ? { ...item, disponible } : item)),
     );
 
     const { error: updateError } = await supabase
@@ -135,7 +179,7 @@ export default function InventarioPage() {
   const actualizarRubro = async (id: string, rubro: RubroIngrediente) => {
     const previous = ingredientes;
     setIngredientes((current) =>
-      current.map((item) => (item.id === id ? { ...item, rubro } : item))
+      current.map((item) => (item.id === id ? { ...item, rubro } : item)),
     );
 
     const { error: updateError } = await supabase
@@ -191,7 +235,7 @@ export default function InventarioPage() {
           disponible: row.disponible,
           rubro: rubroNuevo,
         },
-      ].sort((a, b) => a.nombre.localeCompare(b.nombre, "es"))
+      ].sort((a, b) => a.nombre.localeCompare(b.nombre, "es")),
     );
     setRubroExpandido((prev) => ({ ...prev, [rubroNuevo]: true }));
     setNuevoIngrediente("");
@@ -199,6 +243,18 @@ export default function InventarioPage() {
   };
 
   const eliminarIngrediente = async (id: string) => {
+    const nombre =
+      ingredientes.find((item) => item.id === id)?.nombre ?? "este ingrediente";
+    const ok = await confirmar({
+      titulo: `¿Borrar «${nombre}»?`,
+      texto:
+        "También se quita de los platos que lo usan. No se puede deshacer.",
+      confirmar: "Borrar ingrediente",
+      peligro: true,
+    });
+    if (!ok) {
+      return;
+    }
     const previous = ingredientes;
     setError(null);
     setIngredientes((current) => current.filter((item) => item.id !== id));
@@ -214,16 +270,17 @@ export default function InventarioPage() {
       return;
     }
 
-    const { data: platosConIngrediente, error: fetchPlatosError } = await supabase
-      .from("platos")
-      .select("id, ingredientes_requeridos")
-      .contains("ingredientes_requeridos", [id]);
+    const { data: platosConIngrediente, error: fetchPlatosError } =
+      await supabase
+        .from("platos")
+        .select("id, ingredientes_requeridos")
+        .contains("ingredientes_requeridos", [id]);
 
     if (fetchPlatosError) {
       setError(
         `Ingrediente eliminado, pero no se pudo limpiar en platos: ${formatPostgrestError(
-          fetchPlatosError
-        )}`
+          fetchPlatosError,
+        )}`,
       );
       return;
     }
@@ -236,245 +293,282 @@ export default function InventarioPage() {
     const updates = await Promise.all(
       platos.map(async (plato) => {
         const nuevos = (plato.ingredientes_requeridos ?? []).filter(
-          (ingredienteId) => ingredienteId !== id
+          (ingredienteId) => ingredienteId !== id,
         );
         const { error: updatePlatoError } = await supabase
           .from("platos")
           .update({ ingredientes_requeridos: nuevos })
           .eq("id", plato.id);
         return updatePlatoError;
-      })
+      }),
     );
 
     const primerError = updates.find((err) => err != null);
     if (primerError) {
       setError(
         `Ingrediente eliminado, pero algunos platos quedaron sin sincronizar: ${formatPostgrestError(
-          primerError
-        )}`
+          primerError,
+        )}`,
       );
     }
   };
 
-  const selectRubroClass =
-    "rounded-lg border border-zinc-700 bg-zinc-900 px-2 py-1 text-xs text-zinc-200 outline-none focus:border-zinc-500";
+  const opcionesRubro = RUBROS_INGREDIENTE.map((r) => ({
+    valor: r,
+    label: r,
+  }));
+
+  const secciones = RUBROS_INGREDIENTE.map((rubro) => {
+    const lista = porRubro.get(rubro) ?? [];
+    const visibles = buscando
+      ? lista.filter((i) => normalizarBusqueda(i.nombre).includes(clave))
+      : lista;
+    return { rubro, lista, visibles };
+  }).filter((s) => !buscando || s.visibles.length > 0);
 
   return (
-    <main className="min-h-screen min-w-0 bg-zinc-950 px-4 py-6 text-zinc-100 sm:px-6 sm:py-10">
-      <section className="mx-auto w-full max-w-2xl rounded-2xl border border-zinc-800 bg-zinc-900/60 p-6 shadow-[0_0_0_1px_rgba(255,255,255,0.02)] backdrop-blur">
-        <header className="mb-6">
-          <h1 className="font-display text-3xl font-medium tracking-tight text-ink">Ingredientes</h1>
-          <p className="mt-1 text-sm text-zinc-400">
-            Disponibilidad y altas por rubro. Al entrar, las tres secciones vienen
-            cerradas; tocá el título para abrir o cerrar cada una.
+    <Pantalla
+      titulo="Ingredientes"
+      subtitulo={
+        isLoading
+          ? "Cargando…"
+          : !hasItems
+            ? "Sin ingredientes"
+            : agotados === 0
+              ? `${ingredientes.length} ingredientes · todo disponible`
+              : `${ingredientes.length} ingredientes · ${agotados} ${
+                  agotados === 1 ? "agotado" : "agotados"
+                }`
+      }
+      ayuda={
+        <>
+          <p>
+            Lo que hay disponible para armar el menú. Cuando algo se acaba,
+            apagá su interruptor y queda marcado como agotado.
           </p>
-        </header>
-
-        <form
-          onSubmit={agregarIngrediente}
-          className="mb-6 flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-end"
+          <p>
+            Las secciones arrancan cerradas: tocá el nombre del rubro para
+            abrirla. Con el buscador encontrás un ingrediente sin abrir nada.
+          </p>
+          <p>
+            Para cambiar el rubro o borrar un ingrediente, deslizá la fila hacia
+            la izquierda. Al borrarlo también se quita de los platos que lo
+            usaban.
+          </p>
+          <p>
+            Esto no es el stock de compras: eso vive en{" "}
+            <strong className="text-label">Stock</strong>.
+          </p>
+        </>
+      }
+    >
+      {error ? (
+        <div
+          role="alert"
+          className="mb-4 flex gap-3 rounded-card bg-danger-soft px-4 py-3 text-[0.94rem] text-danger"
         >
-          <div className="min-w-0 flex-1">
-            <label
-              htmlFor="nuevo-nombre"
-              className="mb-1 block text-xs font-medium uppercase tracking-wide text-zinc-500"
-            >
-              Nombre
-            </label>
-            <input
-              id="nuevo-nombre"
-              value={nuevoIngrediente}
-              onChange={(event) => setNuevoIngrediente(event.target.value)}
-              placeholder="Agregar nuevo ingrediente"
-              className="w-full rounded-xl border border-zinc-700 bg-zinc-950 px-4 py-2.5 text-sm text-zinc-100 outline-none transition focus:border-zinc-500"
+          <CircleAlert
+            className="mt-0.5 h-[18px] w-[18px] shrink-0"
+            aria-hidden
+          />
+          <p className="min-w-0 flex-1">{error}</p>
+        </div>
+      ) : null}
+
+      {isLoading ? (
+        <EsqueletoLista filas={6} />
+      ) : !hasItems ? (
+        <div className="rounded-card bg-surface-3">
+          <EstadoVacio
+            icono={<Shapes className="h-6 w-6" aria-hidden />}
+            titulo="Todavía no hay ingredientes"
+            texto="Agregá el primero abajo."
+          />
+        </div>
+      ) : (
+        <>
+          {ingredientes.length > MINIMO_PARA_BUSCAR ? (
+            <CampoBusqueda
+              value={busqueda}
+              onChange={(e) => setBusqueda(e.target.value)}
+              placeholder="Buscar ingrediente"
+              etiqueta="Buscar ingrediente"
             />
-          </div>
-          <div className="w-full sm:w-48">
-            <label
-              htmlFor="nuevo-rubro"
-              className="mb-1 block text-xs font-medium uppercase tracking-wide text-zinc-500"
-            >
-              Rubro
-            </label>
-            <select
-              id="nuevo-rubro"
-              value={nuevoRubro}
-              onChange={(e) =>
-                setNuevoRubro(normalizarRubro(e.target.value))
-              }
-              className="w-full rounded-xl border border-zinc-700 bg-zinc-950 px-3 py-2.5 text-sm text-zinc-100 outline-none focus:border-zinc-500"
-            >
-              {RUBROS_INGREDIENTE.map((r) => (
-                <option key={r} value={r}>
-                  {r}
-                </option>
-              ))}
-            </select>
-          </div>
-          <button
-            type="submit"
-            disabled={isSubmitting}
-            className="inline-flex shrink-0 items-center justify-center rounded-xl border border-zinc-700 bg-zinc-100 px-4 py-2.5 text-zinc-900 transition hover:bg-zinc-50 disabled:cursor-not-allowed disabled:opacity-60 sm:mb-0.5"
-            aria-label="Agregar ingrediente"
-          >
-            {isSubmitting ? (
-              <Loader2 className="h-4 w-4 animate-spin" />
-            ) : (
-              <Plus className="h-4 w-4" />
-            )}
-          </button>
-        </form>
+          ) : null}
 
-        {error ? (
-          <p className="mb-4 rounded-lg border border-red-900/70 bg-red-950/50 px-3 py-2 text-sm text-red-200">
-            {error}
-          </p>
-        ) : null}
-
-        {isLoading ? (
-          <EsqueletoLista filas={6} />
-        ) : !hasItems ? (
-          <p className="text-sm text-zinc-500">
-            No hay ingredientes todavía. Agregá el primero.
-          </p>
-        ) : (
-          <div className="space-y-8">
-            {RUBROS_INGREDIENTE.map((rubro) => {
-              const lista = porRubro.get(rubro) ?? [];
-              const expandido = rubroExpandido[rubro];
+          {secciones.length === 0 ? (
+            <div className="mt-6 rounded-card bg-surface-3">
+              <EstadoVacio
+                icono={<Search className="h-6 w-6" aria-hidden />}
+                titulo="Sin resultados"
+                texto={`No hay ingredientes con «${busqueda.trim()}».`}
+              />
+            </div>
+          ) : (
+            secciones.map(({ rubro, lista, visibles }) => {
+              const expandido = buscando || rubroExpandido[rubro];
               const listId = `rubro-list-${rubro.replace(/\//g, "-")}`;
-
-              const tituloRubro = (
-                <>
-                  {rubro}{" "}
-                  <span className="font-normal text-zinc-500">
-                    ({lista.length})
-                  </span>
-                </>
-              );
+              const agotadosRubro = lista.filter((i) => !i.disponible).length;
 
               return (
-                <section
-                  key={rubro}
-                  className={`rounded-xl border border-zinc-800 border-l-4 ${RUBRO_SECTION_BORDER[rubro]} bg-zinc-950/35 p-4`}
-                >
+                <section key={rubro} className="mt-6">
                   <button
                     type="button"
-                    id={`rubro-head-${rubro.replace(/\//g, "-")}`}
                     aria-expanded={expandido}
                     aria-controls={listId}
-                    onClick={() =>
+                    disabled={buscando}
+                    onClick={() => {
+                      vibrar();
                       setRubroExpandido((prev) => ({
                         ...prev,
                         [rubro]: !prev[rubro],
-                      }))
-                    }
-                    className="mb-3 flex w-full items-center gap-2 border-b border-zinc-800/80 pb-2 text-left text-sm font-semibold uppercase tracking-[0.14em] text-zinc-300 transition hover:text-zinc-100"
+                      }));
+                    }}
+                    className="mb-2 flex min-h-11 w-full items-center gap-2 rounded-control px-1 text-left transition active:bg-fill disabled:active:bg-transparent"
                   >
-                    <span className="inline-flex shrink-0 text-zinc-500" aria-hidden>
-                      {expandido ? (
-                        <ChevronDown className="h-4 w-4" />
-                      ) : (
-                        <ChevronRight className="h-4 w-4" />
-                      )}
+                    <span className="min-w-0 flex-1 text-[0.8rem] font-semibold uppercase tracking-[0.07em] text-label-3">
+                      {rubro}{" "}
+                      <span className="font-mono font-normal tabular-nums">
+                        {buscando
+                          ? `${visibles.length}/${lista.length}`
+                          : lista.length}
+                      </span>
                     </span>
-                    <span className="min-w-0">{tituloRubro}</span>
+                    {agotadosRubro > 0 && !expandido ? (
+                      <span className="text-[0.82rem] text-danger">
+                        {agotadosRubro}{" "}
+                        {agotadosRubro === 1 ? "agotado" : "agotados"}
+                      </span>
+                    ) : null}
+                    {buscando ? null : expandido ? (
+                      <ChevronDown
+                        className="h-[18px] w-[18px] shrink-0 text-label-3"
+                        aria-hidden
+                      />
+                    ) : (
+                      <ChevronRight
+                        className="h-[18px] w-[18px] shrink-0 text-label-3"
+                        aria-hidden
+                      />
+                    )}
                   </button>
 
                   <div id={listId}>
                     {expandido ? (
-                      lista.length === 0 ? (
-                        <p className="text-sm text-zinc-600">
-                          Sin ítems en este rubro.
+                      visibles.length === 0 ? (
+                        <p className="rounded-card bg-surface-3 px-4 py-3 text-[0.94rem] text-label-3">
+                          Sin ingredientes en este rubro.
                         </p>
                       ) : (
-                        <ul className="space-y-2" role="list">
-                          {lista.map((ingrediente) => (
-                            <li
+                        <Lista>
+                          {visibles.map((ingrediente) => (
+                            <Fila
                               key={ingrediente.id}
-                              className="flex flex-col gap-2 rounded-xl border border-zinc-800 bg-zinc-950/70 px-3 py-2.5 sm:flex-row sm:items-center sm:justify-between"
-                            >
-                              <span className="min-w-0 text-sm text-zinc-100">
-                                {ingrediente.nombre}
-                              </span>
-                              <div className="flex flex-wrap items-center gap-2 sm:justify-end">
-                                <label
-                                  className="sr-only"
-                                  htmlFor={`rubro-${ingrediente.id}`}
+                              titulo={
+                                <span
+                                  className={cx(
+                                    !ingrediente.disponible && "text-label-2",
+                                  )}
                                 >
-                                  Rubro de {ingrediente.nombre}
-                                </label>
-                                <select
-                                  id={`rubro-${ingrediente.id}`}
-                                  value={ingrediente.rubro}
-                                  onChange={(e) =>
-                                    void actualizarRubro(
-                                      ingrediente.id,
-                                      normalizarRubro(e.target.value)
-                                    )
-                                  }
-                                  className={selectRubroClass}
-                                >
-                                  {RUBROS_INGREDIENTE.map((r) => (
-                                    <option key={r} value={r}>
-                                      {r}
-                                    </option>
-                                  ))}
-                                </select>
-                                <button
-                                  type="button"
-                                  role="switch"
-                                  aria-checked={ingrediente.disponible}
-                                  onClick={() =>
+                                  {ingrediente.nombre}
+                                </span>
+                              }
+                              detalle={
+                                ingrediente.disponible ? undefined : (
+                                  <span className="text-danger">Agotado</span>
+                                )
+                              }
+                              chevron={false}
+                              valor={
+                                <Interruptor
+                                  etiqueta={`${ingrediente.nombre} disponible`}
+                                  activo={ingrediente.disponible}
+                                  onChange={(v) =>
                                     void actualizarDisponibilidad(
                                       ingrediente.id,
-                                      !ingrediente.disponible
+                                      v,
                                     )
                                   }
-                                  className={`relative h-6 w-11 shrink-0 rounded-full transition ${
-                                    ingrediente.disponible
-                                      ? "bg-zinc-100"
-                                      : "bg-zinc-700"
-                                  }`}
-                                  aria-label={`Cambiar disponibilidad de ${ingrediente.nombre}`}
-                                >
-                                  <span
-                                    className={`absolute top-0.5 h-5 w-5 rounded-full bg-zinc-950 transition ${
-                                      ingrediente.disponible
-                                        ? "left-[22px]"
-                                        : "left-0.5"
-                                    }`}
-                                  />
-                                </button>
-                                <button
-                                  type="button"
-                                  onClick={() =>
-                                    void eliminarIngrediente(ingrediente.id)
-                                  }
-                                  className="rounded-lg border border-zinc-800 p-2 text-zinc-400 transition hover:border-zinc-600 hover:text-zinc-100"
-                                  aria-label={`Eliminar ${ingrediente.nombre}`}
-                                >
-                                  <Trash2 className="h-4 w-4" />
-                                </button>
-                              </div>
-                            </li>
+                                />
+                              }
+                              acciones={[
+                                {
+                                  label: "Rubro",
+                                  tono: "neutro",
+                                  icono: (
+                                    <Shapes className="h-5 w-5" aria-hidden />
+                                  ),
+                                  onClick: () => setCambiandoRubro(ingrediente),
+                                },
+                                {
+                                  label: "Borrar",
+                                  tono: "peligro",
+                                  icono: (
+                                    <Trash2 className="h-5 w-5" aria-hidden />
+                                  ),
+                                  onClick: () =>
+                                    void eliminarIngrediente(ingrediente.id),
+                                },
+                              ]}
+                            />
                           ))}
-                        </ul>
+                        </Lista>
                       )
-                    ) : lista.length > 0 ? (
-                      <p className="text-xs text-zinc-600">
-                        {lista.length}{" "}
-                        {lista.length === 1 ? "ítem oculto" : "ítems ocultos"}.
-                        Tocá el título para ver la lista.
-                      </p>
                     ) : null}
                   </div>
                 </section>
               );
-            })}
-          </div>
-        )}
-      </section>
-    </main>
+            })
+          )}
+        </>
+      )}
+
+      {!isLoading ? (
+        <Seccion titulo="Agregar ingrediente" className="mt-8">
+          <form
+            onSubmit={agregarIngrediente}
+            className="space-y-3 rounded-card bg-surface-3 p-3 shadow-[0_1px_2px_rgb(0_0_0/0.04)]"
+          >
+            <Campo
+              aria-label="Nombre del ingrediente"
+              value={nuevoIngrediente}
+              onChange={(event) => setNuevoIngrediente(event.target.value)}
+              placeholder="Nombre del ingrediente"
+              enterKeyHint="done"
+            />
+            <div className="grid grid-cols-[1fr_auto] gap-2">
+              <Selector
+                titulo="Rubro"
+                valor={nuevoRubro}
+                opciones={opcionesRubro}
+                onChange={(v) => setNuevoRubro(normalizarRubro(v))}
+              />
+              <Boton
+                type="submit"
+                cargando={isSubmitting}
+                disabled={!nuevoIngrediente.trim()}
+                icono={<Plus className="h-[18px] w-[18px]" aria-hidden />}
+                className="min-h-12"
+              >
+                Agregar
+              </Boton>
+            </div>
+          </form>
+        </Seccion>
+      ) : null}
+
+      <HojaOpciones
+        abierta={cambiandoRubro !== null}
+        onCerrar={() => setCambiandoRubro(null)}
+        titulo={cambiandoRubro ? `Rubro de ${cambiandoRubro.nombre}` : "Rubro"}
+        opciones={opcionesRubro}
+        valor={cambiandoRubro?.rubro ?? null}
+        onElegir={(v) => {
+          if (cambiandoRubro && v !== cambiandoRubro.rubro) {
+            void actualizarRubro(cambiandoRubro.id, normalizarRubro(v));
+          }
+        }}
+      />
+    </Pantalla>
   );
 }

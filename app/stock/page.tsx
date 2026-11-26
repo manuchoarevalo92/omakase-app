@@ -1,13 +1,35 @@
 "use client";
 
 import { FormEvent, useEffect, useMemo, useState } from "react";
-import { ChevronDown, ChevronRight, Loader2, Plus, Trash2 } from "lucide-react";
-import { EsqueletoLista } from "@/app/ui";
+import {
+  ChevronDown,
+  ChevronRight,
+  CircleAlert,
+  Package,
+  Plus,
+  Search,
+  Trash2,
+} from "lucide-react";
+import {
+  Boton,
+  Campo,
+  CampoBusqueda,
+  EstadoVacio,
+  EsqueletoLista,
+  Etiqueta,
+  Fila,
+  Hoja,
+  Interruptor,
+  Lista,
+  Pantalla,
+  Seccion,
+  Selector,
+  vibrar,
+} from "@/app/ui";
 
 import {
   normalizarRubro,
   RUBROS_INGREDIENTE,
-  RUBRO_SECTION_BORDER,
   type RubroIngrediente,
 } from "@/src/lib/ingredientes-rubro";
 import { BUFFER_PCT_DEFECTO } from "@/src/lib/compras-prediccion";
@@ -34,19 +56,33 @@ const RUBRO_EXPANDIDO_INICIAL: Record<RubroIngrediente, boolean> =
       acc[r] = false;
       return acc;
     },
-    {} as Record<RubroIngrediente, boolean>
+    {} as Record<RubroIngrediente, boolean>,
   );
+
+/** A partir de cuántos ítems se muestra el buscador. */
+const MINIMO_PARA_BUSCAR = 8;
+
+/** Valor del Selector de proveedor que representa "Sin proveedor". */
+const SIN_PROVEEDOR = "__sin__";
+
+function normalizarBusqueda(t: string): string {
+  return t.normalize("NFKD").replace(/[̀-ͯ]/g, "").toLowerCase().trim();
+}
 
 export default function StockPage() {
   const [items, setItems] = useState<StockItem[]>([]);
   const [proveedores, setProveedores] = useState<Proveedor[]>([...PROVEEDORES]);
   const [nuevoNombre, setNuevoNombre] = useState("");
-  const [nuevoRubro, setNuevoRubro] = useState<RubroIngrediente>("Despensa/Prep");
-  const [rubroExpandido, setRubroExpandido] =
-    useState<Record<RubroIngrediente, boolean>>(RUBRO_EXPANDIDO_INICIAL);
+  const [nuevoRubro, setNuevoRubro] =
+    useState<RubroIngrediente>("Despensa/Prep");
+  const [rubroExpandido, setRubroExpandido] = useState<
+    Record<RubroIngrediente, boolean>
+  >(RUBRO_EXPANDIDO_INICIAL);
   const [isLoading, setIsLoading] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [busqueda, setBusqueda] = useState("");
+  const [editandoId, setEditandoId] = useState<string | null>(null);
 
   const hasItems = useMemo(() => items.length > 0, [items.length]);
 
@@ -65,17 +101,28 @@ export default function StockPage() {
     return map;
   }, [items]);
 
+  const editando = useMemo(
+    () => items.find((i) => i.id === editandoId) ?? null,
+    [items, editandoId],
+  );
+
+  const clave = normalizarBusqueda(busqueda);
+  const buscando = clave.length > 0;
+  const inactivos = items.filter((i) => !i.activo).length;
+
   const cargarItems = async () => {
     setIsLoading(true);
     setError(null);
     try {
-      const [{ data, error: fetchError }, listaProveedores] = await Promise.all([
-        supabase
-          .from("stock_items")
-          .select(STOCK_ITEM_SELECT)
-          .order("nombre", { ascending: true }),
-        fetchProveedores().catch(() => [...PROVEEDORES]),
-      ]);
+      const [{ data, error: fetchError }, listaProveedores] = await Promise.all(
+        [
+          supabase
+            .from("stock_items")
+            .select(STOCK_ITEM_SELECT)
+            .order("nombre", { ascending: true }),
+          fetchProveedores().catch(() => [...PROVEEDORES]),
+        ],
+      );
 
       if (fetchError) {
         setError(formatPostgrestError(fetchError));
@@ -86,7 +133,7 @@ export default function StockPage() {
       setProveedores(listaProveedores);
     } catch (err) {
       setError(
-        err instanceof Error ? err.message : "Error al conectar con Supabase."
+        err instanceof Error ? err.message : "Error al conectar con Supabase.",
       );
     } finally {
       setIsLoading(false);
@@ -111,7 +158,7 @@ export default function StockPage() {
       unidad_compra: UnidadMedida;
       buffer_pct: number;
       activo: boolean;
-    }>
+    }>,
   ) => {
     const previous = items;
 
@@ -123,12 +170,13 @@ export default function StockPage() {
         return {
           ...item,
           rubro: patch.rubro ?? item.rubro,
-          proveedor: patch.proveedor !== undefined ? patch.proveedor : item.proveedor,
+          proveedor:
+            patch.proveedor !== undefined ? patch.proveedor : item.proveedor,
           unidadCompra: patch.unidad_compra ?? item.unidadCompra,
           bufferPct: patch.buffer_pct ?? item.bufferPct,
           activo: patch.activo ?? item.activo,
         };
-      })
+      }),
     );
 
     const { error: updateError } = await supabase
@@ -143,7 +191,10 @@ export default function StockPage() {
     }
 
     if (patch.rubro) {
-      setRubroExpandido((prev) => ({ ...prev, [patch.rubro as RubroIngrediente]: true }));
+      setRubroExpandido((prev) => ({
+        ...prev,
+        [patch.rubro as RubroIngrediente]: true,
+      }));
     }
   };
 
@@ -178,7 +229,9 @@ export default function StockPage() {
 
     const nuevo = stockItemDesdeFila(data as StockItemDbRow);
     setItems((current) =>
-      [...current, nuevo].sort((a, b) => a.nombre.localeCompare(b.nombre, "es"))
+      [...current, nuevo].sort((a, b) =>
+        a.nombre.localeCompare(b.nombre, "es"),
+      ),
     );
     setRubroExpandido((prev) => ({ ...prev, [nuevo.rubro]: true }));
     setNuevoNombre("");
@@ -201,273 +254,326 @@ export default function StockPage() {
     }
   };
 
-  const selectClass =
-    "rounded-lg border border-zinc-700 bg-zinc-900 px-2 py-1 text-xs text-zinc-200 outline-none focus:border-zinc-500";
+  const opcionesRubro = RUBROS_INGREDIENTE.map((r) => ({
+    valor: r,
+    label: r,
+  }));
+
+  const opcionesProveedor = [
+    { valor: SIN_PROVEEDOR, label: "Sin proveedor" },
+    ...proveedores.map((p) => ({ valor: p as string, label: p })),
+  ];
+
+  const opcionesUnidad = UNIDADES.map((u) => ({ valor: u, label: u }));
+
+  const secciones = RUBROS_INGREDIENTE.map((rubro) => {
+    const lista = porRubro.get(rubro) ?? [];
+    const visibles = buscando
+      ? lista.filter((i) =>
+          normalizarBusqueda(`${i.nombre} ${i.proveedor ?? ""}`).includes(
+            clave,
+          ),
+        )
+      : lista;
+    return { rubro, lista, visibles };
+  }).filter((s) => !buscando || s.visibles.length > 0);
 
   return (
-    <main className="min-h-screen min-w-0 bg-zinc-950 px-4 py-6 text-zinc-100 sm:px-6 sm:py-10">
-      <section className="mx-auto w-full max-w-3xl rounded-2xl border border-zinc-800 bg-zinc-900/60 p-6 shadow-[0_0_0_1px_rgba(255,255,255,0.02)] backdrop-blur">
-        <header className="mb-6">
-          <h1 className="font-display text-3xl font-medium tracking-tight text-ink">Stock</h1>
-          <p className="mt-1 text-sm text-zinc-400">
-            Catálogo de materia prima que se compra a proveedores (distinto de{" "}
-            <span className="text-zinc-300">Ingredientes</span>, que es solo disponibilidad de
-            menú). Cada ítem define proveedor principal y unidad de compra; esto alimenta los
-            recordatorios de <span className="text-zinc-300">Compras</span>.
+    <Pantalla
+      titulo="Stock"
+      subtitulo={
+        isLoading
+          ? "Cargando…"
+          : !hasItems
+            ? "Sin ítems"
+            : `${items.length} ítems${
+                inactivos > 0
+                  ? ` · ${inactivos} ${inactivos === 1 ? "inactivo" : "inactivos"}`
+                  : ""
+              }`
+      }
+      ayuda={
+        <>
+          <p>
+            Catálogo de materia prima que se compra a proveedores. Es distinto
+            de <strong className="text-label">Ingredientes</strong>, que es solo
+            la disponibilidad para el menú.
           </p>
-        </header>
-
-        <form
-          onSubmit={agregarItem}
-          className="mb-6 flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-end"
+          <p>
+            Cada ítem tiene proveedor principal y unidad de compra: con eso se
+            arman los recordatorios de{" "}
+            <strong className="text-label">Compras</strong>.
+          </p>
+          <p>
+            Tocá un ítem para editarlo. Si lo desactivás, deja de aparecer en
+            los recordatorios. El buffer adelanta el aviso de compra ese % del
+            ciclo típico.
+          </p>
+        </>
+      }
+    >
+      {error ? (
+        <div
+          role="alert"
+          className="mb-4 flex gap-3 rounded-card bg-danger-soft px-4 py-3 text-[0.94rem] text-danger"
         >
-          <div className="min-w-0 flex-1">
-            <label
-              htmlFor="nuevo-nombre-stock"
-              className="mb-1 block text-xs font-medium uppercase tracking-wide text-zinc-500"
-            >
-              Nombre
-            </label>
-            <input
-              id="nuevo-nombre-stock"
-              value={nuevoNombre}
-              onChange={(event) => setNuevoNombre(event.target.value)}
-              placeholder="Agregar nuevo ítem de stock"
-              className="w-full rounded-xl border border-zinc-700 bg-zinc-950 px-4 py-2.5 text-sm text-zinc-100 outline-none transition focus:border-zinc-500"
+          <CircleAlert
+            className="mt-0.5 h-[18px] w-[18px] shrink-0"
+            aria-hidden
+          />
+          <p className="min-w-0 flex-1">{error}</p>
+        </div>
+      ) : null}
+
+      {isLoading ? (
+        <EsqueletoLista filas={6} />
+      ) : !hasItems ? (
+        <div className="rounded-card bg-surface-3">
+          <EstadoVacio
+            icono={<Package className="h-6 w-6" aria-hidden />}
+            titulo="Todavía no hay ítems de stock"
+            texto="Agregá el primero abajo."
+          />
+        </div>
+      ) : (
+        <>
+          {items.length > MINIMO_PARA_BUSCAR ? (
+            <CampoBusqueda
+              value={busqueda}
+              onChange={(e) => setBusqueda(e.target.value)}
+              placeholder="Buscar ítem o proveedor"
+              etiqueta="Buscar ítem o proveedor"
             />
-          </div>
-          <div className="w-full sm:w-48">
-            <label
-              htmlFor="nuevo-rubro-stock"
-              className="mb-1 block text-xs font-medium uppercase tracking-wide text-zinc-500"
-            >
-              Rubro
-            </label>
-            <select
-              id="nuevo-rubro-stock"
-              value={nuevoRubro}
-              onChange={(e) => setNuevoRubro(normalizarRubro(e.target.value))}
-              className="w-full rounded-xl border border-zinc-700 bg-zinc-950 px-3 py-2.5 text-sm text-zinc-100 outline-none focus:border-zinc-500"
-            >
-              {RUBROS_INGREDIENTE.map((r) => (
-                <option key={r} value={r}>
-                  {r}
-                </option>
-              ))}
-            </select>
-          </div>
-          <button
-            type="submit"
-            disabled={isSubmitting}
-            className="inline-flex shrink-0 items-center justify-center rounded-xl border border-zinc-700 bg-zinc-100 px-4 py-2.5 text-zinc-900 transition hover:bg-zinc-50 disabled:cursor-not-allowed disabled:opacity-60 sm:mb-0.5"
-            aria-label="Agregar ítem de stock"
-          >
-            {isSubmitting ? (
-              <Loader2 className="h-4 w-4 animate-spin" />
-            ) : (
-              <Plus className="h-4 w-4" />
-            )}
-          </button>
-        </form>
+          ) : null}
 
-        {error ? (
-          <p className="mb-4 rounded-lg border border-red-900/70 bg-red-950/50 px-3 py-2 text-sm text-red-200">
-            {error}
-          </p>
-        ) : null}
-
-        {isLoading ? (
-          <EsqueletoLista filas={6} />
-        ) : !hasItems ? (
-          <p className="text-sm text-zinc-500">
-            No hay ítems de stock todavía. Agregá el primero.
-          </p>
-        ) : (
-          <div className="space-y-8">
-            {RUBROS_INGREDIENTE.map((rubro) => {
-              const lista = porRubro.get(rubro) ?? [];
-              const expandido = rubroExpandido[rubro];
+          {secciones.length === 0 ? (
+            <div className="mt-6 rounded-card bg-surface-3">
+              <EstadoVacio
+                icono={<Search className="h-6 w-6" aria-hidden />}
+                titulo="Sin resultados"
+                texto={`No hay ítems con «${busqueda.trim()}».`}
+              />
+            </div>
+          ) : (
+            secciones.map(({ rubro, lista, visibles }) => {
+              const expandido = buscando || rubroExpandido[rubro];
               const listId = `stock-rubro-list-${rubro.replace(/\//g, "-")}`;
 
-              const tituloRubro = (
-                <>
-                  {rubro}{" "}
-                  <span className="font-normal text-zinc-500">({lista.length})</span>
-                </>
-              );
-
               return (
-                <section
-                  key={rubro}
-                  className={`rounded-xl border border-zinc-800 border-l-4 ${RUBRO_SECTION_BORDER[rubro]} bg-zinc-950/35 p-4`}
-                >
+                <section key={rubro} className="mt-6">
                   <button
                     type="button"
                     aria-expanded={expandido}
                     aria-controls={listId}
-                    onClick={() =>
-                      setRubroExpandido((prev) => ({ ...prev, [rubro]: !prev[rubro] }))
-                    }
-                    className="mb-3 flex w-full items-center gap-2 border-b border-zinc-800/80 pb-2 text-left text-sm font-semibold uppercase tracking-[0.14em] text-zinc-300 transition hover:text-zinc-100"
+                    disabled={buscando}
+                    onClick={() => {
+                      vibrar();
+                      setRubroExpandido((prev) => ({
+                        ...prev,
+                        [rubro]: !prev[rubro],
+                      }));
+                    }}
+                    className="mb-2 flex min-h-11 w-full items-center gap-2 rounded-control px-1 text-left transition active:bg-fill disabled:active:bg-transparent"
                   >
-                    <span className="inline-flex shrink-0 text-zinc-500" aria-hidden>
-                      {expandido ? (
-                        <ChevronDown className="h-4 w-4" />
-                      ) : (
-                        <ChevronRight className="h-4 w-4" />
-                      )}
+                    <span className="min-w-0 flex-1 text-[0.8rem] font-semibold uppercase tracking-[0.07em] text-label-3">
+                      {rubro}{" "}
+                      <span className="font-mono font-normal tabular-nums">
+                        {buscando
+                          ? `${visibles.length}/${lista.length}`
+                          : lista.length}
+                      </span>
                     </span>
-                    <span className="min-w-0">{tituloRubro}</span>
+                    {buscando ? null : expandido ? (
+                      <ChevronDown
+                        className="h-[18px] w-[18px] shrink-0 text-label-3"
+                        aria-hidden
+                      />
+                    ) : (
+                      <ChevronRight
+                        className="h-[18px] w-[18px] shrink-0 text-label-3"
+                        aria-hidden
+                      />
+                    )}
                   </button>
 
                   <div id={listId}>
                     {expandido ? (
-                      lista.length === 0 ? (
-                        <p className="text-sm text-zinc-600">Sin ítems en este rubro.</p>
+                      visibles.length === 0 ? (
+                        <p className="rounded-card bg-surface-3 px-4 py-3 text-[0.94rem] text-label-3">
+                          Sin ítems en este rubro.
+                        </p>
                       ) : (
-                        <ul className="space-y-2" role="list">
-                          {lista.map((item) => (
-                            <li
+                        <Lista>
+                          {visibles.map((item) => (
+                            <Fila
                               key={item.id}
-                              className="flex flex-col gap-2 rounded-xl border border-zinc-800 bg-zinc-950/70 px-3 py-2.5"
-                            >
-                              <div className="flex items-center justify-between gap-2">
-                                <span className="min-w-0 flex-1 text-sm text-zinc-100">
+                              titulo={
+                                <span
+                                  className={
+                                    item.activo ? undefined : "text-label-3"
+                                  }
+                                >
                                   {item.nombre}
                                 </span>
-                                <button
-                                  type="button"
-                                  role="switch"
-                                  aria-checked={item.activo}
-                                  onClick={() =>
-                                    void actualizarCampo(item.id, { activo: !item.activo })
-                                  }
-                                  title={
-                                    item.activo
-                                      ? "Activo: aparece en recordatorios de Compras"
-                                      : "Inactivo: no aparece en recordatorios de Compras"
-                                  }
-                                  className={`relative h-6 w-11 shrink-0 rounded-full transition ${
-                                    item.activo ? "bg-zinc-100" : "bg-zinc-700"
-                                  }`}
-                                  aria-label={`Cambiar actividad de ${item.nombre}`}
-                                >
-                                  <span
-                                    className={`absolute top-0.5 h-5 w-5 rounded-full bg-zinc-950 transition ${
-                                      item.activo ? "left-[22px]" : "left-0.5"
-                                    }`}
-                                  />
-                                </button>
-                                <button
-                                  type="button"
-                                  onClick={() => void eliminarItem(item.id)}
-                                  className="rounded-lg border border-zinc-800 p-2 text-zinc-400 transition hover:border-zinc-600 hover:text-zinc-100"
-                                  aria-label={`Eliminar ${item.nombre}`}
-                                >
-                                  <Trash2 className="h-4 w-4" />
-                                </button>
-                              </div>
-                              <div className="flex flex-wrap items-center gap-2">
-                                <label className="sr-only" htmlFor={`rubro-${item.id}`}>
-                                  Rubro de {item.nombre}
-                                </label>
-                                <select
-                                  id={`rubro-${item.id}`}
-                                  value={item.rubro}
-                                  onChange={(e) =>
-                                    void actualizarCampo(item.id, {
-                                      rubro: normalizarRubro(e.target.value),
-                                    })
-                                  }
-                                  className={selectClass}
-                                >
-                                  {RUBROS_INGREDIENTE.map((r) => (
-                                    <option key={r} value={r}>
-                                      {r}
-                                    </option>
-                                  ))}
-                                </select>
-                                <label className="sr-only" htmlFor={`proveedor-${item.id}`}>
-                                  Proveedor de {item.nombre}
-                                </label>
-                                <select
-                                  id={`proveedor-${item.id}`}
-                                  value={item.proveedor ?? ""}
-                                  onChange={(e) =>
-                                    void actualizarCampo(item.id, {
-                                      proveedor: (e.target.value || null) as Proveedor | null,
-                                    })
-                                  }
-                                  className={selectClass}
-                                >
-                                  <option value="">Sin proveedor</option>
-                                  {proveedores.map((p) => (
-                                    <option key={p} value={p}>
-                                      {p}
-                                    </option>
-                                  ))}
-                                </select>
-                                <label className="sr-only" htmlFor={`unidad-${item.id}`}>
-                                  Unidad de compra de {item.nombre}
-                                </label>
-                                <select
-                                  id={`unidad-${item.id}`}
-                                  value={item.unidadCompra}
-                                  onChange={(e) =>
-                                    void actualizarCampo(item.id, {
-                                      unidad_compra: e.target.value as UnidadMedida,
-                                    })
-                                  }
-                                  className={selectClass}
-                                >
-                                  {UNIDADES.map((u) => (
-                                    <option key={u} value={u}>
-                                      {u}
-                                    </option>
-                                  ))}
-                                </select>
-                                <label
-                                  className="flex items-center gap-1 text-[11px] text-zinc-500"
-                                  htmlFor={`buffer-${item.id}`}
-                                  title="Margen de seguridad: adelanta el aviso de compra este % del ciclo típico"
-                                >
-                                  Buffer
-                                  <input
-                                    id={`buffer-${item.id}`}
-                                    type="number"
-                                    min={0}
-                                    max={90}
-                                    value={item.bufferPct}
-                                    onChange={(e) => {
-                                      const n = Number(e.target.value);
-                                      if (Number.isFinite(n)) {
-                                        void actualizarCampo(item.id, {
-                                          buffer_pct: Math.min(Math.max(Math.round(n), 0), 90),
-                                        });
-                                      }
-                                    }}
-                                    className="w-14 rounded-lg border border-zinc-700 bg-zinc-900 px-2 py-1 text-center text-xs text-zinc-200 outline-none focus:border-zinc-500"
-                                  />
-                                  %
-                                </label>
-                              </div>
-                            </li>
+                              }
+                              detalle={`${item.proveedor ?? "Sin proveedor"} · ${item.unidadCompra} · buffer ${item.bufferPct}%`}
+                              valor={
+                                item.activo ? undefined : (
+                                  <Etiqueta>Inactivo</Etiqueta>
+                                )
+                              }
+                              onClick={() => setEditandoId(item.id)}
+                            />
                           ))}
-                        </ul>
+                        </Lista>
                       )
-                    ) : lista.length > 0 ? (
-                      <p className="text-xs text-zinc-600">
-                        {lista.length} {lista.length === 1 ? "ítem oculto" : "ítems ocultos"}.
-                        Tocá el título para ver la lista.
-                      </p>
                     ) : null}
                   </div>
                 </section>
               );
-            })}
+            })
+          )}
+        </>
+      )}
+
+      {!isLoading ? (
+        <Seccion titulo="Agregar ítem" className="mt-8">
+          <form
+            onSubmit={agregarItem}
+            className="space-y-3 rounded-card bg-surface-3 p-3 shadow-[0_1px_2px_rgb(0_0_0/0.04)]"
+          >
+            <Campo
+              aria-label="Nombre del ítem de stock"
+              value={nuevoNombre}
+              onChange={(event) => setNuevoNombre(event.target.value)}
+              placeholder="Nombre del ítem"
+              enterKeyHint="done"
+            />
+            <div className="grid grid-cols-[1fr_auto] gap-2">
+              <Selector
+                titulo="Rubro"
+                valor={nuevoRubro}
+                opciones={opcionesRubro}
+                onChange={(v) => setNuevoRubro(normalizarRubro(v))}
+              />
+              <Boton
+                type="submit"
+                cargando={isSubmitting}
+                disabled={!nuevoNombre.trim()}
+                icono={<Plus className="h-[18px] w-[18px]" aria-hidden />}
+                className="min-h-12"
+              >
+                Agregar
+              </Boton>
+            </div>
+          </form>
+        </Seccion>
+      ) : null}
+
+      <Hoja
+        abierta={editando !== null}
+        onCerrar={() => setEditandoId(null)}
+        titulo={editando?.nombre ?? "Ítem"}
+      >
+        {editando ? (
+          <div className="space-y-4 pb-2">
+            <label className="flex min-h-14 items-center gap-3 rounded-card bg-surface-3 px-4">
+              <span className="min-w-0 flex-1">
+                <span className="block text-[1rem] text-label">Activo</span>
+                <span className="block text-[0.82rem] text-label-3">
+                  {editando.activo
+                    ? "Aparece en los recordatorios de Compras"
+                    : "No aparece en los recordatorios de Compras"}
+                </span>
+              </span>
+              <Interruptor
+                etiqueta={`${editando.nombre} activo`}
+                activo={editando.activo}
+                onChange={(v) =>
+                  void actualizarCampo(editando.id, { activo: v })
+                }
+              />
+            </label>
+
+            <Selector
+              label="Rubro"
+              valor={editando.rubro}
+              opciones={opcionesRubro}
+              onChange={(v) =>
+                void actualizarCampo(editando.id, {
+                  rubro: normalizarRubro(v),
+                })
+              }
+            />
+            <Selector
+              label="Proveedor"
+              valor={editando.proveedor ?? SIN_PROVEEDOR}
+              opciones={opcionesProveedor}
+              buscar={opcionesProveedor.length > 10}
+              onChange={(v) =>
+                void actualizarCampo(editando.id, {
+                  proveedor: (v === SIN_PROVEEDOR
+                    ? null
+                    : v) as Proveedor | null,
+                })
+              }
+            />
+            <Selector
+              label="Unidad de compra"
+              valor={editando.unidadCompra}
+              opciones={opcionesUnidad}
+              onChange={(v) =>
+                void actualizarCampo(editando.id, {
+                  unidad_compra: v as UnidadMedida,
+                })
+              }
+            />
+
+            <div className="flex min-h-14 items-center gap-3 rounded-card bg-surface-3 py-2 pl-4 pr-2">
+              <label
+                htmlFor={`buffer-${editando.id}`}
+                className="min-w-0 flex-1"
+              >
+                <span className="block text-[1rem] text-label">Buffer</span>
+                <span className="block text-[0.82rem] text-label-3">
+                  Adelanta el aviso de compra (0 a 90 %)
+                </span>
+              </label>
+              <input
+                id={`buffer-${editando.id}`}
+                type="number"
+                inputMode="numeric"
+                min={0}
+                max={90}
+                value={editando.bufferPct}
+                onChange={(e) => {
+                  const n = Number(e.target.value);
+                  if (Number.isFinite(n)) {
+                    void actualizarCampo(editando.id, {
+                      buffer_pct: Math.min(Math.max(Math.round(n), 0), 90),
+                    });
+                  }
+                }}
+                className="h-11 w-20 rounded-[0.65rem] bg-fill text-center font-mono text-[1.05rem] tabular-nums text-label outline-none ring-accent/60 focus:ring-2"
+              />
+              <span className="w-5 text-[0.9rem] text-label-3">%</span>
+            </div>
+
+            <Boton
+              variante="peligro"
+              ancho
+              icono={<Trash2 className="h-[18px] w-[18px]" aria-hidden />}
+              onClick={() => {
+                const id = editando.id;
+                setEditandoId(null);
+                void eliminarItem(id);
+              }}
+            >
+              Eliminar ítem
+            </Boton>
           </div>
-        )}
-      </section>
-    </main>
+        ) : null}
+      </Hoja>
+    </Pantalla>
   );
 }

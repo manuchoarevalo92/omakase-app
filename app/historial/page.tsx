@@ -1,7 +1,16 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { EsqueletoLista } from "@/app/ui";
+import { CircleAlert, History, Search, TriangleAlert } from "lucide-react";
+import {
+  Boton,
+  Campo,
+  EstadoVacio,
+  EsqueletoLista,
+  Pantalla,
+  Seccion,
+  Segmentado,
+} from "@/app/ui";
 
 import { BebidasServicioResumen } from "@/app/components/bebidas-servicio-resumen";
 import { MenuGuardadoSecciones } from "@/app/components/menu-guardado-secciones";
@@ -11,7 +20,10 @@ import {
 } from "@/src/lib/bebidas-asientos";
 import { partesDesdeMenuOmakaseGuardado } from "@/src/lib/menu-omakase-guardado";
 import { formatPostgrestError } from "@/src/lib/supabase-errors";
-import { formatearFechaServicio, formatearHoraServicio } from "@/src/lib/historial-servicios";
+import {
+  formatearFechaServicio,
+  formatearHoraServicio,
+} from "@/src/lib/historial-servicios";
 import { supabase } from "@/src/lib/supabase";
 
 type Servicio = "Mediodia" | "Noche";
@@ -32,18 +44,28 @@ type PlatoLite = {
 
 const SERVICE_ORDER: Servicio[] = ["Mediodia", "Noche"];
 
+/** Cómo se muestra cada servicio (en la base queda "Mediodia", sin tilde). */
+const NOMBRE_SERVICIO: Record<Servicio, string> = {
+  Mediodia: "Mediodía",
+  Noche: "Noche",
+};
+
 export default function HistorialPage() {
   const [historial, setHistorial] = useState<RegistroHistorial[]>([]);
   const [platos, setPlatos] = useState<PlatoLite[]>([]);
   const [fechaDesde, setFechaDesde] = useState("");
   const [fechaHasta, setFechaHasta] = useState("");
-  const [filtroServicio, setFiltroServicio] = useState<"Todos" | Servicio>("Todos");
+  const [filtroServicio, setFiltroServicio] = useState<"Todos" | Servicio>(
+    "Todos",
+  );
   const [bebidasPorServicio, setBebidasPorServicio] = useState<
     Map<string, BebidaAsientoResumen[]>
   >(() => new Map());
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [advertenciaBebidas, setAdvertenciaBebidas] = useState<string | null>(null);
+  const [advertenciaBebidas, setAdvertenciaBebidas] = useState<string | null>(
+    null,
+  );
 
   const platosMap = useMemo(() => {
     return new Map(platos.map((plato) => [plato.id, plato.nombre]));
@@ -82,8 +104,12 @@ export default function HistorialPage() {
       .map(([fecha, registros]) => ({
         fecha,
         registros: [...registros].sort((a, b) => {
-          const indexA = SERVICE_ORDER.indexOf((a.servicio ?? "Noche") as Servicio);
-          const indexB = SERVICE_ORDER.indexOf((b.servicio ?? "Noche") as Servicio);
+          const indexA = SERVICE_ORDER.indexOf(
+            (a.servicio ?? "Noche") as Servicio,
+          );
+          const indexB = SERVICE_ORDER.indexOf(
+            (b.servicio ?? "Noche") as Servicio,
+          );
           if (indexA !== indexB) {
             return indexA - indexB;
           }
@@ -125,13 +151,18 @@ export default function HistorialPage() {
         setBebidasPorServicio(new Map());
         setAdvertenciaBebidas(
           formatPostgrestError(
-            bebidasErr as { message: string; code?: string; details?: string; hint?: string }
-          )
+            bebidasErr as {
+              message: string;
+              code?: string;
+              details?: string;
+              hint?: string;
+            },
+          ),
         );
       }
     } catch (err) {
       setError(
-        err instanceof Error ? err.message : "Error al conectar con Supabase."
+        err instanceof Error ? err.message : "Error al conectar con Supabase.",
       );
     } finally {
       setIsLoading(false);
@@ -148,140 +179,177 @@ export default function HistorialPage() {
     };
   }, []);
 
-  return (
-    <main className="min-h-screen min-w-0 bg-zinc-950 px-4 py-6 text-zinc-100 sm:px-6 sm:py-10">
-      <section className="mx-auto w-full max-w-5xl rounded-2xl border border-zinc-800 bg-zinc-900/60 p-6 shadow-[0_0_0_1px_rgba(255,255,255,0.02)] backdrop-blur">
-        <header className="mb-6">
-          <h1 className="font-display text-3xl font-medium tracking-tight text-ink">Historial de Servicios</h1>
-        </header>
+  const hayFiltros =
+    Boolean(fechaDesde) || Boolean(fechaHasta) || filtroServicio !== "Todos";
 
-        <section className="mb-6 grid gap-2 rounded-xl border border-zinc-800 bg-zinc-950/60 p-3 sm:grid-cols-3">
-          <input
+  return (
+    <Pantalla
+      titulo="Historial"
+      ancho="amplio"
+      subtitulo={
+        isLoading
+          ? "Cargando…"
+          : `${historialFiltrado.length} ${
+              historialFiltrado.length === 1 ? "servicio" : "servicios"
+            }${hayFiltros ? " con estos filtros" : ""}`
+      }
+      ayuda={
+        <>
+          <p>
+            Cada servicio guardado desde Omakase, con el menú que salió y las
+            bebidas de cada asiento.
+          </p>
+          <p>
+            Filtrá por fechas (desde / hasta, las dos opcionales) o por
+            servicio.
+          </p>
+        </>
+      }
+    >
+      <div className="space-y-3 rounded-card bg-surface-3 p-3 shadow-[0_1px_2px_rgb(0_0_0/0.04)]">
+        <div className="grid grid-cols-2 gap-2">
+          <Campo
             type="date"
+            label="Desde"
             value={fechaDesde}
             onChange={(event) => setFechaDesde(event.target.value)}
-            className="rounded-lg border border-zinc-700 bg-zinc-900 px-3 py-2 text-sm text-zinc-100 outline-none transition focus:border-zinc-500"
-            aria-label="Fecha desde"
           />
-          <input
+          <Campo
             type="date"
+            label="Hasta"
             value={fechaHasta}
             onChange={(event) => setFechaHasta(event.target.value)}
-            className="rounded-lg border border-zinc-700 bg-zinc-900 px-3 py-2 text-sm text-zinc-100 outline-none transition focus:border-zinc-500"
-            aria-label="Fecha hasta"
           />
-          <select
-            value={filtroServicio}
-            onChange={(event) =>
-              setFiltroServicio(event.target.value as "Todos" | Servicio)
-            }
-            className="rounded-lg border border-zinc-700 bg-zinc-900 px-3 py-2 text-sm text-zinc-100 outline-none transition focus:border-zinc-500"
-            aria-label="Filtrar por servicio"
-          >
-            <option value="Todos">Todos los servicios</option>
-            <option value="Mediodia">Mediodia</option>
-            <option value="Noche">Noche</option>
-          </select>
-          <button
-            type="button"
+        </div>
+        <Segmentado<"Todos" | Servicio>
+          etiqueta="Filtrar por servicio"
+          valor={filtroServicio}
+          onChange={setFiltroServicio}
+          opciones={[
+            { valor: "Todos", label: "Todos" },
+            { valor: "Mediodia", label: NOMBRE_SERVICIO.Mediodia },
+            { valor: "Noche", label: NOMBRE_SERVICIO.Noche },
+          ]}
+        />
+        {hayFiltros ? (
+          <Boton
+            variante="terciario"
+            ancho
             onClick={() => {
               setFechaDesde("");
               setFechaHasta("");
               setFiltroServicio("Todos");
             }}
-            className="sm:col-span-3 rounded-lg border border-zinc-700 bg-zinc-900 px-3 py-2 text-sm text-zinc-200 transition hover:border-zinc-500 hover:text-zinc-100"
           >
             Limpiar filtros
-          </button>
-        </section>
-
-        {error ? (
-          <p className="mb-5 rounded-lg border border-red-900/70 bg-red-950/40 px-3 py-2 text-sm text-red-200">
-            {error}
-          </p>
+          </Boton>
         ) : null}
+      </div>
 
-        {advertenciaBebidas ? (
-          <p className="mb-5 rounded-lg border border-amber-900/70 bg-amber-950/40 px-3 py-2 text-sm text-amber-200">
+      {error ? (
+        <div
+          role="alert"
+          className="mt-4 flex gap-3 rounded-card bg-danger-soft px-4 py-3 text-[0.94rem] text-danger"
+        >
+          <CircleAlert
+            className="mt-0.5 h-[18px] w-[18px] shrink-0"
+            aria-hidden
+          />
+          <p className="min-w-0 flex-1">{error}</p>
+        </div>
+      ) : null}
+
+      {advertenciaBebidas ? (
+        <div
+          role="status"
+          className="mt-4 flex gap-3 rounded-card bg-warning-soft px-4 py-3 text-[0.94rem] text-warning"
+        >
+          <TriangleAlert
+            className="mt-0.5 h-[18px] w-[18px] shrink-0"
+            aria-hidden
+          />
+          <p className="min-w-0 flex-1">
             No se pudieron cargar las bebidas: {advertenciaBebidas}
           </p>
-        ) : null}
+        </div>
+      ) : null}
 
-        {isLoading ? (
+      {isLoading ? (
+        <div className="mt-6">
           <EsqueletoLista filas={6} />
-        ) : historialAgrupado.length === 0 ? (
-          historial.length === 0 ? (
-            <div className="rounded-lg border border-zinc-800 bg-zinc-950/60 px-4 py-4 text-sm leading-relaxed text-zinc-400">
-              <p className="font-medium text-zinc-200">Todavía no hay registros</p>
-              <p className="mt-2">
-                Si ya guardaste menús desde la página principal y acá sigue vacío, lo
-                habitual es que en Supabase la tabla{" "}
-                <code className="text-zinc-300">historial_servicios</code> tenga RLS
-                activado sin una política de{" "}
-                <code className="text-zinc-300">SELECT</code> para el rol{" "}
-                <code className="text-zinc-300">anon</code> (la app usa la anon key).
-              </p>
-              <p className="mt-2">
-                Si nunca se guardó bien, revisá también políticas de{" "}
-                <code className="text-zinc-300">INSERT</code> en esa misma tabla.
-              </p>
-            </div>
-          ) : (
-            <p className="text-sm text-zinc-500">
-              No hay resultados para los filtros seleccionados.
-            </p>
-          )
-        ) : (
-          <div className="space-y-6">
-            {historialAgrupado.map((grupo) => (
-              <section key={grupo.fecha}>
-                <h2 className="mb-3 text-sm uppercase tracking-[0.16em] text-zinc-500">
-                  {formatearFechaServicio(grupo.fecha)}
-                </h2>
-                <div className="space-y-2">
-                  {grupo.registros.map((registro) => (
-                    <article
-                      key={registro.id}
-                      className="rounded-xl border border-zinc-800 bg-zinc-950/70 p-4"
-                    >
-                      <div className="mb-2 flex items-center justify-between gap-3">
-                        <p className="text-sm font-medium text-zinc-100">
-                          {registro.servicio ?? "Servicio"}{" "}
-                          <span className="text-zinc-500">
-                            {registro.hora ? `· ${formatearHoraServicio(registro.hora)}` : ""}
-                          </span>
-                        </p>
-                      </div>
-                      <div className="mt-3 border-t border-zinc-800/80 pt-3">
-                        <p className="mb-2 text-[10px] font-semibold uppercase tracking-[0.14em] text-zinc-500">
-                          Menú guardado
-                        </p>
-                        <MenuGuardadoSecciones
-                          {...partesDesdeMenuOmakaseGuardado(registro.menu_omakase)}
-                          extensiones={(registro.extensiones ?? []).filter((id) =>
-                            String(id ?? "").trim()
-                          )}
-                          nombrePlato={(id) =>
-                            platosMap.get(id) ?? `Plato ${id.slice(0, 6)}…`
-                          }
-                        />
-                      </div>
-                      <div className="mt-3 border-t border-zinc-800/80 pt-3">
-                        <p className="mb-2 text-[10px] font-semibold uppercase tracking-[0.14em] text-zinc-500">
-                          Bebidas
-                        </p>
-                        <BebidasServicioResumen
-                          asientos={bebidasPorServicio.get(registro.id) ?? []}
-                        />
-                      </div>
-                    </article>
-                  ))}
-                </div>
-              </section>
-            ))}
+        </div>
+      ) : historialAgrupado.length === 0 ? (
+        historial.length === 0 ? (
+          <div className="mt-6 rounded-card bg-surface-3">
+            <EstadoVacio
+              icono={<History className="h-6 w-6" aria-hidden />}
+              titulo="Todavía no hay registros"
+              texto={
+                <>
+                  Si ya guardaste menús desde Omakase y sigue vacío, revisá en
+                  Supabase que{" "}
+                  <code className="text-label">historial_servicios</code> tenga
+                  políticas de SELECT e INSERT para el rol{" "}
+                  <code className="text-label">anon</code>.
+                </>
+              }
+            />
           </div>
-        )}
-      </section>
-    </main>
+        ) : (
+          <div className="mt-6 rounded-card bg-surface-3">
+            <EstadoVacio
+              icono={<Search className="h-6 w-6" aria-hidden />}
+              titulo="Sin resultados"
+              texto="No hay servicios con estos filtros."
+            />
+          </div>
+        )
+      ) : (
+        historialAgrupado.map((grupo) => (
+          <Seccion
+            key={grupo.fecha}
+            titulo={formatearFechaServicio(grupo.fecha)}
+            className="mt-8"
+          >
+            <div className="space-y-8">
+              {grupo.registros.map((registro) => (
+                <article key={registro.id}>
+                  <h3 className="px-1 text-[1.15rem] font-semibold text-label">
+                    {registro.servicio
+                      ? NOMBRE_SERVICIO[registro.servicio]
+                      : "Servicio"}
+                    {registro.hora ? (
+                      <span className="font-normal text-label-2">
+                        {" "}
+                        · {formatearHoraServicio(registro.hora)}
+                      </span>
+                    ) : null}
+                  </h3>
+                  <div className="mt-3 grid gap-6 lg:grid-cols-[3fr_2fr]">
+                    <MenuGuardadoSecciones
+                      {...partesDesdeMenuOmakaseGuardado(registro.menu_omakase)}
+                      extensiones={(registro.extensiones ?? []).filter((id) =>
+                        String(id ?? "").trim(),
+                      )}
+                      nombrePlato={(id) =>
+                        platosMap.get(id) ?? `Plato ${id.slice(0, 6)}…`
+                      }
+                    />
+                    <section>
+                      <h3 className="mb-2 px-1 text-[0.8rem] font-semibold uppercase tracking-[0.07em] text-label-3">
+                        Bebidas
+                      </h3>
+                      <BebidasServicioResumen
+                        asientos={bebidasPorServicio.get(registro.id) ?? []}
+                      />
+                    </section>
+                  </div>
+                </article>
+              ))}
+            </div>
+          </Seccion>
+        ))
+      )}
+    </Pantalla>
   );
 }

@@ -1,10 +1,28 @@
 "use client";
 
 import { FormEvent, useEffect, useMemo, useState } from "react";
-import { Loader2, Plus, Trash2 } from "lucide-react";
-import { EsqueletoLista } from "@/app/ui";
+import {
+  ChevronLeft,
+  CircleAlert,
+  ListChecks,
+  Plus,
+  Trash2,
+} from "lucide-react";
 import Link from "next/link";
 
+import {
+  Boton,
+  Campo,
+  EstadoVacio,
+  EsqueletoLista,
+  Fila,
+  Interruptor,
+  Lista,
+  Pantalla,
+  Seccion,
+  Segmentado,
+  useAvisos,
+} from "@/app/ui";
 import { formatPostgrestError } from "@/src/lib/supabase-errors";
 import {
   UNIDADES_MEP,
@@ -27,11 +45,14 @@ export default function MepCortesPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [confirmDelete, setConfirmDelete] = useState<MepCorte | null>(null);
-  const [isDeleting, setIsDeleting] = useState(false);
+  const { confirmar } = useAvisos();
 
   const grupos = useMemo(() => agruparCortesPorCategoria(cortes), [cortes]);
-  const categoriasSugeridas = useMemo(() => categoriasExistentes(cortes), [cortes]);
+  const categoriasSugeridas = useMemo(
+    () => categoriasExistentes(cortes),
+    [cortes],
+  );
+  const ocultos = cortes.filter((c) => !c.activo).length;
 
   const cargarDatos = async () => {
     setIsLoading(true);
@@ -41,7 +62,7 @@ export default function MepCortesPage() {
       setCortes(lista);
     } catch (err) {
       setError(
-        err instanceof Error ? err.message : "Error al conectar con Supabase."
+        err instanceof Error ? err.message : "Error al conectar con Supabase.",
       );
     } finally {
       setIsLoading(false);
@@ -67,7 +88,7 @@ export default function MepCortesPage() {
     setError(null);
 
     const enCategoria = cortes.filter(
-      (c) => c.categoria.toLowerCase() === categoriaLimpia.toLowerCase()
+      (c) => c.categoria.toLowerCase() === categoriaLimpia.toLowerCase(),
     );
     const maxOrden = enCategoria.reduce((m, c) => Math.max(m, c.orden), 0);
 
@@ -86,9 +107,12 @@ export default function MepCortesPage() {
 
     if (insertError) {
       const msg = insertError.message.toLowerCase();
-      if (msg.includes("mep_cortes_categoria_nombre_unq") || msg.includes("duplicate key")) {
+      if (
+        msg.includes("mep_cortes_categoria_nombre_unq") ||
+        msg.includes("duplicate key")
+      ) {
         setError(
-          `${formatPostgrestError(insertError)} Ya existe un ítem con esa categoría y nombre.`
+          `${formatPostgrestError(insertError)} Ya existe un ítem con esa categoría y nombre.`,
         );
       } else {
         setError(formatPostgrestError(insertError));
@@ -117,203 +141,208 @@ export default function MepCortesPage() {
     }
 
     setCortes((actual) =>
-      actual.map((c) => (c.id === corte.id ? corteDesdeFila(data as MepCorteDbRow) : c))
+      actual.map((c) =>
+        c.id === corte.id ? corteDesdeFila(data as MepCorteDbRow) : c,
+      ),
     );
   };
 
-  const eliminarCorte = async () => {
-    if (!confirmDelete) {
+  const eliminarCorte = async (corte: MepCorte) => {
+    const ok = await confirmar({
+      titulo: `¿Borrar ${corte.categoria} · ${corte.nombre}?`,
+      texto:
+        "Las cargas anteriores lo conservan, pero ya no va a aparecer en las MEP nuevas.",
+      confirmar: "Borrar",
+      peligro: true,
+    });
+    if (!ok) {
       return;
     }
 
-    setIsDeleting(true);
     setError(null);
 
     const { error: deleteError } = await supabase
       .from("mep_cortes")
       .delete()
-      .eq("id", confirmDelete.id);
+      .eq("id", corte.id);
 
     if (deleteError) {
       setError(formatPostgrestError(deleteError));
-      setIsDeleting(false);
       return;
     }
 
-    setCortes((actual) => actual.filter((c) => c.id !== confirmDelete.id));
-    setConfirmDelete(null);
-    setIsDeleting(false);
+    setCortes((actual) => actual.filter((c) => c.id !== corte.id));
   };
 
   return (
-    <main className="min-h-screen min-w-0 bg-zinc-950 px-4 py-6 text-zinc-100 sm:px-6 sm:py-10">
-      <section className="mx-auto w-full max-w-4xl rounded-2xl border border-zinc-800 bg-zinc-900/60 p-6 shadow-[0_0_0_1px_rgba(255,255,255,0.02)] backdrop-blur">
-        <header className="mb-6 flex flex-wrap items-start justify-between gap-3">
-          <div>
-            <h1 className="font-display text-3xl font-medium tracking-tight text-ink">Catálogo MEP</h1>
-            <p className="mt-1 text-sm text-zinc-400">
-              Definí categorías libres (Nigiri, Sashimi, Relleno maki…) y los ítems de cada una.
-            </p>
-          </div>
-          <Link
-            href="/mep-deli"
-            className="rounded-xl border border-zinc-700 bg-zinc-950 px-3 py-2 text-sm text-zinc-300 transition hover:border-zinc-500 hover:text-white"
-          >
-            ← MEP Deli
-          </Link>
-        </header>
+    <Pantalla
+      titulo="Catálogo MEP"
+      subtitulo={
+        isLoading
+          ? "Cargando…"
+          : `${cortes.length} ${cortes.length === 1 ? "ítem" : "ítems"}${
+              ocultos > 0
+                ? ` · ${ocultos} ${ocultos === 1 ? "oculto" : "ocultos"}`
+                : ""
+            }`
+      }
+      ayuda={
+        <>
+          <p>
+            Lo que aparece para cargar en la MEP Deli. Las categorías son libres
+            (Nigiri, Sashimi, Relleno maki…): escribí una nueva o elegí una que
+            ya exista.
+          </p>
+          <p>
+            Apagá el interruptor de un ítem para ocultarlo de la MEP sin
+            borrarlo. Para borrarlo, deslizá la fila hacia la izquierda.
+          </p>
+          <p>
+            Si migrás desde la versión anterior y no aparece nada, falta correr{" "}
+            <code className="text-label">
+              supabase/mep-cortes-categoria.sql
+            </code>
+            .
+          </p>
+        </>
+      }
+      acciones={
+        <Link
+          href="/mep-deli"
+          className="inline-flex min-h-11 items-center gap-1 rounded-full bg-fill pl-2.5 pr-3.5 text-[0.92rem] font-semibold text-label transition hover:bg-fill-strong active:scale-[0.97]"
+        >
+          <ChevronLeft className="h-[18px] w-[18px]" aria-hidden />
+          MEP Deli
+        </Link>
+      }
+    >
+      {error ? (
+        <div
+          role="alert"
+          className="mb-4 flex gap-3 rounded-card bg-danger-soft px-4 py-3 text-[0.94rem] text-danger"
+        >
+          <CircleAlert
+            className="mt-0.5 h-[18px] w-[18px] shrink-0"
+            aria-hidden
+          />
+          <p className="min-w-0 flex-1">{error}</p>
+        </div>
+      ) : null}
 
-        <form onSubmit={guardarCorte} className="mb-8 space-y-4">
-          <h2 className="text-sm uppercase tracking-[0.16em] text-zinc-500">
-            Agregar ítem
-          </h2>
-          <div className="grid gap-3 sm:grid-cols-3">
-            <div>
-              <input
-                list="mep-categorias"
-                value={categoria}
-                onChange={(e) => setCategoria(e.target.value)}
-                placeholder="Categoría (ej. Nigiri)"
-                className="w-full rounded-xl border border-zinc-700 bg-zinc-950 px-4 py-2.5 text-sm text-zinc-100 outline-none transition focus:border-zinc-500"
-              />
-              <datalist id="mep-categorias">
-                {categoriasSugeridas.map((cat) => (
-                  <option key={cat} value={cat} />
-                ))}
-              </datalist>
-            </div>
-            <input
+      <Seccion titulo="Agregar ítem">
+        <form
+          onSubmit={guardarCorte}
+          className="space-y-3 rounded-card bg-surface-3 p-3 shadow-[0_1px_2px_rgb(0_0_0/0.04)]"
+        >
+          <div className="grid gap-3 sm:grid-cols-2">
+            <Campo
+              label="Categoría"
+              list="mep-categorias"
+              value={categoria}
+              onChange={(e) => setCategoria(e.target.value)}
+              placeholder="Ej. Nigiri"
+              autoComplete="off"
+              enterKeyHint="next"
+            />
+            <Campo
+              label="Ítem"
               value={nombre}
               onChange={(e) => setNombre(e.target.value)}
-              placeholder="Ítem (ej. Salmón, Atún)"
-              className="w-full rounded-xl border border-zinc-700 bg-zinc-950 px-4 py-2.5 text-sm text-zinc-100 outline-none transition focus:border-zinc-500"
+              placeholder="Ej. Salmón, Atún"
+              enterKeyHint="done"
             />
-            <select
-              value={unidad}
-              onChange={(e) => setUnidad(e.target.value as UnidadMep)}
-              className="w-full rounded-xl border border-zinc-700 bg-zinc-950 px-4 py-2.5 text-sm text-zinc-100 outline-none transition focus:border-zinc-500"
-            >
-              {UNIDADES_MEP.map((u) => (
-                <option key={u} value={u}>
-                  {etiquetaUnidadMep(u)}
-                </option>
-              ))}
-            </select>
           </div>
-          <p className="text-xs text-zinc-500">
-            La categoría es texto libre: podés escribir una nueva o elegir una que ya exista.
-          </p>
-          <button
-            type="submit"
-            disabled={isSaving || !categoria.trim() || !nombre.trim()}
-            className="inline-flex items-center gap-2 rounded-xl bg-ink px-4 py-2.5 text-sm font-medium text-paper transition hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50"
-          >
-            {isSaving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Plus className="h-4 w-4" />}
-            Agregar
-          </button>
-        </form>
-
-        {error && (
-          <p className="mb-4 rounded-xl border border-red-900/60 bg-red-950/40 px-4 py-3 text-sm text-red-200">
-            {error}
-          </p>
-        )}
-
-        {isLoading ? (
-          <EsqueletoLista filas={6} />
-        ) : grupos.length === 0 ? (
-          <p className="py-8 text-center text-sm text-zinc-500">
-            No hay ítems cargados. Agregá el primero arriba o ejecutá{" "}
-            <code className="text-zinc-300">supabase/mep-cortes-categoria.sql</code> si migrás
-            desde la versión anterior.
-          </p>
-        ) : (
-          <div className="space-y-6">
-            {grupos.map((grupo) => (
-              <div key={grupo.categoria}>
-                <h3 className="mb-3 text-sm font-medium uppercase tracking-wide text-zinc-400">
-                  {grupo.categoria}
-                </h3>
-                <ul className="divide-y divide-zinc-800 rounded-xl border border-zinc-800">
-                  {grupo.cortes.map((corte) => (
-                    <li
-                      key={corte.id}
-                      className={`flex items-center justify-between gap-3 px-4 py-3 ${
-                        corte.activo ? "" : "opacity-50"
-                      }`}
-                    >
-                      <div>
-                        <span className="font-medium text-zinc-100">{corte.nombre}</span>
-                        {corte.peso_ref ? (
-                          <span className="ml-2 text-xs tabular-nums text-amber-200/80">
-                            {corte.peso_ref}
-                          </span>
-                        ) : null}
-                        <span className="ml-2 text-xs text-zinc-500">
-                          {etiquetaUnidadMep(corte.unidad)}
-                        </span>
-                        {!corte.activo && (
-                          <span className="ml-2 text-xs text-amber-500">(inactivo)</span>
-                        )}
-                      </div>
-                      <div className="flex shrink-0 items-center gap-2">
-                        <button
-                          type="button"
-                          onClick={() => void toggleActivo(corte)}
-                          className="rounded-lg border border-zinc-700 px-2.5 py-1 text-xs text-zinc-400 transition hover:border-zinc-500 hover:text-zinc-200"
-                        >
-                          {corte.activo ? "Ocultar" : "Activar"}
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => setConfirmDelete(corte)}
-                          className="rounded-lg border border-zinc-800 p-1.5 text-zinc-500 transition hover:border-red-900 hover:text-red-400"
-                          aria-label={`Eliminar ${corte.nombre}`}
-                        >
-                          <Trash2 className="h-4 w-4" />
-                        </button>
-                      </div>
-                    </li>
-                  ))}
-                </ul>
-              </div>
+          <datalist id="mep-categorias">
+            {categoriasSugeridas.map((cat) => (
+              <option key={cat} value={cat} />
             ))}
-          </div>
-        )}
-      </section>
-
-      {confirmDelete && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4">
-          <div className="w-full max-w-sm rounded-2xl border border-zinc-700 bg-zinc-900 p-6 shadow-xl">
-            <h3 className="text-lg font-semibold text-white">Eliminar ítem</h3>
-            <p className="mt-2 text-sm text-zinc-400">
-              ¿Borrar{" "}
-              <span className="text-zinc-200">
-                {confirmDelete.categoria} · {confirmDelete.nombre}
-              </span>
-              ? Las cargas históricas conservan el id pero ya no aparecerá en nuevas MEP.
+          </datalist>
+          <div>
+            <p className="mb-1.5 pl-1 text-[0.82rem] font-medium text-label-2">
+              Unidad
             </p>
-            <div className="mt-6 flex justify-end gap-2">
-              <button
-                type="button"
-                onClick={() => setConfirmDelete(null)}
-                className="rounded-xl border border-zinc-700 px-4 py-2 text-sm text-zinc-300"
-              >
-                Cancelar
-              </button>
-              <button
-                type="button"
-                onClick={() => void eliminarCorte()}
-                disabled={isDeleting}
-                className="inline-flex items-center gap-2 rounded-xl bg-red-600 px-4 py-2 text-sm font-medium text-white disabled:opacity-50"
-              >
-                {isDeleting && <Loader2 className="h-4 w-4 animate-spin" />}
-                Eliminar
-              </button>
-            </div>
+            <Segmentado<UnidadMep>
+              etiqueta="Unidad"
+              valor={unidad}
+              onChange={setUnidad}
+              opciones={UNIDADES_MEP.map((u) => ({
+                valor: u,
+                label: etiquetaUnidadMep(u),
+              }))}
+            />
           </div>
+          <Boton
+            type="submit"
+            ancho
+            cargando={isSaving}
+            disabled={!categoria.trim() || !nombre.trim()}
+            icono={<Plus className="h-[18px] w-[18px]" aria-hidden />}
+          >
+            Agregar
+          </Boton>
+        </form>
+      </Seccion>
+
+      {isLoading ? (
+        <div className="mt-6">
+          <EsqueletoLista filas={6} />
         </div>
+      ) : grupos.length === 0 ? (
+        <div className="mt-6 rounded-card bg-surface-3">
+          <EstadoVacio
+            icono={<ListChecks className="h-6 w-6" aria-hidden />}
+            titulo="Todavía no hay ítems"
+            texto="Agregá el primero arriba."
+          />
+        </div>
+      ) : (
+        grupos.map((grupo) => (
+          <Seccion
+            key={grupo.categoria}
+            titulo={`${grupo.categoria} · ${grupo.cortes.length}`}
+          >
+            <Lista>
+              {grupo.cortes.map((corte) => (
+                <Fila
+                  key={corte.id}
+                  titulo={
+                    <span className={corte.activo ? undefined : "text-label-3"}>
+                      {corte.nombre}
+                      {corte.peso_ref ? (
+                        <span className="ml-1.5 text-[0.8rem] tabular-nums text-warning">
+                          {corte.peso_ref}
+                        </span>
+                      ) : null}
+                    </span>
+                  }
+                  detalle={
+                    <>
+                      {etiquetaUnidadMep(corte.unidad)}
+                      {corte.activo ? null : " · oculto en la MEP"}
+                    </>
+                  }
+                  chevron={false}
+                  valor={
+                    <Interruptor
+                      etiqueta={`${corte.nombre} visible en la MEP`}
+                      activo={corte.activo}
+                      onChange={() => void toggleActivo(corte)}
+                    />
+                  }
+                  acciones={[
+                    {
+                      label: "Borrar",
+                      tono: "peligro",
+                      icono: <Trash2 className="h-5 w-5" aria-hidden />,
+                      onClick: () => void eliminarCorte(corte),
+                    },
+                  ]}
+                />
+              ))}
+            </Lista>
+          </Seccion>
+        ))
       )}
-    </main>
+    </Pantalla>
   );
 }
