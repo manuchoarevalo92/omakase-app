@@ -1,8 +1,31 @@
 "use client";
 
-import { Clipboard, List, ListPlus, Pencil, Plus, Trash2, X } from "lucide-react";
-import { useEffect, useMemo, useRef, useState } from "react";
+import {
+  Check,
+  ChevronDown,
+  CircleAlert,
+  Clipboard,
+  List,
+  ListPlus,
+  Pencil,
+  Plus,
+  Trash2,
+} from "lucide-react";
+import { useEffect, useMemo, useRef, useState, useEffectEvent } from "react";
 
+import {
+  AreaTexto,
+  Boton,
+  BotonIcono,
+  Hoja,
+  HojaOpciones,
+  Pantalla,
+  Segmentado,
+  Selector,
+  cx,
+  useAvisos,
+  vibrar,
+} from "@/app/ui";
 import { formatPostgrestError } from "@/src/lib/supabase-errors";
 import { supabase } from "@/src/lib/supabase";
 import {
@@ -14,7 +37,10 @@ import {
   type Proveedor,
   type UnidadMedida,
 } from "@/src/lib/proveedores";
-import { parsearLineasMasivo, type LineaParseada } from "@/src/lib/parseo-lineas";
+import {
+  parsearLineasMasivo,
+  type LineaParseada,
+} from "@/src/lib/parseo-lineas";
 import { registrarPedidoEnviado } from "@/src/lib/pedidos-log";
 
 type PedidoItem = {
@@ -49,7 +75,7 @@ const crearEstadoVacio = (): Record<string, PedidoItem[]> =>
       acc[proveedor] = [crearItem()];
       return acc;
     },
-    {} as Record<string, PedidoItem[]>
+    {} as Record<string, PedidoItem[]>,
   );
 
 const cargarEstadoInicial = (): Record<string, PedidoItem[]> => {
@@ -69,7 +95,9 @@ const cargarEstadoInicial = (): Record<string, PedidoItem[]> => {
         const filas = Array.isArray(filasRaw) ? filasRaw : [];
         const normalizadas = filas
           .map((fila) => {
-            const unidad = UNIDADES.includes(fila.unidad) ? fila.unidad : "Unidad";
+            const unidad = UNIDADES.includes(fila.unidad)
+              ? fila.unidad
+              : "Unidad";
             return {
               id: fila.id || crypto.randomUUID(),
               item: typeof fila.item === "string" ? fila.item : "",
@@ -81,14 +109,16 @@ const cargarEstadoInicial = (): Record<string, PedidoItem[]> => {
         acc[proveedor] = normalizadas.length > 0 ? normalizadas : [crearItem()];
         return acc;
       },
-      {} as Record<string, PedidoItem[]>
+      {} as Record<string, PedidoItem[]>,
     );
   } catch {
     return vacio;
   }
 };
 
-const normalizarFilas = (filas: PedidoItem[] | null | undefined): PedidoItem[] => {
+const normalizarFilas = (
+  filas: PedidoItem[] | null | undefined,
+): PedidoItem[] => {
   const safe = Array.isArray(filas) ? filas : [];
   const normalizadas = safe
     .map((fila) => {
@@ -106,23 +136,26 @@ const normalizarFilas = (filas: PedidoItem[] | null | undefined): PedidoItem[] =
 
 const mergeDesdeNube = (
   rows: PedidoProveedorRow[],
-  lista: string[]
+  lista: string[],
 ): Record<string, PedidoItem[]> => {
-  const nombres = ordenarProveedores([...lista, ...rows.map((r) => r.proveedor)]);
+  const nombres = ordenarProveedores([
+    ...lista,
+    ...rows.map((r) => r.proveedor),
+  ]);
   return nombres.reduce(
     (acc, proveedor) => {
       const row = rows.find((r) => r.proveedor === proveedor);
       acc[proveedor] = normalizarFilas(row?.items);
       return acc;
     },
-    {} as Record<string, PedidoItem[]>
+    {} as Record<string, PedidoItem[]>,
   );
 };
 
 function expandirHuecos<T>(
   record: Record<string, T>,
   lista: string[],
-  factory: () => T
+  factory: () => T,
 ): Record<string, T> {
   const next = { ...record };
   for (const p of lista) {
@@ -139,7 +172,7 @@ const crearEditadoVacio = (): Record<Proveedor, string | null> =>
       acc[proveedor] = null;
       return acc;
     },
-    {} as Record<Proveedor, string | null>
+    {} as Record<Proveedor, string | null>,
   );
 
 const cargarEditadoPorProveedor = (): Record<Proveedor, string | null> => {
@@ -188,7 +221,7 @@ const cargarVistasPorProveedor = (): Record<Proveedor, VistaProveedor> => {
       acc[p] = "editable";
       return acc;
     },
-    {} as Record<Proveedor, VistaProveedor>
+    {} as Record<Proveedor, VistaProveedor>,
   );
   if (typeof window === "undefined") {
     return base;
@@ -252,7 +285,7 @@ const segmentoDeFila = (f: PedidoItem): SegmentoPedido => {
  */
 const segmentarFilasPedido = (
   filas: PedidoItem[],
-  filaCongelada?: { id: string; segmento: SegmentoPedido } | null
+  filaCongelada?: { id: string; segmento: SegmentoPedido } | null,
 ) => {
   const conNombreYcantidad: PedidoItem[] = [];
   const conNombreSinCantidad: PedidoItem[] = [];
@@ -276,7 +309,7 @@ const segmentarFilasPedido = (
 /** Solo líneas que el proveedor efectivamente lleva en el mensaje copiado. */
 const filasPedidoParaCopiar = (filas: PedidoItem[]) =>
   filas.filter(
-    (f) => f.item.trim().length > 0 && !esCantidadCeroOVacia(f.cantidad)
+    (f) => f.item.trim().length > 0 && !esCantidadCeroOVacia(f.cantidad),
   );
 
 /** Texto introductorio en modo Lista (mismo que se copia al portapapeles antes del listado). */
@@ -317,7 +350,7 @@ const preambleListaPedidoPorProveedor = (proveedor: Proveedor): string => {
 };
 
 const textoPedidoComprimido = (
-  filas: PedidoItem[]
+  filas: PedidoItem[],
 ): { texto: string; lineas: number } => {
   const lineasTexto = filasPedidoParaCopiar(filas).map((f) => {
     const item = f.item.trim();
@@ -333,7 +366,7 @@ const textoPedidoComprimido = (
 /** Encabezado del mensaje + líneas del pedido (para copiar/pegar en WhatsApp u otro canal). */
 const textoListaParaPortapapeles = (
   proveedor: Proveedor,
-  filas: PedidoItem[]
+  filas: PedidoItem[],
 ): string => {
   const preamble = preambleListaPedidoPorProveedor(proveedor);
   const { texto } = textoPedidoComprimido(filas);
@@ -344,15 +377,60 @@ const textoListaParaPortapapeles = (
   return `${preamble}${texto}`;
 };
 
+const OPCIONES_UNIDAD = UNIDADES.map((u) => ({ valor: u, label: u }));
+
+/** Estilos compartidos de la lista agrupada y de los títulos de grupo. */
+const LISTA =
+  "overflow-hidden rounded-card bg-surface-3 shadow-[0_1px_2px_rgb(0_0_0/0.04)]";
+const TITULO_GRUPO =
+  "text-[0.8rem] font-semibold uppercase tracking-[0.07em] text-label-3";
+
+/** Botón chico dentro de la fila que abre la hoja de unidades (en vez del select nativo). */
+function SelectorUnidad(props: {
+  valor: UnidadMedida;
+  onChange: (unidad: UnidadMedida) => void;
+}) {
+  const { valor, onChange } = props;
+  const [abierta, setAbierta] = useState(false);
+  return (
+    <>
+      <button
+        type="button"
+        aria-haspopup="dialog"
+        aria-label={`Unidad: ${valor}`}
+        onClick={() => {
+          vibrar();
+          setAbierta(true);
+        }}
+        className="inline-flex h-11 w-[6.25rem] shrink-0 items-center justify-between gap-1 rounded-[0.65rem] bg-fill pl-3 pr-2 text-[0.94rem] text-label transition active:scale-[0.97]"
+      >
+        {valor}
+        <ChevronDown className="h-4 w-4 text-label-3" aria-hidden />
+      </button>
+      <HojaOpciones
+        abierta={abierta}
+        onCerrar={() => setAbierta(false)}
+        titulo="Unidad"
+        opciones={OPCIONES_UNIDAD}
+        valor={valor}
+        onElegir={onChange}
+      />
+    </>
+  );
+}
+
 function PedidoFilaEditableRow(props: {
   proveedor: Proveedor;
   fila: PedidoItem;
   actualizarFila: (
     proveedor: Proveedor,
     itemId: string,
-    patch: Partial<PedidoItem>
+    patch: Partial<PedidoItem>,
   ) => void;
-  solicitarEliminarFila: (proveedor: Proveedor, itemId: string) => void;
+  solicitarEliminarFila: (
+    proveedor: Proveedor,
+    itemId: string,
+  ) => void | Promise<void>;
   /** Añadir fila: enfoca nombre y hace scroll; se consume al aplicar. */
   enfocarNombre?: boolean;
   onEnfocarNombreConsumido?: () => void;
@@ -373,8 +451,7 @@ function PedidoFilaEditableRow(props: {
   } = props;
   const itemRef = useRef<HTMLInputElement>(null);
   const cantidadRef = useRef<HTMLInputElement>(null);
-  const onEnfocarNombreConsumidoRef = useRef(onEnfocarNombreConsumido);
-  onEnfocarNombreConsumidoRef.current = onEnfocarNombreConsumido;
+  const alConsumirFoco = useEffectEvent(() => onEnfocarNombreConsumido?.());
 
   useEffect(() => {
     if (!enfocarNombre) {
@@ -383,14 +460,14 @@ function PedidoFilaEditableRow(props: {
     const id = requestAnimationFrame(() => {
       itemRef.current?.focus();
       itemRef.current?.scrollIntoView({ block: "nearest", behavior: "smooth" });
-      onEnfocarNombreConsumidoRef.current?.();
+      alConsumirFoco();
     });
     return () => cancelAnimationFrame(id);
   }, [enfocarNombre, fila.id]);
 
   return (
-    <div
-      className="flex flex-wrap items-center gap-2 rounded-lg border border-zinc-800 bg-zinc-900/50 px-2 py-2"
+    <li
+      className="flex flex-wrap items-center gap-x-2 gap-y-0.5 border-b border-separator py-1.5 pl-2 pr-1.5 last:border-0 sm:flex-nowrap"
       onFocus={() => onFilaEnfocada?.(fila)}
       onBlur={(e) => {
         if (!e.currentTarget.contains(e.relatedTarget as Node | null)) {
@@ -410,8 +487,10 @@ function PedidoFilaEditableRow(props: {
             cantidadRef.current?.focus();
           }
         }}
-        placeholder="Item"
-        className="min-w-[10rem] flex-1 rounded-md border border-zinc-700 bg-zinc-950 px-2.5 py-2 text-sm text-zinc-100 outline-none transition focus:border-zinc-500"
+        aria-label="Ítem"
+        placeholder="Ítem"
+        enterKeyHint="next"
+        className="min-h-11 w-full min-w-0 rounded-[0.65rem] bg-transparent px-2 text-[1rem] text-label outline-none ring-accent/60 transition placeholder:text-label-3 focus:bg-fill focus:ring-2 sm:w-auto sm:flex-1"
       />
       <input
         ref={cantidadRef}
@@ -419,66 +498,64 @@ function PedidoFilaEditableRow(props: {
         onChange={(e) =>
           actualizarFila(proveedor, fila.id, { cantidad: e.target.value })
         }
-        placeholder="Cantidad"
+        aria-label="Cantidad"
+        placeholder="Cant."
         inputMode="decimal"
-        className="w-24 shrink-0 rounded-md border border-zinc-700 bg-zinc-950 px-2 py-2 text-center text-sm text-zinc-100 outline-none transition focus:border-zinc-500"
+        className="h-11 w-[4.75rem] shrink-0 rounded-[0.65rem] bg-fill px-2 text-right font-mono text-[1.02rem] tabular-nums text-label outline-none ring-accent/60 placeholder:font-sans placeholder:text-[0.9rem] placeholder:text-label-3 focus:ring-2"
       />
-      <select
-        value={fila.unidad}
-        onChange={(e) =>
-          actualizarFila(proveedor, fila.id, {
-            unidad: e.target.value as UnidadMedida,
-          })
-        }
-        className="w-24 shrink-0 rounded-md border border-zinc-700 bg-zinc-950 px-2 py-2 text-sm text-zinc-100 outline-none transition focus:border-zinc-500"
-      >
-        {UNIDADES.map((unidad) => (
-          <option key={unidad} value={unidad}>
-            {unidad}
-          </option>
-        ))}
-      </select>
-      <button
-        type="button"
-        onClick={() => solicitarEliminarFila(proveedor, fila.id)}
-        className="inline-flex shrink-0 items-center justify-center rounded-md border border-transparent p-2 text-zinc-500 transition hover:border-zinc-700 hover:text-red-300"
-        aria-label="Eliminar fila de pedido"
-      >
-        <Trash2 className="h-4 w-4" />
-      </button>
-    </div>
+      <SelectorUnidad
+        valor={fila.unidad}
+        onChange={(unidad) => actualizarFila(proveedor, fila.id, { unidad })}
+      />
+      <BotonIcono
+        etiqueta="Eliminar línea"
+        variante="plano"
+        icono={<Trash2 className="h-[18px] w-[18px]" aria-hidden />}
+        onClick={() => void solicitarEliminarFila(proveedor, fila.id)}
+        className="ml-auto hover:text-danger"
+      />
+    </li>
   );
 }
 
 export default function PedidosPage() {
   const [proveedores, setProveedores] = useState<Proveedor[]>([...PROVEEDORES]);
-  const [pedidosPorProveedor, setPedidosPorProveedor] = useState<
-    Record<string, PedidoItem[]>
-  >(cargarEstadoInicial);
+  const [pedidosPorProveedor, setPedidosPorProveedor] =
+    useState<Record<string, PedidoItem[]>>(cargarEstadoInicial);
   const [isSyncing, setIsSyncing] = useState(false);
   const [syncError, setSyncError] = useState<string | null>(null);
   const [lastSyncLabel, setLastSyncLabel] = useState<string | null>(null);
-  const [vistaPorProveedor, setVistaPorProveedor] =
-    useState<Record<Proveedor, VistaProveedor>>(cargarVistasPorProveedor);
-  const [editadoPorProveedor, setEditadoPorProveedor] =
-    useState<Record<Proveedor, string | null>>(cargarEditadoPorProveedor);
+  const [vistaPorProveedor, setVistaPorProveedor] = useState<
+    Record<Proveedor, VistaProveedor>
+  >(cargarVistasPorProveedor);
+  const [editadoPorProveedor, setEditadoPorProveedor] = useState<
+    Record<Proveedor, string | null>
+  >(cargarEditadoPorProveedor);
   /** Fila que se está editando: queda fija en su grupo hasta perder el foco. */
-  const [filaCongelada, setFilaCongelada] =
-    useState<{ id: string; segmento: SegmentoPedido } | null>(null);
-  const [copiadoProveedor, setCopiadoProveedor] = useState<Proveedor | null>(null);
+  const [filaCongelada, setFilaCongelada] = useState<{
+    id: string;
+    segmento: SegmentoPedido;
+  } | null>(null);
+  const [copiadoProveedor, setCopiadoProveedor] = useState<Proveedor | null>(
+    null,
+  );
   /** Id de fila recién añadida para enfocar el nombre (único en la página; no filtrar por proveedor). */
   const [focoFilaNuevaId, setFocoFilaNuevaId] = useState<string | null>(null);
   const [bulkProveedor, setBulkProveedor] = useState<Proveedor | null>(null);
   const [bulkText, setBulkText] = useState("");
-  const [bulkUnidadDefault, setBulkUnidadDefault] = useState<UnidadMedida>("Unidad");
+  const [bulkUnidadDefault, setBulkUnidadDefault] =
+    useState<UnidadMedida>("Unidad");
   const copiadoTimerRef = useRef<number | null>(null);
+  const { aviso, confirmar } = useAvisos();
   const cargadoRemotoRef = useRef(false);
   const timerSyncRef = useRef<number | null>(null);
 
   useEffect(() => {
     const cargarDesdeNube = async () => {
       const [remote, lista] = await Promise.all([
-        supabase.from("pedidos_proveedores").select("proveedor, items, updated_at"),
+        supabase
+          .from("pedidos_proveedores")
+          .select("proveedor, items, updated_at"),
         fetchProveedores().catch(() => [...PROVEEDORES]),
       ]);
 
@@ -496,7 +573,7 @@ export default function PedidosPage() {
       setProveedores(listaFinal);
       setPedidosPorProveedor(mergeDesdeNube(rows, listaFinal));
       setVistaPorProveedor((prev) =>
-        expandirHuecos(prev, listaFinal, () => "editable" as VistaProveedor)
+        expandirHuecos(prev, listaFinal, () => "editable" as VistaProveedor),
       );
       setEditadoPorProveedor((prev) => {
         const next = expandirHuecos(prev, listaFinal, () => null);
@@ -516,7 +593,10 @@ export default function PedidosPage() {
 
   useEffect(() => {
     try {
-      window.localStorage.setItem(STORAGE_KEY, JSON.stringify(pedidosPorProveedor));
+      window.localStorage.setItem(
+        STORAGE_KEY,
+        JSON.stringify(pedidosPorProveedor),
+      );
     } catch {
       // Ignora errores de almacenamiento para no bloquear la carga de pedidos.
     }
@@ -524,7 +604,10 @@ export default function PedidosPage() {
 
   useEffect(() => {
     try {
-      window.localStorage.setItem(STORAGE_VISTAS_KEY, JSON.stringify(vistaPorProveedor));
+      window.localStorage.setItem(
+        STORAGE_VISTAS_KEY,
+        JSON.stringify(vistaPorProveedor),
+      );
     } catch {
       // Ignora.
     }
@@ -534,7 +617,7 @@ export default function PedidosPage() {
     try {
       window.localStorage.setItem(
         STORAGE_EDITADO_KEY,
-        JSON.stringify(editadoPorProveedor)
+        JSON.stringify(editadoPorProveedor),
       );
     } catch {
       // Ignora.
@@ -563,6 +646,11 @@ export default function PedidosPage() {
     return () => window.removeEventListener("keydown", onKey);
   }, [bulkProveedor]);
 
+  // La fecha de edición se lee al sincronizar; no es un disparador de la sincronización.
+  const fechaEdicion = useEffectEvent(
+    (proveedor: string) => editadoPorProveedor[proveedor],
+  );
+
   useEffect(() => {
     if (!cargadoRemotoRef.current) {
       return;
@@ -578,8 +666,7 @@ export default function PedidosPage() {
         const payload = proveedores.map((proveedor) => ({
           proveedor,
           items: pedidosPorProveedor[proveedor] ?? [crearItem()],
-          updated_at:
-            editadoPorProveedor[proveedor] ?? new Date().toISOString(),
+          updated_at: fechaEdicion(proveedor) ?? new Date().toISOString(),
         }));
         const { error } = await supabase
           .from("pedidos_proveedores")
@@ -592,7 +679,12 @@ export default function PedidosPage() {
         }
 
         setSyncError(null);
-        setLastSyncLabel(new Date().toLocaleTimeString("es-ES", { hour: "2-digit", minute: "2-digit" }));
+        setLastSyncLabel(
+          new Date().toLocaleTimeString("es-ES", {
+            hour: "2-digit",
+            minute: "2-digit",
+          }),
+        );
         setIsSyncing(false);
       };
       void sync();
@@ -609,9 +701,10 @@ export default function PedidosPage() {
     return proveedores.reduce(
       (acc, proveedor) =>
         acc +
-        (pedidosPorProveedor[proveedor] ?? []).filter((fila) => fila.item.trim().length > 0)
-          .length,
-      0
+        (pedidosPorProveedor[proveedor] ?? []).filter(
+          (fila) => fila.item.trim().length > 0,
+        ).length,
+      0,
     );
   }, [pedidosPorProveedor, proveedores]);
 
@@ -633,7 +726,7 @@ export default function PedidosPage() {
     setFilaCongelada((prev) =>
       prev?.id === fila.id
         ? prev
-        : { id: fila.id, segmento: segmentoDeFila(fila) }
+        : { id: fila.id, segmento: segmentoDeFila(fila) },
     );
   };
 
@@ -644,12 +737,12 @@ export default function PedidosPage() {
   const actualizarFila = (
     proveedor: Proveedor,
     itemId: string,
-    patch: Partial<PedidoItem>
+    patch: Partial<PedidoItem>,
   ) => {
     setPedidosPorProveedor((actual) => ({
       ...actual,
       [proveedor]: actual[proveedor].map((fila) =>
-        fila.id === itemId ? { ...fila, ...patch } : fila
+        fila.id === itemId ? { ...fila, ...patch } : fila,
       ),
     }));
     marcarEditado(proveedor);
@@ -708,43 +801,54 @@ export default function PedidosPage() {
       const filas = actual[proveedor];
       return {
         ...actual,
-        [proveedor]: filas.length <= 1 ? [crearItem()] : filas.filter((f) => f.id !== itemId),
+        [proveedor]:
+          filas.length <= 1
+            ? [crearItem()]
+            : filas.filter((f) => f.id !== itemId),
       };
     });
     marcarEditado(proveedor);
   };
 
-  const solicitarEliminarFila = (
+  const solicitarEliminarFila = async (
     proveedor: Proveedor,
-    itemId: string
+    itemId: string,
   ) => {
-    const ok = window.confirm(
-      "¿Eliminar esta línea del pedido? Si es la última fila, quedará una línea vacía para seguir cargando."
-    );
+    const nombre = pedidosPorProveedor[proveedor]
+      ?.find((f) => f.id === itemId)
+      ?.item.trim();
+    const ok = await confirmar({
+      titulo: nombre ? `¿Eliminar «${nombre}»?` : "¿Eliminar esta línea?",
+      texto: "Si es la última, queda una línea vacía para seguir cargando.",
+      confirmar: "Eliminar",
+      peligro: true,
+    });
     if (!ok) {
       return;
     }
     quitarFila(proveedor, itemId);
   };
 
-  const solicitarEliminarTodasSinCantidad = (proveedor: Proveedor) => {
+  const solicitarEliminarTodasSinCantidad = async (proveedor: Proveedor) => {
     const n = pedidosPorProveedor[proveedor].filter(
-      (f) => f.item.trim().length > 0 && esCantidadCeroOVacia(f.cantidad)
+      (f) => f.item.trim().length > 0 && esCantidadCeroOVacia(f.cantidad),
     ).length;
     if (n === 0) {
       return;
     }
-    const ok = window.confirm(
-      `¿Eliminar las ${n} líneas con cantidad vacía o 0 para ${proveedor}?`
-    );
+    const ok = await confirmar({
+      titulo: `¿Borrar ${n} ${n === 1 ? "línea" : "líneas"} sin cantidad?`,
+      texto: `Son las de ${proveedor} con cantidad vacía o 0.`,
+      confirmar: "Borrar todas",
+      peligro: true,
+    });
     if (!ok) {
       return;
     }
     setPedidosPorProveedor((actual) => {
       const filas = actual[proveedor];
       const purgado = filas.filter(
-        (f) =>
-          !(f.item.trim().length > 0 && esCantidadCeroOVacia(f.cantidad))
+        (f) => !(f.item.trim().length > 0 && esCantidadCeroOVacia(f.cantidad)),
       );
       return {
         ...actual,
@@ -759,15 +863,21 @@ export default function PedidosPage() {
   };
 
   const copiarTextoProveedor = async (proveedor: Proveedor) => {
-    const filasParaLog = filasPedidoParaCopiar(pedidosPorProveedor[proveedor]).map((f) => ({
+    const filasParaLog = filasPedidoParaCopiar(
+      pedidosPorProveedor[proveedor],
+    ).map((f) => ({
       item: f.item.trim(),
       cantidad: f.cantidad.trim(),
       unidad: f.unidad,
     }));
-    const texto = textoListaParaPortapapeles(proveedor, pedidosPorProveedor[proveedor]);
+    const texto = textoListaParaPortapapeles(
+      proveedor,
+      pedidosPorProveedor[proveedor],
+    );
     try {
       await navigator.clipboard.writeText(texto);
       void registrarPedidoEnviado(proveedor, filasParaLog);
+      aviso(`Pedido de ${proveedor} copiado`, { tono: "exito" });
       setCopiadoProveedor(proveedor);
       if (copiadoTimerRef.current) {
         window.clearTimeout(copiadoTimerRef.current);
@@ -781,394 +891,371 @@ export default function PedidosPage() {
     }
   };
 
+  const estadoSync = isSyncing
+    ? "Guardando…"
+    : lastSyncLabel
+      ? `Guardado ${lastSyncLabel}`
+      : null;
+
+  const renderFilas = (proveedor: Proveedor, filas: PedidoItem[]) =>
+    filas.map((fila) => (
+      <PedidoFilaEditableRow
+        key={fila.id}
+        proveedor={proveedor}
+        fila={fila}
+        actualizarFila={actualizarFila}
+        solicitarEliminarFila={solicitarEliminarFila}
+        enfocarNombre={focoFilaNuevaId === fila.id}
+        onEnfocarNombreConsumido={() => setFocoFilaNuevaId(null)}
+        onFilaEnfocada={congelarFila}
+        onFilaDesenfocada={descongelarFila}
+      />
+    ));
+
   return (
-    <main className="min-h-screen min-w-0 bg-zinc-950 px-4 py-6 text-zinc-100 sm:px-6 sm:py-10">
-      <section className="mx-auto w-full max-w-5xl rounded-2xl border border-zinc-800 bg-zinc-900/60 p-6 shadow-[0_0_0_1px_rgba(255,255,255,0.02)] backdrop-blur">
-        <header className="mb-6">
-          <h1 className="font-display text-3xl font-medium tracking-tight text-ink">Pedidos</h1>
-          <p className="mt-1 text-sm text-zinc-400">
-            Carga rápida por proveedor, vista Lista para copiar, y en Editar{" "}
-            <span className="text-zinc-300">Agregar muchos</span> para pegar listas largas (vinos,
-            sake, referencias). Las líneas sin cantidad quedan abajo para completar o borrar en
-            bloque con <span className="text-zinc-300">Borrar todas</span>.
+    <Pantalla
+      titulo="Pedidos"
+      subtitulo={`${totalItemsCargados} ${totalItemsCargados === 1 ? "ítem" : "ítems"}${
+        estadoSync ? ` · ${estadoSync}` : ""
+      }`}
+      ancho="amplio"
+      ayuda={
+        <>
+          <p>Cada proveedor tiene su pedido. Los cambios se guardan solos.</p>
+          <p>
+            En <strong className="text-label">Editar</strong> cargás ítem,
+            cantidad y unidad. Con{" "}
+            <strong className="text-label">Agregar muchos</strong> pegás listas
+            largas (vinos, sake, referencias).
           </p>
-          <p className="mt-1 text-xs text-zinc-500">
-            Ítems cargados: <span className="font-medium text-zinc-300">{totalItemsCargados}</span>
+          <p>
+            Las líneas sin cantidad (o con 0) quedan abajo para completarlas o
+            borrarlas juntas con{" "}
+            <strong className="text-label">Borrar todas</strong>.
           </p>
-          <p className="mt-1 text-xs text-zinc-500">
-            {isSyncing
-              ? "Sincronizando con Supabase..."
-              : lastSyncLabel
-                ? `Sincronizado a las ${lastSyncLabel}`
-                : "Sin cambios sincronizados todavía"}
+          <p>
+            En <strong className="text-label">Lista</strong> ves el pedido como
+            se manda. <strong className="text-label">Copiar pedido</strong>{" "}
+            copia el mensaje y las líneas con cantidad, en formato{" "}
+            <span className="font-mono text-[0.9rem] text-label">
+              Ítem: cantidad unidad
+            </span>
+            .
           </p>
-        </header>
+        </>
+      }
+    >
+      {syncError ? (
+        <div
+          role="alert"
+          className="mb-4 flex gap-3 rounded-card bg-danger-soft px-4 py-3 text-[0.94rem] text-danger"
+        >
+          <CircleAlert
+            className="mt-0.5 h-[18px] w-[18px] shrink-0"
+            aria-hidden
+          />
+          <p className="min-w-0 flex-1">{syncError}</p>
+        </div>
+      ) : null}
 
-        {syncError ? (
-          <p className="mb-4 rounded-lg border border-red-900/70 bg-red-950/50 px-3 py-2 text-sm text-red-200">
-            {syncError}
-          </p>
-        ) : null}
-
-        <div className="grid gap-4 sm:grid-cols-2">
-          {proveedores.map((proveedor) => {
-            const { conNombreYcantidad, conNombreSinCantidad, borradorVacio } =
-              segmentarFilasPedido(pedidosPorProveedor[proveedor] ?? [crearItem()], filaCongelada);
-            const ultimaEdicion = formatearFechaEdicion(editadoPorProveedor[proveedor]);
-            return (
-            <section
-              key={proveedor}
-              className="rounded-xl border border-zinc-800 bg-zinc-950/60 p-4"
-            >
-              <div className="mb-3 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-                <div className="flex flex-wrap items-center gap-2">
-                  <h2 className="text-sm uppercase tracking-[0.14em] text-zinc-400">
+      <div className="mt-2 grid items-start gap-y-10 lg:grid-cols-2 lg:gap-x-8">
+        {proveedores.map((proveedor) => {
+          const { conNombreYcantidad, conNombreSinCantidad, borradorVacio } =
+            segmentarFilasPedido(
+              pedidosPorProveedor[proveedor] ?? [crearItem()],
+              filaCongelada,
+            );
+          const ultimaEdicion = formatearFechaEdicion(
+            editadoPorProveedor[proveedor],
+          );
+          const vista = vistaPorProveedor[proveedor] ?? "editable";
+          const copiado = copiadoProveedor === proveedor;
+          return (
+            <section key={proveedor} className="min-w-0">
+              <div className="mb-3 flex items-end justify-between gap-3 px-1">
+                <div className="min-w-0">
+                  <h2 className="truncate font-display text-[1.6rem] font-semibold leading-tight text-label">
                     {proveedor}
                   </h2>
-                  <div className="inline-flex rounded-lg border border-zinc-700 bg-zinc-900 p-0.5">
-                    <button
-                      type="button"
-                      onClick={() => setVistaProveedor(proveedor, "editable")}
-                      className={`inline-flex items-center gap-1 rounded-md px-2 py-1 text-xs font-medium transition ${
-                        vistaPorProveedor[proveedor] === "editable"
-                          ? "border border-zinc-500 bg-zinc-800 text-zinc-50"
-                          : "border border-transparent text-zinc-400 hover:text-zinc-200"
-                      }`}
-                    >
-                      <Pencil className="h-3 w-3" aria-hidden />
-                      Editar
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => setVistaProveedor(proveedor, "lista")}
-                      className={`inline-flex items-center gap-1 rounded-md px-2 py-1 text-xs font-medium transition ${
-                        vistaPorProveedor[proveedor] === "lista"
-                          ? "border border-zinc-500 bg-zinc-800 text-zinc-50"
-                          : "border border-transparent text-zinc-400 hover:text-zinc-200"
-                      }`}
-                    >
-                      <List className="h-3 w-3" aria-hidden />
-                      Lista
-                    </button>
-                  </div>
-                </div>
-                {vistaPorProveedor[proveedor] === "editable" ? (
-                  <div className="flex w-full flex-wrap gap-2 sm:w-auto sm:justify-end">
-                    <button
-                      type="button"
-                      onClick={() => agregarFila(proveedor)}
-                      className="inline-flex min-w-[7rem] flex-1 items-center justify-center gap-1.5 rounded-lg border border-zinc-700 bg-zinc-900 px-2.5 py-1.5 text-xs text-zinc-200 transition hover:border-zinc-500 hover:text-white sm:flex-initial"
-                    >
-                      <Plus className="h-3.5 w-3.5" />
-                      Añadir
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => abrirModalBulk(proveedor)}
-                      className="inline-flex min-w-[7rem] flex-1 items-center justify-center gap-1.5 rounded-lg border border-emerald-900/50 bg-emerald-950/40 px-2.5 py-1.5 text-xs font-medium text-emerald-100 transition hover:border-emerald-700/60 hover:bg-emerald-900/35 sm:flex-initial"
-                    >
-                      <ListPlus className="h-3.5 w-3.5" aria-hidden />
-                      Agregar muchos
-                    </button>
-                  </div>
-                ) : null}
-              </div>
-
-              <p className="-mt-1 mb-3 text-[10px] text-zinc-600">
-                {ultimaEdicion
-                  ? `Última edición: ${ultimaEdicion}`
-                  : "Sin ediciones todavía"}
-              </p>
-
-              {vistaPorProveedor[proveedor] === "editable" ? (
-                <div className="space-y-2">
-                  {conNombreYcantidad.map((fila) => (
-                    <PedidoFilaEditableRow
-                      key={fila.id}
-                      proveedor={proveedor}
-                      fila={fila}
-                      actualizarFila={actualizarFila}
-                      solicitarEliminarFila={solicitarEliminarFila}
-                      enfocarNombre={focoFilaNuevaId === fila.id}
-                      onEnfocarNombreConsumido={() => setFocoFilaNuevaId(null)}
-                      onFilaEnfocada={congelarFila}
-                      onFilaDesenfocada={descongelarFila}
-                    />
-                  ))}
-                  {conNombreSinCantidad.length > 0 ? (
-                    <>
-                      <div className="flex flex-wrap items-center justify-between gap-2 border-t border-zinc-800/80 pt-3 mt-2">
-                        <p className="text-[10px] font-semibold uppercase tracking-[0.12em] text-zinc-500">
-                          Cantidad 0 o vacía
-                        </p>
-                        <button
-                          type="button"
-                          onClick={() => solicitarEliminarTodasSinCantidad(proveedor)}
-                          className="rounded-md border border-zinc-700 px-2 py-1 text-[11px] font-medium text-zinc-400 transition hover:border-red-900/70 hover:bg-red-950/30 hover:text-red-300"
-                        >
-                          Borrar todas ({conNombreSinCantidad.length})
-                        </button>
-                      </div>
-                      {conNombreSinCantidad.map((fila) => (
-                        <PedidoFilaEditableRow
-                          key={fila.id}
-                          proveedor={proveedor}
-                          fila={fila}
-                          actualizarFila={actualizarFila}
-                          solicitarEliminarFila={solicitarEliminarFila}
-                          enfocarNombre={focoFilaNuevaId === fila.id}
-                          onEnfocarNombreConsumido={() => setFocoFilaNuevaId(null)}
-                          onFilaEnfocada={congelarFila}
-                          onFilaDesenfocada={descongelarFila}
-                        />
-                      ))}
-                    </>
-                  ) : null}
-                  {borradorVacio.map((fila) => (
-                    <PedidoFilaEditableRow
-                      key={fila.id}
-                      proveedor={proveedor}
-                      fila={fila}
-                      actualizarFila={actualizarFila}
-                      solicitarEliminarFila={solicitarEliminarFila}
-                      enfocarNombre={focoFilaNuevaId === fila.id}
-                      onEnfocarNombreConsumido={() => setFocoFilaNuevaId(null)}
-                      onFilaEnfocada={congelarFila}
-                      onFilaDesenfocada={descongelarFila}
-                    />
-                  ))}
-                </div>
-              ) : (
-                <div className="space-y-3">
-                  <section className="rounded-lg border border-zinc-800/90 bg-zinc-950/50 px-3 py-2.5">
-                    <h3 className="text-[10px] font-semibold uppercase tracking-[0.16em] text-zinc-500">
-                      Mensaje
-                    </h3>
-                    <p className="mt-1.5 whitespace-pre-wrap text-[13px] leading-relaxed text-zinc-200">
-                      {preambleListaPedidoPorProveedor(proveedor).trimEnd()}
-                    </p>
-                  </section>
-                  <div className="border-t border-zinc-800/80 pt-10">
-                    <p className="mb-2 text-[10px] font-semibold uppercase tracking-[0.14em] text-zinc-500">
-                      Pedido
-                    </p>
-                    <div className="space-y-2.5">
-                      <section className="rounded-lg border border-zinc-800/90 bg-zinc-950/50 px-3 py-2.5">
-                        <h3 className="text-[10px] font-semibold uppercase tracking-[0.16em] text-zinc-500">
-                          Ítems a pedir
-                        </h3>
-                        {conNombreYcantidad.length === 0 &&
-                        conNombreSinCantidad.length === 0 ? (
-                          <p className="mt-1.5 text-xs italic text-zinc-600">Sin ítems</p>
-                        ) : conNombreYcantidad.length === 0 ? (
-                          <p className="mt-1.5 text-xs italic text-zinc-600">
-                            Nada con cantidad cargada — al copiar irá sólo el mensaje de arriba hasta que
-                            cargues números
-                          </p>
-                        ) : (
-                          <ul className="mt-1.5 list-outside list-disc space-y-0.5 pl-4 text-[13px] leading-snug marker:text-[11px] marker:text-zinc-500">
-                            {conNombreYcantidad.map((fila) => (
-                              <li key={fila.id} className="pl-1 text-zinc-100">
-                                <span className="font-medium">{fila.item.trim()}</span>
-                                <span className="text-zinc-500"> · </span>
-                                <span className="tabular-nums text-zinc-200">
-                                  {fila.cantidad.trim() || "—"}
-                                </span>
-                                <span className="text-zinc-400"> {fila.unidad}</span>
-                              </li>
-                            ))}
-                          </ul>
-                        )}
-                      </section>
-                      {conNombreSinCantidad.length > 0 ? (
-                        <section className="rounded-lg border border-zinc-800/70 bg-zinc-950/35 px-3 py-2.5">
-                          <h3 className="text-[10px] font-semibold uppercase tracking-[0.16em] text-zinc-500">
-                            Cantidad 0 o vacía
-                          </h3>
-                          <p className="mt-0.5 text-[11px] text-zinc-600">
-                            No entran en el texto copiado. En Editar están abajo para borrarlas seguidas.
-                          </p>
-                          <ul className="mt-1.5 list-outside list-disc space-y-0.5 pl-4 text-[13px] leading-snug marker:text-[11px] marker:text-zinc-500">
-                            {conNombreSinCantidad.map((fila) => (
-                              <li key={fila.id} className="pl-1 text-zinc-400">
-                                <span className="font-medium text-zinc-300">{fila.item.trim()}</span>
-                                <span className="text-zinc-600"> · </span>
-                                <span className="tabular-nums text-zinc-500">
-                                  {fila.cantidad.trim() || "—"}
-                                </span>
-                                <span className="text-zinc-500"> {fila.unidad}</span>
-                              </li>
-                            ))}
-                          </ul>
-                        </section>
-                      ) : null}
-                    </div>
-                  </div>
-                  <div className="flex flex-wrap items-center gap-2">
-                    <button
-                      type="button"
-                      onClick={() => void copiarTextoProveedor(proveedor)}
-                      className="inline-flex items-center gap-1.5 rounded-lg border border-zinc-600 bg-zinc-800 px-3 py-2 text-xs font-medium text-zinc-100 transition hover:border-zinc-500 hover:bg-zinc-700"
-                    >
-                      <Clipboard className="h-3.5 w-3.5" aria-hidden />
-                      Copiar al portapapeles
-                    </button>
-                    {copiadoProveedor === proveedor ? (
-                      <span className="text-xs text-emerald-400">Copiado</span>
-                    ) : null}
-                  </div>
-                  <p className="text-xs text-zinc-500">
-                    <span className="text-zinc-400">Copiar</span> incluye el mensaje de arriba y las
-                    líneas con cantidad, en formato{" "}
-                    <span className="font-mono text-[11px] text-zinc-400">
-                      Ítem: cantidad unidad
-                    </span>
-                    . Volvé a <span className="text-zinc-400">Editar</span> para cambiar datos.
+                  <p className="text-[0.84rem] text-label-3">
+                    <span className="tabular-nums">
+                      {conNombreYcantidad.length}
+                    </span>{" "}
+                    a pedir ·{" "}
+                    {ultimaEdicion
+                      ? `editado ${ultimaEdicion}`
+                      : "sin ediciones"}
                   </p>
                 </div>
-              )}
-            </section>
-            );
-          })}
-        </div>
-
-        {bulkProveedor ? (
-          <div
-            className="fixed inset-0 z-[100] flex items-end justify-center bg-black/70 p-0 sm:items-center sm:p-6"
-            role="presentation"
-            onClick={(e) => {
-              if (e.target === e.currentTarget) {
-                cerrarModalBulk();
-              }
-            }}
-          >
-            <div
-              role="dialog"
-              aria-modal="true"
-              aria-labelledby="bulk-pedidos-title"
-              className="flex max-h-[min(92dvh,40rem)] w-full max-w-lg flex-col rounded-t-2xl border border-zinc-700 bg-zinc-900 shadow-2xl sm:max-h-[min(85vh,36rem)] sm:rounded-2xl"
-              onClick={(e) => e.stopPropagation()}
-            >
-              <div className="flex shrink-0 items-start justify-between gap-3 border-b border-zinc-800 px-4 py-3">
-                <div className="min-w-0 pr-2">
-                  <h2 id="bulk-pedidos-title" className="text-sm font-semibold text-white">
-                    Agregar muchos · {bulkProveedor}
-                  </h2>
-                  <p className="mt-1 text-[11px] leading-relaxed text-zinc-500">
-                    Una referencia por línea (solo nombre → cantidad vacía, queda en la zona de abajo
-                    para completar). También{" "}
-                    <span className="font-mono text-zinc-400">nombre: 6</span>,{" "}
-                    <span className="font-mono text-zinc-400">nombre: 2 Caja</span> o{" "}
-                    <span className="font-mono text-zinc-400">nombre | 1 | Unidad</span> / tab.
-                  </p>
-                </div>
-                <button
-                  type="button"
-                  onClick={() => cerrarModalBulk()}
-                  className="shrink-0 rounded-lg border border-zinc-700 p-2 text-zinc-400 transition hover:border-zinc-500 hover:text-zinc-100"
-                  aria-label="Cerrar"
-                >
-                  <X className="h-4 w-4" aria-hidden />
-                </button>
-              </div>
-
-              <div className="min-h-0 flex-1 space-y-3 overflow-y-auto overscroll-contain px-4 py-3">
-                <div>
-                  <label
-                    htmlFor="bulk-unidad-default"
-                    className="mb-1 block text-[11px] font-medium uppercase tracking-wide text-zinc-500"
-                  >
-                    Unidad por defecto (si la línea no la indica)
-                  </label>
-                  <select
-                    id="bulk-unidad-default"
-                    value={bulkUnidadDefault}
-                    onChange={(e) =>
-                      setBulkUnidadDefault(e.target.value as UnidadMedida)
-                    }
-                    className="w-full rounded-lg border border-zinc-700 bg-zinc-950 px-3 py-2 text-sm text-zinc-100 outline-none transition focus:border-zinc-500"
-                  >
-                    {UNIDADES.map((u) => (
-                      <option key={u} value={u}>
-                        {u}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-                <div>
-                  <label
-                    htmlFor="bulk-textarea"
-                    className="mb-1 block text-[11px] font-medium uppercase tracking-wide text-zinc-500"
-                  >
-                    Pegá o escribí la lista
-                  </label>
-                  <textarea
-                    id="bulk-textarea"
-                    value={bulkText}
-                    onChange={(e) => setBulkText(e.target.value)}
-                    rows={12}
-                    autoFocus
-                    spellCheck={false}
-                    className="w-full resize-y rounded-lg border border-zinc-700 bg-zinc-950 px-3 py-2 font-mono text-[13px] leading-relaxed text-zinc-100 outline-none transition placeholder:text-zinc-600 focus:border-zinc-500"
-                    placeholder={`Koshu Junmai 720ml\nOtros: 3\nSake nama | 2 | Unidad`}
+                <div className="w-[11.5rem] shrink-0">
+                  <Segmentado
+                    etiqueta={`Vista de ${proveedor}`}
+                    valor={vista}
+                    onChange={(v) => setVistaProveedor(proveedor, v)}
+                    opciones={[
+                      {
+                        valor: "editable",
+                        label: (
+                          <>
+                            <Pencil className="h-4 w-4" aria-hidden />
+                            Editar
+                          </>
+                        ),
+                      },
+                      {
+                        valor: "lista",
+                        label: (
+                          <>
+                            <List className="h-4 w-4" aria-hidden />
+                            Lista
+                          </>
+                        ),
+                      },
+                    ]}
                   />
                 </div>
-                <p className="text-xs text-zinc-400">
-                  <span className="font-semibold text-zinc-200">{lineasBulkPreview.length}</span>{" "}
-                  línea(s) reconocida(s)
-                  {lineasBulkPreview.length === 0 ? " — pegá al menos una línea con texto" : ""}
-                </p>
-                {lineasBulkPreview.length > 0 ? (
-                  <div className="rounded-lg border border-zinc-800/90 bg-zinc-950/60 px-3 py-2">
-                    <p className="text-[10px] font-semibold uppercase tracking-[0.12em] text-zinc-500">
-                      Vista previa
-                    </p>
-                    <ul className="mt-1 max-h-36 space-y-0.5 overflow-y-auto text-[11px] text-zinc-300">
-                      {lineasBulkPreview.slice(0, 15).map((l, i) => (
-                        <li key={i} className="truncate">
-                          <span className="text-zinc-600">·</span>{" "}
-                          <span className="font-medium text-zinc-100">{l.item}</span>
-                          {l.cantidad.trim() ? (
-                            <span className="text-zinc-500">
-                              {" "}
-                              → {l.cantidad} {l.unidad}
-                            </span>
-                          ) : (
-                            <span className="text-zinc-600"> (sin cantidad · {l.unidad})</span>
-                          )}
-                        </li>
-                      ))}
-                    </ul>
-                    {lineasBulkPreview.length > 15 ? (
-                      <p className="mt-1.5 text-[10px] text-zinc-600">
-                        … y {lineasBulkPreview.length - 15} más
-                      </p>
-                    ) : null}
-                  </div>
-                ) : null}
               </div>
 
-              <div className="flex shrink-0 flex-wrap gap-2 border-t border-zinc-800 bg-zinc-900/95 px-4 pb-[max(0.75rem,env(safe-area-inset-bottom,0px))] pt-3">
-                <button
-                  type="button"
-                  onClick={() => cerrarModalBulk()}
-                  className="inline-flex flex-1 items-center justify-center rounded-lg border border-zinc-600 bg-zinc-800 px-3 py-2.5 text-xs font-medium text-zinc-200 transition hover:border-zinc-500 sm:flex-initial sm:px-4"
-                >
-                  Cancelar
-                </button>
-                <button
-                  type="button"
-                  disabled={lineasBulkPreview.length === 0}
-                  onClick={() => aplicarLineasMasivas()}
-                  className="inline-flex flex-1 items-center justify-center rounded-lg border border-emerald-800/80 bg-emerald-900/50 px-3 py-2.5 text-xs font-semibold text-emerald-50 transition hover:bg-emerald-800/50 disabled:cursor-not-allowed disabled:opacity-40 sm:flex-initial sm:px-4"
-                >
-                  Agregar {lineasBulkPreview.length > 0 ? lineasBulkPreview.length : ""} al pedido
-                </button>
-              </div>
-            </div>
+              {vista === "editable" ? (
+                <>
+                  {conNombreYcantidad.length > 0 ? (
+                    <ul className={LISTA}>
+                      {renderFilas(proveedor, conNombreYcantidad)}
+                    </ul>
+                  ) : null}
+
+                  {conNombreSinCantidad.length > 0 ? (
+                    <>
+                      <div className="mb-1 mt-5 flex min-h-11 items-center justify-between gap-3 pl-1">
+                        <h3 className={TITULO_GRUPO}>Sin cantidad</h3>
+                        <Boton
+                          variante="terciario"
+                          className="-mr-2 text-danger hover:bg-danger-soft"
+                          icono={<Trash2 className="h-4 w-4" aria-hidden />}
+                          onClick={() =>
+                            void solicitarEliminarTodasSinCantidad(proveedor)
+                          }
+                        >
+                          Borrar todas ({conNombreSinCantidad.length})
+                        </Boton>
+                      </div>
+                      <ul className={LISTA}>
+                        {renderFilas(proveedor, conNombreSinCantidad)}
+                      </ul>
+                    </>
+                  ) : null}
+
+                  {borradorVacio.length > 0 ? (
+                    <ul
+                      className={cx(
+                        LISTA,
+                        (conNombreYcantidad.length > 0 ||
+                          conNombreSinCantidad.length > 0) &&
+                          "mt-3",
+                      )}
+                    >
+                      {renderFilas(proveedor, borradorVacio)}
+                    </ul>
+                  ) : null}
+
+                  <div className="mt-3 grid grid-cols-2 gap-2">
+                    <Boton
+                      variante="secundario"
+                      icono={<Plus className="h-[18px] w-[18px]" aria-hidden />}
+                      onClick={() => agregarFila(proveedor)}
+                    >
+                      Añadir
+                    </Boton>
+                    <Boton
+                      variante="secundario"
+                      icono={
+                        <ListPlus className="h-[18px] w-[18px]" aria-hidden />
+                      }
+                      onClick={() => abrirModalBulk(proveedor)}
+                    >
+                      Agregar muchos
+                    </Boton>
+                  </div>
+                </>
+              ) : (
+                <>
+                  <div className="rounded-card bg-surface-3 px-4 py-3 shadow-[0_1px_2px_rgb(0_0_0/0.04)]">
+                    <h3 className={TITULO_GRUPO}>Mensaje</h3>
+                    <p className="mt-1.5 whitespace-pre-wrap break-words text-[0.97rem] leading-relaxed text-label-2">
+                      {preambleListaPedidoPorProveedor(proveedor).trimEnd()}
+                    </p>
+                  </div>
+
+                  <div className="mb-2 mt-5 flex min-h-8 items-center px-1">
+                    <h3 className={TITULO_GRUPO}>
+                      Pedido · {conNombreYcantidad.length}
+                    </h3>
+                  </div>
+                  <ul className={LISTA}>
+                    {conNombreYcantidad.length === 0 ? (
+                      <li className="px-4 py-4 text-[0.94rem] leading-snug text-label-3">
+                        {conNombreSinCantidad.length === 0
+                          ? "Sin ítems."
+                          : "Nada con cantidad todavía. Si copiás, va solo el mensaje."}
+                      </li>
+                    ) : (
+                      conNombreYcantidad.map((fila) => (
+                        <li
+                          key={fila.id}
+                          className="flex min-h-12 items-baseline gap-3 border-b border-separator px-4 py-3 last:border-0"
+                        >
+                          <span className="min-w-0 flex-1 break-words text-[1.06rem] font-medium leading-snug text-label">
+                            {fila.item.trim()}
+                          </span>
+                          <span className="shrink-0 text-right font-mono text-[1.06rem] font-semibold tabular-nums text-label">
+                            {fila.cantidad.trim() || "—"}
+                            <span className="ml-1.5 font-sans text-[0.88rem] font-normal text-label-2">
+                              {fila.unidad}
+                            </span>
+                          </span>
+                        </li>
+                      ))
+                    )}
+                  </ul>
+
+                  {conNombreSinCantidad.length > 0 ? (
+                    <>
+                      <div className="mb-2 mt-5 flex min-h-8 items-center px-1">
+                        <h3 className={TITULO_GRUPO}>
+                          Sin cantidad · no se copian
+                        </h3>
+                      </div>
+                      <ul className={LISTA}>
+                        {conNombreSinCantidad.map((fila) => (
+                          <li
+                            key={fila.id}
+                            className="flex min-h-11 items-baseline gap-3 border-b border-separator px-4 py-2.5 text-label-3 last:border-0"
+                          >
+                            <span className="min-w-0 flex-1 break-words text-[0.97rem] leading-snug">
+                              {fila.item.trim()}
+                            </span>
+                            <span className="shrink-0 text-[0.88rem] tabular-nums">
+                              {fila.cantidad.trim() || "—"} {fila.unidad}
+                            </span>
+                          </li>
+                        ))}
+                      </ul>
+                    </>
+                  ) : null}
+
+                  <div className="sticky bottom-[calc(env(safe-area-inset-bottom,0px)+4.75rem)] z-20 -mx-4 mt-4 px-4 pb-1 sm:bottom-4 sm:mx-0 sm:px-0">
+                    <Boton
+                      ancho
+                      tamano="grande"
+                      icono={
+                        copiado ? (
+                          <Check className="h-[18px] w-[18px]" aria-hidden />
+                        ) : (
+                          <Clipboard
+                            className="h-[18px] w-[18px]"
+                            aria-hidden
+                          />
+                        )
+                      }
+                      onClick={() => void copiarTextoProveedor(proveedor)}
+                      className="shadow-[0_8px_24px_rgb(0_0_0/0.18)]"
+                    >
+                      {copiado ? "Copiado" : "Copiar pedido"}
+                    </Boton>
+                  </div>
+                </>
+              )}
+            </section>
+          );
+        })}
+      </div>
+
+      <Hoja
+        abierta={bulkProveedor !== null}
+        onCerrar={cerrarModalBulk}
+        titulo={`Agregar muchos · ${bulkProveedor ?? ""}`}
+        alto="alta"
+      >
+        <div className="space-y-4">
+          <p className="text-[0.92rem] leading-relaxed text-label-2">
+            Una referencia por línea. Si va solo el nombre, queda sin cantidad
+            para completar. También{" "}
+            <span className="font-mono text-label">nombre: 6</span>,{" "}
+            <span className="font-mono text-label">nombre: 2 Caja</span> o{" "}
+            <span className="font-mono text-label">nombre | 1 | Unidad</span> (o
+            separado por tab).
+          </p>
+          <Selector
+            label="Unidad si la línea no la indica"
+            titulo="Unidad por defecto"
+            opciones={OPCIONES_UNIDAD}
+            valor={bulkUnidadDefault}
+            onChange={setBulkUnidadDefault}
+          />
+          <AreaTexto
+            label="Pegá o escribí la lista"
+            value={bulkText}
+            onChange={(e) => setBulkText(e.target.value)}
+            rows={8}
+            autoFocus
+            spellCheck={false}
+            className="resize-y font-mono"
+            placeholder={`Koshu Junmai 720ml\nOtros: 3\nSake nama | 2 | Unidad`}
+          />
+
+          <div>
+            <p className="px-1 text-[0.94rem] text-label-2">
+              <span className="font-semibold tabular-nums text-label">
+                {lineasBulkPreview.length}
+              </span>{" "}
+              {lineasBulkPreview.length === 1
+                ? "línea reconocida"
+                : "líneas reconocidas"}
+              {lineasBulkPreview.length === 0
+                ? ". Pegá al menos una línea con texto."
+                : ""}
+            </p>
+            {lineasBulkPreview.length > 0 ? (
+              <ul className={cx(LISTA, "mt-2")}>
+                {lineasBulkPreview.slice(0, 15).map((l, i) => (
+                  <li
+                    key={i}
+                    className="flex min-h-11 items-baseline gap-3 border-b border-separator px-4 py-2.5 last:border-0"
+                  >
+                    <span className="min-w-0 flex-1 truncate text-[0.97rem] text-label">
+                      {l.item}
+                    </span>
+                    <span className="shrink-0 text-[0.88rem] tabular-nums text-label-3">
+                      {l.cantidad.trim()
+                        ? `${l.cantidad} ${l.unidad}`
+                        : `sin cantidad · ${l.unidad}`}
+                    </span>
+                  </li>
+                ))}
+              </ul>
+            ) : null}
+            {lineasBulkPreview.length > 15 ? (
+              <p className="mt-2 px-1 text-[0.84rem] text-label-3">
+                … y {lineasBulkPreview.length - 15} más
+              </p>
+            ) : null}
           </div>
-        ) : null}
-      </section>
-    </main>
+
+          <div className="sticky bottom-0 -mx-4 -mb-[calc(env(safe-area-inset-bottom,0px)+1rem)] grid grid-cols-[auto_1fr] gap-2 border-t border-separator bg-surface-2 px-4 pb-[calc(env(safe-area-inset-bottom,0px)+1rem)] pt-3">
+            <Boton variante="secundario" onClick={() => cerrarModalBulk()}>
+              Cancelar
+            </Boton>
+            <Boton
+              disabled={lineasBulkPreview.length === 0}
+              onClick={() => aplicarLineasMasivas()}
+            >
+              Agregar{" "}
+              {lineasBulkPreview.length > 0 ? lineasBulkPreview.length : ""} al
+              pedido
+            </Boton>
+          </div>
+        </div>
+      </Hoja>
+    </Pantalla>
   );
 }

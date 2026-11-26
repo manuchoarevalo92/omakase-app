@@ -1,11 +1,44 @@
 "use client";
 
-import { Suspense, FormEvent, useEffect, useState } from "react";
+import { Suspense, FormEvent, useEffect, useRef, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
-import { Loader2 } from "lucide-react";
+import { CircleAlert } from "lucide-react";
 
 import { APP_USERS } from "@/src/lib/auth-users";
 import { TemaToggle } from "@/app/components/tema-toggle";
+import { Boton, Campo, Esqueleto, cx, vibrar } from "@/app/ui";
+
+/** Marca: OMAKASE en Cormorant con la línea roja del sello. */
+function Marca() {
+  return (
+    <header className="text-center">
+      <p className="font-display text-[2.6rem] font-semibold leading-none tracking-[0.14em] text-label">
+        OMAKASE
+      </p>
+      <span
+        className="mx-auto mt-4 block h-[3px] w-10 rounded-full bg-accent"
+        aria-hidden
+      />
+      <h1 className="mt-4 text-[0.8rem] font-semibold uppercase tracking-[0.18em] text-label-3">
+        Iniciar sesión
+      </h1>
+    </header>
+  );
+}
+
+/** Mientras se verifica la sesión: la marca y el formulario en esqueleto. */
+function LoginCargando() {
+  return (
+    <div role="status" aria-label="Cargando" className="w-full max-w-sm">
+      <Marca />
+      <div className="mt-8 space-y-5">
+        <Esqueleto className="h-12 w-full" />
+        <Esqueleto className="h-12 w-full" />
+        <Esqueleto className="h-[3.25rem] w-full" />
+      </div>
+    </div>
+  );
+}
 
 function LoginForm() {
   const router = useRouter();
@@ -17,6 +50,7 @@ function LoginForm() {
   const [error, setError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [checking, setChecking] = useState(true);
+  const botonRef = useRef<HTMLButtonElement>(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -68,108 +102,108 @@ function LoginForm() {
     }
   };
 
+  /** Con el teclado abierto en el celular, que el botón Entrar quede a la vista. */
+  const mostrarBoton = () => {
+    window.setTimeout(() => {
+      botonRef.current?.scrollIntoView({
+        block: "nearest",
+        behavior: "smooth",
+      });
+    }, 300);
+  };
+
   if (checking) {
-    return (
-      <div className="flex min-h-[50vh] items-center justify-center">
-        <Loader2 className="h-8 w-8 animate-spin text-ink-400" aria-label="Cargando" />
-      </div>
-    );
+    return <LoginCargando />;
   }
 
   return (
-    <section className="animate-fade-up w-full max-w-sm border border-ink-200 bg-ink-50/80 p-7 backdrop-blur-sm">
-      <header className="text-center">
-        <p className="font-display text-[1.65rem] leading-none tracking-[0.14em] text-ink">
-          OMAKASE
-        </p>
-        <div className="mx-auto mt-3 h-px w-12 bg-seal/70" />
-        <h1 className="mt-5 text-[0.7rem] uppercase tracking-[0.22em] text-ink-400">
-          Iniciar sesión
-        </h1>
-        <p className="mt-2 text-sm text-ink-500">
-          Elegí tu usuario y la contraseña del equipo.
-        </p>
-      </header>
+    <div className="animate-fade-up w-full max-w-sm">
+      <Marca />
 
-      <form onSubmit={(e) => void onSubmit(e)} className="mt-7 space-y-4">
-        <div>
-          <label
-            htmlFor="username"
-            className="mb-1 block text-[0.65rem] font-medium uppercase tracking-[0.16em] text-ink-400"
-          >
+      <form onSubmit={(e) => void onSubmit(e)} className="mt-8 space-y-5">
+        <fieldset className="min-w-0">
+          <legend className="mb-1.5 block pl-1 text-[0.82rem] font-medium text-label-2">
             Usuario
-          </label>
-          <select
-            id="username"
-            required
-            value={username}
-            onChange={(e) => setUsername(e.target.value)}
-            className="w-full border border-ink-200 bg-paper px-3 py-2.5 text-sm text-ink outline-none focus:border-seal/60"
+          </legend>
+          <div
+            role="radiogroup"
+            aria-label="Usuario"
+            className="grid grid-cols-3 gap-2"
           >
-            <option value="">Seleccionar…</option>
-            {APP_USERS.map((u) => (
-              <option key={u.id} value={u.id}>
-                {u.displayName}
-              </option>
-            ))}
-          </select>
-        </div>
-        <div>
-          <label
-            htmlFor="password"
-            className="mb-1 block text-[0.65rem] font-medium uppercase tracking-[0.16em] text-ink-400"
-          >
-            Contraseña
-          </label>
-          <input
-            id="password"
-            type="password"
-            required
-            autoComplete="current-password"
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-            className="w-full border border-ink-200 bg-paper px-3 py-2.5 text-sm text-ink outline-none focus:border-seal/60"
-          />
-        </div>
+            {APP_USERS.map((u) => {
+              const activo = username === u.id;
+              return (
+                <button
+                  key={u.id}
+                  type="button"
+                  role="radio"
+                  aria-checked={activo}
+                  onClick={() => {
+                    if (!activo) vibrar();
+                    setUsername(u.id);
+                  }}
+                  className={cx(
+                    "inline-flex min-h-12 min-w-0 items-center justify-center truncate rounded-control px-2 text-[1rem] transition active:scale-[0.97]",
+                    activo
+                      ? "bg-accent font-semibold text-on-accent"
+                      : "bg-fill text-label hover:bg-fill-strong",
+                  )}
+                >
+                  {u.displayName}
+                </button>
+              );
+            })}
+          </div>
+        </fieldset>
+
+        <Campo
+          id="password"
+          label="Contraseña"
+          type="password"
+          required
+          autoComplete="current-password"
+          enterKeyHint="go"
+          value={password}
+          onChange={(e) => setPassword(e.target.value)}
+          onFocus={mostrarBoton}
+        />
 
         {error ? (
-          <p className="border border-seal/40 bg-seal/10 px-3 py-2 text-sm text-ink">
-            {error}
-          </p>
+          <div
+            role="alert"
+            className="flex gap-3 rounded-card bg-danger-soft px-4 py-3 text-[0.94rem] text-danger"
+          >
+            <CircleAlert
+              className="mt-0.5 h-[18px] w-[18px] shrink-0"
+              aria-hidden
+            />
+            <p className="min-w-0 flex-1">{error}</p>
+          </div>
         ) : null}
 
-        <button
+        <Boton
+          ref={botonRef}
           type="submit"
-          disabled={isSubmitting}
-          className="flex w-full items-center justify-center gap-2 bg-ink py-3.5 text-[0.7rem] tracking-[0.22em] text-paper transition hover:bg-seal disabled:opacity-60"
+          tamano="grande"
+          ancho
+          cargando={isSubmitting}
+          disabled={!username}
+          className="scroll-mb-4"
         >
-          {isSubmitting ? (
-            <>
-              <Loader2 className="h-4 w-4 animate-spin" />
-              ENTRANDO…
-            </>
-          ) : (
-            "ENTRAR"
-          )}
-        </button>
+          {isSubmitting ? "Entrando…" : "Entrar"}
+        </Boton>
       </form>
-    </section>
+    </div>
   );
 }
 
 export default function LoginPage() {
   return (
-    <main className="relative flex min-h-screen flex-col items-center justify-center px-4 py-10 text-ink">
-      <div className="absolute right-4 top-[calc(env(safe-area-inset-top,0px)+1rem)]">
+    <main className="relative flex flex-1 flex-col items-center px-5 pb-10 pt-14 text-label sm:justify-center sm:pt-10">
+      <div className="absolute right-3 top-3">
         <TemaToggle />
       </div>
-      <Suspense
-        fallback={
-          <div className="flex min-h-[50vh] items-center justify-center">
-            <Loader2 className="h-8 w-8 animate-spin text-ink-400" aria-label="Cargando" />
-          </div>
-        }
-      >
+      <Suspense fallback={<LoginCargando />}>
         <LoginForm />
       </Suspense>
     </main>
