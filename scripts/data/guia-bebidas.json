@@ -1449,14 +1449,14 @@
    "orden": 86,
    "nombre": "Yamazaki Umeshu Barrel-Aged",
    "precio": "18 €",
-   "meta": null,
+   "meta": "Suntory · umeshu envejecido en barrica, con whisky de malta · 20 %",
    "datos": [
-    "**A confirmar con la botella en mano.** Por el nombre, lo más probable es que sea el *umeshu* de Suntory envejecido en barricas de whisky de la destilería Yamazaki: un licor de ume (en torno a 16–17 %), no un whisky.",
-    "Si es eso: dulce, ciruela, almendra, con notas de vainilla y madera de la barrica."
+    "Es el **Rich Amber** de Suntory (etiqueta negra): un *umeshu*, licor de ume, envejecido en barrica en la destilería Yamazaki y mezclado con whisky de malta. 20 % de alcohol. No es un whisky.",
+    "Dulce, ciruela, almendra, con notas de vainilla y madera de la barrica."
    ],
-   "en_sala": "se sirve frío o con hielo, como final dulce. Si se confirma que es umeshu, tendría más sentido listarlo en \"Aperitivo – Final\".",
+   "en_sala": "se sirve frío o con hielo, como final dulce. Aunque en la carta figure entre los whiskies, hay que presentarlo como umeshu.",
    "minima_intervencion": false,
-   "a_confirmar": true
+   "a_confirmar": false
   },
   {
    "slug": "hibiki-blender-s-choice",
@@ -1597,10 +1597,11 @@
    "orden": 95,
    "nombre": "Heiwa Shuzo, Umeshu Clásico",
    "precio": "12 €",
-   "meta": null,
+   "meta": "Heiwa Shuzo · Kainan (Wakayama) · Tsuru-ume Suppai",
    "datos": [
     "*Umeshu*: licor de ume, la fruta japonesa emparentada con el albaricoque (suele traducirse \"ciruela\"). Se macera la fruta entera con azúcar en alcohol o sake.",
     "Wakayama es la gran zona de ume de Japón; Heiwa trabaja directamente con agricultores locales y elabora umeshu desde 1995.",
+    "El que servimos es el **Tsuru-ume Suppai**: *suppai* significa \"ácido\".",
     "Perfil: agridulce, albaricoque, almendra del hueso."
    ],
    "en_sala": "con hielo como aperitivo, o solo y frío al final.",
@@ -2287,7 +2288,6 @@
       "Eulogio Pomares Parcela en Aios, Cantariña Godello de Consuelo: datos de elaboración.",
       "Josep Foraster La Robina y Bruma de Arenero: variedad y elaboración.",
       "La Rioja Alta 890 Selección Especial: añada.",
-      "Yamazaki Umeshu Barrel-Aged: si es umeshu o whisky.",
       "Kuju New Born Peated #3 y Shizuoka Pot Still K: graduación y edición.",
       "OSO Citrus: estilo. Heiwa Yuzu Spritz: receta de la casa."
      ]
