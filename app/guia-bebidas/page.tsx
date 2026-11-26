@@ -278,7 +278,7 @@ function Machete(props: {
 
   return (
     <div className="space-y-4">
-      <div className="sticky top-[env(safe-area-inset-top,0px)] z-20 -mx-4 space-y-3 bg-surface/90 px-4 pb-2 pt-2 backdrop-blur-xl sm:top-[4.75rem] sm:mx-0 sm:px-0">
+      <div className="sticky top-[env(safe-area-inset-top,0px)] z-20 -mx-4 space-y-3 bg-surface/90 px-4 pb-2 pt-2 backdrop-blur-xl sm:top-0 sm:mx-0 sm:px-0">
         <div className="relative">
           <Search
             className="pointer-events-none absolute left-3.5 top-1/2 h-[18px] w-[18px] -translate-y-1/2 text-label-3"

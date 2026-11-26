@@ -608,3 +608,14 @@ html[data-theme="dia"] {
     animation-delay: 0s !important;
   }
 }
+
+::view-transition-group(barra-lateral) {
+  animation: none;
+  z-index: 100;
+}
+::view-transition-old(barra-lateral) {
+  display: none;
+}
+::view-transition-new(barra-lateral) {
+  animation: none;
+}

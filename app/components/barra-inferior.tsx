@@ -88,7 +88,7 @@ function normalizar(t: string) {
 /**
  * Navegación en celular: barra de pestañas fija abajo (las 4 pantallas de servicio
  * más usadas) y "Más" con todo lo demás, un buscador, el tema y la sesión.
- * En escritorio sigue el menú superior (MainNav).
+ * En tablet y escritorio (sm+), la misma navegación es una barra lateral fija.
  */
 export function BarraInferior() {
   const pathname = usePathname();
@@ -162,6 +162,114 @@ export function BarraInferior() {
         aria-hidden
         className="h-[calc(env(safe-area-inset-bottom,0px)+4.25rem)] shrink-0 sm:hidden"
       />
+
+      {/* Tablet y escritorio: barra lateral con todas las pantallas. */}
+      <aside
+        aria-label="Navegación"
+        style={{ viewTransitionName: "barra-lateral" }}
+        className="fixed inset-y-0 left-0 z-40 hidden w-60 flex-col border-r border-separator bg-surface-2 sm:flex"
+      >
+        <div className="flex items-center gap-3 px-5 pb-3 pt-6">
+          <p className="font-display text-[1.35rem] font-semibold tracking-[0.12em] text-label">
+            OMAKASE
+          </p>
+          <span className="h-px flex-1 bg-accent/50" aria-hidden />
+        </div>
+        <div className="px-3 pb-2">
+          <CampoBusqueda
+            value={q}
+            onChange={(e) => setQ(e.target.value)}
+            placeholder="Buscar pantalla"
+            etiqueta="Buscar pantalla"
+          />
+        </div>
+        <nav className="ui-sin-scrollbar min-h-0 flex-1 overflow-y-auto px-3 pb-4">
+          {grupos.map((g) => (
+            <div key={g.titulo} className="mt-4 first:mt-2">
+              <p className="mb-1 px-2 text-[0.72rem] font-semibold uppercase tracking-[0.08em] text-label-3">
+                {g.titulo}
+              </p>
+              <ul className="space-y-0.5">
+                {g.hrefs.map((h) => {
+                  const Icono = ICONOS[h];
+                  const activa = esHrefActivo(pathname, h);
+                  const badge =
+                    h === "/mep-deli" && mepSinCerrar > 0 ? mepSinCerrar : 0;
+                  return (
+                    <li key={h}>
+                      <Link
+                        href={h}
+                        transitionTypes={["tab"]}
+                        aria-current={activa ? "page" : undefined}
+                        className={cx(
+                          "flex min-h-10 items-center gap-2.5 rounded-[0.6rem] px-2 text-[0.94rem] transition-colors",
+                          activa
+                            ? "bg-accent-soft font-semibold text-accent"
+                            : "text-label-2 hover:bg-fill hover:text-label",
+                        )}
+                      >
+                        <Icono
+                          className="h-[18px] w-[18px] shrink-0"
+                          aria-hidden
+                        />
+                        <span className="min-w-0 flex-1 truncate">
+                          {LABEL.get(h)}
+                        </span>
+                        {badge ? (
+                          <span className="flex h-5 min-w-5 items-center justify-center rounded-full bg-accent px-1.5 text-[0.7rem] font-bold text-on-accent">
+                            {badge}
+                          </span>
+                        ) : null}
+                      </Link>
+                    </li>
+                  );
+                })}
+              </ul>
+            </div>
+          ))}
+          {grupos.length === 0 ? (
+            <p className="px-2 py-6 text-[0.9rem] text-label-3">
+              Ninguna pantalla se llama así.
+            </p>
+          ) : null}
+        </nav>
+        <div className="space-y-3 border-t border-separator px-3 py-3">
+          <Segmentado<TemaPreferencia>
+            etiqueta="Tema"
+            valor={preferencia}
+            onChange={setPreferencia}
+            opciones={[
+              { valor: "auto", label: "Auto" },
+              { valor: "dia", label: "Día" },
+              { valor: "noche", label: "Noche" },
+            ]}
+          />
+          {session ? (
+            <div className="flex items-center gap-2 px-1">
+              <span className="flex size-8 shrink-0 items-center justify-center rounded-full bg-fill text-label-2">
+                <UserRound className="h-4 w-4" aria-hidden />
+              </span>
+              <span className="min-w-0 flex-1 leading-tight">
+                <span className="block truncate text-[0.9rem] text-label">
+                  {session.name}
+                </span>
+                <span className="block text-[0.75rem] text-label-3">
+                  {session.role === "admin" ? "Administración" : "Equipo"}
+                </span>
+              </span>
+              <button
+                type="button"
+                onClick={() => void salir()}
+                aria-label="Cerrar sesión"
+                title="Cerrar sesión"
+                className="inline-flex size-10 items-center justify-center rounded-full text-label-3 transition hover:bg-danger-soft hover:text-danger"
+              >
+                <LogOut className="h-[18px] w-[18px]" aria-hidden />
+              </button>
+            </div>
+          ) : null}
+        </div>
+      </aside>
 
       <nav
         aria-label="Navegación principal"

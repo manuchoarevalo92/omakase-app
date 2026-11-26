@@ -5,7 +5,6 @@ import "./globals.css";
 import { AvisosProvider } from "@/app/ui";
 
 import { BarraInferior } from "./components/barra-inferior";
-import { MainNav } from "./components/main-nav";
 import { RegisterServiceWorker } from "./components/register-service-worker";
 import { TemaProvider } from "./components/tema-provider";
 import { TEMA_BOOTSTRAP_SCRIPT } from "@/src/lib/tema";
@@ -92,8 +91,7 @@ export default function RootLayout({
             />
             <div className="relative z-10 flex min-h-full min-w-0 w-full max-w-full flex-1 flex-col">
               <RegisterServiceWorker />
-              <MainNav />
-              <div className="flex min-h-0 min-w-0 w-full max-w-full flex-1 flex-col pt-[env(safe-area-inset-top,0px)] sm:pt-0">
+              <div className="flex min-h-0 min-w-0 w-full max-w-full flex-1 flex-col pt-[env(safe-area-inset-top,0px)] sm:pl-60 sm:pt-0">
                 <ViewTransition
                   update={{
                     tab: "pantalla-tab",
