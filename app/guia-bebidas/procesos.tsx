@@ -306,6 +306,7 @@ export function Procesos() {
                     proceso={proceso.id}
                     paso={p.dibujo}
                     titulo={p.paso.titulo}
+                    termino={p.estado === "cambia" ? termino?.id : undefined}
                     apagada={p.estado === "salta"}
                   />
                 </div>

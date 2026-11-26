@@ -235,6 +235,11 @@ html[data-theme="dia"] {
   transform-origin: 0% 0%;
   animation: guia-vaiven 1.6s ease-in-out infinite alternate;
 }
+.guia-vaiven-der {
+  transform-box: fill-box;
+  transform-origin: 100% 0%;
+  animation: guia-vaiven 1.6s ease-in-out infinite alternate-reverse;
+}
 .guia-desliza {
   animation: guia-desliza 1.8s ease-in-out infinite alternate;
 }
@@ -296,6 +301,7 @@ html[data-theme="dia"] {
   .guia-gotea,
   .guia-llama,
   .guia-vaiven,
+  .guia-vaiven-der,
   .guia-desliza,
   .guia-gira,
   .guia-rueda,

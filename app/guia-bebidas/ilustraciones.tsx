@@ -348,10 +348,11 @@ function Granos(props: { x: number; y: number; n: number; color: string; r?: num
 
 function Reloj(props: { x: number; y: number; texto: string }) {
   const { x, y, texto } = props;
+  const w = Math.max(30, texto.length * 4.4 + 8);
   return (
     <g>
-      <rect x={x - 15} y={y - 9} width={30} height={19} rx={2.5} fill="#fffdf6" stroke={LINEA} strokeWidth={1} />
-      <rect x={x - 15} y={y - 9} width={30} height={5.5} rx={2.5} fill={ROJO} />
+      <rect x={x - w / 2} y={y - 9} width={w} height={19} rx={2.5} fill="#fffdf6" stroke={LINEA} strokeWidth={1} />
+      <rect x={x - w / 2} y={y - 9} width={w} height={5.5} rx={2.5} fill={ROJO} />
       <T x={x} y={y + 6.5}>
         {texto}
       </T>
@@ -371,6 +372,58 @@ function Copo(props: { x: number; y: number }) {
   );
 }
 
+/** Bacterias lácticas: bastoncitos rosados. */
+function Bacterias(props: { puntos: Punto[] }) {
+  return (
+    <g>
+      {props.puntos.map(([x, y], i) => (
+        <rect
+          key={i}
+          className="guia-burbuja"
+          style={{ animationDelay: `${i * 0.4}s` }}
+          x={x}
+          y={y}
+          width={5.5}
+          height={2.2}
+          rx={1.1}
+          fill="#d97f9a"
+          transform={`rotate(${i % 2 ? 25 : -20} ${x} ${y})`}
+        />
+      ))}
+    </g>
+  );
+}
+
+function Bandera(props: { x: number; y: number }) {
+  const { x, y } = props;
+  return (
+    <g>
+      <rect x={x} y={y} width={18} height={12} rx={1} fill="#ffffff" stroke={LINEA} strokeWidth={0.8} />
+      <circle cx={x + 9} cy={y + 6} r={3.4} fill={ROJO} />
+      <T x={x + 9} y={y + 21}>
+        Japón
+      </T>
+    </g>
+  );
+}
+
+function Anfora(props: { x: number; w: number; h: number; liquido: string }) {
+  const { x, w, h, liquido } = props;
+  const top = SUELO - h;
+  return (
+    <g>
+      <path
+        d={`M${x + w * 0.3} ${SUELO} C${x - w * 0.12} ${SUELO - h * 0.35} ${x} ${top + h * 0.12} ${x + w * 0.25} ${top} L${x + w * 0.75} ${top} C${x + w} ${top + h * 0.12} ${x + w * 1.12} ${SUELO - h * 0.35} ${x + w * 0.7} ${SUELO} Z`}
+        fill="#c9825a"
+        stroke="#8f4f2a"
+        strokeWidth={1.3}
+        strokeLinejoin="round"
+      />
+      <ellipse cx={x + w / 2} cy={top} rx={w * 0.25} ry={3.5} fill={liquido} stroke="#8f4f2a" strokeWidth={1} />
+    </g>
+  );
+}
+
 /* ---------- Escenas genéricas ---------- */
 
 function EscenaFermenta(props: {
@@ -379,8 +432,9 @@ function EscenaFermenta(props: {
   etiqueta: string;
   madera?: boolean;
   espuma?: boolean;
+  extra?: ReactNode;
 }) {
-  const { oficio, liquido, etiqueta, madera = false, espuma = false } = props;
+  const { oficio, liquido, etiqueta, madera = false, espuma = false, extra } = props;
   return (
     <>
       <Tanque x={98} w={56} h={60} nivel={0.78} liquido={liquido} madera={madera} />
@@ -400,6 +454,7 @@ function EscenaFermenta(props: {
       <T x={100} y={22}>
         {etiqueta}
       </T>
+      {extra}
     </>
   );
 }
@@ -494,8 +549,13 @@ function EscenaMezcla(props: { oficio: keyof typeof OFICIO; colores: string[]; e
   );
 }
 
-function EscenaBarricas(props: { oficio: keyof typeof OFICIO; texto: string; etiquetas?: [string, string] }) {
-  const { oficio, texto, etiquetas } = props;
+function EscenaBarricas(props: {
+  oficio: keyof typeof OFICIO;
+  texto: string;
+  etiquetas?: [string, string];
+  extra?: ReactNode;
+}) {
+  const { oficio, texto, etiquetas, extra } = props;
   return (
     <>
       <Barril cx={112} cy={82} r={13} />
@@ -519,37 +579,43 @@ function EscenaBarricas(props: { oficio: keyof typeof OFICIO; texto: string; eti
         <circle cx={86} cy={83} r={12} fill={MADERA} stroke={MADERA_OSC} strokeWidth={2} />
         <path d="M86 73 v20 M76 83 h20" stroke={MADERA_OSC} strokeWidth={0.8} />
       </g>
-      <Reloj x={28} y={30} texto={texto} />
+      <Reloj x={30} y={30} texto={texto} />
+      {extra}
     </>
   );
 }
 
 /* ---------- Escenas por paso ---------- */
 
-const ESCENAS: Record<string, () => ReactNode> = {
+const ESCENAS: Record<string, (v?: string) => ReactNode> = {
   /* SAKE */
-  "sake:pulido": () => (
-    <>
-      <ellipse cx={26} cy={66} rx={11} ry={16} fill="#d9c49a" stroke={MADERA_OSC} strokeWidth={1} />
-      <T x={26} y={94}>
-        100 %
-      </T>
-      <Persona x={66} der={[20, -40]} izq={[14, -34]} />
-      <path d="M80 60 l12 -4 l1 5 l-11 6 Z" fill={MADERA} stroke={MADERA_OSC} strokeWidth={0.8} />
-      <Granos x={88} y={52} n={3} color="#d9c49a" />
-      <path d="M100 44 L136 44 L130 30 L106 30 Z" fill={SUAVE} stroke={LINEA} strokeWidth={1.2} strokeLinejoin="round" />
-      <rect x={96} y={44} width={44} height={52} rx={4} fill={SUAVE} stroke={LINEA} strokeWidth={1.2} />
-      <g className="guia-gira">
-        <circle cx={118} cy={68} r={13} fill="#fffdf6" stroke={TINTA} strokeWidth={1.4} strokeDasharray="5 3" />
-        <circle cx={118} cy={68} r={2} fill={TINTA} />
-      </g>
-      <Flecha x1={144} y1={70} x2={158} y2={70} />
-      <ellipse cx={174} cy={68} rx={7} ry={10.5} fill={ARROZ} stroke={LINEA} strokeWidth={1} />
-      <T x={174} y={94} fuerte>
-        60 %
-      </T>
-    </>
-  ),
+  "sake:pulido": (v) => {
+    const queda = v === "daiginjo" ? 50 : v === "ginjo" ? 60 : 70;
+    const escala = Math.sqrt(queda / 100);
+    return (
+      <>
+        <ellipse cx={26} cy={66} rx={11} ry={16} fill="#d9c49a" stroke={MADERA_OSC} strokeWidth={1} />
+        <T x={26} y={94}>
+          100 %
+        </T>
+        <Persona x={66} der={[20, -40]} izq={[14, -34]} />
+        <path d="M80 60 l12 -4 l1 5 l-11 6 Z" fill={MADERA} stroke={MADERA_OSC} strokeWidth={0.8} />
+        <Granos x={88} y={52} n={3} color="#d9c49a" />
+        <path d="M100 44 L136 44 L130 30 L106 30 Z" fill={SUAVE} stroke={LINEA} strokeWidth={1.2} strokeLinejoin="round" />
+        <rect x={96} y={44} width={44} height={52} rx={4} fill={SUAVE} stroke={LINEA} strokeWidth={1.2} />
+        <g className="guia-gira">
+          <circle cx={118} cy={68} r={13} fill="#fffdf6" stroke={TINTA} strokeWidth={1.4} strokeDasharray="5 3" />
+          <circle cx={118} cy={68} r={2} fill={TINTA} />
+        </g>
+        <Flecha x1={144} y1={62} x2={158} y2={62} />
+        <Granos x={143} y={94} n={Math.round((100 - queda) / 4)} color="#c9ad7a" r={1.3} />
+        <ellipse cx={176} cy={62} rx={11 * escala} ry={16 * escala} fill={ARROZ} stroke={LINEA} strokeWidth={1} />
+        <T x={176} y={94} fuerte>
+          {queda} %
+        </T>
+      </>
+    );
+  },
   "sake:vapor": () => (
     <>
       <rect x={92} y={80} width={46} height={16} rx={2} fill={ACERO} stroke={LINEA} strokeWidth={1} />
@@ -566,87 +632,205 @@ const ESCENAS: Record<string, () => ReactNode> = {
       <path d="M150 62 l-12 -8 l10 -3 Z" fill="#fffdf6" stroke={LINEA} strokeWidth={0.8} strokeLinejoin="round" />
     </>
   ),
-  "sake:koji": () => (
-    <>
-      <rect x={66} y={72} width={92} height={5} rx={1.5} fill={MADERA} stroke={MADERA_OSC} strokeWidth={0.8} />
-      <path d="M74 77 v19 M150 77 v19" stroke={MADERA_OSC} strokeWidth={2.4} />
-      <rect x={70} y={65} width={84} height={7} rx={3.5} fill={ARROZ} stroke={LINEA} strokeWidth={0.8} />
-      <Persona x={48} der={[20, -44]} izq={[12, -32]} />
-      <rect x={65} y={44} width={8} height={10} rx={1.5} fill={ACERO} stroke={TINTA} strokeWidth={0.7} />
-      {[0, 1, 2, 3, 4].map((i) => (
-        <circle
-          key={i}
-          className="guia-gotea"
-          style={{ animationDelay: `${i * 0.3}s` }}
-          cx={74 + i * 7}
-          cy={56 + (i % 2) * 2}
-          r={1}
-          fill="#8fae5a"
-        />
-      ))}
-      <Persona x={176} der={[-16, -27]} izq={[-22, -26]} mira={-1} />
-      <T x={112} y={30}>
-        esporas de koji
-      </T>
-      <Flecha x1={92} y1={34} x2={84} y2={50} />
-      <circle cx={112} cy={68.5} r={1} fill="#8fae5a" />
-      <circle cx={126} cy={67.5} r={1} fill="#8fae5a" />
-      <circle cx={138} cy={69} r={1} fill="#8fae5a" />
-    </>
-  ),
-  "sake:shubo": () => (
-    <>
-      <Tanque x={100} w={44} h={38} nivel={0.72} liquido="#f1e9cf" />
-      <Burbujas x={108} y={86} w={28} n={4} />
-      <Persona x={74} der={[14, -40]} izq={[10, -32]} />
-      <g className="guia-vaiven">
-        <path d="M86 52 L120 84" stroke={MADERA_OSC} strokeWidth={2.4} strokeLinecap="round" />
-      </g>
-      <Reloj x={170} y={40} texto="2 sem" />
-      <T x={122} y={50}>
-        levadura
-      </T>
-      <circle cx={112} cy={76} r={1.3} fill="#b9a05a" />
-      <circle cx={126} cy={80} r={1.3} fill="#b9a05a" />
-      <circle cx={132} cy={73} r={1.3} fill="#b9a05a" />
-    </>
-  ),
-  "sake:moromi": () => (
-    <>
-      <Tanque x={104} w={72} h={66} nivel={0.8} liquido={SAKE} />
-      <Burbujas x={112} y={86} w={56} n={7} />
-      <Burbujas x={120} y={66} w={40} n={5} />
-      <rect x={70} y={62} width={36} height={4} rx={1} fill={LINEA} />
-      <path d="M74 66 v30 M102 66 v30 M74 80 h28" stroke={LINEA} strokeWidth={1.6} />
-      <Persona x={88} y={62} der={[16, -38]} izq={[11, -31]} />
-      <g className="guia-vaiven">
-        <path d="M102 22 L132 62" stroke={MADERA_OSC} strokeWidth={2.4} strokeLinecap="round" />
-      </g>
-      {[0, 1, 2].map((i) => (
-        <g key={i}>
-          <rect x={14 + i * 18} y={80} width={15} height={16} rx={4} fill="#fffdf6" stroke={LINEA} strokeWidth={1} />
-          <T x={21.5 + i * 18} y={91}>
-            {i + 1}
+  "sake:koji": (v) => {
+    const blanco = v === "koji-blanco";
+    const espora = blanco ? "#c9c9c9" : "#8fae5a";
+    return (
+      <>
+        <rect x={66} y={72} width={92} height={5} rx={1.5} fill={MADERA} stroke={MADERA_OSC} strokeWidth={0.8} />
+        <path d="M74 77 v19 M150 77 v19" stroke={MADERA_OSC} strokeWidth={2.4} />
+        <rect x={70} y={65} width={84} height={7} rx={3.5} fill={ARROZ} stroke={LINEA} strokeWidth={0.8} />
+        <Persona x={48} der={[20, -44]} izq={[12, -32]} />
+        <rect x={65} y={44} width={8} height={10} rx={1.5} fill={ACERO} stroke={TINTA} strokeWidth={0.7} />
+        {[0, 1, 2, 3, 4].map((i) => (
+          <circle
+            key={i}
+            className="guia-gotea"
+            style={{ animationDelay: `${i * 0.3}s` }}
+            cx={74 + i * 7}
+            cy={56 + (i % 2) * 2}
+            r={1}
+            fill={espora}
+          />
+        ))}
+        <Persona x={176} der={[-16, -27]} izq={[-22, -26]} mira={-1} />
+        <T x={108} y={30} fuerte={blanco}>
+          {blanco ? "koji blanco" : "esporas de koji"}
+        </T>
+        <Flecha x1={92} y1={34} x2={84} y2={50} />
+        <circle cx={112} cy={68.5} r={1} fill={espora} />
+        <circle cx={126} cy={67.5} r={1} fill={espora} />
+        <circle cx={138} cy={69} r={1} fill={espora} />
+        {blanco ? (
+          <>
+            <ellipse cx={150} cy={26} rx={7} ry={5} fill="#f2d544" stroke={TINTA} strokeWidth={0.6} />
+            <T x={150} y={42}>
+              ácido cítrico
+            </T>
+          </>
+        ) : null}
+      </>
+    );
+  },
+  "sake:shubo": (v) => {
+    if (v === "kimoto" || v === "yamahai") {
+      const kimoto = v === "kimoto";
+      return (
+        <>
+          <path d="M84 96 l-5 -24 h82 l-5 24 Z" fill={MADERA} stroke={MADERA_OSC} strokeWidth={1.2} strokeLinejoin="round" />
+          <path d="M81 82 h78" stroke={MADERA_OSC} strokeWidth={1.4} />
+          <rect x={82} y={69} width={76} height={7} rx={3.5} fill={ARROZ} stroke={LINEA} strokeWidth={0.8} />
+          <Bacterias
+            puntos={[
+              [96, 66],
+              [112, 64],
+              [128, 66],
+              [144, 64],
+            ]}
+          />
+          {kimoto ? (
+            <>
+              <Persona x={60} der={[16, -40]} izq={[11, -32]} />
+              <g className="guia-vaiven">
+                <path d="M72 50 L102 74" stroke={MADERA_OSC} strokeWidth={2.6} strokeLinecap="round" />
+              </g>
+              <Persona x={182} der={[-11, -32]} izq={[-16, -40]} mira={-1} />
+              <g className="guia-vaiven-der">
+                <path d="M170 50 L140 74" stroke={MADERA_OSC} strokeWidth={2.6} strokeLinecap="round" />
+              </g>
+              <T x={120} y={22} fuerte>
+                se machaca el arroz
+              </T>
+            </>
+          ) : (
+            <>
+              <Persona x={54} der={[-3, -22]} izq={[3, -21]} />
+              <path d="M176 96 L186 44 M184 96 L178 44" stroke={MADERA_OSC} strokeWidth={2.4} strokeLinecap="round" />
+              <path d="M172 58 l18 18 M190 58 l-18 18" stroke={ROJO} strokeWidth={2.2} strokeLinecap="round" />
+              <T x={120} y={22} fuerte>
+                sin machacar
+              </T>
+            </>
+          )}
+          <T x={120} y={34}>
+            bacterias lácticas naturales
           </T>
+          <Reloj x={24} y={32} texto="4 sem" />
+        </>
+      );
+    }
+    if (v === "bodaimoto") {
+      return (
+        <>
+          <Tanque x={22} w={40} h={34} nivel={0.8} liquido="#dfe7cf" />
+          <Granos x={28} y={91} n={10} color={ARROZ} r={2} />
+          <Burbujas x={30} y={84} w={24} n={3} />
+          <T x={42} y={50}>
+            arroz crudo
+          </T>
+          <T x={42} y={58}>
+            en agua
+          </T>
+          <Flecha x1={66} y1={82} x2={98} y2={82} />
+          <T x={104} y={48} fuerte>
+            agua ácida
+          </T>
+          <Tanque x={102} w={44} h={38} nivel={0.72} liquido="#f1e9cf" />
+          <Burbujas x={110} y={86} w={28} n={4} />
+          <Persona x={172} der={[-14, -30]} izq={[-9, -17]} mira={-1} />
+        </>
+      );
+    }
+    return (
+      <>
+        <Tanque x={100} w={44} h={38} nivel={0.72} liquido="#f1e9cf" />
+        <Burbujas x={108} y={86} w={28} n={4} />
+        <Persona x={74} der={[14, -40]} izq={[10, -32]} />
+        <g className="guia-vaiven">
+          <path d="M86 52 L120 84" stroke={MADERA_OSC} strokeWidth={2.4} strokeLinecap="round" />
         </g>
-      ))}
-      <T x={40} y={72}>
-        3 tandas
-      </T>
-    </>
-  ),
-  "sake:prensado": () => (
+        <Reloj x={170} y={40} texto="2 sem" />
+        <T x={122} y={50}>
+          levadura
+        </T>
+        <circle cx={112} cy={76} r={1.3} fill="#b9a05a" />
+        <circle cx={126} cy={80} r={1.3} fill="#b9a05a" />
+        <circle cx={132} cy={73} r={1.3} fill="#b9a05a" />
+        <T x={40} y={30}>
+          + ácido láctico
+        </T>
+        <Flecha x1={62} y1={34} x2={104} y2={56} />
+      </>
+    );
+  },
+  "sake:moromi": (v) => {
+    const frio = v === "ginjo" || v === "daiginjo";
+    return (
+      <>
+        <Tanque x={104} w={72} h={66} nivel={0.8} liquido={SAKE} />
+        <Burbujas x={112} y={86} w={56} n={frio ? 4 : 7} />
+        <Burbujas x={120} y={66} w={40} n={frio ? 2 : 5} />
+        <rect x={70} y={62} width={36} height={4} rx={1} fill={LINEA} />
+        <path d="M74 66 v30 M102 66 v30 M74 80 h28" stroke={LINEA} strokeWidth={1.6} />
+        <Persona x={88} y={62} der={[16, -38]} izq={[11, -31]} />
+        <g className="guia-vaiven">
+          <path d="M102 22 L132 62" stroke={MADERA_OSC} strokeWidth={2.4} strokeLinecap="round" />
+        </g>
+        {[0, 1, 2].map((i) => (
+          <g key={i}>
+            <rect x={14 + i * 18} y={80} width={15} height={16} rx={4} fill="#fffdf6" stroke={LINEA} strokeWidth={1} />
+            <T x={21.5 + i * 18} y={91}>
+              {i + 1}
+            </T>
+          </g>
+        ))}
+        <T x={v === "kijoshu" ? 6 : 40} y={72} ancla={v === "kijoshu" ? "start" : "middle"} fuerte={v === "kijoshu"}>
+          {v === "kijoshu" ? "sake en vez de agua" : v === "junmai" ? "" : "3 tandas"}
+        </T>
+        {frio ? (
+          <>
+            <Copo x={20} y={24} />
+            <T x={30} y={27} ancla="start" fuerte>
+              frío y lento
+            </T>
+          </>
+        ) : null}
+        {v === "junmai" ? (
+          <>
+            <g transform="rotate(20 30 40)">
+              <Botella x={30} base={48} h={24} color="#fffdf6" etiqueta={false} />
+            </g>
+            <path d="M18 22 l24 26 M42 22 l-24 26" stroke={ROJO} strokeWidth={2.2} strokeLinecap="round" />
+            <T x={6} y={62} ancla="start" fuerte>
+              sin alcohol añadido
+            </T>
+          </>
+        ) : null}
+        {v === "kijoshu" ? (
+          <>
+            <Botella x={24} base={60} h={30} color="#6c8a5e" />
+          </>
+        ) : null}
+      </>
+    );
+  },
+  "sake:prensado": (v) => (
     <EscenaPrensa
       oficio="sake"
       jugo={SAKE}
       relleno="#fffdf6"
-      etiqueta="sake"
+      etiqueta={v === "arabashiri" ? "arabashiri" : "sake"}
       canasta={
         <>
           <ellipse cx={30} cy={90} rx={14} ry={6} fill="#fffdf6" stroke={LINEA} strokeWidth={1} />
           <T x={30} y={78}>
             kasu
           </T>
+          {v === "arabashiri" ? (
+            <T x={118} y={28} fuerte>
+              solo lo primero que cae
+            </T>
+          ) : null}
         </>
       }
     />
@@ -693,19 +877,22 @@ const ESCENAS: Record<string, () => ReactNode> = {
       <Persona x={52} der={[9, -17]} izq={[-9, -17]} />
     </>
   ),
-  "sake:reposo": () => (
-    <>
-      <Tanque x={92} w={46} h={60} nivel={0.82} liquido={SAKE} />
-      <Tanque x={144} w={40} h={50} nivel={0.82} liquido={SAKE} />
-      <g className="guia-vapor">
-        <T x={112} y={28}>
-          z z z
-        </T>
-      </g>
-      <Persona x={56} der={[-3, -22]} izq={[3, -21]} />
-      <Reloj x={26} y={34} texto="meses" />
-    </>
-  ),
+  "sake:reposo": (v) => {
+    const liquido = v === "koshu" ? "#c9a24a" : SAKE;
+    return (
+      <>
+        <Tanque x={92} w={46} h={60} nivel={0.82} liquido={liquido} />
+        <Tanque x={144} w={40} h={50} nivel={0.82} liquido={liquido} />
+        <g className="guia-vapor">
+          <T x={112} y={28}>
+            z z z
+          </T>
+        </g>
+        <Persona x={56} der={[-3, -22]} izq={[3, -21]} />
+        <Reloj x={26} y={34} texto={v === "koshu" ? "años" : "meses"} />
+      </>
+    );
+  },
   "sake:dilucion": () => <EscenaDiluir oficio="sake" liquido={SAKE} de="17–20 %" a="15 %" />,
   "sake:embotellado": () => (
     <EscenaEmbotellar
@@ -755,24 +942,27 @@ const ESCENAS: Record<string, () => ReactNode> = {
       <Uvas x={55} y={77} color={UVA_B} />
     </>
   ),
-  "vino:prensado-blanco": () => (
-    <EscenaPrensa
-      oficio="vino"
-      jugo={BLANCO}
-      relleno={UVA_B}
-      etiqueta="mosto"
-      canasta={
-        <>
-          <path d="M16 96 l-2 -12 h28 l-2 12 Z" fill={PAJA} stroke={MADERA_OSC} strokeWidth={1} strokeLinejoin="round" />
-          <Uvas x={23} y={79} color={UVA_B} />
-          <Uvas x={33} y={78} color={UVA_B} />
-          <T x={118} y={30}>
-            sin pieles
-          </T>
-        </>
-      }
-    />
-  ),
+  "vino:prensado-blanco": (v) => {
+    const uva = v === "blanc-de-noirs" ? UVA_T : UVA_B;
+    return (
+      <EscenaPrensa
+        oficio="vino"
+        jugo={BLANCO}
+        relleno={uva}
+        etiqueta="mosto"
+        canasta={
+          <>
+            <path d="M16 96 l-2 -12 h28 l-2 12 Z" fill={PAJA} stroke={MADERA_OSC} strokeWidth={1} strokeLinejoin="round" />
+            <Uvas x={23} y={79} color={uva} />
+            <Uvas x={33} y={78} color={uva} />
+            <T x={118} y={28} fuerte={v === "blanc-de-noirs"}>
+              {v === "blanc-de-noirs" ? "uva tinta, mosto blanco" : "sin pieles"}
+            </T>
+          </>
+        }
+      />
+    );
+  },
   "vino:desfangado": () => (
     <>
       <Tanque x={92} w={52} h={64} nivel={0.86} liquido="#e9e0a2" />
@@ -799,7 +989,31 @@ const ESCENAS: Record<string, () => ReactNode> = {
       <Flecha x1={152} y1={88} x2={143} y2={88} />
     </>
   ),
-  "vino:fermentacion": () => <EscenaFermenta oficio="vino" liquido={BLANCO} etiqueta="azúcar → alcohol + CO₂" />,
+  "vino:fermentacion": (v) => (
+    <EscenaFermenta
+      oficio="vino"
+      liquido={BLANCO}
+      etiqueta={
+        v === "minima-blanco"
+          ? "con las levaduras de la uva"
+          : v === "kabinett"
+            ? "se frena antes: queda azúcar"
+            : "azúcar → alcohol + CO₂"
+      }
+      extra={
+        v === "kabinett" ? (
+          <>
+            <Copo x={174} y={50} />
+            <rect x={168} y={66} width={6} height={6} fill="#ffffff" stroke={TINTA} strokeWidth={0.6} />
+            <rect x={176} y={70} width={6} height={6} fill="#ffffff" stroke={TINTA} strokeWidth={0.6} />
+            <T x={175} y={88}>
+              azúcar
+            </T>
+          </>
+        ) : null
+      }
+    />
+  ),
   "vino:lias": () => (
     <>
       <Barril cx={124} cy={66} r={27} interior="#ece2a6" />
@@ -840,17 +1054,23 @@ const ESCENAS: Record<string, () => ReactNode> = {
       </T>
     </>
   ),
-  "vino:embotellado": () => (
+  "vino:embotellado": (v) => (
     <EscenaEmbotellar
       oficio="vino"
       color="#5d7d54"
       nota={
-        <>
-          <rect x={152} y={20} width={7} height={11} rx={2} fill="#d9b98a" stroke={MADERA_OSC} strokeWidth={0.7} />
-          <T x={174} y={29}>
-            corcho
+        v ? (
+          <T x={132} y={26} fuerte>
+            sin filtrar, casi sin sulfuroso
           </T>
-        </>
+        ) : (
+          <>
+            <rect x={152} y={20} width={7} height={11} rx={2} fill="#d9b98a" stroke={MADERA_OSC} strokeWidth={0.7} />
+            <T x={174} y={29}>
+              corcho
+            </T>
+          </>
+        )
       }
     />
   ),
@@ -879,27 +1099,45 @@ const ESCENAS: Record<string, () => ReactNode> = {
       </T>
     </>
   ),
-  "vino:maceracion": () => (
-    <>
-      <Tanque x={98} w={78} h={46} nivel={0.86} liquido={TINTO} madera />
-      <path
-        d="M101 56 q6 -6 12 0 q6 -6 12 0 q6 -6 12 0 q6 -6 12 0 q6 -6 12 0 q6 -6 12 0 v6 h-72 Z"
-        fill="#4d2147"
-      />
-      <Burbujas x={110} y={88} w={54} n={6} />
-      <rect x={62} y={70} width={36} height={4} rx={1} fill={LINEA} />
-      <path d="M66 74 v22 M94 74 v22" stroke={LINEA} strokeWidth={1.6} />
-      <Persona x={80} y={70} oficio="vino" der={[17, -36]} izq={[12, -29]} />
-      <g className="guia-pisa">
-        <path d="M94 30 L126 56" stroke={MADERA_OSC} strokeWidth={2.4} strokeLinecap="round" />
-        <path d="M120 58 l12 -6" stroke={MADERA_OSC} strokeWidth={4} strokeLinecap="round" />
-      </g>
-      <T x={150} y={28}>
-        pieles = color + tanino
-      </T>
-      <Flecha x1={150} y1={32} x2={150} y2={48} />
-    </>
-  ),
+  "vino:maceracion": (v) => {
+    const liquido = v === "ligero" ? "#b9566f" : v === "guarda" ? "#5e1c30" : TINTO;
+    return (
+      <>
+        {v === "qvevri" ? (
+          <Anfora x={104} w={66} h={48} liquido={TINTO} />
+        ) : (
+          <>
+            <Tanque x={98} w={78} h={46} nivel={0.86} liquido={liquido} madera />
+            <path
+              d="M101 56 q6 -6 12 0 q6 -6 12 0 q6 -6 12 0 q6 -6 12 0 q6 -6 12 0 q6 -6 12 0 v6 h-72 Z"
+              fill={v === "ligero" ? "#7a3a66" : "#4d2147"}
+            />
+            <Burbujas x={110} y={88} w={54} n={6} />
+          </>
+        )}
+        <rect x={62} y={70} width={36} height={4} rx={1} fill={LINEA} />
+        <path d="M66 74 v22 M94 74 v22" stroke={LINEA} strokeWidth={1.6} />
+        <Persona x={80} y={70} oficio="vino" der={[17, -36]} izq={[12, -29]} />
+        <g className="guia-pisa">
+          <path d="M94 30 L126 56" stroke={MADERA_OSC} strokeWidth={2.4} strokeLinecap="round" />
+          <path d="M120 58 l12 -6" stroke={MADERA_OSC} strokeWidth={4} strokeLinecap="round" />
+        </g>
+        <T x={150} y={26} fuerte={Boolean(v)}>
+          {v === "qvevri"
+            ? "ánfora de barro"
+            : v === "minima-tinto"
+              ? "levaduras de la uva"
+              : v === "ligero"
+                ? "extracción suave"
+                : v === "guarda"
+                  ? "más tiempo con pieles"
+                  : "pieles = color + tanino"}
+        </T>
+        <Flecha x1={150} y1={30} x2={150} y2={46} />
+        {v === "ligero" || v === "guarda" ? <Reloj x={30} y={30} texto={v === "ligero" ? "días" : "semanas"} /> : null}
+      </>
+    );
+  },
   "vino:prensado-tinto": () => (
     <EscenaPrensa
       oficio="vino"
@@ -931,28 +1169,54 @@ const ESCENAS: Record<string, () => ReactNode> = {
       </T>
     </>
   ),
-  "vino:crianza-tinto": () => (
+  "vino:crianza-tinto": (v) => (
     <>
-      <Barril cx={126} cy={82} r={13} />
-      <Barril cx={154} cy={82} r={13} />
-      <Barril cx={182} cy={82} r={13} />
-      <Barril cx={140} cy={59} r={13} />
-      <Barril cx={168} cy={59} r={13} />
+      {v === "qvevri" ? (
+        <>
+          <Anfora x={112} w={30} h={44} liquido={TINTO} />
+          <Anfora x={150} w={30} h={44} liquido={TINTO} />
+          <T x={146} y={36} fuerte>
+            el barro no da sabor
+          </T>
+        </>
+      ) : (
+        <>
+          <Barril cx={126} cy={82} r={13} />
+          <Barril cx={154} cy={82} r={13} />
+          <Barril cx={182} cy={82} r={13} />
+          <Barril cx={140} cy={59} r={13} />
+          <Barril cx={168} cy={59} r={13} />
+        </>
+      )}
       <Persona x={84} oficio="vino" der={[16, -36]} izq={[-8, -30]} />
       <path d="M100 60 L118 76" stroke={ACERO} strokeWidth={2.6} strokeLinecap="round" />
       <path d="M100 60 L118 76" stroke={TINTO} strokeWidth={1} strokeLinecap="round" />
       <path d="M70 60 l9 0 l-2.2 8 h-4.6 Z" fill={TINTO} stroke={TINTA} strokeWidth={0.7} strokeLinejoin="round" />
       <path d="M74.5 68 v4 M71.5 72 h6" stroke={TINTA} strokeWidth={0.8} />
-      <Reloj x={30} y={32} texto="años" />
+      <Reloj x={30} y={32} texto={v === "guarda" ? "años" : "meses"} />
     </>
   ),
   "vino:vino-base": () => <EscenaFermenta oficio="vino" liquido="#ece6ae" etiqueta="vino tranquilo, sin burbuja" />,
-  "vino:assemblage": () => (
+  "vino:assemblage": (v) => (
     <EscenaMezcla
       oficio="vino"
       colores={["#e9df9a", "#dccf78", "#cdbb5e", "#e0d488"]}
-      etiquetas={["uvas", "parcelas", "reserva"]}
-      titulo="la mezcla define el estilo"
+      etiquetas={
+        v === "perpetua"
+          ? ["nuevo", "", "solera"]
+          : v === "blanc-de-blancs" || v === "millesime"
+            ? ["", "", ""]
+            : ["uvas", "parcelas", "reserva"]
+      }
+      titulo={
+        v === "blanc-de-blancs"
+          ? "solo chardonnay"
+          : v === "perpetua"
+            ? "un poco de todas las cosechas"
+            : v === "millesime"
+              ? "solo vinos de ese año"
+              : "la mezcla define el estilo"
+      }
     />
   ),
   "vino:tirage": () => (
@@ -977,7 +1241,7 @@ const ESCENAS: Record<string, () => ReactNode> = {
       </T>
     </>
   ),
-  "vino:crianza-lias": () => (
+  "vino:crianza-lias": (v) => (
     <>
       {[0, 1, 2].map((fila) =>
         [0, 1, 2].map((col) => {
@@ -993,7 +1257,7 @@ const ESCENAS: Record<string, () => ReactNode> = {
         })
       )}
       <Persona x={52} oficio="vino" der={[-3, -22]} izq={[3, -21]} />
-      <Reloj x={24} y={30} texto="15 m+" />
+      <Reloj x={24} y={30} texto={v === "millesime" ? "3 años" : "15 m+"} />
       <T x={150} y={30}>
         lías dentro de la botella
       </T>
@@ -1022,7 +1286,7 @@ const ESCENAS: Record<string, () => ReactNode> = {
       </T>
     </>
   ),
-  "vino:dosage": () => (
+  "vino:dosage": (v) => (
     <>
       <Botella x={118} h={62} color="#6d8f62" etiqueta={false} tapon="none" />
       <Persona x={74} oficio="vino" der={[30, -52]} izq={[12, -28]} />
@@ -1034,8 +1298,16 @@ const ESCENAS: Record<string, () => ReactNode> = {
         corcho
       </T>
       <T x={160} y={28} fuerte>
-        0–12 g/L
+        {v === "brut-nature" ? "0–3 g/L" : v === "extra-brut" ? "hasta 6 g/L" : v === "brut" ? "hasta 12 g/L" : "0–12 g/L"}
       </T>
+      {v === "brut-nature" ? (
+        <T x={160} y={40}>
+          sin azúcar
+        </T>
+      ) : null}
+      {(v === "brut" ? [0, 1] : v === "extra-brut" ? [0] : []).map((i) => (
+        <rect key={i} x={152 + i * 10} y={34} width={7} height={7} fill="#ffffff" stroke={TINTA} strokeWidth={0.6} />
+      ))}
     </>
   ),
   "vino:fermentacion-seco": () => <EscenaFermenta oficio="vino" liquido="#ece6ae" etiqueta="hasta seco: 0 azúcar" />,
@@ -1075,7 +1347,7 @@ const ESCENAS: Record<string, () => ReactNode> = {
   ),
 
   /* WHISKY */
-  "whisky:malteado": () => (
+  "whisky:malteado": (v) => (
     <>
       <rect x={14} y={88} width={104} height={8} rx={3} fill="#e0c078" stroke={MADERA_OSC} strokeWidth={0.7} />
       {Array.from({ length: 12 }, (_, i) => (
@@ -1092,11 +1364,33 @@ const ESCENAS: Record<string, () => ReactNode> = {
       <Flecha x1={98} y1={21} x2={126} y2={21} />
       <path d="M134 96 V60 L158 36 L182 60 V96 Z" fill={SUAVE} stroke={LINEA} strokeWidth={1.2} strokeLinejoin="round" />
       <rect x={152} y={26} width={12} height={12} fill={SUAVE} stroke={LINEA} strokeWidth={1.2} />
-      <Vapor x={154} y={24} n={2} paso={8} />
+      {v === "peated" ? (
+        <g stroke="#5c574f">
+          {[0, 1, 2].map((i) => (
+            <path
+              key={i}
+              className="guia-vapor"
+              style={{ animationDelay: `${i * 0.5}s` }}
+              d={`M${152 + i * 6} 24 q-5 -5 0 -10 q5 -5 0 -10`}
+              strokeWidth={2.6}
+              fill="none"
+              strokeLinecap="round"
+            />
+          ))}
+        </g>
+      ) : (
+        <Vapor x={154} y={24} n={2} paso={8} />
+      )}
       <Llama x={158} y={94} s={0.8} />
+      {v === "peated" ? (
+        <>
+          <rect x={142} y={89} width={10} height={6} rx={1} fill="#4a3a2c" />
+          <rect x={164} y={89} width={10} height={6} rx={1} fill="#4a3a2c" />
+        </>
+      ) : null}
       <rect x={140} y={66} width={36} height={4} rx={1.5} fill="#e0c078" />
-      <T x={182} y={24}>
-        se seca
+      <T x={v === "peated" ? 104 : 182} y={v === "peated" ? 44 : 24} fuerte={v === "peated"}>
+        {v === "peated" ? "humo de turba" : "se seca"}
       </T>
     </>
   ),
@@ -1117,10 +1411,17 @@ const ESCENAS: Record<string, () => ReactNode> = {
       </T>
     </>
   ),
-  "whisky:fermentacion": () => (
-    <EscenaFermenta oficio="whisky" liquido="#cda85a" etiqueta="una cerveza sin lúpulo" madera espuma />
+  "whisky:fermentacion": (v) => (
+    <EscenaFermenta
+      oficio="whisky"
+      liquido="#cda85a"
+      etiqueta="una cerveza sin lúpulo"
+      madera
+      espuma
+      extra={v === "japanese" ? <Bandera x={168} y={40} /> : null}
+    />
   ),
-  "whisky:pot-still": () => (
+  "whisky:pot-still": (v) => (
     <>
       <path
         d="M72 86 C52 86 52 58 78 54 C82 46 84 40 86 28 L96 28 C98 40 100 46 104 54 C130 58 130 86 110 86 Z"
@@ -1144,9 +1445,16 @@ const ESCENAS: Record<string, () => ReactNode> = {
       <T x={172} y={26} fuerte>
         × 2
       </T>
+      {v === "japanese" ? <Bandera x={12} y={12} /> : null}
     </>
   ),
-  "whisky:barrica": () => <EscenaBarricas oficio="whisky" texto="3 años" />,
+  "whisky:barrica": (v) => (
+    <EscenaBarricas
+      oficio="whisky"
+      texto={v === "new-born" ? "< 3 años" : "3 años +"}
+      extra={v === "japanese" ? <Bandera x={170} y={12} /> : null}
+    />
+  ),
   "whisky:reduccion": () => <EscenaDiluir oficio="whisky" liquido={WHISKY} de="≈ 60 %" a="43 %" />,
   "whisky:embotellado": () => <EscenaEmbotellar oficio="whisky" color={WHISKY} h={24} />,
   "whisky:malta": () => (
@@ -1235,7 +1543,14 @@ export function tieneIlustracion(proceso: string, paso: string): boolean {
 }
 
 /** Dibujo del paso. `apagada` lo muestra tachado (el paso no se hace). */
-export function IlustracionPaso(props: { proceso: string; paso: string; apagada?: boolean; titulo: string }) {
+export function IlustracionPaso(props: {
+  proceso: string;
+  paso: string;
+  titulo: string;
+  /** Término elegido que cambia este paso: algunas escenas tienen una versión propia. */
+  termino?: string;
+  apagada?: boolean;
+}) {
   const escena = ESCENAS[`${props.proceso}:${props.paso}`];
   if (!escena) {
     return null;
@@ -1250,7 +1565,7 @@ export function IlustracionPaso(props: { proceso: string; paso: string; apagada?
     >
       <g opacity={props.apagada ? 0.35 : 1}>
         <path d={`M8 ${SUELO} H192`} stroke={SUAVE} strokeWidth={2} strokeLinecap="round" />
-        {escena()}
+        {escena(props.termino)}
       </g>
       {props.apagada ? (
         <path d="M24 16 L176 94 M176 16 L24 94" stroke={ROJO} strokeWidth={3} strokeLinecap="round" opacity={0.8} />
