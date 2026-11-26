@@ -4,6 +4,13 @@ import { useMemo } from "react";
 import { X } from "lucide-react";
 
 import {
+  BotonIcono,
+  Seccion,
+  Selector,
+  cx,
+  type OpcionSelector,
+} from "@/app/ui";
+import {
   enriquecerCierreLineas,
   enriquecerLineasMep,
   etiquetaCargaMep,
@@ -13,6 +20,12 @@ import {
   type MepCorte,
   type MepDeliCarga,
 } from "@/src/lib/mep-deli";
+
+const TONO_RESULTADO = {
+  falto: "text-danger",
+  sobro: "text-warning",
+  ok: "text-success",
+} as const;
 
 function BloqueCarga(props: {
   titulo: string;
@@ -26,50 +39,73 @@ function BloqueCarga(props: {
     : [];
 
   return (
-    <div className="rounded-xl border border-zinc-800 bg-zinc-950/70 p-4">
-      <h3 className="mb-2 text-sm font-medium text-zinc-100">{titulo}</h3>
-      <p className="mb-3 text-xs text-zinc-500">{etiquetaCargaMep(carga)}</p>
-      {carga.cargado_por_nombre ? (
-        <p className="mb-2 text-xs text-zinc-500">
-          Cargada por <span className="text-zinc-300">{carga.cargado_por_nombre}</span>
-        </p>
-      ) : null}
-      <ul className="mb-3 space-y-1 text-sm">
+    <article className="overflow-hidden rounded-card bg-surface-3 shadow-[0_1px_2px_rgb(0_0_0/0.04)]">
+      <header className="flex items-center gap-3 border-b border-separator px-4 py-3">
+        <span className="flex size-8 shrink-0 items-center justify-center rounded-full bg-accent-soft text-[0.9rem] font-bold text-accent">
+          {titulo}
+        </span>
+        <span className="min-w-0 flex-1">
+          <span className="block truncate text-[1rem] font-semibold text-label">
+            {etiquetaCargaMep(carga)}
+          </span>
+          {carga.cargado_por_nombre ? (
+            <span className="block truncate text-[0.86rem] text-label-3">
+              Cargada por {carga.cargado_por_nombre}
+            </span>
+          ) : null}
+        </span>
+      </header>
+
+      <ul>
         {lineas.map((l) => (
-          <li key={l.corte_id}>
-            <span className="text-zinc-500">{l.categoria} ·</span> {l.nombre}:{" "}
-            <span className="text-white">
-              {l.cantidad} {etiquetaUnidadMep(l.unidad)}
+          <li
+            key={l.corte_id}
+            className="flex items-baseline gap-3 border-b border-separator px-4 py-2 last:border-0"
+          >
+            <span className="min-w-0 flex-1 text-[0.94rem] leading-snug text-label">
+              {l.nombre}
+              <span className="ml-1.5 text-[0.8rem] text-label-3">
+                {l.categoria}
+              </span>
+            </span>
+            <span className="shrink-0 font-mono text-[0.97rem] font-semibold tabular-nums text-label">
+              {l.cantidad}
+              <span className="ml-1 font-sans text-[0.8rem] font-normal text-label-3">
+                {etiquetaUnidadMep(l.unidad)}
+              </span>
             </span>
           </li>
         ))}
       </ul>
-      <p className="mb-1 text-[10px] font-semibold uppercase tracking-wide text-zinc-500">
-        Cierre
-      </p>
-      {!tieneCierre(carga) ? (
-        <p className="text-xs text-zinc-500">Sin cerrar</p>
-      ) : (
-        <ul className="space-y-1 text-xs">
-          {cierre.map((l) => (
-            <li key={l.corte_id}>
-              {l.categoria} · {l.nombre}:{" "}
-              <span
-                className={
-                  l.resultado === "falto"
-                    ? "text-red-300"
-                    : l.resultado === "sobro"
-                      ? "text-amber-300"
-                      : "text-emerald-300"
-                }
+
+      <div className="border-t border-separator px-4 py-3">
+        <p className="mb-1.5 text-[0.8rem] font-semibold uppercase tracking-[0.07em] text-label-3">
+          Cierre
+        </p>
+        {!tieneCierre(carga) ? (
+          <p className="text-[0.94rem] text-label-3">Sin cerrar</p>
+        ) : (
+          <ul className="space-y-1">
+            {cierre.map((l) => (
+              <li
+                key={l.corte_id}
+                className="flex items-baseline gap-3 text-[0.9rem]"
               >
-                {etiquetaResultadoCierre(l.resultado)}
-              </span>
-            </li>
-          ))}
-        </ul>
-      )}
-    </div>
+                <span className="min-w-0 flex-1 text-label-2">{l.nombre}</span>
+                <span
+                  className={cx(
+                    "shrink-0 font-semibold",
+                    TONO_RESULTADO[l.resultado],
+                  )}
+                >
+                  {etiquetaResultadoCierre(l.resultado)}
+                </span>
+              </li>
+            ))}
+          </ul>
+        )}
+      </div>
+    </article>
   );
 }
 
@@ -82,70 +118,72 @@ export function MepCompararPanel(props: {
   onCambiarB: (id: string) => void;
   onCerrar: () => void;
 }) {
-  const { cargas, cortesPorId, idA, idB, onCambiarA, onCambiarB, onCerrar } = props;
+  const { cargas, cortesPorId, idA, idB, onCambiarA, onCambiarB, onCerrar } =
+    props;
 
   const opciones = useMemo(
     () =>
-      [...cargas].sort((a, b) => b.fecha.localeCompare(a.fecha) || b.created_at.localeCompare(a.created_at)),
-    [cargas]
+      [...cargas].sort(
+        (a, b) =>
+          b.fecha.localeCompare(a.fecha) ||
+          b.created_at.localeCompare(a.created_at),
+      ),
+    [cargas],
+  );
+
+  const opcionesSelector: OpcionSelector<string>[] = useMemo(
+    () =>
+      opciones.map((c) => ({
+        valor: c.id,
+        label: etiquetaCargaMep(c),
+        detalle: c.cargado_por_nombre ?? undefined,
+      })),
+    [opciones],
   );
 
   const cargaA = opciones.find((c) => c.id === idA) ?? null;
   const cargaB = opciones.find((c) => c.id === idB) ?? null;
 
   return (
-    <section className="mb-6 rounded-xl border border-violet-900/40 bg-violet-950/15 p-4">
-      <div className="mb-4 flex flex-wrap items-center justify-between gap-2">
-        <h2 className="text-sm font-semibold uppercase tracking-wide text-violet-300">
-          Comparar servicios
-        </h2>
-        <button
-          type="button"
+    <Seccion
+      titulo="Comparar servicios"
+      accion={
+        <BotonIcono
+          etiqueta="Cerrar comparación"
+          variante="plano"
+          icono={<X className="h-5 w-5" aria-hidden />}
           onClick={onCerrar}
-          className="inline-flex items-center gap-1 text-xs text-zinc-400 hover:text-zinc-200"
-        >
-          <X className="h-3.5 w-3.5" />
-          Cerrar
-        </button>
-      </div>
-      <div className="mb-4 grid gap-2 sm:grid-cols-2">
-        <label className="block text-xs text-zinc-500">
-          Servicio A
-          <select
-            value={idA}
-            onChange={(e) => onCambiarA(e.target.value)}
-            className="mt-1 w-full rounded-lg border border-zinc-700 bg-zinc-900 px-3 py-2 text-sm text-zinc-100"
-          >
-            {opciones.map((c) => (
-              <option key={c.id} value={c.id}>
-                {etiquetaCargaMep(c)}
-                {c.cargado_por_nombre ? ` · ${c.cargado_por_nombre}` : ""}
-              </option>
-            ))}
-          </select>
-        </label>
-        <label className="block text-xs text-zinc-500">
-          Servicio B
-          <select
-            value={idB}
-            onChange={(e) => onCambiarB(e.target.value)}
-            className="mt-1 w-full rounded-lg border border-zinc-700 bg-zinc-900 px-3 py-2 text-sm text-zinc-100"
-          >
-            {opciones.map((c) => (
-              <option key={c.id} value={c.id}>
-                {etiquetaCargaMep(c)}
-                {c.cargado_por_nombre ? ` · ${c.cargado_por_nombre}` : ""}
-              </option>
-            ))}
-          </select>
-        </label>
+        />
+      }
+      className="mb-2"
+    >
+      <div className="grid grid-cols-2 gap-2">
+        <Selector
+          label="Servicio A"
+          valor={idA}
+          opciones={opcionesSelector}
+          onChange={onCambiarA}
+          buscar={opcionesSelector.length > 10}
+        />
+        <Selector
+          label="Servicio B"
+          valor={idB}
+          opciones={opcionesSelector}
+          onChange={onCambiarB}
+          buscar={opcionesSelector.length > 10}
+        />
       </div>
       {cargaA && cargaB ? (
-        <div className="grid gap-3 lg:grid-cols-2">
+        <div className="mt-3 grid gap-3 sm:grid-cols-2">
           <BloqueCarga titulo="A" carga={cargaA} cortesPorId={cortesPorId} />
           <BloqueCarga titulo="B" carga={cargaB} cortesPorId={cortesPorId} />
         </div>
       ) : null}
-    </section>
+      {cargaA && cargaB ? null : (
+        <p className="mt-3 px-1 text-[0.9rem] text-label-3">
+          Elegí los dos servicios para compararlos.
+        </p>
+      )}
+    </Seccion>
   );
 }

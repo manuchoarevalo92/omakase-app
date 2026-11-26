@@ -1,10 +1,35 @@
 "use client";
 
 import Link from "next/link";
-import { FormEvent, useEffect, useMemo, useState } from "react";
-import { Loader2, Plus, Trash2 } from "lucide-react";
-import { EsqueletoLista } from "@/app/ui";
+import { FormEvent, useCallback, useEffect, useMemo, useState } from "react";
+import {
+  Check,
+  CircleAlert,
+  Loader2,
+  NotebookText,
+  Pencil,
+  Plus,
+  Trash2,
+  UtensilsCrossed,
+} from "lucide-react";
 
+import {
+  Boton,
+  BotonIcono,
+  Campo,
+  CampoBusqueda,
+  EstadoVacio,
+  EsqueletoLista,
+  Etiqueta,
+  Fila,
+  Hoja,
+  Lista,
+  Pantalla,
+  Seccion,
+  Segmentado,
+  cx,
+  useAvisos,
+} from "@/app/ui";
 import { formatPostgrestError } from "@/src/lib/supabase-errors";
 import { supabase } from "@/src/lib/supabase";
 
@@ -38,20 +63,26 @@ export default function PlatosPage() {
   const [isSaving, setIsSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [editingPlatoId, setEditingPlatoId] = useState<string | null>(null);
-  const [confirmDeletePlato, setConfirmDeletePlato] = useState<Plato | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
   const [ingredienteQuery, setIngredienteQuery] = useState("");
-  const [isIngredienteDropdownOpen, setIsIngredienteDropdownOpen] = useState(false);
-  const [ingredientesBorrador, setIngredientesBorrador] = useState<string[]>([]);
+  const [isIngredienteDropdownOpen, setIsIngredienteDropdownOpen] =
+    useState(false);
+  const [ingredientesBorrador, setIngredientesBorrador] = useState<string[]>(
+    [],
+  );
   const [isUpdatingIngredientes, setIsUpdatingIngredientes] = useState(false);
   const [isAddingIngrediente, setIsAddingIngrediente] = useState(false);
+  const [altaAbierta, setAltaAbierta] = useState(false);
+  const { confirmar } = useAvisos();
 
   const ingredientesPorId = useMemo(() => {
     return new Map(ingredientes.map((item) => [item.id, item]));
   }, [ingredientes]);
 
   const ingredientesOrdenados = useMemo(() => {
-    return [...ingredientes].sort((a, b) => a.nombre.localeCompare(b.nombre, "es"));
+    return [...ingredientes].sort((a, b) =>
+      a.nombre.localeCompare(b.nombre, "es"),
+    );
   }, [ingredientes]);
 
   const ingredientesFiltrados = useMemo(() => {
@@ -61,7 +92,7 @@ export default function PlatosPage() {
     }
 
     return ingredientesOrdenados.filter((ingrediente) =>
-      ingrediente.nombre.toLowerCase().includes(query)
+      ingrediente.nombre.toLowerCase().includes(query),
     );
   }, [ingredientesOrdenados, ingredienteQuery]);
 
@@ -72,7 +103,7 @@ export default function PlatosPage() {
     }
 
     return ingredientesOrdenados.some(
-      (ingrediente) => ingrediente.nombre.trim().toLowerCase() === query
+      (ingrediente) => ingrediente.nombre.trim().toLowerCase() === query,
     );
   }, [ingredienteQuery, ingredientesOrdenados]);
 
@@ -115,7 +146,7 @@ export default function PlatosPage() {
       setPlatos((platosResponse.data as Plato[]) ?? []);
     } catch (err) {
       setError(
-        err instanceof Error ? err.message : "Error al conectar con Supabase."
+        err instanceof Error ? err.message : "Error al conectar con Supabase.",
       );
     } finally {
       setIsLoading(false);
@@ -136,7 +167,7 @@ export default function PlatosPage() {
     setIngredientesBorrador((actual) =>
       actual.includes(ingredienteId)
         ? actual.filter((id) => id !== ingredienteId)
-        : [...actual, ingredienteId]
+        : [...actual, ingredienteId],
     );
   };
 
@@ -174,7 +205,9 @@ export default function PlatosPage() {
     }
 
     setPlatos((actual) =>
-      actual.map((plato) => (plato.id === editingPlatoId ? (data as Plato) : plato))
+      actual.map((plato) =>
+        plato.id === editingPlatoId ? (data as Plato) : plato,
+      ),
     );
     setIngredientesSeleccionados(ingredientesBorrador);
     setIsIngredienteDropdownOpen(false);
@@ -207,7 +240,7 @@ export default function PlatosPage() {
     setIngredientesBorrador((actual) =>
       actual.includes(nuevoIngrediente.id)
         ? actual
-        : [...actual, nuevoIngrediente.id]
+        : [...actual, nuevoIngrediente.id],
     );
     setIngredienteQuery("");
     setIsAddingIngrediente(false);
@@ -263,6 +296,7 @@ export default function PlatosPage() {
 
     const nuevoPlato = data as Plato;
     setPlatos((actual) => [...actual, nuevoPlato]);
+    setAltaAbierta(false);
 
     // Enter edit mode immediately to assign ingredients.
     setEditingPlatoId(nuevoPlato.id);
@@ -276,8 +310,14 @@ export default function PlatosPage() {
     setIsSaving(false);
   };
 
-  const eliminarPlato = async () => {
-    if (!confirmDeletePlato) {
+  const eliminarPlato = async (plato: Plato) => {
+    const ok = await confirmar({
+      titulo: `¿Eliminar «${plato.nombre}»?`,
+      texto: "Sale de la carta y no se puede deshacer.",
+      confirmar: "Eliminar plato",
+      peligro: true,
+    });
+    if (!ok) {
       return;
     }
 
@@ -287,7 +327,7 @@ export default function PlatosPage() {
     const { error: deleteError } = await supabase
       .from("platos")
       .delete()
-      .eq("id", confirmDeletePlato.id);
+      .eq("id", plato.id);
 
     if (deleteError) {
       setError(formatPostgrestError(deleteError));
@@ -295,11 +335,9 @@ export default function PlatosPage() {
       return;
     }
 
-    setPlatos((actual) =>
-      actual.filter((plato) => plato.id !== confirmDeletePlato.id)
-    );
+    setPlatos((actual) => actual.filter((p) => p.id !== plato.id));
 
-    if (editingPlatoId === confirmDeletePlato.id) {
+    if (editingPlatoId === plato.id) {
       setEditingPlatoId(null);
       setIngredientesSeleccionados([]);
       setIngredientesBorrador([]);
@@ -307,7 +345,6 @@ export default function PlatosPage() {
       setIsIngredienteDropdownOpen(false);
     }
 
-    setConfirmDeletePlato(null);
     setIsDeleting(false);
   };
 
@@ -319,275 +356,383 @@ export default function PlatosPage() {
     });
   };
 
+  // Estables: Hoja vuelve a enfocar el panel cada vez que cambia onCerrar,
+  // y eso le sacaría el foco al buscador de ingredientes al tipear.
+  const cerrarAlta = useCallback(() => setAltaAbierta(false), []);
+  const cerrarEdicion = useCallback(() => {
+    setEditingPlatoId(null);
+    setIngredientesSeleccionados([]);
+    setIngredientesBorrador([]);
+    setIngredienteQuery("");
+    setIsIngredienteDropdownOpen(false);
+  }, []);
+
+  const platoEditando =
+    platos.find((plato) => plato.id === editingPlatoId) ?? null;
+  const agotados = platos.filter((plato) => !estaDisponible(plato)).length;
+
+  const alerta = error ? (
+    <div
+      role="alert"
+      className="mb-4 flex gap-3 rounded-card bg-danger-soft px-4 py-3 text-[0.94rem] text-danger"
+    >
+      <CircleAlert className="mt-0.5 h-[18px] w-[18px] shrink-0" aria-hidden />
+      <p className="min-w-0 flex-1">{error}</p>
+    </div>
+  ) : null;
+
   return (
-    <main className="min-h-screen min-w-0 bg-zinc-950 px-4 py-6 text-zinc-100 sm:px-6 sm:py-10">
-      <section className="mx-auto w-full max-w-4xl rounded-2xl border border-zinc-800 bg-zinc-900/60 p-6 shadow-[0_0_0_1px_rgba(255,255,255,0.02)] backdrop-blur">
-        <header className="mb-6">
-          <h1 className="font-display text-3xl font-medium tracking-tight text-ink">Biblioteca de Platos</h1>
-        </header>
-
-        <form onSubmit={guardarPlato} className="mb-8 space-y-4">
-          <h2 className="text-sm uppercase tracking-[0.16em] text-zinc-500">
-            Crear nuevo plato
-          </h2>
-          <div className="grid gap-3 md:grid-cols-2">
-            <input
-              value={nombre}
-              onChange={(event) => setNombre(event.target.value)}
-              placeholder="Nombre"
-              className="w-full rounded-xl border border-zinc-700 bg-zinc-950 px-4 py-2.5 text-sm text-zinc-100 outline-none transition focus:border-zinc-500"
-            />
-            <select
-              value={categoria}
-              onChange={(event) => setCategoria(event.target.value as Categoria)}
-              className="w-full rounded-xl border border-zinc-700 bg-zinc-950 px-4 py-2.5 text-sm text-zinc-100 outline-none transition focus:border-zinc-500"
-            >
-              {CATEGORIAS.map((item) => (
-                <option key={item} value={item}>
-                  {item}
-                </option>
-              ))}
-            </select>
-          </div>
-
-          <div className="flex flex-wrap items-center gap-2">
-            <button
-              type="submit"
-              disabled={isSaving}
-              className="inline-flex items-center justify-center rounded-xl border border-zinc-700 bg-zinc-100 p-2 text-zinc-900 transition hover:bg-zinc-50 disabled:cursor-not-allowed disabled:opacity-60"
-              aria-label="Crear plato"
-            >
-              {isSaving ? (
-                <Loader2 className="h-4 w-4 animate-spin" />
-              ) : (
-                <Plus className="h-4 w-4" />
-              )}
-            </button>
-          </div>
-        </form>
-
-        {error ? (
-          <p className="mb-5 rounded-lg border border-red-900/70 bg-red-950/40 px-3 py-2 text-sm text-red-200">
-            {error}
+    <Pantalla
+      titulo="Platos"
+      subtitulo={
+        isLoading
+          ? "Cargando…"
+          : `${platos.length} ${platos.length === 1 ? "plato" : "platos"} de carta${
+              agotados > 0
+                ? ` · ${agotados} ${agotados === 1 ? "agotado" : "agotados"}`
+                : ""
+            }`
+      }
+      acciones={
+        <BotonIcono
+          etiqueta="Nuevo plato"
+          icono={<Plus className="h-[22px] w-[22px]" aria-hidden />}
+          onClick={() => setAltaAbierta(true)}
+        />
+      }
+      ayuda={
+        <>
+          <p>
+            Los platos de la carta y los ingredientes que necesita cada uno. Si
+            alguno de esos ingredientes no está disponible, el plato figura como{" "}
+            <strong className="text-label">Agotado</strong>.
           </p>
-        ) : null}
+          <p>
+            Tocá un plato para ver y elegir sus ingredientes o ir a su receta.
+            Si un ingrediente no existe, se crea desde el mismo buscador.
+          </p>
+          <p>
+            Con <strong className="text-label">+</strong> creás un plato nuevo.
+            Para eliminar uno, deslizá la fila hacia la izquierda.
+          </p>
+        </>
+      }
+    >
+      {editingPlatoId ? null : alerta}
 
-        {confirmDeletePlato ? (
-          <div className="mb-5 rounded-xl border border-zinc-700 bg-zinc-950/70 p-4">
-            <p className="text-sm text-zinc-200">
-              ¿Eliminar <span className="font-medium">{confirmDeletePlato.nombre}</span>?
-              Esta acción no se puede deshacer.
+      {isLoading ? (
+        <EsqueletoLista filas={6} />
+      ) : platos.length === 0 ? (
+        <div className="rounded-card bg-surface-3">
+          <EstadoVacio
+            icono={<UtensilsCrossed className="h-6 w-6" aria-hidden />}
+            titulo="Todavía no hay platos"
+            texto="Creá el primero y después elegí sus ingredientes."
+            accion={
+              <Boton
+                icono={<Plus className="h-[18px] w-[18px]" aria-hidden />}
+                onClick={() => setAltaAbierta(true)}
+              >
+                Nuevo plato
+              </Boton>
+            }
+          />
+        </div>
+      ) : (
+        platosPorCategoria.map((bloque) => (
+          <Seccion
+            key={bloque.categoria}
+            titulo={`${bloque.categoria} · ${bloque.platos.length}`}
+          >
+            {bloque.platos.length === 0 ? (
+              <p className="rounded-card bg-surface-3 px-4 py-3.5 text-[0.94rem] text-label-3">
+                Sin platos en esta categoría.
+              </p>
+            ) : (
+              <Lista>
+                {bloque.platos.map((plato) => {
+                  const disponible = estaDisponible(plato);
+                  const ingredientesDelPlato = (
+                    plato.ingredientes_requeridos ?? []
+                  )
+                    .map((id) => ingredientesPorId.get(id)?.nombre)
+                    .filter(Boolean);
+
+                  return (
+                    <Fila
+                      key={plato.id}
+                      titulo={
+                        <span className="font-medium">{plato.nombre}</span>
+                      }
+                      detalle={
+                        ingredientesDelPlato.length > 0
+                          ? ingredientesDelPlato.join(" · ")
+                          : "Sin ingredientes asignados"
+                      }
+                      valor={
+                        <Etiqueta tono={disponible ? "exito" : "alerta"}>
+                          {disponible ? "Disponible" : "Agotado"}
+                        </Etiqueta>
+                      }
+                      onClick={() => iniciarEdicion(plato)}
+                      acciones={[
+                        {
+                          label: "Eliminar",
+                          tono: "peligro",
+                          icono: <Trash2 className="h-5 w-5" aria-hidden />,
+                          onClick: () => void eliminarPlato(plato),
+                        },
+                      ]}
+                    />
+                  );
+                })}
+              </Lista>
+            )}
+          </Seccion>
+        ))
+      )}
+
+      {/* Alta de plato */}
+      <Hoja abierta={altaAbierta} onCerrar={cerrarAlta} titulo="Nuevo plato">
+        <form onSubmit={guardarPlato} className="space-y-4 pt-1">
+          {editingPlatoId ? null : alerta}
+          <Campo
+            label="Nombre"
+            value={nombre}
+            onChange={(event) => setNombre(event.target.value)}
+            placeholder="Ej. Tataki de atún"
+            autoComplete="off"
+            enterKeyHint="done"
+          />
+          <div>
+            <p className="mb-1.5 pl-1 text-[0.82rem] font-medium text-label-2">
+              Categoría
             </p>
-            <div className="mt-3 flex gap-2">
-              <button
-                type="button"
-                onClick={() => void eliminarPlato()}
-                disabled={isDeleting}
-                className="inline-flex items-center gap-2 rounded-lg border border-red-800 bg-red-950/40 px-3 py-2 text-sm text-red-200 transition hover:bg-red-950/70 disabled:cursor-not-allowed disabled:opacity-60"
-              >
-                {isDeleting ? (
-                  <>
-                    <Loader2 className="h-4 w-4 animate-spin" />
-                    Eliminando...
-                  </>
-                ) : (
-                  <>
-                    <Trash2 className="h-4 w-4" />
-                    Confirmar eliminación
-                  </>
-                )}
-              </button>
-              <button
-                type="button"
-                onClick={() => setConfirmDeletePlato(null)}
-                disabled={isDeleting}
-                className="rounded-lg border border-zinc-700 bg-zinc-900 px-3 py-2 text-sm text-zinc-200 transition hover:border-zinc-500 hover:text-white disabled:cursor-not-allowed disabled:opacity-60"
-              >
-                Cancelar
-              </button>
-            </div>
+            <Segmentado<Categoria>
+              etiqueta="Categoría"
+              valor={categoria}
+              onChange={setCategoria}
+              opciones={CATEGORIAS.map((item) => ({
+                valor: item,
+                label: item,
+              }))}
+            />
           </div>
-        ) : null}
+          <Boton
+            type="submit"
+            tamano="grande"
+            ancho
+            cargando={isSaving}
+            disabled={!nombre.trim()}
+            icono={<Plus className="h-[18px] w-[18px]" aria-hidden />}
+          >
+            Crear y elegir ingredientes
+          </Boton>
+        </form>
+      </Hoja>
 
-        {isLoading ? (
-          <EsqueletoLista filas={6} />
-        ) : (
-          <div className="space-y-6">
-            {platosPorCategoria.map((bloque) => (
-              <section key={bloque.categoria}>
-                <h2 className="mb-3 text-sm uppercase tracking-[0.16em] text-zinc-500">
-                  {bloque.categoria}
-                </h2>
-                {bloque.platos.length === 0 ? (
-                  <p className="rounded-lg border border-zinc-800 bg-zinc-950/60 px-3 py-2 text-sm text-zinc-500">
-                    Sin platos en esta categoría.
-                  </p>
+      {/* Detalle / edición de ingredientes del plato */}
+      <Hoja
+        abierta={platoEditando !== null}
+        onCerrar={cerrarEdicion}
+        titulo={platoEditando?.nombre}
+        alto={isIngredienteDropdownOpen ? "alta" : "auto"}
+      >
+        {platoEditando ? (
+          isIngredienteDropdownOpen ? (
+            <div className="flex min-h-full flex-col">
+              {alerta}
+              <div className="sticky top-0 z-10 -mx-4 bg-surface-2 px-4 pb-2">
+                <CampoBusqueda
+                  value={ingredienteQuery}
+                  onChange={(event) => setIngredienteQuery(event.target.value)}
+                  placeholder="Buscar o crear ingrediente"
+                  etiqueta="Buscar ingrediente"
+                />
+              </div>
+
+              {ingredienteQuery.trim() && !ingredienteYaExiste ? (
+                <button
+                  type="button"
+                  onClick={() => void agregarIngredienteDesdeDropdown()}
+                  disabled={isAddingIngrediente}
+                  className="mb-3 flex min-h-12 w-full items-center gap-2 rounded-card bg-surface-3 px-4 text-left text-[1rem] font-semibold text-accent transition active:bg-fill disabled:opacity-50"
+                >
+                  {isAddingIngrediente ? (
+                    <Loader2
+                      className="h-[18px] w-[18px] shrink-0 animate-spin"
+                      aria-hidden
+                    />
+                  ) : (
+                    <Plus className="h-[18px] w-[18px] shrink-0" aria-hidden />
+                  )}
+                  <span className="min-w-0 truncate">
+                    Crear «{ingredienteQuery.trim()}»
+                  </span>
+                </button>
+              ) : null}
+
+              {ingredientesFiltrados.length > 0 ? (
+                <ul
+                  aria-label="Ingredientes"
+                  className="overflow-hidden rounded-card bg-surface-3"
+                >
+                  {ingredientesFiltrados.map((ingrediente) => {
+                    const selected = ingredientesBorrador.includes(
+                      ingrediente.id,
+                    );
+                    return (
+                      <li
+                        key={ingrediente.id}
+                        className="border-b border-separator last:border-0"
+                      >
+                        <button
+                          type="button"
+                          role="checkbox"
+                          aria-checked={selected}
+                          onClick={() =>
+                            toggleIngredienteBorrador(ingrediente.id)
+                          }
+                          className="flex min-h-12 w-full items-center gap-3 px-4 py-2 text-left transition active:bg-fill"
+                        >
+                          <span
+                            aria-hidden
+                            className={cx(
+                              "flex size-6 shrink-0 items-center justify-center rounded-full transition-colors",
+                              selected
+                                ? "bg-accent text-on-accent"
+                                : "border-2 border-fill-strong",
+                            )}
+                          >
+                            {selected ? (
+                              <Check className="h-4 w-4" strokeWidth={3} />
+                            ) : null}
+                          </span>
+                          <span
+                            className={cx(
+                              "min-w-0 flex-1 truncate text-[1rem]",
+                              "text-label",
+                              selected && "font-semibold",
+                            )}
+                          >
+                            {ingrediente.nombre}
+                          </span>
+                          {!ingrediente.disponible ? (
+                            <span className="shrink-0 text-[0.8rem] text-warning">
+                              No disponible
+                            </span>
+                          ) : null}
+                        </button>
+                      </li>
+                    );
+                  })}
+                </ul>
+              ) : (
+                <p className="px-1 py-6 text-center text-[0.94rem] text-label-3">
+                  No se encontraron ingredientes.
+                </p>
+              )}
+
+              <div className="sticky bottom-0 -mx-4 -mb-[calc(env(safe-area-inset-bottom,0px)+1rem)] mt-auto grid grid-cols-[1fr_auto] gap-2 bg-surface-2 px-4 pb-[calc(env(safe-area-inset-bottom,0px)+1rem)] pt-3">
+                <Boton
+                  tamano="grande"
+                  cargando={isUpdatingIngredientes}
+                  icono={<Check className="h-[18px] w-[18px]" aria-hidden />}
+                  onClick={() => void confirmarSelectorIngredientes()}
+                >
+                  Guardar · {ingredientesBorrador.length}
+                </Boton>
+                <Boton
+                  tamano="grande"
+                  variante="secundario"
+                  disabled={isUpdatingIngredientes}
+                  onClick={cancelarSelectorIngredientes}
+                >
+                  Cancelar
+                </Boton>
+              </div>
+            </div>
+          ) : (
+            <div className="pt-1">
+              {alerta}
+              <div className="flex flex-wrap items-center gap-2">
+                <Etiqueta>{platoEditando.categoria}</Etiqueta>
+                <Etiqueta
+                  tono={estaDisponible(platoEditando) ? "exito" : "alerta"}
+                >
+                  {estaDisponible(platoEditando) ? "Disponible" : "Agotado"}
+                </Etiqueta>
+              </div>
+
+              <Seccion
+                titulo={`Ingredientes · ${ingredientesSeleccionados.length}`}
+                accion={
+                  <Boton
+                    variante="terciario"
+                    tamano="chico"
+                    className="min-h-11"
+                    icono={<Pencil className="h-4 w-4" aria-hidden />}
+                    onClick={abrirSelectorIngredientes}
+                  >
+                    Editar
+                  </Boton>
+                }
+              >
+                {ingredientesSeleccionados.length === 0 ? (
+                  <button
+                    type="button"
+                    onClick={abrirSelectorIngredientes}
+                    className="flex min-h-12 w-full items-center gap-2 rounded-card bg-surface-3 px-4 text-left text-[1rem] font-semibold text-accent transition active:bg-fill"
+                  >
+                    <Plus className="h-[18px] w-[18px] shrink-0" aria-hidden />
+                    Elegir ingredientes
+                  </button>
                 ) : (
-                  <ul className="space-y-2">
-                    {bloque.platos.map((plato) => {
-                      const disponible = estaDisponible(plato);
-                      const ingredientesDelPlato = (plato.ingredientes_requeridos ?? [])
-                        .map((id) => ingredientesPorId.get(id)?.nombre)
-                        .filter(Boolean);
-
+                  <ul className="overflow-hidden rounded-card bg-surface-3">
+                    {ingredientesSeleccionados.map((id) => {
+                      const ingrediente = ingredientesPorId.get(id);
+                      const ok = ingrediente ? ingrediente.disponible : false;
                       return (
                         <li
-                          key={plato.id}
-                          onClick={(event) => {
-                            const target = event.target as HTMLElement;
-                            if (target.closest("button,input,select,textarea,a")) {
-                              return;
-                            }
-                            iniciarEdicion(plato);
-                          }}
-                          className={`rounded-xl border bg-zinc-950/70 px-4 py-3 ${
-                            editingPlatoId === plato.id
-                              ? "border-zinc-500"
-                              : "border-zinc-800 hover:border-zinc-600"
-                          }`}
+                          key={id}
+                          className="flex min-h-12 items-center gap-3 border-b border-separator px-4 py-2 last:border-0"
                         >
-                          <div className="flex items-center justify-between gap-3">
-                            <p className="text-sm font-medium text-zinc-100">
-                              {plato.nombre}
-                            </p>
-                            <div className="flex items-center gap-2">
-                              <Link
-                                href={`/receta?plato=${plato.id}`}
-                                className="text-[11px] uppercase tracking-wide text-zinc-500 underline hover:text-zinc-200"
-                              >
-                                Receta
-                              </Link>
-                              <span
-                                className={`rounded-full border px-2.5 py-1 text-xs ${
-                                  disponible
-                                    ? "border-emerald-800 bg-emerald-950/50 text-emerald-200"
-                                    : "border-amber-800 bg-amber-950/50 text-amber-200"
-                                }`}
-                              >
-                                {disponible ? "Disponible" : "Agotado"}
-                              </span>
-                              <button
-                                type="button"
-                                onClick={() => setConfirmDeletePlato(plato)}
-                                className="inline-flex items-center justify-center rounded-lg border border-zinc-700 p-2 text-zinc-300 transition hover:border-red-700 hover:text-red-200"
-                                aria-label={`Eliminar ${plato.nombre}`}
-                              >
-                                <Trash2 className="h-4 w-4" />
-                              </button>
-                            </div>
-                          </div>
-                          <p className="mt-2 text-xs text-zinc-500">
-                            {ingredientesDelPlato.length > 0
-                              ? ingredientesDelPlato.join(" · ")
-                              : "Sin ingredientes asignados"}
-                          </p>
-                          {editingPlatoId === plato.id ? (
-                            <div className="mt-3 rounded-lg border border-zinc-700 bg-zinc-900/70 p-3">
-                              <p className="mb-2 text-xs uppercase tracking-[0.12em] text-zinc-500">
-                                Ingredientes (dropdown multi-selección)
-                              </p>
-                              <button
-                                type="button"
-                                onClick={abrirSelectorIngredientes}
-                                className="w-full rounded-md border border-zinc-700 bg-zinc-950 px-3 py-2 text-left text-sm text-zinc-100 transition hover:border-zinc-500"
-                              >
-                                {`Seleccionar ingredientes (${ingredientesSeleccionados.length})`}
-                              </button>
-
-                              {isIngredienteDropdownOpen ? (
-                                <div className="mt-2 rounded-md border border-zinc-700 bg-zinc-950 p-2">
-                                  <input
-                                    value={ingredienteQuery}
-                                    onChange={(event) =>
-                                      setIngredienteQuery(event.target.value)
-                                    }
-                                    placeholder="Buscar ingrediente..."
-                                    className="mb-2 w-full rounded-md border border-zinc-700 bg-zinc-900 px-3 py-2 text-sm text-zinc-100 outline-none focus:border-zinc-500"
-                                  />
-                                  <div className="max-h-44 space-y-1 overflow-y-auto pr-1">
-                                    {ingredienteQuery.trim() && !ingredienteYaExiste ? (
-                                      <button
-                                        type="button"
-                                        onClick={() => void agregarIngredienteDesdeDropdown()}
-                                        disabled={isAddingIngrediente}
-                                        className="mb-2 flex w-full items-center justify-between rounded-md border border-zinc-600 bg-zinc-900 px-3 py-2 text-sm text-zinc-100 transition hover:border-zinc-400 disabled:cursor-not-allowed disabled:opacity-60"
-                                      >
-                                        <span>{`Agregar "${ingredienteQuery.trim()}"`}</span>
-                                        {isAddingIngrediente ? (
-                                          <Loader2 className="h-4 w-4 animate-spin" />
-                                        ) : (
-                                          <Plus className="h-4 w-4" />
-                                        )}
-                                      </button>
-                                    ) : null}
-
-                                    {ingredientesFiltrados.length > 0 ? (
-                                      ingredientesFiltrados.map((ingrediente) => {
-                                        const selected = ingredientesBorrador.includes(
-                                          ingrediente.id
-                                        );
-
-                                        return (
-                                          <button
-                                            key={ingrediente.id}
-                                            type="button"
-                                            onClick={() =>
-                                              toggleIngredienteBorrador(ingrediente.id)
-                                            }
-                                            className={`flex w-full items-center justify-between rounded-md border px-3 py-2 text-sm transition ${
-                                              selected
-                                                ? "border-zinc-100 bg-zinc-100 text-zinc-900"
-                                                : "border-zinc-700 bg-zinc-900 text-zinc-200 hover:border-zinc-500"
-                                            }`}
-                                          >
-                                            <span>{ingrediente.nombre}</span>
-                                            <span className="text-xs opacity-70">
-                                              {selected ? "Seleccionado" : "Agregar"}
-                                            </span>
-                                          </button>
-                                        );
-                                      })
-                                    ) : (
-                                      <p className="px-1 py-2 text-sm text-zinc-500">
-                                        No se encontraron ingredientes.
-                                      </p>
-                                    )}
-                                  </div>
-                                  <div className="mt-2 flex gap-2">
-                                    <button
-                                      type="button"
-                                      onClick={() => void confirmarSelectorIngredientes()}
-                                      disabled={isUpdatingIngredientes}
-                                      className="inline-flex items-center gap-2 rounded-md border border-zinc-700 bg-zinc-100 px-3 py-1.5 text-sm text-zinc-900 transition hover:bg-zinc-50 disabled:cursor-not-allowed disabled:opacity-60"
-                                    >
-                                      {isUpdatingIngredientes ? (
-                                        <Loader2 className="h-4 w-4 animate-spin" />
-                                      ) : null}
-                                      Confirmar selección
-                                    </button>
-                                    <button
-                                      type="button"
-                                      onClick={cancelarSelectorIngredientes}
-                                      disabled={isUpdatingIngredientes}
-                                      className="rounded-md border border-zinc-700 bg-zinc-900 px-3 py-1.5 text-sm text-zinc-200 transition hover:border-zinc-500 hover:text-zinc-100"
-                                    >
-                                      Cancelar
-                                    </button>
-                                  </div>
-                                </div>
-                              ) : null}
-                            </div>
-                          ) : null}
+                          <span className="min-w-0 flex-1 truncate text-[1rem] text-label">
+                            {ingrediente?.nombre ?? "Ingrediente eliminado"}
+                          </span>
+                          {ok ? null : (
+                            <span className="shrink-0 text-[0.84rem] font-medium text-warning">
+                              No disponible
+                            </span>
+                          )}
                         </li>
                       );
                     })}
                   </ul>
                 )}
-              </section>
-            ))}
-          </div>
-        )}
-      </section>
-    </main>
+              </Seccion>
+
+              <div className="mt-6 grid grid-cols-2 gap-2">
+                <Link
+                  href={`/receta?plato=${platoEditando.id}`}
+                  className="inline-flex min-h-11 items-center justify-center gap-2 rounded-control bg-fill px-4 text-[0.97rem] font-semibold text-label transition hover:bg-fill-strong active:scale-[0.97]"
+                >
+                  <NotebookText className="h-[18px] w-[18px]" aria-hidden />
+                  Receta
+                </Link>
+                <Boton
+                  variante="peligro"
+                  cargando={isDeleting}
+                  icono={<Trash2 className="h-[18px] w-[18px]" aria-hidden />}
+                  onClick={() => void eliminarPlato(platoEditando)}
+                >
+                  Eliminar
+                </Boton>
+              </div>
+            </div>
+          )
+        ) : null}
+      </Hoja>
+    </Pantalla>
   );
 }

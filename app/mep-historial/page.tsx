@@ -1,10 +1,31 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { Loader2, Trash2 } from "lucide-react";
-import { EsqueletoLista } from "@/app/ui";
+import {
+  ArrowLeftRight,
+  ChevronDown,
+  CircleAlert,
+  CircleCheck,
+  History,
+  Loader2,
+  SearchX,
+  Trash2,
+} from "lucide-react";
 import Link from "next/link";
 
+import {
+  Boton,
+  BotonIcono,
+  Campo,
+  EstadoVacio,
+  EsqueletoLista,
+  Etiqueta,
+  Pantalla,
+  Seccion,
+  Selector,
+  useAvisos,
+  type OpcionSelector,
+} from "@/app/ui";
 import { MepCompararPanel } from "@/app/components/mep-comparar-panel";
 import { formatPostgrestError } from "@/src/lib/supabase-errors";
 import {
@@ -39,6 +60,22 @@ function fechaHoraCarga(iso: string): string {
   });
 }
 
+/** "2025-11-20" → "Jueves 20 nov" (con año si no es el actual). */
+function fechaGrupo(iso: string): string {
+  const [a, m, d] = iso.split("-").map(Number);
+  if (!a || !m || !d) {
+    return iso;
+  }
+  const fecha = new Date(a, m - 1, d);
+  const texto = fecha.toLocaleDateString("es-ES", {
+    weekday: "long",
+    day: "numeric",
+    month: "short",
+    year: a === new Date().getFullYear() ? undefined : "numeric",
+  });
+  return texto.charAt(0).toUpperCase() + texto.slice(1);
+}
+
 export default function MepHistorialPage() {
   const [cargas, setCargas] = useState<MepDeliCarga[]>([]);
   const [cortes, setCortes] = useState<MepCorte[]>([]);
@@ -51,8 +88,12 @@ export default function MepHistorialPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [borrandoId, setBorrandoId] = useState<string | null>(null);
+  const { confirmar } = useAvisos();
 
-  const cortesPorId = useMemo(() => new Map(cortes.map((c) => [c.id, c])), [cortes]);
+  const cortesPorId = useMemo(
+    () => new Map(cortes.map((c) => [c.id, c])),
+    [cortes],
+  );
 
   const personas = useMemo(() => personasEnCargas(cargas), [cargas]);
 
@@ -86,17 +127,17 @@ export default function MepHistorialPage() {
 
   const cargasAgrupadas = useMemo(
     () => agruparCargasPorFecha(cargasFiltradas),
-    [cargasFiltradas]
+    [cargasFiltradas],
   );
 
   const recuento = useMemo(
     () => calcularRecuentoMep(cargasFiltradas, cortesPorId),
-    [cargasFiltradas, cortesPorId]
+    [cargasFiltradas, cortesPorId],
   );
 
   const serviciosConCierre = useMemo(
     () => cargasFiltradas.filter((c) => tieneCierre(c)).length,
-    [cargasFiltradas]
+    [cargasFiltradas],
   );
 
   const cargarHistorial = async () => {
@@ -118,7 +159,7 @@ export default function MepHistorialPage() {
       }
     } catch (err) {
       setError(
-        err instanceof Error ? err.message : "Error al conectar con Supabase."
+        err instanceof Error ? err.message : "Error al conectar con Supabase.",
       );
     } finally {
       setIsLoading(false);
@@ -133,9 +174,12 @@ export default function MepHistorialPage() {
   }, []);
 
   const borrarCarga = async (carga: MepDeliCarga) => {
-    const ok = window.confirm(
-      `¿Borrar la MEP del ${etiquetaCargaMep(carga)}? No se puede deshacer.`
-    );
+    const ok = await confirmar({
+      titulo: `¿Borrar la MEP del ${etiquetaCargaMep(carga)}?`,
+      texto: "Se borran la carga y su cierre. No se puede deshacer.",
+      confirmar: "Borrar MEP",
+      peligro: true,
+    });
     if (!ok) {
       return;
     }
@@ -150,303 +194,415 @@ export default function MepHistorialPage() {
     } catch (err) {
       setError(
         err && typeof err === "object" && "message" in err
-          ? formatPostgrestError(err as Parameters<typeof formatPostgrestError>[0])
-          : "No se pudo borrar la MEP."
+          ? formatPostgrestError(
+              err as Parameters<typeof formatPostgrestError>[0],
+            )
+          : "No se pudo borrar la MEP.",
       );
     } finally {
       setBorrandoId(null);
     }
   };
 
+  const limpiarFiltros = () => {
+    setFechaDesde("");
+    setFechaHasta("");
+    setFiltroPersona("todos");
+  };
+
+  const hayFiltros = Boolean(
+    fechaDesde || fechaHasta || filtroPersona !== "todos",
+  );
+
+  const opcionesPersona: OpcionSelector<string>[] = [
+    { valor: "todos", label: "Todas las personas" },
+    ...personas.cargadores.map((nombre) => ({
+      valor: `cargado:${nombre}`,
+      label: `Cargó: ${nombre}`,
+    })),
+    ...personas.cerradores.map((nombre) => ({
+      valor: `cerrado:${nombre}`,
+      label: `Cerró: ${nombre}`,
+    })),
+  ];
+
+  const sinCerrar = cargasFiltradas.length - serviciosConCierre;
+
   return (
-    <main className="min-h-screen min-w-0 bg-zinc-950 px-4 py-6 text-zinc-100 sm:px-6 sm:py-10">
-      <section className="mx-auto w-full max-w-5xl rounded-2xl border border-zinc-800 bg-zinc-900/60 p-6 shadow-[0_0_0_1px_rgba(255,255,255,0.02)] backdrop-blur">
-        <header className="mb-6 flex flex-wrap items-start justify-between gap-3">
-          <div>
-            <h1 className="font-display text-3xl font-medium tracking-tight text-ink">Historial MEP Deli</h1>
-            <p className="mt-1 text-sm text-zinc-400">
-              Cargas del delivery nocturno, quién las hizo y cierres (faltó / sobró).
-            </p>
-          </div>
-          <Link
-            href="/mep-deli"
-            className="rounded-xl border border-zinc-700 bg-zinc-950 px-3 py-2 text-sm text-zinc-300 transition hover:border-zinc-500 hover:text-white"
-          >
-            ← MEP Deli
-          </Link>
-        </header>
-
-        <section className="mb-6 grid gap-2 rounded-xl border border-zinc-800 bg-zinc-950/60 p-3 sm:grid-cols-2 lg:grid-cols-3">
-          <input
-            type="date"
-            value={fechaDesde}
-            onChange={(e) => setFechaDesde(e.target.value)}
-            className="rounded-lg border border-zinc-700 bg-zinc-900 px-3 py-2 text-sm text-zinc-100 outline-none transition focus:border-zinc-500"
-            aria-label="Fecha desde"
-          />
-          <input
-            type="date"
-            value={fechaHasta}
-            onChange={(e) => setFechaHasta(e.target.value)}
-            className="rounded-lg border border-zinc-700 bg-zinc-900 px-3 py-2 text-sm text-zinc-100 outline-none transition focus:border-zinc-500"
-            aria-label="Fecha hasta"
-          />
-          <select
-            value={filtroPersona}
-            onChange={(e) => setFiltroPersona(e.target.value)}
-            className="rounded-lg border border-zinc-700 bg-zinc-900 px-3 py-2 text-sm text-zinc-100 outline-none transition focus:border-zinc-500 sm:col-span-2 lg:col-span-1"
-            aria-label="Filtrar por persona"
-          >
-            <option value="todos">Todas las personas</option>
-            {personas.cargadores.length > 0 ? (
-              <optgroup label="Cargó">
-                {personas.cargadores.map((nombre) => (
-                  <option key={`c-${nombre}`} value={`cargado:${nombre}`}>
-                    {nombre}
-                  </option>
-                ))}
-              </optgroup>
-            ) : null}
-            {personas.cerradores.length > 0 ? (
-              <optgroup label="Cerró">
-                {personas.cerradores.map((nombre) => (
-                  <option key={`z-${nombre}`} value={`cerrado:${nombre}`}>
-                    {nombre}
-                  </option>
-                ))}
-              </optgroup>
-            ) : null}
-          </select>
-          <button
-            type="button"
-            onClick={() => {
-              setFechaDesde("");
-              setFechaHasta("");
-              setFiltroPersona("todos");
-            }}
-            className="rounded-lg border border-zinc-700 bg-zinc-900 px-3 py-2 text-sm text-zinc-200 transition hover:border-zinc-500 hover:text-zinc-100 sm:col-span-2 lg:col-span-3"
-          >
-            Limpiar filtros
-          </button>
-          {cargasFiltradas.length >= 2 ? (
-            <button
-              type="button"
-              onClick={() => setCompararAbierto((v) => !v)}
-              className="rounded-lg border border-violet-800/50 bg-violet-950/25 px-3 py-2 text-sm text-violet-200 transition hover:border-violet-600 sm:col-span-2 lg:col-span-3"
-            >
-              {compararAbierto ? "Ocultar comparación" : "Comparar servicios"}
-            </button>
-          ) : null}
-        </section>
-
-        {compararAbierto && cargasFiltradas.length >= 2 ? (
-          <MepCompararPanel
-            cargas={cargasFiltradas}
-            cortesPorId={cortesPorId}
-            idA={compararIdA}
-            idB={compararIdB}
-            onCambiarA={setCompararIdA}
-            onCambiarB={setCompararIdB}
-            onCerrar={() => setCompararAbierto(false)}
-          />
-        ) : null}
-
-        {!isLoading && cargasFiltradas.length > 0 && (
-          <section className="mb-6 rounded-xl border border-zinc-800 bg-zinc-950/60 p-4">
-            <h2 className="mb-3 text-sm font-semibold uppercase tracking-wide text-zinc-500">
-              Recuento del período
-            </h2>
-            <p className="mb-3 text-xs text-zinc-500">
-              {serviciosConCierre} servicio{serviciosConCierre === 1 ? "" : "s"} con cierre
-              registrado
-              {cargasFiltradas.length > serviciosConCierre
-                ? ` · ${cargasFiltradas.length - serviciosConCierre} sin cerrar`
-                : ""}
-            </p>
-            {recuento.length === 0 ? (
-              <p className="text-sm text-zinc-500">
-                Todavía no hay faltantes ni sobrantes en el período filtrado.
-              </p>
-            ) : (
-              <div className="overflow-x-auto">
-                <table className="w-full min-w-[28rem] text-left text-sm">
-                  <thead>
-                    <tr className="border-b border-zinc-800 text-xs uppercase tracking-wide text-zinc-500">
-                      <th className="pb-2 pr-3 font-medium">Ítem</th>
-                      <th className="pb-2 pr-3 font-medium text-red-400">Faltó</th>
-                      <th className="pb-2 font-medium text-amber-400">Sobró</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {recuento.map((r) => (
-                      <tr key={r.corte_id} className="border-b border-zinc-800/60">
-                        <td className="py-2 pr-3 text-zinc-200">
-                          <span className="text-zinc-500">{r.categoria} ·</span> {r.nombre}
-                          <span className="ml-1 text-xs text-zinc-600">
-                            ({r.servicios_con_cierre} serv.)
-                          </span>
-                        </td>
-                        <td className="py-2 pr-3 text-red-300">{r.faltos || "—"}</td>
-                        <td className="py-2 text-amber-300">{r.sobraron || "—"}</td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            )}
-          </section>
-        )}
-
-        {error ? (
-          <p className="mb-5 rounded-lg border border-red-900/70 bg-red-950/40 px-3 py-2 text-sm text-red-200">
-            {error}
+    <Pantalla
+      titulo="Historial MEP"
+      subtitulo={
+        isLoading
+          ? "Cargando…"
+          : `${cargasFiltradas.length} ${cargasFiltradas.length === 1 ? "servicio" : "servicios"}${
+              hayFiltros ? " (filtrado)" : ""
+            }${sinCerrar > 0 ? ` · ${sinCerrar} sin cerrar` : ""}`
+      }
+      ancho="amplio"
+      acciones={
+        <Link
+          href="/mep-deli"
+          className="inline-flex min-h-11 items-center rounded-full bg-fill px-4 text-[0.92rem] font-semibold text-label transition hover:bg-fill-strong active:scale-95"
+        >
+          MEP Deli
+        </Link>
+      }
+      ayuda={
+        <>
+          <p>
+            Las MEP del delivery nocturno: qué se cargó, quién la cargó y cómo
+            cerró cada servicio (qué faltó y qué sobró).
           </p>
+          <p>
+            Filtrá por fechas o por persona. El{" "}
+            <strong className="text-label">Recuento</strong> suma los faltantes
+            y sobrantes de los servicios filtrados.
+          </p>
+          <p>
+            <strong className="text-label">Comparar</strong> pone dos servicios
+            uno al lado del otro. Tocá «MEP cargada» en un servicio para ver
+            todas sus cantidades.
+          </p>
+        </>
+      }
+    >
+      {error ? (
+        <div
+          role="alert"
+          className="mb-4 flex gap-3 rounded-card bg-danger-soft px-4 py-3 text-[0.94rem] text-danger"
+        >
+          <CircleAlert
+            className="mt-0.5 h-[18px] w-[18px] shrink-0"
+            aria-hidden
+          />
+          <p className="min-w-0 flex-1">{error}</p>
+        </div>
+      ) : null}
+
+      <Seccion
+        titulo="Filtros"
+        accion={
+          hayFiltros ? (
+            <Boton
+              variante="terciario"
+              tamano="chico"
+              className="min-h-11"
+              onClick={limpiarFiltros}
+            >
+              Limpiar
+            </Boton>
+          ) : undefined
+        }
+      >
+        <div className="grid gap-3 sm:grid-cols-3">
+          <div className="grid grid-cols-2 gap-3 sm:col-span-2">
+            <Campo
+              type="date"
+              label="Desde"
+              value={fechaDesde}
+              onChange={(e) => setFechaDesde(e.target.value)}
+            />
+            <Campo
+              type="date"
+              label="Hasta"
+              value={fechaHasta}
+              onChange={(e) => setFechaHasta(e.target.value)}
+            />
+          </div>
+          <Selector
+            label="Persona"
+            titulo="Filtrar por persona"
+            valor={filtroPersona}
+            opciones={opcionesPersona}
+            onChange={setFiltroPersona}
+            buscar={opcionesPersona.length > 10}
+          />
+        </div>
+        {cargasFiltradas.length >= 2 && !compararAbierto ? (
+          <Boton
+            variante="secundario"
+            ancho
+            className="mt-3"
+            icono={<ArrowLeftRight className="h-[18px] w-[18px]" aria-hidden />}
+            onClick={() => setCompararAbierto(true)}
+          >
+            Comparar servicios
+          </Boton>
         ) : null}
+      </Seccion>
 
-        {isLoading ? (
-          <EsqueletoLista filas={6} />
-        ) : cargasAgrupadas.length === 0 ? (
-          cargas.length === 0 ? (
-            <div className="rounded-lg border border-zinc-800 bg-zinc-950/60 px-4 py-4 text-sm leading-relaxed text-zinc-400">
-              <p className="font-medium text-zinc-200">Todavía no hay registros</p>
-              <p className="mt-2">
-                Cuando el equipo guarde MEP desde{" "}
-                <Link href="/mep-deli" className="text-zinc-300 underline">
-                  MEP Deli
-                </Link>
-                , aparecerán acá.
-              </p>
-            </div>
-          ) : (
-            <p className="text-sm text-zinc-500">
-              No hay resultados para los filtros seleccionados.
+      {compararAbierto && cargasFiltradas.length >= 2 ? (
+        <MepCompararPanel
+          cargas={cargasFiltradas}
+          cortesPorId={cortesPorId}
+          idA={compararIdA}
+          idB={compararIdB}
+          onCambiarA={setCompararIdA}
+          onCambiarB={setCompararIdB}
+          onCerrar={() => setCompararAbierto(false)}
+        />
+      ) : null}
+
+      {!isLoading && cargasFiltradas.length > 0 && (
+        <Seccion
+          titulo="Recuento del período"
+          pie={`${serviciosConCierre} ${serviciosConCierre === 1 ? "servicio" : "servicios"} con cierre registrado${
+            sinCerrar > 0 ? ` · ${sinCerrar} sin cerrar` : ""
+          }`}
+        >
+          {recuento.length === 0 ? (
+            <p className="rounded-card bg-surface-3 px-4 py-3.5 text-[0.94rem] text-label-3">
+              Todavía no hay faltantes ni sobrantes en el período filtrado.
             </p>
-          )
-        ) : (
-          <div className="space-y-6">
-            {cargasAgrupadas.map((grupo) => (
-              <section key={grupo.fecha}>
-                <h2 className="mb-3 text-sm uppercase tracking-[0.16em] text-zinc-500">
-                  {grupo.fecha}
-                </h2>
-                <div className="space-y-2">
-                  {grupo.cargas.map((carga) => {
-                    const lineas = enriquecerLineasMep(carga.lineas, cortesPorId);
-                    const cierre = tieneCierre(carga)
-                      ? enriquecerCierreLineas(carga, cortesPorId)
-                      : [];
-                    const varianza = cierre.filter((l) => l.resultado !== "ok");
+          ) : (
+            <ul className="overflow-hidden rounded-card bg-surface-3 shadow-[0_1px_2px_rgb(0_0_0/0.04)]">
+              <li
+                aria-hidden
+                className="flex items-center gap-2 border-b border-separator py-2 pl-4 pr-4 text-[0.8rem] font-semibold uppercase tracking-[0.06em] text-label-3"
+              >
+                <span className="flex-1">Ítem</span>
+                <span className="w-14 text-center text-danger">Faltó</span>
+                <span className="w-14 text-center text-warning">Sobró</span>
+              </li>
+              {recuento.map((r) => (
+                <li
+                  key={r.corte_id}
+                  className="flex min-h-14 items-center gap-2 border-b border-separator py-2 pl-4 pr-4 last:border-0"
+                >
+                  <span className="min-w-0 flex-1">
+                    <span className="block text-[1rem] leading-snug text-label">
+                      {r.nombre}
+                    </span>
+                    <span className="block truncate text-[0.84rem] text-label-3">
+                      {r.categoria} · {r.servicios_con_cierre} serv.
+                    </span>
+                  </span>
+                  <span
+                    className={`w-14 text-center font-mono text-[1.02rem] tabular-nums ${
+                      r.faltos ? "font-semibold text-danger" : "text-label-3"
+                    }`}
+                  >
+                    <span className="sr-only">Faltó </span>
+                    {r.faltos || "—"}
+                  </span>
+                  <span
+                    className={`w-14 text-center font-mono text-[1.02rem] tabular-nums ${
+                      r.sobraron ? "font-semibold text-warning" : "text-label-3"
+                    }`}
+                  >
+                    <span className="sr-only">Sobró </span>
+                    {r.sobraron || "—"}
+                  </span>
+                </li>
+              ))}
+            </ul>
+          )}
+        </Seccion>
+      )}
 
-                    return (
-                      <article
-                        key={carga.id}
-                        className="rounded-xl border border-zinc-800 bg-zinc-950/70 p-4"
-                      >
-                        <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
-                          <p className="text-sm font-medium text-zinc-100">
+      {isLoading ? (
+        <div className="mt-6">
+          <EsqueletoLista filas={6} />
+        </div>
+      ) : cargasAgrupadas.length === 0 ? (
+        <div className="mt-6 rounded-card bg-surface-3">
+          {cargas.length === 0 ? (
+            <EstadoVacio
+              icono={<History className="h-6 w-6" aria-hidden />}
+              titulo="Todavía no hay registros"
+              texto="Cuando el equipo guarde una MEP desde MEP Deli, aparece acá."
+              accion={
+                <Link
+                  href="/mep-deli"
+                  className="inline-flex min-h-11 items-center justify-center rounded-control bg-accent px-4 text-[0.97rem] font-semibold text-on-accent transition active:scale-[0.97]"
+                >
+                  Ir a MEP Deli
+                </Link>
+              }
+            />
+          ) : (
+            <EstadoVacio
+              icono={<SearchX className="h-6 w-6" aria-hidden />}
+              titulo="Sin resultados"
+              texto="No hay servicios para los filtros elegidos."
+              accion={
+                <Boton variante="secundario" onClick={limpiarFiltros}>
+                  Limpiar filtros
+                </Boton>
+              }
+            />
+          )}
+        </div>
+      ) : (
+        cargasAgrupadas.map((grupo) => (
+          <Seccion key={grupo.fecha} titulo={fechaGrupo(grupo.fecha)}>
+            <div className="space-y-3">
+              {grupo.cargas.map((carga) => {
+                const lineas = enriquecerLineasMep(carga.lineas, cortesPorId);
+                const cerrada = tieneCierre(carga);
+                const cierre = cerrada
+                  ? enriquecerCierreLineas(carga, cortesPorId)
+                  : [];
+                const varianza = cierre.filter((l) => l.resultado !== "ok");
+                const borrando = borrandoId === carga.id;
+
+                return (
+                  <article
+                    key={carga.id}
+                    className="overflow-hidden rounded-card bg-surface-3 shadow-[0_1px_2px_rgb(0_0_0/0.04)]"
+                  >
+                    <header className="flex items-start gap-3 py-3 pl-4 pr-2">
+                      <div className="min-w-0 flex-1">
+                        <div className="flex flex-wrap items-center gap-2">
+                          <p className="text-[1.03rem] font-semibold text-label">
                             {etiquetaCargaMep(carga)}
                           </p>
-                          <div className="flex items-center gap-2">
-                            <span className="text-xs text-zinc-500">
-                              Guardado {fechaHoraCarga(carga.created_at)}
-                            </span>
-                            <button
-                              type="button"
-                              onClick={() => void borrarCarga(carga)}
-                              disabled={borrandoId === carga.id}
-                              title="Borrar MEP"
-                              className="inline-flex items-center gap-1 rounded-lg border border-red-900/50 bg-red-950/30 px-2 py-1 text-xs text-red-300 transition hover:border-red-700 hover:text-red-200 disabled:opacity-50"
-                            >
-                              {borrandoId === carga.id ? (
-                                <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                              ) : (
-                                <Trash2 className="h-3.5 w-3.5" />
-                              )}
-                              Borrar
-                            </button>
-                          </div>
+                          <Etiqueta tono={cerrada ? "exito" : "alerta"}>
+                            {cerrada ? "Cerrada" : "Sin cerrar"}
+                          </Etiqueta>
                         </div>
-                        {carga.cargado_por_nombre ? (
-                          <p className="mb-2 text-xs text-zinc-500">
-                            Cargada por{" "}
-                            <span className="text-zinc-300">{carga.cargado_por_nombre}</span>
-                          </p>
-                        ) : null}
-
-                        <p className="mb-2 text-[10px] font-semibold uppercase tracking-[0.14em] text-zinc-500">
-                          MEP cargada
-                        </p>
-                        {lineas.length === 0 ? (
-                          <p className="text-sm text-zinc-500">Sin líneas cargadas.</p>
-                        ) : (
-                          <ul className="mb-3 grid gap-1.5 sm:grid-cols-2">
-                            {lineas.map((l) => (
-                              <li key={`${carga.id}-${l.corte_id}`} className="text-sm text-zinc-200">
-                                <span className="text-zinc-500">{l.categoria} ·</span> {l.nombre}:{" "}
-                                <span className="font-medium text-white">
-                                  {l.cantidad} {etiquetaUnidadMep(l.unidad)}
-                                </span>
-                              </li>
-                            ))}
-                          </ul>
-                        )}
-
-                        <div className="border-t border-zinc-800/80 pt-3">
-                          <p className="mb-2 text-[10px] font-semibold uppercase tracking-[0.14em] text-zinc-500">
-                            Cierre
-                          </p>
-                          {!tieneCierre(carga) ? (
-                            <p className="text-sm text-zinc-500">Sin cerrar todavía.</p>
-                          ) : (
+                        <p className="mt-0.5 text-[0.86rem] text-label-3">
+                          {carga.cargado_por_nombre ? (
                             <>
-                              {carga.cerrado_por_nombre ? (
-                                <p className="mb-2 text-xs text-zinc-500">
-                                  Cerrado por{" "}
-                                  <span className="text-zinc-300">{carga.cerrado_por_nombre}</span>
-                                  {carga.cierre_at ? (
-                                    <span> · {fechaHoraCarga(carga.cierre_at)}</span>
-                                  ) : null}
-                                </p>
-                              ) : null}
-                              {varianza.length === 0 ? (
-                                <p className="text-sm text-emerald-300/90">Todo OK.</p>
-                              ) : (
-                                <ul className="grid gap-1.5 sm:grid-cols-2">
-                                  {varianza.map((l) => (
-                                    <li
-                                      key={`${carga.id}-c-${l.corte_id}`}
-                                      className="text-sm text-zinc-200"
-                                    >
-                                      <span className="text-zinc-500">{l.categoria} ·</span>{" "}
-                                      {l.nombre}:{" "}
-                                      <span
-                                        className={
-                                          l.resultado === "falto"
-                                            ? "text-red-300"
-                                            : "text-amber-300"
-                                        }
-                                      >
-                                        {etiquetaResultadoCierre(l.resultado)}
-                                        {l.cantidad
-                                          ? ` (${l.cantidad} ${etiquetaUnidadMep(l.unidad)})`
-                                          : ""}
-                                      </span>
-                                    </li>
-                                  ))}
-                                </ul>
-                              )}
+                              Cargada por{" "}
+                              <span className="text-label-2">
+                                {carga.cargado_por_nombre}
+                              </span>{" "}
+                              ·{" "}
                             </>
+                          ) : null}
+                          Guardado {fechaHoraCarga(carga.created_at)}
+                        </p>
+                      </div>
+                      <BotonIcono
+                        etiqueta={`Borrar MEP del ${etiquetaCargaMep(carga)}`}
+                        variante="plano"
+                        disabled={borrando}
+                        onClick={() => void borrarCarga(carga)}
+                        className="text-label-3 hover:text-danger"
+                        icono={
+                          borrando ? (
+                            <Loader2
+                              className="h-[18px] w-[18px] animate-spin"
+                              aria-hidden
+                            />
+                          ) : (
+                            <Trash2 className="h-[18px] w-[18px]" aria-hidden />
+                          )
+                        }
+                      />
+                    </header>
+
+                    <div className="border-t border-separator px-4 py-3">
+                      <p className="mb-1.5 text-[0.8rem] font-semibold uppercase tracking-[0.07em] text-label-3">
+                        Cierre
+                      </p>
+                      {!cerrada ? (
+                        <p className="text-[0.94rem] text-label-3">
+                          Sin cerrar todavía.
+                        </p>
+                      ) : (
+                        <>
+                          {carga.cerrado_por_nombre ? (
+                            <p className="mb-2 text-[0.86rem] text-label-3">
+                              Cerrado por{" "}
+                              <span className="text-label-2">
+                                {carga.cerrado_por_nombre}
+                              </span>
+                              {carga.cierre_at
+                                ? ` · ${fechaHoraCarga(carga.cierre_at)}`
+                                : null}
+                            </p>
+                          ) : null}
+                          {varianza.length === 0 ? (
+                            <p className="flex items-center gap-2 text-[0.94rem] font-medium text-success">
+                              <CircleCheck
+                                className="h-[18px] w-[18px]"
+                                aria-hidden
+                              />
+                              Todo OK
+                            </p>
+                          ) : (
+                            <ul className="grid gap-x-6 sm:grid-cols-2">
+                              {varianza.map((l) => (
+                                <li
+                                  key={`${carga.id}-c-${l.corte_id}`}
+                                  className="flex items-center gap-3 border-t border-separator py-2 first:border-t-0 sm:[&:nth-child(2)]:border-t-0"
+                                >
+                                  <span className="min-w-0 flex-1 text-[0.94rem] leading-snug text-label">
+                                    {l.nombre}
+                                    <span className="ml-1.5 text-[0.8rem] text-label-3">
+                                      {l.categoria}
+                                    </span>
+                                  </span>
+                                  <Etiqueta
+                                    tono={
+                                      l.resultado === "falto"
+                                        ? "peligro"
+                                        : "alerta"
+                                    }
+                                  >
+                                    {etiquetaResultadoCierre(l.resultado)}
+                                    {l.cantidad
+                                      ? ` · ${l.cantidad} ${etiquetaUnidadMep(l.unidad)}`
+                                      : ""}
+                                  </Etiqueta>
+                                </li>
+                              ))}
+                            </ul>
                           )}
-                        </div>
-                      </article>
-                    );
-                  })}
-                </div>
-              </section>
-            ))}
-          </div>
-        )}
-      </section>
-    </main>
+                        </>
+                      )}
+                    </div>
+
+                    <details className="group border-t border-separator">
+                      <summary className="flex min-h-12 cursor-pointer list-none items-center gap-2 px-4 text-[0.94rem] font-medium text-label-2 transition active:bg-fill [&::-webkit-details-marker]:hidden">
+                        <span className="flex-1">
+                          MEP cargada ·{" "}
+                          {lineas.length === 0
+                            ? "sin líneas"
+                            : `${lineas.length} ${lineas.length === 1 ? "corte" : "cortes"}`}
+                        </span>
+                        <ChevronDown
+                          className="h-[18px] w-[18px] text-label-3 transition-transform group-open:rotate-180"
+                          aria-hidden
+                        />
+                      </summary>
+                      {lineas.length === 0 ? (
+                        <p className="px-4 pb-3 text-[0.94rem] text-label-3">
+                          Sin líneas cargadas.
+                        </p>
+                      ) : (
+                        <ul className="grid gap-x-6 px-4 pb-2 sm:grid-cols-2">
+                          {lineas.map((l) => (
+                            <li
+                              key={`${carga.id}-${l.corte_id}`}
+                              className="flex items-baseline gap-3 border-t border-separator py-2"
+                            >
+                              <span className="min-w-0 flex-1 text-[0.94rem] leading-snug text-label">
+                                {l.nombre}
+                                <span className="ml-1.5 text-[0.8rem] text-label-3">
+                                  {l.categoria}
+                                </span>
+                              </span>
+                              <span className="shrink-0 font-mono text-[0.97rem] font-semibold tabular-nums text-label">
+                                {l.cantidad}
+                                <span className="ml-1 font-sans text-[0.8rem] font-normal text-label-3">
+                                  {etiquetaUnidadMep(l.unidad)}
+                                </span>
+                              </span>
+                            </li>
+                          ))}
+                        </ul>
+                      )}
+                    </details>
+                  </article>
+                );
+              })}
+            </div>
+          </Seccion>
+        ))
+      )}
+    </Pantalla>
   );
 }
