@@ -11,6 +11,7 @@ import { fetchMepCargasSinCerrarRecientes } from "@/src/lib/mep-deli";
 const ALL_LINKS = [
   { href: "/", label: "Omakase" },
   { href: "/bebidas", label: "Bebidas" },
+  { href: "/guia-bebidas", label: "Guía de bebidas" },
   { href: "/mep-deli", label: "MEP Deli" },
   { href: "/pedidos", label: "Pedidos" },
   { href: "/avisos", label: "Avisos" },
@@ -36,7 +37,7 @@ type Href = (typeof ALL_LINKS)[number]["href"];
 
 /** Agrupación de las páginas en el menú desplegable. */
 const GRUPOS: { titulo: string; hrefs: Href[] }[] = [
-  { titulo: "Servicio", hrefs: ["/", "/bebidas", "/mep-deli", "/mep-historial", "/platos", "/mep-cortes", "/receta", "/historial", "/produccion-tiempos", "/produccion-plan", "/eventos"] },
+  { titulo: "Servicio", hrefs: ["/", "/bebidas", "/guia-bebidas", "/mep-deli", "/mep-historial", "/platos", "/mep-cortes", "/receta", "/historial", "/produccion-tiempos", "/produccion-plan", "/eventos"] },
   { titulo: "Compras", hrefs: ["/pedidos", "/avisos", "/compras", "/stock", "/inventario"] },
   { titulo: "Análisis", hrefs: ["/consumo", "/gasto", "/estadisticas", "/produccion", "/personal"] },
 ];
@@ -44,6 +45,7 @@ const GRUPOS: { titulo: string; hrefs: Href[] }[] = [
 const STAFF_HREFS = new Set<string>([
   "/",
   "/bebidas",
+  "/guia-bebidas",
   "/mep-deli",
   "/mep-cortes",
   "/mep-historial",

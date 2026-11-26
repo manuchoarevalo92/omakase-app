@@ -1,0 +1,2794 @@
+{
+ "bebidas": [
+  {
+   "slug": "kido-junmai-ginjo",
+   "categoria": "sake",
+   "subgrupo": "All Round · versátiles y equilibrados",
+   "orden": 1,
+   "nombre": "Kido Junmai Ginjo",
+   "precio": "12 € copa / 20 € jarra",
+   "meta": "Heiwa Shuzo · Kainan (Wakayama) · junmai ginjo",
+   "datos": [
+    "La marca se escribe 紀土 y se lee \"Kid\": viene de *Kishū no fūdo*, el terruño de Kishū, nombre antiguo de la región.",
+    "Yamada Nishiki y Gohyakumangoku pulidos en torno al 50-55 %. Agua subterránea muy blanda, que da textura suave.",
+    "Fresco, frutal y equilibrado, con una acidez fina de fondo."
+   ],
+   "en_sala": "el sake de bienvenida; acompaña casi todo el menú sin tapar la cocina.",
+   "minima_intervencion": false,
+   "a_confirmar": false
+  },
+  {
+   "slug": "niida-shizenshu-ginjo",
+   "categoria": "sake",
+   "subgrupo": "All Round · versátiles y equilibrados",
+   "orden": 2,
+   "nombre": "Niida Shizenshu Ginjo",
+   "precio": "14 € copa / 24 € jarra",
+   "meta": "Niida Honke · Kōriyama (Fukushima) · junmai ginjo kimoto",
+   "datos": [
+    "Bodega familiar desde 1711, con 18 generaciones al frente. En 1967 lanzó el primer \"sake natural\" de Japón.",
+    "Solo arroz cultivado sin pesticidas ni fertilizantes químicos; sus campos propios tienen certificación orgánica. Desde 2011 todo es junmai y desde 2015 todo es kimoto.",
+    "Sin levadura añadida: fermenta con la de la bodega. Pulido al 60 %, 15 % de alcohol.",
+    "Notas lácticas, de champiñón y manzana asada, con acidez viva."
+   ],
+   "en_sala": "para quien valora lo natural y la mínima intervención.",
+   "minima_intervencion": false,
+   "a_confirmar": false
+  },
+  {
+   "slug": "nichi-nichi",
+   "categoria": "sake",
+   "subgrupo": "All Round · versátiles y equilibrados",
+   "orden": 3,
+   "nombre": "Nichi-Nichi (日日)",
+   "precio": null,
+   "meta": "Nichinichi Jōzō · Fushimi (Kioto) · kimoto, sin categoría declarada",
+   "datos": [
+    "Bodega fundada en diciembre de 2021 por Hidehiko Matsumoto, antes tōji de la bodega familiar Matsumoto Shuzo. El nombre viene del dicho zen \"cada día es un buen día\".",
+    "Yamada Nishiki de Tōjō (Hyōgo), de campos propios y agricultores por contrato. Solo publica los ingredientes: quiere que se juzgue el arroz y el lugar.",
+    "Como no declara el pulido, la etiqueta no lleva categoría. Es solo arroz y koji.",
+    "Aroma suave (pera, uva moscatel), ligera aguja natural, acidez fresca y en torno a 12-13 % de alcohol."
+   ],
+   "en_sala": "el ejemplo del sake moderno de autor, con poco alcohol y mucha precisión.",
+   "minima_intervencion": false,
+   "a_confirmar": false
+  },
+  {
+   "slug": "tedorigawa-tokujo-arabashiri",
+   "categoria": "sake",
+   "subgrupo": "Fruity · afrutados y aromáticos",
+   "orden": 4,
+   "nombre": "Tedorigawa Tokujo Arabashiri",
+   "precio": null,
+   "meta": "Yoshida Shuzoten · Hakusan (Ishikawa) · junmai daiginjo nama genshu",
+   "datos": [
+    "Bodega fundada en 1870; la marca toma el nombre del río Tedori.",
+    "Yamada Nishiki de Hyōgo pulido al 45 %, 15 % de alcohol. Se embotella desde el *arabashiri* (lo que fluye antes de apretar la prensa) hasta el *nakagumi* (la fracción media).",
+    "Es sin pasteurizar: **siempre en cámara**.",
+    "Jazmín y manzana; boca elegante, textura cremosa y final fresco."
+   ],
+   "en_sala": "sirve para explicar que de una misma prensa salen sakes distintos según el momento.",
+   "minima_intervencion": false,
+   "a_confirmar": false
+  },
+  {
+   "slug": "afs",
+   "categoria": "sake",
+   "subgrupo": "Funky-Natural · complejos y salvajes",
+   "orden": 5,
+   "nombre": "AFS",
+   "precio": "15 € copa / 28 € jarra",
+   "meta": "Kidoizumi Shuzo · Isumi (Chiba) · junmai yamahai muroka nama genshu",
+   "datos": [
+    "Bodega pionera del sake sin aditivos; es la única de Japón que trabaja solo con yamahai \"caliente\".",
+    "Método propio: pie de cuba yamahai a alta temperatura y fermentación en una sola tanda. Resultado muy dulce y muy ácido a la vez, con 13-14 % de alcohol.",
+    "AFS son las iniciales de sus tres creadores: Adachi, Furukawa y Shoji."
+   ],
+   "en_sala": "para paladares curiosos; recuerda a un blanco dulce con mucha acidez. Siempre en cámara.",
+   "minima_intervencion": false,
+   "a_confirmar": false
+  },
+  {
+   "slug": "natsu-no-omoide",
+   "categoria": "sake",
+   "subgrupo": "Funky-Natural · complejos y salvajes",
+   "orden": 6,
+   "nombre": "Natsu no Omoide",
+   "precio": "15 € copa / 28 € jarra",
+   "meta": "Mukai Shuzo · Ine (Kioto, costa del Mar de Japón) · junmai de koji blanco",
+   "datos": [
+    "Bodega de 1754 en un pueblo de pescadores con casas sobre el agua. La tōji es Kuniko Mukai, desde 1999 la primera mujer tōji de la prefectura de Kioto.",
+    "El nombre significa \"Recuerdos de verano\". Está hecho con koji blanco, el del shochu, que produce ácido cítrico: de ahí su acidez de limón.",
+    "La nuestra es la reedición moderna, no la partida añeja de 2000. Pulido al 70 %, 14 % de alcohol y nihonshudo en torno a −30: claramente dulce.",
+    "Agridulce y jugoso, entre cítrico y uva madura."
+   ],
+   "en_sala": "buen ejemplo de cómo el tipo de koji cambia el sake. La bodega lo sugiere frío, con hielo o con soda.",
+   "minima_intervencion": false,
+   "a_confirmar": false
+  },
+  {
+   "slug": "ine-mankai",
+   "categoria": "sake",
+   "subgrupo": "Funky-Natural · complejos y salvajes",
+   "orden": 7,
+   "nombre": "Ine Mankai",
+   "precio": "19 € copa / 38 € jarra",
+   "meta": "Mukai Shuzo · Ine (Kioto) · junmai de arroz antiguo",
+   "datos": [
+    "Lleva arroz antiguo pigmentado, variedad Murasaki-komachi, además de arroz blanco: de ahí su color rosado natural. En Japón se vende como \"sake de arroz rojo\".",
+    "Es la primera creación propia de Kuniko Mukai, nacida de una idea de sus años de universidad. Se sirvió en el G20 de Osaka de 2019.",
+    "14 % de alcohol. Muy dulce y muy ácido: agridulce, a arándano y cereza."
+   ],
+   "en_sala": "impacto visual; acompaña sabores potentes, salsas e incluso postres.",
+   "minima_intervencion": false,
+   "a_confirmar": false
+  },
+  {
+   "slug": "senkin-nature",
+   "categoria": "sake",
+   "subgrupo": "Funky-Natural · complejos y salvajes",
+   "orden": 8,
+   "nombre": "Senkin Nature",
+   "precio": null,
+   "meta": "Senkin · Sakura (Tochigi) · kimoto, sin categoría declarada",
+   "datos": [
+    "La línea más \"natural\" de la casa: arroz antiguo Kame no O de cultivo ecológico, de campos que comparten la veta de agua de la bodega, pulido solo al 90 %.",
+    "Kimoto, levadura de la bodega y fermentación en tinas de madera; solo arroz, koji y agua.",
+    "Crema, albaricoque y manzana verde; algo de aguja, acidez marcada y umami. 13 % de alcohol."
+   ],
+   "en_sala": "junto al Senkin Modern muestra dos caras de una misma bodega.",
+   "minima_intervencion": false,
+   "a_confirmar": false
+  },
+  {
+   "slug": "daigo-no-shizuku",
+   "categoria": "sake",
+   "subgrupo": "Funky-Natural · complejos y salvajes",
+   "orden": 9,
+   "nombre": "Daigo no Shizuku",
+   "precio": null,
+   "meta": "Terada Honke · Kōzaki (Chiba) · junmai bodaimoto, nama genshu sin filtrar",
+   "datos": [
+    "Bodega de más de 340 años, referente del sake natural.",
+    "Reproduce el sake de los templos medievales con *bodaimoto*. Arroz sin pesticidas pulido al 90-93 % y levadura de la bodega.",
+    "Cambia con cada lote: alcohol entre 6 y 17 %, muy dulce y muy ácido. Recuerda a un vino de frutas o a un hidromiel.",
+    "**Siempre en cámara y siempre de pie**; puede refermentar en botella, así que se abre con cuidado."
+   ],
+   "en_sala": "el estilo más antiguo de la carta, para contar cómo era el sake hace siglos.",
+   "minima_intervencion": false,
+   "a_confirmar": false
+  },
+  {
+   "slug": "kido-daiginjo-50",
+   "categoria": "sake",
+   "subgrupo": "Clean & Elegant · finos y sofisticados",
+   "orden": 10,
+   "nombre": "Kido Daiginjo 50",
+   "precio": "15 € copa / 28 € jarra",
+   "meta": "Heiwa Shuzo · Kainan (Wakayama) · junmai daiginjo",
+   "datos": [
+    "Yamada Nishiki al 100 %, pulido al 50 %.",
+    "Fruta limpia, textura sedosa y final seco y nítido."
+   ],
+   "en_sala": "frente al Kido Junmai Ginjo, lo que más cambia es el arroz (todo Yamada Nishiki), no tanto el pulido.",
+   "minima_intervencion": false,
+   "a_confirmar": false
+  },
+  {
+   "slug": "kido-daiginjo-40",
+   "categoria": "sake",
+   "subgrupo": "Clean & Elegant · finos y sofisticados",
+   "orden": 11,
+   "nombre": "Kido Daiginjo 40",
+   "precio": null,
+   "meta": "Heiwa Shuzo · Kainan (Wakayama) · junmai daiginjo",
+   "datos": [
+    "La versión más pulida: queda el 40 % del grano de Yamada Nishiki.",
+    "Al pulir más se elimina más proteína y grasa: aroma más fino y floral, boca más limpia y ligera."
+   ],
+   "en_sala": "con el Daiginjo 50 enseña en dos copas qué cambia al pulir más. El salto de pulido real es de 50 a 40.",
+   "minima_intervencion": false,
+   "a_confirmar": false
+  },
+  {
+   "slug": "nabeshima-50",
+   "categoria": "sake",
+   "subgrupo": "Clean & Elegant · finos y sofisticados",
+   "orden": 12,
+   "nombre": "Nabeshima 50",
+   "precio": "16 € copa / 32 € jarra",
+   "meta": "Fukuchiyo Shuzo · Kashima (Saga) · junmai ginjo Yamada Nishiki, la \"etiqueta morada\"",
+   "datos": [
+    "Pequeña bodega junto al mar de Ariake. La marca nació en 1998 y lleva el nombre del clan que gobernó Saga unos 300 años.",
+    "Marca de culto desde que su Daiginjo fue Champion Sake en el International Wine Challenge de 2011.",
+    "Yamada Nishiki pulido al 50 %, nivel de daiginjo aunque la bodega lo etiquete como junmai ginjo. 16 % de alcohol y, a veces, ligera aguja.",
+    "Afrutado y aterciopelado, con acidez que equilibra el dulzor."
+   ],
+   "en_sala": "la categoría marca un mínimo, no un techo: este ginjo está pulido como un daiginjo.",
+   "minima_intervencion": false,
+   "a_confirmar": false
+  },
+  {
+   "slug": "senkin-modern",
+   "categoria": "sake",
+   "subgrupo": "Clean & Elegant · finos y sofisticados",
+   "orden": 13,
+   "nombre": "Senkin Modern",
+   "precio": "16 € copa / 32 € jarra",
+   "meta": "Senkin · Sakura (Tochigi) · kimoto muroka genshu, sin categoría declarada",
+   "datos": [
+    "Dos hermanos de la undécima generación: Kazuki Usui, exsumiller, y Masato, el tōji. Trabajan como un *domaine*: el arroz crece sobre la misma veta de agua con la que elaboran.",
+    "Yamada Nishiki con koji al 50 % y resto al 60 %: por pulido equivale a un junmai ginjo, no a un daiginjo. 13-14 % de alcohol.",
+    "La casa busca acidez de vino blanco. Manzana, melocotón, cítricos; jugoso y brillante."
+   ],
+   "en_sala": "el puente para quien bebe vino blanco. En copa de vino.",
+   "minima_intervencion": false,
+   "a_confirmar": false
+  },
+  {
+   "slug": "otora",
+   "categoria": "sake",
+   "subgrupo": "Dry · secos y nítidos",
+   "orden": 14,
+   "nombre": "Otora (大虎)",
+   "precio": null,
+   "meta": "Chiyokotobuki Toraya · Sagae (Yamagata) · junmai muy seco",
+   "datos": [
+    "*Ōtora* significa \"gran tigre\"; la bodega se llama Toraya, \"casa del tigre\".",
+    "Arroz pulido al 70 %, 15 % de alcohol y nihonshudo +10: muy seco.",
+    "Aroma discreto a cereal, boca limpia y final cortante."
+   ],
+   "en_sala": "para quien pide \"algo seco\"; limpia entre piezas y admite templado.",
+   "minima_intervencion": false,
+   "a_confirmar": false
+  },
+  {
+   "slug": "ginrei-gassan-junmai-daiginjo",
+   "categoria": "sake",
+   "subgrupo": "Dry · secos y nítidos",
+   "orden": 15,
+   "nombre": "Ginrei Gassan Junmai Daiginjo",
+   "precio": null,
+   "meta": "Gassan Shuzo · Sagae (Yamagata) · junmai daiginjo, edición limitada",
+   "datos": [
+    "Bodega fundada en 1972 al pie del monte Gassan, zona de nevadas muy intensas.",
+    "Agua subterránea del Gassan, incluida entre las \"100 aguas más famosas de Japón\". Estilo limpio, ligero y seco.",
+    "Arroz pulido al 50 % y 15 % de alcohol; lleva el sello de un trofeo del International Wine Challenge. *A confirmar con la botella: existe otra cuvée, 100 % Yamada Nishiki, pulida al 45 %.*"
+   ],
+   "en_sala": "el seco elegante frente al seco rústico del Otora; los dos son de la misma ciudad.",
+   "minima_intervencion": false,
+   "a_confirmar": true
+  },
+  {
+   "slug": "seafood-fukucho",
+   "categoria": "sake",
+   "subgrupo": "Dry · secos y nítidos",
+   "orden": 16,
+   "nombre": "Seafood (Fukuchō)",
+   "precio": null,
+   "meta": "Imada Shuzo Honten · Akitsu (Hiroshima) · junmai de koji blanco",
+   "datos": [
+    "Bodega de 1868 junto al mar interior de Seto. Su dueña y tōji, Miho Imada, figuró en la lista 100 Women de la BBC en 2020 y recuperó el arroz antiguo Hattansō.",
+    "Nació cuando un chef de Tokyo le pidió un sake para ostras. Usa koji blanco, que aporta ácido cítrico.",
+    "Pulido al 70 %, 13 % de alcohol, nihonshudo −3 y acidez 3,5: más ácido que seco.",
+    "Ligero y cítrico, como un blanco para marisco."
+   ],
+   "en_sala": "con ostras, marisco y piezas grasas. Si alguien pide \"seco\" a secas, mejor el Otora.",
+   "minima_intervencion": false,
+   "a_confirmar": false
+  },
+  {
+   "slug": "hanatomoe-junmai-yamahai",
+   "categoria": "sake",
+   "subgrupo": "Rustic · tradicionales y estructurados",
+   "orden": 17,
+   "nombre": "Hanatomoe Junmai Yamahai",
+   "precio": "13 € copa / 25 € jarra",
+   "meta": "Miyoshino Jōzō · Yoshino (Nara) · junmai yamahai",
+   "datos": [
+    "Bodega de 1912 en la zona de los \"mil cerezos\" de Nara, cuna histórica del sake.",
+    "Sin levadura añadida. El tōji, Teruaki Hashimoto, sostiene que \"el aire hace el sake\".",
+    "Acidez alta, mucho cuerpo y final lácteo."
+   ],
+   "en_sala": "aliado del umami (setas, carnes, salsas). Admite templado.",
+   "minima_intervencion": false,
+   "a_confirmar": false
+  },
+  {
+   "slug": "biden",
+   "categoria": "sake",
+   "subgrupo": "Añejo · koshu",
+   "orden": 18,
+   "nombre": "Biden",
+   "precio": "14 € copa / 24 € jarra",
+   "meta": "Mii no Kotobuki · Tachiarai (Fukuoka) · junmai yamahai añejo",
+   "datos": [
+    "Yamada Nishiki de Itoshima fermentado con yamahai y añejado a temperatura ambiente.",
+    "La partida actual ya no es la añada 1999: es una mezcla de añadas 1994, 2015 y 2018. 16 % de alcohol.",
+    "Miel, caramelo, pasas y frutos secos tostados; recuerda a un jerez."
+   ],
+   "en_sala": "para el final de la cena y para quien disfruta de jereces viejos. A temperatura ambiente o templado.",
+   "minima_intervencion": false,
+   "a_confirmar": false
+  },
+  {
+   "slug": "akishika-yamahai-moto-shibori-2003",
+   "categoria": "sake",
+   "subgrupo": "Añejo · koshu",
+   "orden": 19,
+   "nombre": "Akishika Yamahai Moto-shibori 2003",
+   "precio": "15 € copa / 28 € jarra",
+   "meta": "Akishika Shuzo · Nose (Osaka) · junmai yamahai, prensado del pie de cuba, añejo",
+   "datos": [
+    "Bodega de 1886 en el extremo norte de Osaka. Cultiva buena parte de su arroz y desde 2003 solo elabora junmai.",
+    "*Moto-shibori*: en lugar de completar la elaboración, se prensó directamente el pie de cuba, en marzo de 2003.",
+    "Arroz propio pulido al 70 %, 10 % de alcohol, nihonshudo −63 y acidez 9,0; un sake habitual ronda 1,5.",
+    "Más de veinte años de guarda: color ámbar, dulzor y acidez muy intensos, caramelo y fruta seca."
+   ],
+   "en_sala": "copa de meditación y la mejor forma de enseñar qué es un pie de cuba.",
+   "minima_intervencion": false,
+   "a_confirmar": false
+  },
+  {
+   "slug": "chokyu-1997",
+   "categoria": "sake",
+   "subgrupo": "Añejo · koshu",
+   "orden": 20,
+   "nombre": "Chokyu 1997",
+   "precio": null,
+   "meta": "Nakano BC · Kainan (Wakayama) · junmai kijoshu añejo, botella de 300 ml",
+   "datos": [
+    "De la misma ciudad que Heiwa Shuzo. La empresa empezó con salsa de soja; \"BC\" significa *Biochemical Creation*. También hace umeshu.",
+    "*Kijoshu* elaborado una sola vez, en 1997, y añejado desde entonces. 16 % de alcohol.",
+    "Agridulce, con caramelo profundo y notas terrosas y de chocolate."
+   ],
+   "en_sala": "aperitivo, digestivo o con postre, a temperatura ambiente.",
+   "minima_intervencion": false,
+   "a_confirmar": false
+  },
+  {
+   "slug": "2018-recaredo-serral-del-vell",
+   "categoria": "espumoso",
+   "subgrupo": "Del inicio de la carta a los 100 €",
+   "orden": 21,
+   "nombre": "2018 Recaredo Serral del Vell",
+   "precio": "72 €",
+   "meta": "Corpinnat · Alt Penedès · xarel·lo y macabeu · brut nature",
+   "datos": [
+    "Recaredo es la referencia histórica del espumoso catalán de larga crianza. Todo lo que hace es de añada, brut nature y de viña propia en biodinámica.",
+    "Serral del Vell es una finca concreta de suelos muy calcáreos. Cría en botella con tapón de corcho (no chapa) y se degüella a mano.",
+    "Perfil: seco, hinojo y hierbas mediterráneas, cítrico maduro, final salino y algo amargo."
+   ],
+   "en_sala": "la entrada más sensata a la burbuja de la carta; seco de verdad, acompaña todo el menú.",
+   "minima_intervencion": false,
+   "a_confirmar": false
+  },
+  {
+   "slug": "2016-llopart-ex-vite-brut-ed-25-aniversari",
+   "categoria": "espumoso",
+   "subgrupo": "Del inicio de la carta a los 100 €",
+   "orden": 22,
+   "nombre": "2016 Llopart Ex Vite Brut, Ed. 25 Aniversari",
+   "precio": "85 €",
+   "meta": "Corpinnat · Subirats · 60 % xarel·lo, 40 % macabeu · brut",
+   "datos": [
+    "La cuvée alta de Llopart, de viñas viejas de montaña de la propia finca; esta edición celebra su 25.ª añada.",
+    "Más de 100 meses sobre lías: es el espumoso de crianza más larga de la carta entre los que no son Champagne.",
+    "Perfil: maduro y cremoso, manzana asada, fruto seco, panadería; burbuja muy integrada."
+   ],
+   "en_sala": "para quien disfruta la burbuja evolucionada. Va muy bien con piezas de más grasa y con anago.",
+   "minima_intervencion": false,
+   "a_confirmar": false
+  },
+  {
+   "slug": "nv-gonet-medeville-blanc-de-noirs-1er-cru",
+   "categoria": "espumoso",
+   "subgrupo": "Del inicio de la carta a los 100 €",
+   "orden": 23,
+   "nombre": "NV Gonet-Médeville Blanc de Noirs 1er Cru",
+   "precio": "88 €",
+   "meta": "Champagne · Bisseuil (Grande Vallée de la Marne) · pinot noir",
+   "datos": [
+    "Pequeño domaine de Xavier Gonet y Julie Médeville (ella, de la familia de Château Gilette en Sauternes).",
+    "Pinot noir de Bisseuil, pueblo premier cru. Estilo limpio, de dosage bajo.",
+    "Perfil: fruta roja fresca, cítrico, más volumen en boca que un blanc de blancs."
+   ],
+   "en_sala": "el blanc de noirs accesible; útil cuando piden champagne \"con algo más de cuerpo\".",
+   "minima_intervencion": false,
+   "a_confirmar": false
+  },
+  {
+   "slug": "nv-roger-coulon-heri-hodie",
+   "categoria": "espumoso",
+   "subgrupo": "Del inicio de la carta a los 100 €",
+   "orden": 24,
+   "nombre": "NV Roger Coulon Heri Hodie",
+   "precio": "90 €",
+   "meta": "Champagne · Vrigny (Montagne de Reims) · 1er cru · extra brut",
+   "datos": [
+    "Familia de viticultores en Vrigny desde 1806; hoy en ecológico y agroforestería. Fermentan con levaduras propias y no clarifican ni filtran.",
+    "*Heri Hodie* = \"ayer, hoy\" en latín: sale de una reserva perpetua iniciada en 1995.",
+    "La composición cambió con los años (hubo tiradas con las tres uvas); las actuales se presentan como 100 % meunier. *Confirmar en la contraetiqueta de la tirada que tengamos.*",
+    "Perfil: fruta amarilla madura, especia dulce, textura amplia, final fresco."
+   ],
+   "en_sala": "buen ejemplo para explicar qué es una reserva perpetua.",
+   "minima_intervencion": false,
+   "a_confirmar": true
+  },
+  {
+   "slug": "nv-m-marcoult-b-de-barbonne-extra-brut",
+   "categoria": "espumoso",
+   "subgrupo": "Del inicio de la carta a los 100 €",
+   "orden": 25,
+   "nombre": "NV M. Marcoult B. de Barbonne Extra Brut",
+   "precio": "95 €",
+   "meta": "Champagne · Barbonne-Fayel (Côte de Sézanne) · chardonnay · extra brut",
+   "datos": [
+    "Domaine familiar fundado en 1967, hoy en tercera generación. Son de los pocos que vinifican y embotellan lo propio en la Côte de Sézanne.",
+    "Blanc de blancs del pueblo de Barbonne: chardonnay algo más maduro que el de la Côte des Blancs, pero con final salino.",
+    "Perfil: fruta blanca, cítrico, tiza, amargor fino al final."
+   ],
+   "en_sala": "blanc de blancs directo y salino; muy bueno con pescado blanco y mariscos.",
+   "minima_intervencion": false,
+   "a_confirmar": false
+  },
+  {
+   "slug": "nv-marguet-shaman-rose-grand-cru",
+   "categoria": "espumoso",
+   "subgrupo": "Del inicio de la carta a los 100 €",
+   "orden": 26,
+   "nombre": "NV Marguet Shaman Rosé Grand Cru",
+   "precio": "100 €",
+   "meta": "Champagne · Ambonnay y Bouzy · chardonnay y pinot noir · brut nature · mínima intervención",
+   "datos": [
+    "Benoît Marguet trabaja en biodinámica, labra con caballos y elabora sin sulfuroso añadido y sin dosage.",
+    "*Shaman* es su cuvée de entrada; el número que acompaña al nombre en la etiqueta es el año de la cosecha base.",
+    "Es un rosado de mezcla (base de blanco con una parte de tinto de pinot noir). La proporción varía en cada tirada.",
+    "Perfil: fruta roja ácida, piel de naranja, hierbas; muy vinoso y seco."
+   ],
+   "en_sala": "el único rosado de la carta. Va bien con akami, toro y piezas marinadas.",
+   "minima_intervencion": true,
+   "a_confirmar": false
+  },
+  {
+   "slug": "nv-ar-lenoble-dosage-zero-v19",
+   "categoria": "espumoso",
+   "subgrupo": "De 110 a 160 €",
+   "orden": 27,
+   "nombre": "NV AR Lenoble Dosage Zéro V19",
+   "precio": "110 €",
+   "meta": "Champagne · Damery (Vallée de la Marne) · pinot noir, meunier y chardonnay · sin dosage",
+   "datos": [
+    "Casa familiar e independiente. Guarda parte de sus vinos de reserva en magnum con corcho, lo que les da frescura y complejidad.",
+    "La sigla de la etiqueta identifica la tirada; \"V19\" correspondería a la vendimia base 2019 (*a confirmar*).",
+    "Perfil: seco y recto, fruta blanca, fruto seco suave por las reservas."
+   ],
+   "en_sala": "para quien pide \"lo más seco\".",
+   "minima_intervencion": false,
+   "a_confirmar": true
+  },
+  {
+   "slug": "nv-charles-heidsieck-brut-reserve",
+   "categoria": "espumoso",
+   "subgrupo": "De 110 a 160 €",
+   "orden": 28,
+   "nombre": "NV Charles Heidsieck Brut Réserve",
+   "precio": "110 €",
+   "meta": "Champagne · Reims · pinot noir, chardonnay y meunier · brut",
+   "datos": [
+    "La gran casa clásica de la carta. Su sello es una proporción muy alta de vinos de reserva viejos en la mezcla.",
+    "Perfil: el más goloso y tostado del tramo; brioche, fruta de hueso, avellana."
+   ],
+   "en_sala": "el champagne \"de casa grande\" para quien quiere un estilo reconocible y redondo. Es el único brut clásico entre tantos extra brut.",
+   "minima_intervencion": false,
+   "a_confirmar": false
+  },
+  {
+   "slug": "nv-larmandier-bernier-longitude-blanc-de-blancs-1er-cru",
+   "categoria": "espumoso",
+   "subgrupo": "De 110 a 160 €",
+   "orden": 29,
+   "nombre": "NV Larmandier-Bernier Longitude Blanc de Blancs 1er Cru",
+   "precio": "115 €",
+   "meta": "Champagne · Vertus (Côte des Blancs) · chardonnay · extra brut",
+   "datos": [
+    "Pierre y Sophie Larmandier, pioneros de la biodinámica en la Côte des Blancs. Fermentan en madera grande con levaduras propias.",
+    "Chardonnay de Vertus, Oger, Avize y Cramant, con una reserva perpetua detrás.",
+    "Perfil: tiza, limón, textura cremosa pero tensa."
+   ],
+   "en_sala": "el blanc de blancs de referencia de la carta por equilibrio entre tensión y textura.",
+   "minima_intervencion": false,
+   "a_confirmar": false
+  },
+  {
+   "slug": "nv-doyard-revolution-blanc-de-blancs-grand-cru",
+   "categoria": "espumoso",
+   "subgrupo": "De 110 a 160 €",
+   "orden": 30,
+   "nombre": "NV Doyard Révolution Blanc de Blancs Grand Cru",
+   "precio": "120 €",
+   "meta": "Champagne · Vertus, con viñas grand cru en la Côte des Blancs · chardonnay · sin dosage",
+   "datos": [
+    "Yannick y Guillaume Doyard, unas 11 hectáreas trabajadas en ecológico, en parte con caballo y a rendimientos bajos.",
+    "Mezcla de tres cosechas, vinificada mitad en barrica borgoñona usada y mitad en acero.",
+    "Perfil: pera, cítrico, pan recién hecho; seco pero con cuerpo gracias a la madera."
+   ],
+   "en_sala": "misma línea que Larmandier, un punto más serio y sin azúcar.",
+   "minima_intervencion": false,
+   "a_confirmar": false
+  },
+  {
+   "slug": "nv-jacquesson-cuvee-749",
+   "categoria": "espumoso",
+   "subgrupo": "De 110 a 160 €",
+   "orden": 31,
+   "nombre": "NV Jacquesson Cuvée 749",
+   "precio": "125 €",
+   "meta": "Champagne · Dizy · chardonnay, pinot noir y meunier · extra brut",
+   "datos": [
+    "Jacquesson no busca que su sin añada sepa igual todos los años: cada número (la serie empezó en la 728) es el retrato de una cosecha base distinta.",
+    "La 749 correspondería a la base 2021 (*a confirmar en contraetiqueta*). Fermentación en fudres, uvas de Aÿ, Dizy, Hautvillers, Avize y Oiry.",
+    "Perfil: vinoso, cítrico, toque de madera noble, final largo."
+   ],
+   "en_sala": "para el cliente que ya conoce champagne y quiere algo con identidad de año.",
+   "minima_intervencion": false,
+   "a_confirmar": true
+  },
+  {
+   "slug": "2022-wirth-michel-les-meuniers-de-raoul-extra-brut",
+   "categoria": "espumoso",
+   "subgrupo": "De 110 a 160 €",
+   "orden": 32,
+   "nombre": "2022 Wirth Michel Les Meuniers de Raoul Extra Brut",
+   "precio": "135 €",
+   "meta": "Champagne · Moussy (Coteaux Sud d'Épernay) · 100 % meunier · extra brut",
+   "datos": [
+    "Antonin Michel es nieto de José Michel, uno de los pioneros del meunier serio en Moussy. El domaine lo fundó Raoul Bouché, de ahí el nombre.",
+    "Aunque suele venderse sin añada en etiqueta, es de una sola cosecha.",
+    "Perfil: ciruela fresca, frambuesa, jengibre, especia suave."
+   ],
+   "en_sala": "la botella para mostrar qué es el meunier solo.",
+   "minima_intervencion": false,
+   "a_confirmar": false
+  },
+  {
+   "slug": "nv-hure-freres-memoire",
+   "categoria": "espumoso",
+   "subgrupo": "De 110 a 160 €",
+   "orden": 33,
+   "nombre": "NV Huré Frères Mémoire",
+   "precio": "140 €",
+   "meta": "Champagne · Ludes (Montagne de Reims) · pinot noir, meunier y chardonnay · extra brut",
+   "datos": [
+    "Sale de una solera iniciada en 1982 y guardada en fudres: cada botella contiene una fracción de todas las cosechas desde entonces.",
+    "Pese a eso no es oxidativo; el dosage es mínimo.",
+    "Perfil: avellana, ciruela, cítrico confitado, con una frescura que sorprende."
+   ],
+   "en_sala": "\"cuarenta años en una copa\". Muy bueno con piezas curadas o maduradas.",
+   "minima_intervencion": false,
+   "a_confirmar": false
+  },
+  {
+   "slug": "2017-bufadors-vinya-del-rascara-brut-nature",
+   "categoria": "espumoso",
+   "subgrupo": "De 110 a 160 €",
+   "orden": 34,
+   "nombre": "2017 Bufadors Vinya del Rascarà Brut Nature",
+   "precio": "145 €",
+   "meta": "Corpinnat · Sant Sadurní d'Anoia · 100 % xarel·lo · mínima intervención",
+   "datos": [
+    "Xarel·lo de una sola parcela sobre caliza pura. Fermenta con levaduras propias, sin sulfitos añadidos y sin dosage.",
+    "Varios años sobre lías y producción mínima: de la 2017 se hicieron 2.185 botellas.",
+    "Perfil: muy pálido, hierbas mediterráneas, ahumado sutil, boca cítrica y vibrante."
+   ],
+   "en_sala": "el Corpinnat de culto de la carta; se puede presentar al nivel de un buen champagne de viticultor.",
+   "minima_intervencion": true,
+   "a_confirmar": false
+  },
+  {
+   "slug": "2016-pierre-gimonnet-special-club",
+   "categoria": "espumoso",
+   "subgrupo": "De 110 a 160 €",
+   "orden": 35,
+   "nombre": "2016 Pierre Gimonnet Special Club",
+   "precio": "160 €",
+   "meta": "Champagne · Cuis (Côte des Blancs) · chardonnay",
+   "datos": [
+    "*Special Club* es la cuvée de prestigio de los miembros del Club Trésors de Champagne, una asociación de viticultores: todos usan la misma botella y solo la sacan en buenas añadas.",
+    "La de Gimonnet se arma con sus mejores parcelas de chardonnay, sobre todo de los grands crus Cramant y Chouilly.",
+    "Perfil: precisión y finura; limón, flor blanca, tiza."
+   ],
+   "en_sala": "el blanc de blancs de añada de la carta.",
+   "minima_intervencion": false,
+   "a_confirmar": false
+  },
+  {
+   "slug": "nv-vouette-et-sorbee-blanc-d-argile",
+   "categoria": "espumoso",
+   "subgrupo": "De 110 a 160 €",
+   "orden": 36,
+   "nombre": "NV Vouette et Sorbée Blanc d'Argile",
+   "precio": "160 €",
+   "meta": "Champagne · Buxières-sur-Arce (Côte des Bar) · chardonnay · brut nature",
+   "datos": [
+    "Bertrand Gautherot, uno de los nombres de culto del sur de Champagne; biodinámico certificado.",
+    "Chardonnay plantado sobre arcilla kimmeridgiana (el suelo de Chablis), fermentado en barrica, de una sola cosecha aunque no lleve añada al frente.",
+    "Perfil: potente y vinoso para ser un blanc de blancs; fruta madura, especia, acidez firme."
+   ],
+   "en_sala": "pedirlo es casi pedir un gran blanco con burbuja. Gana con aire y con copa amplia.",
+   "minima_intervencion": false,
+   "a_confirmar": false
+  },
+  {
+   "slug": "nv-egly-ouriet-grand-cru",
+   "categoria": "espumoso",
+   "subgrupo": "Las grandes botellas",
+   "orden": 37,
+   "nombre": "NV Egly-Ouriet Grand Cru",
+   "precio": "175 €",
+   "meta": "Champagne · Ambonnay · mayoría de pinot noir con chardonnay",
+   "datos": [
+    "Francis Egly es para muchos el mejor viticultor de pinot noir de Champagne. Viñas viejas en Ambonnay, Bouzy y Verzenay.",
+    "Fermentación en barrica y crianza larga sobre lías, muy por encima de lo habitual para un sin añada.",
+    "Perfil: profundo, fruta roja madura, fruto seco, estructura casi de vino tinto."
+   ],
+   "en_sala": "el champagne de pinot noir de la carta. Aguanta las piezas más intensas del final del menú.",
+   "minima_intervencion": false,
+   "a_confirmar": false
+  },
+  {
+   "slug": "nv-ar-lenoble-les-aventures-blanc-de-blancs-grand-cru-ed-5",
+   "categoria": "espumoso",
+   "subgrupo": "Las grandes botellas",
+   "orden": 38,
+   "nombre": "NV AR Lenoble Les Aventures Blanc de Blancs Grand Cru, Ed. #5",
+   "precio": "245 €",
+   "meta": "Champagne · Chouilly (Côte des Blancs) · chardonnay · extra brut",
+   "datos": [
+    "*Les Aventures* es una parcela de apenas media hectárea en Chouilly, grand cru.",
+    "No lleva añada: cada edición mezcla varias cosechas buenas de la misma parcela. La edición 5 reúne 2008, 2010 y 2012.",
+    "Perfil: chardonnay maduro y salino, con complejidad de crianza y final apretado."
+   ],
+   "en_sala": "una parcela, tres grandes añadas. Botella para ir despacio.",
+   "minima_intervencion": false,
+   "a_confirmar": false
+  },
+  {
+   "slug": "2018-marguet-sapience",
+   "categoria": "espumoso",
+   "subgrupo": "Las grandes botellas",
+   "orden": 39,
+   "nombre": "2018 Marguet Sapience",
+   "precio": "310 €",
+   "meta": "Champagne · 1er cru · brut nature · mínima intervención",
+   "datos": [
+    "La cuvée de prestigio de Benoît Marguet. Nació como un proyecto con uva de viticultores biodinámicos amigos (Léclapart, Lahaye, Laval).",
+    "Sin sulfuroso añadido y sin dosage. *Composición de la 2018: confirmar en ficha del productor.*",
+    "Perfil: muy vinoso, capas de fruta, especia y mineral; pide tiempo en copa."
+   ],
+   "en_sala": "la gran botella de mínima intervención. Copa de Borgoña y no demasiado fría.",
+   "minima_intervencion": true,
+   "a_confirmar": true
+  },
+  {
+   "slug": "nv-krug-grande-cuvee-174eme-edition",
+   "categoria": "espumoso",
+   "subgrupo": "Las grandes botellas",
+   "orden": 40,
+   "nombre": "NV Krug Grande Cuvée 174ème Édition",
+   "precio": "395 €",
+   "meta": "Champagne · Reims · pinot noir, chardonnay y meunier · brut",
+   "datos": [
+    "Cada edición es una mezcla de más de cien vinos de más de diez años distintos, fermentados en pequeñas barricas viejas y con unos siete años de bodega.",
+    "La 174.ª se compuso en torno a la cosecha 2018. El código *Krug iD* de la contraetiqueta da la composición exacta.",
+    "Perfil: el más amplio y complejo de la carta; avellana tostada, cítrico confitado, brioche, acidez que lo sostiene todo."
+   ],
+   "en_sala": "no necesita explicación al cliente que la pide; sí conviene saber contar qué significa el número de edición.",
+   "minima_intervencion": false,
+   "a_confirmar": false
+  },
+  {
+   "slug": "2024-castell-d-encus-ekam",
+   "categoria": "blanco",
+   "subgrupo": "Por copa y hasta 95 €",
+   "orden": 41,
+   "nombre": "2024 Castell d'Encus Ekam",
+   "precio": "14 € copa / 54 € botella",
+   "meta": "Costers del Segre (Pallars Jussà, Pirineo de Lleida) · riesling con algo de albariño",
+   "datos": [
+    "Proyecto de Raül Bobet en Talarn, con viña en torno a los 1.000 metros: de las más altas y frescas de Catalunya.",
+    "Fermentación en acero, sin madera. Suele conservar una punta mínima de azúcar que equilibra la acidez.",
+    "Perfil: lima, manzana verde, flor blanca, acidez muy viva."
+   ],
+   "en_sala": "es el blanco por copa. Funciona de principio a fin del omakase; si piden \"un blanco\" sin más, es este.",
+   "minima_intervencion": false,
+   "a_confirmar": false
+  },
+  {
+   "slug": "2023-billaud-simon-petit-chablis",
+   "categoria": "blanco",
+   "subgrupo": "Por copa y hasta 95 €",
+   "orden": 42,
+   "nombre": "2023 Billaud-Simon Petit Chablis",
+   "precio": "65 €",
+   "meta": "Borgoña (Chablis) · chardonnay",
+   "datos": [
+    "Domaine histórico de Chablis, propiedad de la casa Faiveley desde 2014.",
+    "Petit Chablis es el primer escalón: viñas en la parte alta de las laderas. Solo acero.",
+    "Perfil: limón, manzana, punto salino; ligero y directo."
+   ],
+   "en_sala": "el chardonnay más sencillo y seguro. Ideal para sashimi de pescado blanco.",
+   "minima_intervencion": false,
+   "a_confirmar": false
+  },
+  {
+   "slug": "2022-domaine-de-la-renardiere-les-terrasses",
+   "categoria": "blanco",
+   "subgrupo": "Por copa y hasta 95 €",
+   "orden": 43,
+   "nombre": "2022 Domaine de la Renardière Les Terrasses",
+   "precio": "65 €",
+   "meta": "Jura (Arbois-Pupillin) · 100 % savagnin",
+   "datos": [
+    "Jean-Michel Petit, en Pupillin. Savagnin de viñas de unos 40 años sobre margas.",
+    "Es un savagnin *ouillé*: la barrica se mantiene rellena, así que **no** tiene el carácter oxidativo del vin jaune. Crianza larga en madera grande.",
+    "Perfil: piel de limón, nuez fresca, toque ahumado y salino; acidez alta."
+   ],
+   "en_sala": "para el cliente curioso. Con erizo, ankimo o piezas con mucho umami es de lo mejor de la carta.",
+   "minima_intervencion": false,
+   "a_confirmar": false
+  },
+  {
+   "slug": "2023-vina-corrales-fino-saca-2023",
+   "categoria": "blanco",
+   "subgrupo": "Por copa y hasta 95 €",
+   "orden": 44,
+   "nombre": "2023 Viña Corrales Fino, Saca 2023",
+   "precio": "75 €",
+   "meta": "Jerez · Pago Balbaína · 100 % palomino",
+   "datos": [
+    "El proyecto jerezano de Peter Sisseck (Pingus): un fino de un solo viñedo sobre albariza, algo excepcional en una región de mezclas.",
+    "Cría bajo velo de flor; se embotella una saca al año, de ahí la fecha. Unos 15 % de alcohol.",
+    "Perfil: almendra cruda, masa de pan, tiza, final muy salino y seco."
+   ],
+   "en_sala": "el fino es el vino español que mejor entiende el sushi: salinidad y umami. Se sirve frío, en copa de vino. Avisar que es un fino, no un blanco al uso.",
+   "minima_intervencion": false,
+   "a_confirmar": false
+  },
+  {
+   "slug": "2020-fio-falkenberg-riesling",
+   "categoria": "blanco",
+   "subgrupo": "Por copa y hasta 95 €",
+   "orden": 45,
+   "nombre": "2020 FIO Falkenberg Riesling",
+   "precio": "75 €",
+   "meta": "Mosela (Piesport) · riesling",
+   "datos": [
+    "FIO es el proyecto de Philipp Kettern con la familia Niepoort. Fermentación espontánea y crianza muy larga sobre lías en fudres viejos.",
+    "Estilo seco, con poco alcohol.",
+    "Perfil: cítrico maduro, hierbas, pizarra, textura más amplia que un riesling joven."
+   ],
+   "en_sala": "riesling serio y seco, con más textura que el Ekam.",
+   "minima_intervencion": false,
+   "a_confirmar": false
+  },
+  {
+   "slug": "2022-pico-wines-arinto-dos-acores",
+   "categoria": "blanco",
+   "subgrupo": "Por copa y hasta 95 €",
+   "orden": 46,
+   "nombre": "2022 Pico Wines Arinto dos Açores",
+   "precio": "80 €",
+   "meta": "Azores (isla de Pico) · arinto dos Açores",
+   "datos": [
+    "De la cooperativa de la isla. Las viñas crecen en *currais*, pequeños corrales de piedra volcánica negra a metros del Atlántico; el paisaje es Patrimonio de la Humanidad.",
+    "El arinto dos Açores es una variedad propia del archipiélago, distinta del arinto continental.",
+    "Perfil: limón, yodo, sal marina; acidez muy alta."
+   ],
+   "en_sala": "el vino más \"de mar\" de la carta. *En la carta figura como \"Arinta\"; el nombre correcto de la uva es arinto.*",
+   "minima_intervencion": false,
+   "a_confirmar": false
+  },
+  {
+   "slug": "2023-rijckaert-pouilly-fuisse-1er-cru-sur-la-roche",
+   "categoria": "blanco",
+   "subgrupo": "Por copa y hasta 95 €",
+   "orden": 47,
+   "nombre": "2023 Rijckaert Pouilly-Fuissé 1er Cru Sur la Roche",
+   "precio": "85 €",
+   "meta": "Borgoña (Mâconnais, Vergisson) · chardonnay",
+   "datos": [
+    "Casa fundada por Jean Rijckaert y continuada por Florent Rouve. Crianzas largas en barrica usada, sin remover lías.",
+    "*Sur la Roche* es una parcela alta bajo la roca de Vergisson, premier cru desde la cosecha 2020.",
+    "Perfil: chardonnay maduro pero tenso; fruta de hueso, avellana, caliza."
+   ],
+   "en_sala": "el borgoña blanco con más cuerpo por debajo de 100 €.",
+   "minima_intervencion": false,
+   "a_confirmar": false
+  },
+  {
+   "slug": "2023-maison-reno-bourgogne-aligote",
+   "categoria": "blanco",
+   "subgrupo": "Por copa y hasta 95 €",
+   "orden": 48,
+   "nombre": "2023 Maison Réno Bourgogne Aligoté",
+   "precio": "90 €",
+   "meta": "Borgoña · 100 % aligoté",
+   "datos": [
+    "Proyecto personal de Réno Pacalet, hijo de Philippe Pacalet, nacido en 2023: esta es su primera añada.",
+    "Dos parcelas a partes iguales, en Puligny-Montrachet y Cheilly-lès-Maranges. Prensado lento de racimo entero y nueve meses en acero.",
+    "Perfil: ralladura de limón, manzana verde, piedra mojada; seco y enérgico."
+   ],
+   "en_sala": "sirve para explicar la otra uva blanca de Borgoña. Muy bueno con hikarimono (caballa, sardina, kohada).",
+   "minima_intervencion": false,
+   "a_confirmar": false
+  },
+  {
+   "slug": "2022-domaine-du-nozay-clos-de-nozay",
+   "categoria": "blanco",
+   "subgrupo": "Por copa y hasta 95 €",
+   "orden": 49,
+   "nombre": "2022 Domaine du Nozay Clos de Nozay",
+   "precio": "95 €",
+   "meta": "Loira (Sancerre) · sauvignon blanc",
+   "datos": [
+    "Domaine familiar en Sainte-Gemme, en biodinámica. El *Clos* es el viñedo cercado que rodea la casa.",
+    "Perfil: sauvignon sin exuberancia herbácea; pomelo, flor blanca, tiza."
+   ],
+   "en_sala": "para quien pide sauvignon blanc o un blanco aromático pero fino.",
+   "minima_intervencion": false,
+   "a_confirmar": false
+  },
+  {
+   "slug": "2023-domaine-des-malandes-chablis-1er-cru-mont-de-milieu",
+   "categoria": "blanco",
+   "subgrupo": "De 105 a 145 €",
+   "orden": 50,
+   "nombre": "2023 Domaine des Malandes Chablis 1er Cru Mont de Milieu",
+   "precio": "105 €",
+   "meta": "Borgoña (Chablis) · chardonnay",
+   "datos": [
+    "Domaine familiar de Chablis, hoy en manos de la segunda generación.",
+    "*Mont de Milieu* está en la orilla derecha del Serein, orientado al sur, junto a los grands crus: uno de los premiers crus más maduros y completos.",
+    "Perfil: fruta blanca madura, concha de ostra, más amplitud que un Chablis genérico."
+   ],
+   "en_sala": "el paso lógico por encima del Petit Chablis.",
+   "minima_intervencion": false,
+   "a_confirmar": false
+  },
+  {
+   "slug": "2018-selma-de-nin-selma-blanc",
+   "categoria": "blanco",
+   "subgrupo": "De 105 a 145 €",
+   "orden": 51,
+   "nombre": "2018 Selma de Nin, Selma Blanc",
+   "precio": "110 €",
+   "meta": "Penedès (Pla de Manlleu) · roussanne, marsanne, chenin blanc y parellada montònega · mínima intervención",
+   "datos": [
+    "Ester Nin y Carles Ortiz (Nin-Ortiz, Priorat). Viña de altura trabajada en biodinámica.",
+    "Mezcla poco habitual de variedades del Ródano y del Loira con una local.",
+    "Perfil: con ocho años tiene notas de cera, miel seca, hierbas y fruta de hueso; textura untuosa con buena acidez."
+   ],
+   "en_sala": "blanco de textura, para piezas grasas o platos calientes. Es el blanco con más edad de la carta junto a los 2016 y 2017.",
+   "minima_intervencion": true,
+   "a_confirmar": false
+  },
+  {
+   "slug": "2020-kreydenweiss-riesling-wiebelsberg-grand-cru",
+   "categoria": "blanco",
+   "subgrupo": "De 105 a 145 €",
+   "orden": 52,
+   "nombre": "2020 Kreydenweiss Riesling Wiebelsberg Grand Cru",
+   "precio": "115 €",
+   "meta": "Alsacia (Andlau) · riesling",
+   "datos": [
+    "Uno de los pioneros de la biodinámica en Alsacia (desde 1989).",
+    "*Wiebelsberg* es un grand cru de arenisca rosa: da rieslings finos, florales y secos.",
+    "Perfil: cítrico, flor blanca, especia; seco, con más cuerpo que un Mosela."
+   ],
+   "en_sala": "riesling seco de gastronomía.",
+   "minima_intervencion": false,
+   "a_confirmar": false
+  },
+  {
+   "slug": "2023-frederic-cossard-bourgogne-blanc-bigotes",
+   "categoria": "blanco",
+   "subgrupo": "De 105 a 145 €",
+   "orden": 53,
+   "nombre": "2023 Frédéric Cossard Bourgogne Blanc \"Bigotes\"",
+   "precio": "120 €",
+   "meta": "Borgoña · chardonnay · mínima intervención",
+   "datos": [
+    "Cossard, instalado en Saint-Romain, es uno de los referentes del vino natural en Borgoña: levaduras propias y sin sulfuroso añadido.",
+    "*Bigotes* es su Bourgogne blanc: la puerta de entrada a su estilo.",
+    "Perfil: fruta muy pura, cítrico, textura sedosa. Puede abrir algo reducido."
+   ],
+   "en_sala": "el primer Cossard para quien quiere probar el estilo sin ir a los 430 € del Folatières.",
+   "minima_intervencion": true,
+   "a_confirmar": false
+  },
+  {
+   "slug": "2023-cantarina-el-godello-de-consuelo",
+   "categoria": "blanco",
+   "subgrupo": "De 105 a 145 €",
+   "orden": 54,
+   "nombre": "2023 Cantariña, El Godello de Consuelo",
+   "precio": "125 €",
+   "meta": "Bierzo (Villafranca del Bierzo) · 100 % godello",
+   "datos": [
+    "Bodega familiar con unas 13 hectáreas en ecológico, todas en Villafranca, y vinificación de baja intervención.",
+    "Perfil: godello de textura, fruta blanca, hinojo, final mineral. *Detalles de crianza: a confirmar con el distribuidor.*"
+   ],
+   "en_sala": "la respuesta española a un borgoña blanco.",
+   "minima_intervencion": false,
+   "a_confirmar": true
+  },
+  {
+   "slug": "2023-domaine-des-malandes-chablis-grand-cru-les-clos",
+   "categoria": "blanco",
+   "subgrupo": "De 105 a 145 €",
+   "orden": 55,
+   "nombre": "2023 Domaine des Malandes Chablis Grand Cru Les Clos",
+   "precio": "145 €",
+   "meta": "Borgoña (Chablis) · chardonnay",
+   "datos": [
+    "*Les Clos* es el mayor y, para muchos, el mejor de los siete grands crus de Chablis: el más potente y longevo.",
+    "Perfil: concentrado, cítrico confitado, piedra, estructura para guardar. Hoy está joven."
+   ],
+   "en_sala": "el techo de Chablis en la carta. Mejor con algo de aire y no demasiado frío.",
+   "minima_intervencion": false,
+   "a_confirmar": false
+  },
+  {
+   "slug": "2023-francois-carillon-puligny-montrachet",
+   "categoria": "blanco",
+   "subgrupo": "Las grandes botellas",
+   "orden": 56,
+   "nombre": "2023 François Carillon Puligny-Montrachet",
+   "precio": "175 €",
+   "meta": "Borgoña (Côte de Beaune) · chardonnay",
+   "datos": [
+    "Los Carillon son viticultores en Puligny desde hace siglos; François lleva su parte desde 2010.",
+    "Perfil: el Puligny de manual; flor blanca, limón, almendra, tensión mineral."
+   ],
+   "en_sala": "referencia para explicar Puligny frente a Meursault (más tenso y recto).",
+   "minima_intervencion": false,
+   "a_confirmar": false
+  },
+  {
+   "slug": "2022-boyer-de-bar-meursault-en-l-ormeau",
+   "categoria": "blanco",
+   "subgrupo": "Las grandes botellas",
+   "orden": 57,
+   "nombre": "2022 Boyer de Bar Meursault En l'Ormeau",
+   "precio": "195 €",
+   "meta": "Borgoña (Côte de Beaune) · chardonnay",
+   "datos": [
+    "Etiqueta de Vincent Boyer (Domaine Boyer-Martenot, Meursault) junto a su amigo Emmanuel Lucas de Bar.",
+    "*En l'Ormeau* es una parcela de viñas viejas a nivel village, junto al pueblo.",
+    "Perfil: Meursault clásico; más ancho y mantecoso, avellana, fruta amarilla."
+   ],
+   "en_sala": "el contrapunto del Puligny de Carillon.",
+   "minima_intervencion": false,
+   "a_confirmar": false
+  },
+  {
+   "slug": "2021-marcel-deiss-schlossberg-grand-cru",
+   "categoria": "blanco",
+   "subgrupo": "Las grandes botellas",
+   "orden": 58,
+   "nombre": "2021 Marcel Deiss Schlossberg Grand Cru",
+   "precio": "210 €",
+   "meta": "Alsacia (Kientzheim) · mezcla de viña con base de riesling",
+   "datos": [
+    "Deiss defiende la *complantation*: distintas variedades plantadas y vendimiadas juntas, de modo que manda el viñedo y no la uva. Biodinámica.",
+    "*Schlossberg*, sobre granito, fue el primer grand cru reconocido en Alsacia.",
+    "Perfil: denso, cítrico y fruta de hueso, especias. *Los Deiss pueden llevar algo de azúcar residual: comprobar el índice de dulzor de la contraetiqueta.*"
+   ],
+   "en_sala": "vino de terruño más que de variedad; para clientes que ya conocen Alsacia.",
+   "minima_intervencion": false,
+   "a_confirmar": false
+  },
+  {
+   "slug": "2017-benjamin-romeo-coleccion-no5-el-sauco",
+   "categoria": "blanco",
+   "subgrupo": "Las grandes botellas",
+   "orden": 59,
+   "nombre": "2017 Benjamín Romeo, Colección Nº5 El Sauco",
+   "precio": "230 €",
+   "meta": "Rioja · garnacha blanca, viura y malvasía",
+   "datos": [
+    "Vino de una sola parcela elaborado por Benjamín Romeo (Contador) junto a Ismael Gozalo, uno de los grandes elaboradores de blancos de Castilla.",
+    "Perfil: blanco riojano de guarda, amplio y complejo; fruta madura, hierbas, madera integrada."
+   ],
+   "en_sala": "rareza de colección. Servir a temperatura de blanco de Borgoña, no frío.",
+   "minima_intervencion": false,
+   "a_confirmar": false
+  },
+  {
+   "slug": "2021-eulogio-pomares-parcela-en-aios",
+   "categoria": "blanco",
+   "subgrupo": "Las grandes botellas",
+   "orden": 60,
+   "nombre": "2021 Eulogio Pomares, Parcela en Aios",
+   "precio": "275 €",
+   "meta": "Rías Baixas (Val do Salnés) · albariño",
+   "datos": [
+    "Eulogio Pomares es el viticúltor y enólogo de Zárate, la bodega familiar, y probablemente el nombre más respetado del albariño.",
+    "Su línea personal de parcelarios se vinifica en madera grande (fudres de castaño o roble) y en cantidades mínimas. *Datos concretos de esta parcela: a confirmar.*",
+    "Perfil: albariño de profundidad, nada tropical; cítrico, laurel, granito, sal."
+   ],
+   "en_sala": "el gran blanco atlántico de la carta.",
+   "minima_intervencion": false,
+   "a_confirmar": true
+  },
+  {
+   "slug": "2022-willi-schaefer-graacher-domprobst-kabinett-no1-auction",
+   "categoria": "blanco",
+   "subgrupo": "Las grandes botellas",
+   "orden": 61,
+   "nombre": "2022 Willi Schaefer Graacher Domprobst Kabinett Nº1, Auction",
+   "precio": "305 €",
+   "meta": "Mosela (Graach) · riesling · con dulzor",
+   "datos": [
+    "Domaine familiar minúsculo y de culto. *Domprobst* es su gran viñedo, sobre pizarra.",
+    "\"Auction\": botellas de un lote especial que solo se venden en la subasta anual de productores de Tréveris.",
+    "Es un *Kabinett* clásico: poco alcohol (en torno a 8 %), azúcar residual y una acidez altísima que lo equilibra.",
+    "Perfil: manzana, lima, pizarra, dulzor ligero y jugoso."
+   ],
+   "en_sala": "hay que avisar siempre que **no es seco**. Con piezas dulces o saladas-dulces (anago con tsume, tamago) es extraordinario.",
+   "minima_intervencion": false,
+   "a_confirmar": false
+  },
+  {
+   "slug": "2016-joseph-drouhin-hospices-de-beaune-meursault-1er-cru",
+   "categoria": "blanco",
+   "subgrupo": "Las grandes botellas",
+   "orden": 62,
+   "nombre": "2016 Joseph Drouhin, Hospices de Beaune Meursault 1er Cru",
+   "precio": "340 €",
+   "meta": "Borgoña (Côte de Beaune) · chardonnay",
+   "datos": [
+    "Vino procedente de la subasta de los Hospices de Beaune: Drouhin compró la barrica y la crió.",
+    "Las cuvées de los Hospices llevan el nombre de un benefactor. *Anotar aquí la cuvée y el climat que figuran en la etiqueta.*",
+    "Perfil: Meursault maduro, con diez años; fruto seco, mantequilla tostada, miel."
+   ],
+   "en_sala": "botella con historia; el relato de la subasta benéfica suma mucho.",
+   "minima_intervencion": false,
+   "a_confirmar": false
+  },
+  {
+   "slug": "2022-frederic-cossard-puligny-montrachet-1er-cru-les-folatieres",
+   "categoria": "blanco",
+   "subgrupo": "Las grandes botellas",
+   "orden": 63,
+   "nombre": "2022 Frédéric Cossard Puligny-Montrachet 1er Cru Les Folatières",
+   "precio": "430 €",
+   "meta": "Borgoña (Côte de Beaune) · chardonnay · mínima intervención",
+   "datos": [
+    "*Les Folatières* es el premier cru más extenso de Puligny, en la parte alta y pedregosa de la ladera.",
+    "Elaborado sin sulfuroso añadido.",
+    "Perfil: gran concentración con mucha pureza; cítrico, flor, piedra."
+   ],
+   "en_sala": "decantar o dar aire; no servir frío.",
+   "minima_intervencion": true,
+   "a_confirmar": false
+  },
+  {
+   "slug": "2023-chapuis-chapuis-corton-charlemagne-grand-cru",
+   "categoria": "blanco",
+   "subgrupo": "Las grandes botellas",
+   "orden": 64,
+   "nombre": "2023 Chapuis & Chapuis Corton-Charlemagne Grand Cru",
+   "precio": "475 €",
+   "meta": "Borgoña (Côte de Beaune) · chardonnay · mínima intervención",
+   "datos": [
+    "Los hermanos Romain y Jean-Guillaume Chapuis, de familia de Aloxe-Corton, elaboran con uva ecológica y mínima intervención.",
+    "*Corton-Charlemagne* es el gran grand cru blanco de la colina de Corton: potencia, acidez y capacidad de guarda.",
+    "Perfil: muy joven todavía; denso, cítrico, mineral, con estructura."
+   ],
+   "en_sala": "el blanco más caro de la carta. Copa de Borgoña grande y tiempo.",
+   "minima_intervencion": true,
+   "a_confirmar": false
+  },
+  {
+   "slug": "2024-chapuis-chapuis-bourgogne-cote-d-or-rouge",
+   "categoria": "tinto",
+   "subgrupo": "Por copa y hasta 100 €",
+   "orden": 65,
+   "nombre": "2024 Chapuis & Chapuis Bourgogne Côte d'Or Rouge",
+   "precio": "14 € copa / 45 € botella",
+   "meta": "Borgoña · pinot noir · mínima intervención",
+   "datos": [
+    "Los hermanos Chapuis elaboran con uva ecológica, levaduras propias y muy poco sulfuroso.",
+    "*Bourgogne Côte d'Or* es una denominación regional limitada a uva de la Côte d'Or (Côte de Nuits y Côte de Beaune), un escalón por encima del Bourgogne genérico.",
+    "Perfil: cereza ácida, frambuesa, hoja, tanino casi imperceptible."
+   ],
+   "en_sala": "es el tinto por copa de referencia. Se sirve fresco. Va con akami, bonito, anago y platos calientes.",
+   "minima_intervencion": true,
+   "a_confirmar": false
+  },
+  {
+   "slug": "2023-4-kilos-12-volts",
+   "categoria": "tinto",
+   "subgrupo": "Por copa y hasta 100 €",
+   "orden": 66,
+   "nombre": "2023 4 Kilos, 12 Volts",
+   "precio": "14 € copa / 45 € botella",
+   "meta": "Mallorca · callet con otras variedades (habitualmente syrah, cabernet y merlot)",
+   "datos": [
+    "4 Kilos es el proyecto de Francesc Grimalt y Sergio Caballero en Felanitx. El nombre viene de los cuatro millones de pesetas con que arrancaron.",
+    "La callet es la uva tinta mallorquina: poco color, poco alcohol, fruta roja y un punto terroso.",
+    "Perfil: mediterráneo pero ligero; fruta roja, hierbas, especia."
+   ],
+   "en_sala": "el tinto por copa con algo más de cuerpo que el borgoña. Dato de conversación: Sergio Caballero es uno de los fundadores del festival Sónar.",
+   "minima_intervencion": false,
+   "a_confirmar": false
+  },
+  {
+   "slug": "2022-dominio-do-bibei-lalama",
+   "categoria": "tinto",
+   "subgrupo": "Por copa y hasta 100 €",
+   "orden": 67,
+   "nombre": "2022 Dominio do Bibei, Lalama",
+   "precio": "50 €",
+   "meta": "Ribeira Sacra · mencía con brancellao, mouratón, sousón y garnacha",
+   "datos": [
+    "Bodega de referencia del valle del Bibei, con viñedo en terrazas de pizarra y granito.",
+    "Crianza larga en madera usada y fudres; sale al mercado con años de botella.",
+    "Perfil: fruta roja, flores, pizarra, acidez atlántica."
+   ],
+   "en_sala": "la mejor relación precio-placer de los tintos. Tinto fresco español para quien no quiere Borgoña.",
+   "minima_intervencion": false,
+   "a_confirmar": false
+  },
+  {
+   "slug": "2022-el-mas-de-l-a-lo-noir",
+   "categoria": "tinto",
+   "subgrupo": "Por copa y hasta 100 €",
+   "orden": 68,
+   "nombre": "2022 El Mas de l'A, Lo Noir",
+   "precio": "65 €",
+   "meta": "Priorat (La Morera de Montsant) · garnacha y pinot noir",
+   "datos": [
+    "Proyecto de Alfredo Arribas que busca un Priorat distinto: viña ecológica a más de 500 metros, menos alcohol, taninos sedosos.",
+    "La mezcla de garnacha con pinot noir es muy poco habitual. Crianza en madera de 500 y 600 litros; se embotella sin filtrar.",
+    "Perfil: fruta roja pura, flores, tensión mineral; nada que ver con el Priorat potente de siempre."
+   ],
+   "en_sala": "para sorprender a quien cree que Priorat es sinónimo de vino pesado.",
+   "minima_intervencion": false,
+   "a_confirmar": false
+  },
+  {
+   "slug": "2022-josep-foraster-la-robina",
+   "categoria": "tinto",
+   "subgrupo": "Por copa y hasta 100 €",
+   "orden": 69,
+   "nombre": "2022 Josep Foraster, La Robina",
+   "precio": "70 €",
+   "meta": "Conca de Barberà (Montblanc)",
+   "datos": [
+    "Bodega familiar en ecológico, la gran defensora del **trepat**: una uva tinta local de poco color, mucha acidez y nota de pimienta blanca. De unas 1.100 hectáreas que hay en el mundo, unas 1.000 están en esta comarca.",
+    "*Variedad y elaboración de La Robina: a confirmar con la ficha del productor o el distribuidor.*"
+   ],
+   "en_sala": "hasta confirmar la ficha, presentarlo como tinto ligero de la Conca de Barberà.",
+   "minima_intervencion": false,
+   "a_confirmar": true
+  },
+  {
+   "slug": "2023-domaine-saint-cyr-moulin-a-vent-la-bruyere",
+   "categoria": "tinto",
+   "subgrupo": "Por copa y hasta 100 €",
+   "orden": 70,
+   "nombre": "2023 Domaine Saint-Cyr, Moulin-à-Vent La Bruyère",
+   "precio": "75 €",
+   "meta": "Beaujolais · gamay · mínima intervención",
+   "datos": [
+    "Raphaël Saint-Cyr trabaja en ecológico y vinifica con racimo entero y muy poco sulfuroso.",
+    "*Moulin-à-Vent* es el cru más estructurado de los diez del Beaujolais, sobre granito; *La Bruyère* es una de sus parcelas.",
+    "Perfil: cereza negra, violeta, especia; jugoso pero con columna."
+   ],
+   "en_sala": "gamay serio. Alternativa a un pinot noir a mitad de precio.",
+   "minima_intervencion": true,
+   "a_confirmar": false
+  },
+  {
+   "slug": "2023-bruma-agricola-bruma-de-arenero",
+   "categoria": "tinto",
+   "subgrupo": "Por copa y hasta 100 €",
+   "orden": 71,
+   "nombre": "2023 Bruma Agrícola, Bruma de Arenero",
+   "precio": "80 €",
+   "meta": "Cebreros (Sierra de Gredos, Ávila) · garnacha",
+   "datos": [
+    "Cebreros es la denominación más joven de Gredos: garnacha de viña vieja en vaso, en altura, sobre granito. El estilo de la zona es de poco color y mucha finura.",
+    "*Datos de esta cuvée concreta: a confirmar.*",
+    "Perfil esperable: fresa ácida, flores, monte bajo, tanino de arena."
+   ],
+   "en_sala": "\"el pinot noir de España\" es una forma rápida, aunque inexacta, de situar la garnacha de Gredos.",
+   "minima_intervencion": false,
+   "a_confirmar": true
+  },
+  {
+   "slug": "2023-domaine-de-la-renardiere-trousseau-a-la-dame",
+   "categoria": "tinto",
+   "subgrupo": "Por copa y hasta 100 €",
+   "orden": 72,
+   "nombre": "2023 Domaine de la Renardière, Trousseau à la Dame",
+   "precio": "80 €",
+   "meta": "Jura (Arbois-Pupillin) · trousseau · mínima intervención",
+   "datos": [
+    "El *trousseau à la dame* es una variante antigua del trousseau, de racimo más suelto y grano pequeño.",
+    "Perfil: color claro, fruta roja, pimienta, un punto terroso; acidez viva."
+   ],
+   "en_sala": "el tinto más ligero y singular de la carta. *En la carta aparece como \"Trousseau de la Dame\"; el productor lo escribe \"à la Dame\".*",
+   "minima_intervencion": true,
+   "a_confirmar": false
+  },
+  {
+   "slug": "2022-sandrone-nebbiolo-d-alba-valmaggiore",
+   "categoria": "tinto",
+   "subgrupo": "Por copa y hasta 100 €",
+   "orden": 73,
+   "nombre": "2022 Sandrone, Nebbiolo d'Alba Valmaggiore",
+   "precio": "90 €",
+   "meta": "Piamonte (Roero) · nebbiolo",
+   "datos": [
+    "Sandrone es una de las grandes casas de Barolo. *Valmaggiore* es un anfiteatro de arena muy empinado en el Roero, al otro lado del río Tanaro.",
+    "La arena da un nebbiolo más aromático y de tanino más suave que un Barolo.",
+    "Perfil: rosa, fresa, especia; tanino presente pero fino."
+   ],
+   "en_sala": "la manera amable de entrar al nebbiolo.",
+   "minima_intervencion": false,
+   "a_confirmar": false
+  },
+  {
+   "slug": "2022-domaine-de-la-renardiere-pinot-noir",
+   "categoria": "tinto",
+   "subgrupo": "Por copa y hasta 100 €",
+   "orden": 74,
+   "nombre": "2022 Domaine de la Renardière, Pinot Noir",
+   "precio": "100 €",
+   "meta": "Jura (Arbois-Pupillin) · pinot noir · mínima intervención",
+   "datos": [
+    "Pinot noir del Jura: más ligero, más ácido y más terroso que uno de Borgoña.",
+    "Perfil: guinda, tierra húmeda, hierbas."
+   ],
+   "en_sala": "para quien pide pinot noir y quiere salir de Borgoña.",
+   "minima_intervencion": true,
+   "a_confirmar": false
+  },
+  {
+   "slug": "2023-david-duband-gevrey-chambertin",
+   "categoria": "tinto",
+   "subgrupo": "De 145 a 275 €",
+   "orden": 75,
+   "nombre": "2023 David Duband, Gevrey-Chambertin",
+   "precio": "145 €",
+   "meta": "Borgoña (Côte de Nuits) · pinot noir",
+   "datos": [
+    "Duband trabaja en ecológico y vinifica con una proporción alta de racimo entero, lo que da perfume y frescura.",
+    "Gevrey es el pueblo de los tintos más estructurados de la Côte de Nuits.",
+    "Perfil: cereza negra, especias, tallo; elegante para ser Gevrey."
+   ],
+   "en_sala": "el borgoña tinto de pueblo de referencia.",
+   "minima_intervencion": false,
+   "a_confirmar": false
+  },
+  {
+   "slug": "2016-la-rioja-alta-gran-reserva-904",
+   "categoria": "tinto",
+   "subgrupo": "De 145 a 275 €",
+   "orden": 76,
+   "nombre": "2016 La Rioja Alta, Gran Reserva 904",
+   "precio": "185 €",
+   "meta": "Rioja (Haro) · tempranillo con graciano",
+   "datos": [
+    "La casa clásica por excelencia. El nombre recuerda 1904, año de la fusión con Bodegas Ardanza.",
+    "Cuatro años en barrica de roble americano fabricada por la propia bodega, con trasiegas a mano.",
+    "Perfil: Rioja clásico; cereza en licor, coco, tabaco, cuero fino, acidez alta y tanino pulido."
+   ],
+   "en_sala": "el clásico español que más clientes reconocen. Su acidez y su tanino suave lo hacen más compatible con la barra de lo que parece.",
+   "minima_intervencion": false,
+   "a_confirmar": false
+  },
+  {
+   "slug": "2020-sandrone-barolo-le-vigne",
+   "categoria": "tinto",
+   "subgrupo": "De 145 a 275 €",
+   "orden": 77,
+   "nombre": "2020 Sandrone, Barolo Le Vigne",
+   "precio": "200 €",
+   "meta": "Piamonte · nebbiolo",
+   "datos": [
+    "*Le Vigne* sigue la tradición antigua de Barolo: mezclar viñedos de distintos pueblos en lugar de embotellar uno solo. Reúne parcelas de Serralunga, Castiglione Falletto, Barolo y Novello.",
+    "Perfil: rosa seca, cereza, alquitrán, regaliz; mucho tanino y mucha acidez."
+   ],
+   "en_sala": "decantar. Es el tinto más tánico de la carta: mejor con carne o al final.",
+   "minima_intervencion": false,
+   "a_confirmar": false
+  },
+  {
+   "slug": "2022-niepoort-charme",
+   "categoria": "tinto",
+   "subgrupo": "De 145 a 275 €",
+   "orden": 78,
+   "nombre": "2022 Niepoort, Charme",
+   "precio": "210 €",
+   "meta": "Douro · viña vieja con mezcla de variedades (tinta roriz, touriga franca y otras)",
+   "datos": [
+    "La idea de Dirk Niepoort de hacer un \"borgoña\" en el Douro: viñas viejas de Vale de Mendiz, pisado con raspones en lagar, maceración corta y crianza en barrica francesa.",
+    "Perfil: fruta roja, flores, madera fina; mucha suavidad."
+   ],
+   "en_sala": "el nombre lo dice. Tinto de seda.",
+   "minima_intervencion": false,
+   "a_confirmar": false
+  },
+  {
+   "slug": "2023-frederic-cossard-gevrey-chambertin-les-genevrieres-qvevris",
+   "categoria": "tinto",
+   "subgrupo": "De 145 a 275 €",
+   "orden": 79,
+   "nombre": "2023 Frédéric Cossard, Gevrey-Chambertin Les Genevrières \"Qvevris\"",
+   "precio": "240 €",
+   "meta": "Borgoña (Côte de Nuits) · pinot noir · mínima intervención",
+   "datos": [
+    "*Qvevri* es la tinaja de barro georgiana. Cossard cría este vino en tinaja en lugar de barrica: nada de aporte de madera, fruta desnuda.",
+    "Sin sulfuroso añadido.",
+    "Perfil: fruta roja muy nítida, tacto terroso, tanino fino."
+   ],
+   "en_sala": "buena historia para contar (Borgoña en ánfora). Dar aire.",
+   "minima_intervencion": true,
+   "a_confirmar": false
+  },
+  {
+   "slug": "2023-chapuis-chapuis-corton-grand-cru",
+   "categoria": "tinto",
+   "subgrupo": "De 145 a 275 €",
+   "orden": 80,
+   "nombre": "2023 Chapuis & Chapuis, Corton Grand Cru",
+   "precio": "275 €",
+   "meta": "Borgoña (Côte de Beaune) · pinot noir · mínima intervención",
+   "datos": [
+    "Corton es el único grand cru tinto de la Côte de Beaune, y la colina de origen de la familia Chapuis.",
+    "Perfil: pinot noir con estructura y fondo terroso; todavía muy joven."
+   ],
+   "en_sala": "decantar. Grand cru a un precio contenido para lo que es Borgoña.",
+   "minima_intervencion": true,
+   "a_confirmar": false
+  },
+  {
+   "slug": "2023-frederic-cossard-morey-saint-denis-1er-cru-monts-luisants",
+   "categoria": "tinto",
+   "subgrupo": "Las grandes botellas",
+   "orden": 81,
+   "nombre": "2023 Frédéric Cossard, Morey-Saint-Denis 1er Cru Monts Luisants",
+   "precio": "310 €",
+   "meta": "Borgoña (Côte de Nuits) · pinot noir · mínima intervención",
+   "datos": [
+    "*Monts Luisants* es un premier cru en lo alto de la ladera de Morey, encima del grand cru Clos de la Roche.",
+    "Perfil: perfume, fruta roja, tensión de altura."
+   ],
+   "en_sala": "el gran tinto de Cossard en la carta.",
+   "minima_intervencion": true,
+   "a_confirmar": false
+  },
+  {
+   "slug": "2019-dominio-del-aguila-penas-aladas-gran-reserva",
+   "categoria": "tinto",
+   "subgrupo": "Las grandes botellas",
+   "orden": 82,
+   "nombre": "2019 Dominio del Águila, Peñas Aladas Gran Reserva",
+   "precio": "360 €",
+   "meta": "Ribera del Duero (La Aguilera) · viña muy vieja de tempranillo con otras variedades mezcladas",
+   "datos": [
+    "Jorge Monzón e Isabel Rodero. Viñedos prefiloxéricos en altura donde el tempranillo convive con blanca del país, bobal, garnacha y otras.",
+    "Racimo entero pisado, crianza muy larga en barrica. El resultado no se parece a la Ribera potente habitual.",
+    "Perfil: profundo pero fresco; fruta negra, flores, especia, tiza."
+   ],
+   "en_sala": "decantar. Una de las grandes botellas españolas de hoy.",
+   "minima_intervencion": false,
+   "a_confirmar": false
+  },
+  {
+   "slug": "2019-joseph-drouhin-vosne-romanee-1er-cru",
+   "categoria": "tinto",
+   "subgrupo": "Las grandes botellas",
+   "orden": 83,
+   "nombre": "2019 Joseph Drouhin, Vosne-Romanée 1er Cru",
+   "precio": "410 €",
+   "meta": "Borgoña (Côte de Nuits) · pinot noir",
+   "datos": [
+    "Vosne-Romanée es el pueblo más cotizado de Borgoña tinta: perfume de especias y textura de seda.",
+    "Drouhin es una de las grandes casas de Beaune, con estilo elegante y poca extracción. *Si la etiqueta indica el climat, anotarlo aquí.*",
+    "Perfil: 2019 fue una añada cálida y concentrada; fruta madura, especia dulce, tanino sedoso."
+   ],
+   "en_sala": "borgoña clásico de gran pueblo, ya con algo de botella.",
+   "minima_intervencion": false,
+   "a_confirmar": false
+  },
+  {
+   "slug": "2017-benjamin-romeo-contador",
+   "categoria": "tinto",
+   "subgrupo": "Las grandes botellas",
+   "orden": 84,
+   "nombre": "2017 Benjamín Romeo, Contador",
+   "precio": "470 €",
+   "meta": "Rioja (San Vicente de la Sonsierra) · tempranillo de viña vieja, con algo de garnacha y graciano",
+   "datos": [
+    "El vino que puso a Benjamín Romeo en el mapa: nació como vino de garaje en una cueva bajo el castillo de San Vicente y llegó a los 100 puntos Parker.",
+    "Rioja moderna: crianza en barrica francesa nueva, mucha concentración.",
+    "2017 fue el año de la gran helada de abril en Rioja: producción muy corta.",
+    "Perfil: potente, fruta negra, tostados finos, tanino abundante."
+   ],
+   "en_sala": "decantar siempre. No es un vino para acompañar nigiri; se recomienda con conocimiento de causa.",
+   "minima_intervencion": false,
+   "a_confirmar": false
+  },
+  {
+   "slug": "2011-la-rioja-alta-gran-reserva-890-seleccion-especial",
+   "categoria": "tinto",
+   "subgrupo": "Las grandes botellas",
+   "orden": 85,
+   "nombre": "2011 La Rioja Alta, Gran Reserva 890 Selección Especial",
+   "precio": "485 €",
+   "meta": "Rioja (Haro) · tempranillo con graciano y mazuelo",
+   "datos": [
+    "El tope de gama de La Rioja Alta; el nombre recuerda 1890, año de fundación. *Selección Especial* se reserva para las añadas que la bodega considera excepcionales.",
+    "Seis años en barrica de roble americano y largo reposo en botella antes de salir.",
+    "Perfil: Rioja clásico en su versión más fina; fruta en licor, especias dulces, tabaco, caoba, una acidez que lo mantiene vivo."
+   ],
+   "en_sala": "con quince años está en un gran momento. Servir con cuidado por si hay sedimento. *Confirmar añada en la etiqueta.*",
+   "minima_intervencion": false,
+   "a_confirmar": true
+  },
+  {
+   "slug": "yamazaki-umeshu-barrel-aged",
+   "categoria": "whisky",
+   "subgrupo": "Whisky japonés",
+   "orden": 86,
+   "nombre": "Yamazaki Umeshu Barrel-Aged",
+   "precio": "18 €",
+   "meta": null,
+   "datos": [
+    "**A confirmar con la botella en mano.** Por el nombre, lo más probable es que sea el *umeshu* de Suntory envejecido en barricas de whisky de la destilería Yamazaki: un licor de ume (en torno a 16–17 %), no un whisky.",
+    "Si es eso: dulce, ciruela, almendra, con notas de vainilla y madera de la barrica."
+   ],
+   "en_sala": "se sirve frío o con hielo, como final dulce. Si se confirma que es umeshu, tendría más sentido listarlo en \"Aperitivo – Final\".",
+   "minima_intervencion": false,
+   "a_confirmar": true
+  },
+  {
+   "slug": "hibiki-blender-s-choice",
+   "categoria": "whisky",
+   "subgrupo": "Whisky japonés",
+   "orden": 87,
+   "nombre": "Hibiki Blender's Choice",
+   "precio": "22 €",
+   "meta": "Suntory · blended · 43 %",
+   "datos": [
+    "Mezcla de maltas de Yamazaki y Hakushu con grano de Chita. Esta versión incluye whiskies envejecidos en barrica de vino, que le dan una nota frutal y dulce.",
+    "Perfil: redondo, miel, fruta madura, madera suave."
+   ],
+   "en_sala": "el más fácil de la lista. Para quien quiere \"un whisky japonés\" sin más.",
+   "minima_intervencion": false,
+   "a_confirmar": false
+  },
+  {
+   "slug": "kuju-new-born-peated-3",
+   "categoria": "whisky",
+   "subgrupo": "Whisky japonés",
+   "orden": 88,
+   "nombre": "Kuju New Born Peated #3",
+   "precio": "22 €",
+   "meta": "Destilería Kuju · Oita (Kyushu) · destilado joven ahumado",
+   "datos": [
+    "Destilería nueva, terminada a fines de 2020 al pie de los montes Kuju, a unos 600 metros, en el solar de una antigua bodega de sake. La fundó Shoji Utoda, organizador del festival Whisky Talk Fukuoka.",
+    "*New Born*: todavía no tiene los tres años. Las tiradas anteriores salieron a alta graduación. *Graduación y barrica de esta tirada: mirar la etiqueta.*",
+    "Perfil esperable: cereal, fruta blanca, humo, mucho nervio."
+   ],
+   "en_sala": "para curiosos. Es una foto de una destilería que está naciendo.",
+   "minima_intervencion": false,
+   "a_confirmar": false
+  },
+  {
+   "slug": "yamazaki-smoky-batch-the-third",
+   "categoria": "whisky",
+   "subgrupo": "Whisky japonés",
+   "orden": 89,
+   "nombre": "Yamazaki Smoky Batch \"The Third\"",
+   "precio": "24 €",
+   "meta": "Suntory · single malt · 43 %",
+   "datos": [
+    "Edición limitada, originalmente exclusiva de duty free, que muestra el lado ahumado y poco conocido de Yamazaki, la destilería de malta más antigua de Japón.",
+    "Perfil: la fruta madura típica de Yamazaki con una capa de humo suave."
+   ],
+   "en_sala": "ahumado elegante, no agresivo.",
+   "minima_intervencion": false,
+   "a_confirmar": false
+  },
+  {
+   "slug": "akkeshi-keichitsu",
+   "categoria": "whisky",
+   "subgrupo": "Whisky japonés",
+   "orden": 90,
+   "nombre": "Akkeshi Keichitsu",
+   "precio": "24 €",
+   "meta": "Destilería Akkeshi · Hokkaido · single malt ligeramente ahumado · 55 %",
+   "datos": [
+    "Akkeshi está en la costa este de Hokkaido y se inspira en Islay: mar, niebla y turba local.",
+    "Es la décima entrega de su serie de los 24 *sekki* (las estaciones del calendario tradicional). *Keichitsu* es el período de principios de marzo en que la tierra se templa y los insectos despiertan.",
+    "Mezcla de barricas de mizunara de Hokkaido, bourbon, jerez y vino tinto. Sin filtrado en frío.",
+    "Perfil: mandarina, chocolate negro, sal, incienso, humo ligero."
+   ],
+   "en_sala": "potente por graduación; ofrecer agua.",
+   "minima_intervencion": false,
+   "a_confirmar": false
+  },
+  {
+   "slug": "shizuoka-pot-still-k",
+   "categoria": "whisky",
+   "subgrupo": "Whisky japonés",
+   "orden": 91,
+   "nombre": "Shizuoka Pot Still \"K\"",
+   "precio": "26 €",
+   "meta": "Destilería Shizuoka · single malt · en torno a 55 %",
+   "datos": [
+    "Destilería fundada en 2016. La \"K\" es por su alambique: un pot still rescatado de la mítica destilería Karuizawa, cerrada hace años. Todo el whisky de esta botella pasó por ese alambique.",
+    "Hay ediciones con cebada japonesa y con cebada importada. *Anotar cuál tenemos.*",
+    "Perfil: lichi, pasas, miel, especias."
+   ],
+   "en_sala": "la historia de Karuizawa vende sola entre aficionados.",
+   "minima_intervencion": false,
+   "a_confirmar": false
+  },
+  {
+   "slug": "hakushu-japanese-forest-bittersweet-edition",
+   "categoria": "whisky",
+   "subgrupo": "Whisky japonés",
+   "orden": 92,
+   "nombre": "Hakushu \"Japanese Forest\" Bittersweet Edition",
+   "precio": "28 €",
+   "meta": "Suntory · single malt · 43 %",
+   "datos": [
+    "Edición limitada de 2023 para duty free. Hakushu, en los Alpes japoneses, suele ser fresco y herbal; esta versión está envejecida en roble español y es mucho más oscura.",
+    "Perfil: miel de manuka, mermelada de naranja, cacao, final de espresso."
+   ],
+   "en_sala": "el más goloso y \"de postre\" de los single malt. *En la carta figura como \"The Forest\".*",
+   "minima_intervencion": false,
+   "a_confirmar": false
+  },
+  {
+   "slug": "oso-brewery-cerveza-citrus-33-cl",
+   "categoria": "aperitivo",
+   "subgrupo": "Aperitivo – Final",
+   "orden": 93,
+   "nombre": "OSO Brewery, Cerveza Citrus (33 cl)",
+   "precio": "7,5 €",
+   "meta": null,
+   "datos": [
+    "Cerveza artesana de Madrid. *Estilo exacto y graduación: a confirmar con la lata o botella.*"
+   ],
+   "en_sala": "la única cerveza de la carta.",
+   "minima_intervencion": false,
+   "a_confirmar": true
+  },
+  {
+   "slug": "heiwa-shuzo-yuzu-spritz",
+   "categoria": "aperitivo",
+   "subgrupo": "Aperitivo – Final",
+   "orden": 94,
+   "nombre": "Heiwa Shuzo, Yuzu Spritz",
+   "precio": "12 €",
+   "meta": null,
+   "datos": [
+    "Heiwa Shuzo es la bodega de Wakayama que elabora el sake KID. Su línea *Tsuru-ume* son licores de fruta local con base de sake, sin aromas ni colorantes.",
+    "El *yuzushu* lleva una proporción muy alta de zumo de yuzu de Wakayama y ronda el 7 % de alcohol: ácido, intenso, apenas dulce.",
+    "*\"Spritz\" indicaría que se sirve alargado con soda; anotar aquí la receta de la casa.*"
+   ],
+   "en_sala": "aperitivo perfecto antes del omakase: cítrico, ligero, abre el apetito.",
+   "minima_intervencion": false,
+   "a_confirmar": false
+  },
+  {
+   "slug": "heiwa-shuzo-umeshu-clasico",
+   "categoria": "aperitivo",
+   "subgrupo": "Aperitivo – Final",
+   "orden": 95,
+   "nombre": "Heiwa Shuzo, Umeshu Clásico",
+   "precio": "12 €",
+   "meta": null,
+   "datos": [
+    "*Umeshu*: licor de ume, la fruta japonesa emparentada con el albaricoque (suele traducirse \"ciruela\"). Se macera la fruta entera con azúcar en alcohol o sake.",
+    "Wakayama es la gran zona de ume de Japón; Heiwa trabaja directamente con agricultores locales y elabora umeshu desde 1995.",
+    "Perfil: agridulce, albaricoque, almendra del hueso."
+   ],
+   "en_sala": "con hielo como aperitivo, o solo y frío al final.",
+   "minima_intervencion": false,
+   "a_confirmar": false
+  },
+  {
+   "slug": "mii-no-kotobuki-umeshu-amaretto",
+   "categoria": "aperitivo",
+   "subgrupo": "Aperitivo – Final",
+   "orden": 96,
+   "nombre": "Mii no Kotobuki, Umeshu \"Amaretto\"",
+   "precio": "16 €",
+   "meta": null,
+   "datos": [
+    "De la misma bodega de Fukuoka que elabora el **Biden** de la carta de sakes. La base no es alcohol neutro sino sake junmai añejo (koshu), en el que se macera el ume unos seis meses.",
+    "El apodo \"amaretto\" viene del aroma a almendra que sueltan los huesos de la fruta. Ronda el 10 % de alcohol.",
+    "Perfil: más profundo y menos dulce que un umeshu corriente; ciruela, almendra, caramelo del sake viejo."
+   ],
+   "en_sala": "buen puente con la carta de sakes: quien tomó Biden puede cerrar con el umeshu hecho sobre ese mismo tipo de sake.",
+   "minima_intervencion": false,
+   "a_confirmar": false
+  },
+  {
+   "slug": "valdespino-moscatel-toneles-viejisimo-1930",
+   "categoria": "aperitivo",
+   "subgrupo": "Aperitivo – Final",
+   "orden": 97,
+   "nombre": "Valdespino, Moscatel Toneles Viejísimo (~1930)",
+   "precio": "40 €",
+   "meta": "Jerez · moscatel",
+   "datos": [
+    "Uno de los vinos dulces más legendarios de España. Procede de una solera minúscula de unos pocos toneles, con una edad media de muchas décadas; de ahí la referencia a 1930.",
+    "Uva moscatel pasificada al sol, fortificada y envejecida hasta quedar casi negra y densa como un jarabe.",
+    "Perfil: pasas, dátil, café, cacao, yodo, una acidez que evita que empalague; interminable."
+   ],
+   "en_sala": "se sirve en dosis pequeña, como un postre en sí mismo. Es una de las joyas de la carta y merece que se cuente.",
+   "minima_intervencion": false,
+   "a_confirmar": false
+  },
+  {
+   "slug": "agua-sin-gas-solan-de-cabras",
+   "categoria": "sin-alcohol",
+   "subgrupo": "Sin alcohol",
+   "orden": 98,
+   "nombre": "Agua sin gas, Solán de Cabras",
+   "precio": "4 €",
+   "meta": null,
+   "datos": [
+    "Manantial de Beteta (Cuenca). Mineralización baja, sabor neutro: no interfiere con el pescado ni con el sake."
+   ],
+   "en_sala": null,
+   "minima_intervencion": false,
+   "a_confirmar": false
+  },
+  {
+   "slug": "agua-con-gas-vichy-catalan",
+   "categoria": "sin-alcohol",
+   "subgrupo": "Sin alcohol",
+   "orden": 99,
+   "nombre": "Agua con gas, Vichy Catalan",
+   "precio": "4 €",
+   "meta": null,
+   "datos": [
+    "Agua termal de Caldes de Malavella (Girona). Tiene mucho bicarbonato y sodio, por eso sabe claramente salada. Conviene avisar a quien no la conozca."
+   ],
+   "en_sala": null,
+   "minima_intervencion": false,
+   "a_confirmar": false
+  },
+  {
+   "slug": "iyoshi-cola-classic-edition",
+   "categoria": "sin-alcohol",
+   "subgrupo": "Sin alcohol",
+   "orden": 100,
+   "nombre": "Iyoshi Cola, Classic Edition",
+   "precio": "9 €",
+   "meta": null,
+   "datos": [
+    "Cola artesanal de Tokyo creada por Kola Kobayashi a partir de las recetas del taller de medicina herbal *kampo* de su abuelo. Nuez de cola, especias y cítricos; menos dulce y mucho más especiada que una cola industrial."
+   ],
+   "en_sala": "la Iyoshi Cola es la opción sin alcohol con historia. Para quien no bebe, es la que se recomienda.",
+   "minima_intervencion": false,
+   "a_confirmar": false
+  }
+ ],
+ "capitulos": [
+  {
+   "slug": "como-usar-esta-guia",
+   "titulo": "Cómo usar esta guía",
+   "area": "general",
+   "orden": 1,
+   "bloques": [
+    {
+     "t": "p",
+     "x": "Esta guía reúne todo lo que servimos en la barra: 20 sakes, la carta de vinos del 17 de noviembre de 2026, whiskies, aperitivos y bebidas sin alcohol. Está pensada para estudiar, no para recitar: el objetivo es entender por qué cada bebida sabe como sabe."
+    },
+    {
+     "t": "p",
+     "x": "Cada ficha sigue el mismo orden:"
+    },
+    {
+     "t": "ul",
+     "items": [
+      "**Quién y dónde**: productor, zona y tipo.",
+      "**Qué lo hace distinto**: uva o arroz, método y datos técnicos que conviene saber.",
+      "**Cómo sabe**: el perfil en pocas palabras.",
+      "**En sala**: cuándo ofrecerlo y cómo contarlo en una frase."
+     ]
+    },
+    {
+     "t": "p",
+     "x": "Tres reglas de la casa:"
+    },
+    {
+     "t": "ol",
+     "items": [
+      "Si no sabés un dato, no lo inventes: decí que lo consultás. Un dato falso dicho con seguridad cuesta más que un \"lo averiguo\".",
+      "Primero se pregunta, después se recomienda: qué suele beber el cliente, cuánto quiere gastar y en qué momento del menú está.",
+      "Lo que dice la etiqueta manda. Las añadas y las partidas cambian; ante la duda, se lee la contraetiqueta."
+     ]
+    },
+    {
+     "t": "p",
+     "x": "Los datos marcados como *a confirmar* no pudieron verificarse con la bodega o el importador y hay que cotejarlos con la botella."
+    }
+   ]
+  },
+  {
+   "slug": "fundamentos-de-sake",
+   "titulo": "Fundamentos de sake",
+   "area": "sake",
+   "orden": 2,
+   "bloques": [
+    {
+     "t": "p",
+     "x": "El sake es un fermentado de arroz, no un destilado ni un vino: el almidón del arroz se convierte en azúcar y el azúcar en alcohol al mismo tiempo, en la misma cuba. Esa \"fermentación múltiple en paralelo\" es lo que lo distingue de la cerveza y del vino."
+    },
+    {
+     "t": "h",
+     "n": 3,
+     "x": "Los cuatro ingredientes"
+    },
+    {
+     "t": "ul",
+     "items": [
+      "**Arroz**: variedades de sake (Yamada Nishiki, Omachi, Gohyakumangoku, Kame no O) con el almidón concentrado en el centro del grano.",
+      "**Agua**: blanda da sakes suaves y lentos; dura da sakes más secos y firmes.",
+      "**Koji**: arroz inoculado con el moho *Aspergillus oryzae*, que aporta las enzimas que transforman el almidón en azúcar. El koji amarillo es el habitual; el koji blanco, propio del shochu, produce ácido cítrico y da sakes muy ácidos.",
+      "**Levadura**: añadida (cepas seleccionadas) o ambiente (la que vive en la bodega)."
+     ]
+    },
+    {
+     "t": "h",
+     "n": 3,
+     "x": "Pulido y categorías"
+    },
+    {
+     "t": "p",
+     "x": "El *seimaibuai* indica cuánto grano queda después de pulir: 60 % significa que se eliminó el 40 %. Al pulir se quitan proteínas y grasas del exterior, y el sake gana finura y aroma a costa de cuerpo."
+    },
+    {
+     "t": "table",
+     "head": [
+      "Categoría",
+      "Pulido máximo",
+      "Alcohol añadido"
+     ],
+     "rows": [
+      [
+       "Junmai",
+       "sin mínimo",
+       "no"
+      ],
+      [
+       "Junmai ginjo",
+       "60 %",
+       "no"
+      ],
+      [
+       "Junmai daiginjo",
+       "50 %",
+       "no"
+      ],
+      [
+       "Honjozo",
+       "70 %",
+       "sí"
+      ],
+      [
+       "Ginjo",
+       "60 %",
+       "sí"
+      ],
+      [
+       "Daiginjo",
+       "50 %",
+       "sí"
+      ]
+     ]
+    },
+    {
+     "t": "p",
+     "x": "La categoría marca un mínimo, no un techo, y es voluntaria: algunas bodegas (Nichinichi, Senkin) no la declaran. Si un cliente pregunta, la respuesta correcta es \"la bodega no la publica\"."
+    },
+    {
+     "t": "h",
+     "n": 3,
+     "x": "El pie de cuba (shubo o moto)"
+    },
+    {
+     "t": "p",
+     "x": "Es el cultivo inicial de levadura. Necesita ácido láctico para protegerse de bacterias, y la forma de conseguirlo define el estilo."
+    },
+    {
+     "t": "table",
+     "head": [
+      "Método",
+      "Cómo consigue el ácido láctico",
+      "Resultado habitual"
+     ],
+     "rows": [
+      [
+       "Sokujo",
+       "se añade ácido láctico; es el método moderno",
+       "limpio y directo"
+      ],
+      [
+       "Kimoto",
+       "bacterias lácticas naturales, machacando el arroz",
+       "más acidez, umami y estructura"
+      ],
+      [
+       "Yamahai",
+       "como el kimoto, sin machacar",
+       "más salvaje, lácteo, con cuerpo"
+      ],
+      [
+       "Bodaimoto",
+       "arroz crudo en agua que se agria sola; esa agua ácida arranca el pie",
+       "agridulce y antiguo, origen del kimoto"
+      ]
+     ]
+    },
+    {
+     "t": "h",
+     "n": 3,
+     "x": "Palabras de etiqueta"
+    },
+    {
+     "t": "ul",
+     "items": [
+      "**Nama**: sin pasteurizar. Siempre en frío.",
+      "**Genshu**: sin diluir con agua.",
+      "**Muroka**: sin filtrar con carbón.",
+      "**Arabashiri / nakagumi / seme**: primera, media y última fracción del prensado.",
+      "**Koshu**: añejado.",
+      "**Kijoshu**: parte del agua se sustituye por sake; dulce y denso.",
+      "**Nihonshudo (SMV)**: densidad; valores positivos tienden a seco, negativos a dulce. Solo orienta: la acidez cambia la percepción."
+     ]
+    },
+    {
+     "t": "h",
+     "n": 3,
+     "x": "Conservación y servicio"
+    },
+    {
+     "t": "ul",
+     "items": [
+      "Todo el sake de la barra vive a 5 °C. Los nama y los de fermentación natural no salen nunca de la cámara.",
+      "Las botellas se guardan de pie y lejos de la luz.",
+      "Los ginjo y daiginjo aromáticos se sirven fríos y en copa de vino; los yamahai, los secos rústicos y los añejos admiten temperatura ambiente o templado.",
+      "Una botella abierta se anota con fecha: los nama evolucionan en días, los añejos aguantan semanas."
+     ]
+    }
+   ]
+  },
+  {
+   "slug": "intro-sake",
+   "titulo": "Los sakes de la barra",
+   "area": "sake",
+   "orden": 3,
+   "bloques": [
+    {
+     "t": "p",
+     "x": "Son 20 sakes ordenados por perfil de sala. El maridaje de sake cuesta 65 € por persona; los precios entre paréntesis son copa / jarra según la carta impresa, y los que no llevan precio se sirven fuera de carta o en maridaje."
+    }
+   ]
+  },
+  {
+   "slug": "fundamentos-de-vino-para-la-barra",
+   "titulo": "Fundamentos de vino para la barra",
+   "area": "vino",
+   "orden": 4,
+   "bloques": [
+    {
+     "t": "h",
+     "n": 3,
+     "x": "Por qué esta carta es así"
+    },
+    {
+     "t": "p",
+     "x": "La selección sigue una lógica: vinos que no tapen el pescado ni peleen con el shari. Eso explica casi todo lo que hay y lo que no hay."
+    },
+    {
+     "t": "ul",
+     "items": [
+      "**Acidez alta.** Limpia la grasa del toro o del buri igual que el gari, y sostiene el vinagre del arroz. Por eso mandan Champagne, Chablis, riesling, albariño y godello.",
+      "**Poca madera nueva.** El tostado y la vainilla de la barrica nueva se montan encima del pescado. Los blancos de la carta fermentan en inox, fudres o barricas usadas; cuando hay madera, está integrada.",
+      "**Tanino bajo en tintos.** El tanino con el umami se vuelve amargo, y el hierro del tinto con el pescado azul da un regusto metálico. De ahí tanta pinot noir, gamay, trousseau, garnacha de altura y mencía: tintos de color claro y tanino fino.",
+      "**Burbuja.** El carbónico y la acidez del champagne hacen el mismo trabajo que un sake seco: resetean la boca entre piezas. Es el comodín más seguro de la carta."
+     ]
+    },
+    {
+     "t": "h",
+     "n": 3,
+     "x": "Champagne en diez ideas"
+    },
+    {
+     "t": "ol",
+     "items": [
+      "**Método tradicional.** Se hace un vino base tranquilo; se embotella con azúcar y levaduras (*tirage*) y fermenta por segunda vez dentro de la botella. El gas queda atrapado.",
+      "**Lías.** Las levaduras muertas quedan en la botella meses o años. Cuanto más tiempo, más notas de pan, brioche y fruto seco, y burbuja más fina. Mínimo legal: 15 meses para un sin añada, 3 años para un millésimé.",
+      "**Degüelle.** Se expulsan las lías y se rellena con el licor de expedición. La fecha de degüelle (si figura en la contraetiqueta) dice cuán fresca está la botella.",
+      "**Dosage.** El azúcar del licor de expedición: *brut nature / dosage zéro / non dosé* (0–3 g/L, sin azúcar añadido), *extra brut* (0–6 g/L), *brut* (hasta 12 g/L). En la carta casi todo es extra brut o brut nature: perfil seco y filoso.",
+      "**Tres uvas.** Chardonnay (tensión, cítrico, tiza), pinot noir (estructura, fruta roja) y meunier (fruta, redondez, accesibilidad).",
+      "**Blanc de blancs / blanc de noirs.** Blanco hecho solo con uva blanca (chardonnay) o solo con uva tinta (pinot noir y/o meunier) prensada sin color.",
+      "**Zonas.** *Montagne de Reims* (pinot noir: Ambonnay, Bouzy, Ludes, Vrigny), *Vallée de la Marne* (meunier: Damery, Dizy, Moussy), *Côte des Blancs* (chardonnay sobre tiza: Avize, Cramant, Chouilly, Le Mesnil, Vertus, Cuis), *Côte de Sézanne* (chardonnay más maduro, al sur) y *Côte des Bar* o Aube (pinot noir sobre kimmeridgiano, el mismo suelo de Chablis).",
+      "**Grand cru y premier cru.** En Champagne lo que se clasifica es el pueblo entero: 17 pueblos grand cru y 42 premier cru.",
+      "**NV, añada y reserva perpetua.** Un sin añada (NV) mezcla la cosecha base con vinos de reserva de años anteriores. Un millésimé es de un solo año. Una *reserva perpetua* o solera es un depósito que nunca se vacía: cada año se saca una parte y se rellena con vino nuevo, así que contiene un poco de todas las cosechas desde que se inició.",
+      "**Quién lo hace.** *RM* (récoltant-manipulant) es el viticultor que elabora con su propia uva; *NM* (négociant-manipulant) es la casa que además compra uva. La carta es mayormente de viticultores, con tres casas grandes como referencia clásica: Charles Heidsieck, Jacquesson y Krug."
+     ]
+    },
+    {
+     "t": "h",
+     "n": 3,
+     "x": "Corpinnat"
+    },
+    {
+     "t": "p",
+     "x": "No es una denominación de origen sino una marca colectiva de elaboradores del Penedès que salieron de la DO Cava. Exige uva 100 % ecológica y vendimiada a mano, al menos 90 % de variedades autóctonas (xarel·lo, macabeu, parellada), vinificación íntegra en la propiedad y un mínimo de 18 meses de crianza. En la carta: Recaredo, Llopart y Bufadors. Para el cliente: \"el espumoso catalán de método tradicional con las reglas más estrictas\"."
+    },
+    {
+     "t": "h",
+     "n": 3,
+     "x": "Borgoña: cómo se lee una etiqueta"
+    },
+    {
+     "t": "p",
+     "x": "Dos uvas (chardonnay en blanco, pinot noir en tinto) y una jerarquía de cuatro escalones que explica los precios de la carta:"
+    },
+    {
+     "t": "table",
+     "head": [
+      "Nivel",
+      "Qué dice la etiqueta",
+      "Ejemplo en carta"
+     ],
+     "rows": [
+      [
+       "Regional",
+       "Bourgogne, Bourgogne Côte d'Or, Bourgogne Aligoté",
+       "Chapuis Bourgogne Côte d'Or Rouge, Cossard Bigotes"
+      ],
+      [
+       "Village",
+       "El nombre del pueblo",
+       "Carillon Puligny-Montrachet, Duband Gevrey-Chambertin"
+      ],
+      [
+       "Premier cru",
+       "Pueblo + \"1er Cru\" + nombre de la parcela",
+       "Cossard Puligny 1er Cru Les Folatières"
+      ],
+      [
+       "Grand cru",
+       "Solo el nombre del viñedo",
+       "Chapuis Corton-Charlemagne, Malandes Chablis Les Clos"
+      ]
+     ]
+    },
+    {
+     "t": "ul",
+     "items": [
+      "**Chablis** está aparte, al norte: chardonnay sobre suelo kimmeridgiano (marga con fósiles de ostra), casi siempre sin madera nueva. Su escala es Petit Chablis → Chablis → Chablis 1er Cru → Chablis Grand Cru.",
+      "**Côte de Beaune** es la zona de los grandes blancos: Meursault (más ancho y mantecoso), Puligny-Montrachet (más tenso y mineral), Corton-Charlemagne (potencia y acidez).",
+      "**Côte de Nuits** es la zona de los grandes tintos: Gevrey-Chambertin (estructura), Morey-Saint-Denis, Vosne-Romanée (perfume y seda).",
+      "**Mâconnais**, al sur: Pouilly-Fuissé, chardonnay más solar; tiene premiers crus desde la cosecha 2020.",
+      "**Aligoté** es la otra uva blanca de Borgoña: más ácida y ligera que el chardonnay.",
+      "**Hospices de Beaune**: los vinos del hospital histórico de Beaune se subastan en barrica cada noviembre; una casa (en la carta, Joseph Drouhin) compra la barrica y hace la crianza."
+     ]
+    },
+    {
+     "t": "h",
+     "n": 3,
+     "x": "Otras regiones de la carta, en una línea"
+    },
+    {
+     "t": "ul",
+     "items": [
+      "**Jura** (este de Francia): savagnin y chardonnay en blanco; trousseau, poulsard y pinot noir en tinto. Vinos ligeros, de mucha acidez.",
+      "**Alsacia**: riesling seco y con cuerpo; 51 grands crus con suelos muy distintos entre sí.",
+      "**Mosela** (Alemania): riesling sobre pizarra, poco alcohol. *Kabinett* indica la categoría de madurez más ligera y suele llevar azúcar residual.",
+      "**Sancerre** (Loira): sauvignon blanc sobre caliza y sílex.",
+      "**Jerez**: palomino criado bajo velo de flor (fino) o moscatel pasificado y envejecido décadas.",
+      "**Rías Baixas, Bierzo, Ribeira Sacra**: el noroeste atlántico; albariño, godello y mencía.",
+      "**Rioja y Ribera del Duero**: tempranillo; en la carta aparecen como grandes botellas de guarda.",
+      "**Piamonte**: nebbiolo, color claro pero mucho tanino y acidez (Barolo, Nebbiolo d'Alba).",
+      "**Douro**: tintos de viña vieja con mezcla de variedades portuguesas."
+     ]
+    },
+    {
+     "t": "h",
+     "n": 3,
+     "x": "Mínima intervención"
+    },
+    {
+     "t": "p",
+     "x": "En la carta hay vinos señalados como de mínima intervención. La idea: viña en ecológico o biodinámico, fermentación con levaduras propias de la uva, sin correcciones, sin clarificar ni filtrar y con muy poco o ningún sulfuroso añadido. Los marcados hoy son **Frédéric Cossard, Chapuis & Chapuis, Domaine Saint-Cyr, Domaine de la Renardière (Trousseau y Pinot Noir), Selma de Nin, Marguet y Bufadors**."
+    },
+    {
+     "t": "p",
+     "x": "Qué implica en sala:"
+    },
+    {
+     "t": "ul",
+     "items": [
+      "Pueden abrir con algo de reducción (fósforo, cerilla) o con una punta de gas: se va con aire. Conviene servir y dejar que el cliente lo vea evolucionar.",
+      "Son más sensibles a la temperatura y al transporte. Botella que sale rara, se avisa antes de servirla.",
+      "No es sinónimo de \"vino raro\". Los de esta carta son limpios y precisos; si el cliente teme los naturales turbios, se le puede tranquilizar."
+     ]
+    },
+    {
+     "t": "h",
+     "n": 3,
+     "x": "Servicio"
+    },
+    {
+     "t": "p",
+     "x": "*Las pautas de esta sección son una propuesta de trabajo; las ajusta Manu.*"
+    },
+    {
+     "t": "table",
+     "head": [
+      "Tipo",
+      "Temperatura orientativa",
+      "Copa"
+     ],
+     "rows": [
+      [
+       "Champagne y Corpinnat",
+       "8–10 °C (cuvées de prestigio, 10–12 °C)",
+       "Copa de vino blanco, no flauta"
+      ],
+      [
+       "Blancos ligeros (Chablis, riesling, fino)",
+       "8–10 °C",
+       "Blanco"
+      ],
+      [
+       "Blancos de Borgoña village en adelante",
+       "11–13 °C",
+       "Borgoña"
+      ],
+      [
+       "Tintos ligeros (pinot, gamay, trousseau)",
+       "14–15 °C",
+       "Borgoña"
+      ],
+      [
+       "Tintos de guarda (Rioja, Ribera, Barolo)",
+       "16–17 °C",
+       "Burdeos / Borgoña según estructura"
+      ]
+     ]
+    },
+    {
+     "t": "ul",
+     "items": [
+      "Una botella rinde **5 copas**.",
+      "Los tintos ligeros se sirven algo frescos: en la barra ganan mucho con el pescado.",
+      "Los blancos caros no se sirven helados: el frío tapa justo lo que el cliente está pagando.",
+      "Decantar tiene sentido en tintos de guarda jóvenes (Barolo, Peñas Aladas, Contador) y en algunos blancos de Cossard o Chapuis que salen cerrados. Se pregunta siempre antes.",
+      "Orden lógico si una mesa pide varias botellas: burbuja → blanco ligero → blanco con cuerpo → tinto."
+     ]
+    }
+   ]
+  },
+  {
+   "slug": "intro-espumoso",
+   "titulo": "Champagnes y espumosos",
+   "area": "espumoso",
+   "orden": 5,
+   "bloques": [
+    {
+     "t": "p",
+     "x": "Veinte referencias, todas por botella. Van en el orden de la carta (de menor a mayor precio). Los tres Corpinnat están intercalados; el resto es Champagne."
+    },
+    {
+     "t": "p",
+     "x": "**Mapa rápido para recomendar**"
+    },
+    {
+     "t": "table",
+     "head": [
+      "Si el cliente busca…",
+      "Ir a"
+     ],
+     "rows": [
+      [
+       "Algo filoso y mineral para todo el omakase",
+       "Marcoult, Larmandier-Bernier, Doyard, Gimonnet"
+      ],
+      [
+       "Más cuerpo y fruta (pinot noir / meunier)",
+       "Gonet-Médeville, Roger Coulon, Wirth Michel, Egly-Ouriet"
+      ],
+      [
+       "Complejidad de crianza, notas de fruto seco",
+       "Llopart, Huré Mémoire, Charles Heidsieck, Krug"
+      ],
+      [
+       "Mínima intervención",
+       "Marguet (Shaman, Sapience), Bufadors"
+      ],
+      [
+       "Algo que no sea Champagne",
+       "Recaredo, Llopart, Bufadors"
+      ],
+      [
+       "Una gran botella",
+       "Lenoble Les Aventures, Marguet Sapience, Krug"
+      ]
+     ]
+    }
+   ]
+  },
+  {
+   "slug": "intro-blanco",
+   "titulo": "Vinos blancos",
+   "area": "blanco",
+   "orden": 6,
+   "bloques": [
+    {
+     "t": "p",
+     "x": "Veinticuatro referencias en el orden de la carta. Solo el Ekam se sirve por copa."
+    },
+    {
+     "t": "p",
+     "x": "**Mapa rápido para recomendar**"
+    },
+    {
+     "t": "table",
+     "head": [
+      "Si el cliente busca…",
+      "Ir a"
+     ],
+     "rows": [
+      [
+       "Fresco, ácido, sin madera",
+       "Ekam, Petit Chablis, Arinto dos Açores, Aligoté de Réno, Nozay"
+      ],
+      [
+       "Riesling",
+       "Ekam (ligero), FIO (seco, complejo), Kreydenweiss (seco, con cuerpo), Schaefer (con dulzor)"
+      ],
+      [
+       "Chardonnay clásico de Borgoña",
+       "Malandes, Rijckaert, Carillon, Boyer de Bar, Drouhin"
+      ],
+      [
+       "Algo distinto",
+       "Fino Viña Corrales, Les Terrasses (Jura), Selma de Nin, Deiss"
+      ],
+      [
+       "Mínima intervención",
+       "Selma de Nin, Cossard (Bigotes, Folatières), Chapuis Corton-Charlemagne"
+      ],
+      [
+       "España en grande",
+       "Godello de Consuelo, El Sauco, Parcela en Aios"
+      ]
+     ]
+    }
+   ]
+  },
+  {
+   "slug": "intro-tinto",
+   "titulo": "Vinos tintos",
+   "area": "tinto",
+   "orden": 7,
+   "bloques": [
+    {
+     "t": "p",
+     "x": "Veintiún referencias en el orden de la carta. Dos se sirven por copa. La carta no tiene rosados tranquilos; el único rosado es el Marguet Shaman, en espumosos."
+    },
+    {
+     "t": "p",
+     "x": "Criterio general: en una barra de sushi el tinto es la excepción, así que la mayoría son tintos ligeros, de poco tanino. Las grandes botellas de Rioja, Ribera o Barolo están para el cliente que las pide a conciencia; conviene orientarlo hacia el tramo final del menú o servirlas después."
+    },
+    {
+     "t": "p",
+     "x": "**Mapa rápido para recomendar**"
+    },
+    {
+     "t": "table",
+     "head": [
+      "Si el cliente busca…",
+      "Ir a"
+     ],
+     "rows": [
+      [
+       "Tinto ligero que acompañe el menú",
+       "Chapuis Côte d'Or, Saint-Cyr, Trousseau y Pinot Noir de Renardière, Lalama"
+      ],
+      [
+       "Pinot noir de Borgoña",
+       "Chapuis, Duband, Cossard, Drouhin"
+      ],
+      [
+       "España fresca",
+       "12 Volts, Lalama, Lo Noir, La Robina, Bruma de Arenero"
+      ],
+      [
+       "Nebbiolo",
+       "Sandrone Valmaggiore (ligero), Barolo Le Vigne (serio)"
+      ],
+      [
+       "Mínima intervención",
+       "Chapuis, Saint-Cyr, Renardière, Cossard"
+      ],
+      [
+       "Un clásico español de guarda",
+       "904, 890, Peñas Aladas, Contador"
+      ]
+     ]
+    }
+   ]
+  },
+  {
+   "slug": "intro-whisky",
+   "titulo": "Whisky japonés: lo mínimo que hay que saber",
+   "area": "whisky",
+   "orden": 8,
+   "bloques": [
+    {
+     "t": "ul",
+     "items": [
+      "**Single malt**: whisky de cebada malteada hecho en una sola destilería, en alambique de cobre (*pot still*).",
+      "**Blended**: mezcla de whiskies de malta con whiskies de grano (más ligeros). Hibiki es el ejemplo de la carta.",
+      "**Turba (peat)**: si la malta se seca con humo de turba, el whisky sale ahumado. \"Peated\" y \"Smoky\" en la etiqueta avisan de eso.",
+      "**\"Japanese Whisky\"**: desde 2021 la asociación de productores japoneses exige, para usar ese nombre, que el whisky se fermente, destile y envejezca al menos tres años en Japón, con agua japonesa. Todas las referencias de la carta son de destilerías que destilan allí.",
+      "**New Born**: destilado joven, con menos de tres años de barrica. Legalmente aún no es whisky; las destilerías nuevas lo sacan para mostrar hacia dónde van.",
+      "**Graduación**: los embotellados a 43 % son los clásicos; los de 55 % o más están a fuerza de barrica o cerca, y agradecen unas gotas de agua.",
+      "**Madera**: bourbon (vainilla, coco), jerez o roble español (fruta seca, especia), *mizunara* o roble japonés (incienso, sándalo), vino tinto (fruta roja)."
+     ]
+    },
+    {
+     "t": "p",
+     "x": "*Servicio (propuesta, a ajustar por Manu):* solo, en copa tipo tulipa, con agua aparte. Estos whiskies no son para highball."
+    }
+   ]
+  },
+  {
+   "slug": "pendientes-de-confirmar",
+   "titulo": "Pendientes de confirmar",
+   "area": "general",
+   "orden": 9,
+   "bloques": [
+    {
+     "t": "p",
+     "x": "Datos que en esta guía quedaron marcados *a confirmar* y conviene cerrar con la botella o el distribuidor:"
+    },
+    {
+     "t": "ul",
+     "items": [
+      "Gassan: ficha sin revisar (se dejó como estaba).",
+      "Nabeshima Junmai Daiginjo \"+\" (20 / 39 € en carta): falta saber qué cuvée es para hacerle ficha.",
+      "Roger Coulon Heri Hodie: composición de la tirada actual.",
+      "Lenoble Dosage Zéro V19 y Jacquesson 749: cosecha base.",
+      "Marguet Sapience 2018: composición.",
+      "Marcel Deiss Schlossberg 2021: nivel de dulzor.",
+      "Drouhin Hospices de Beaune Meursault 1er Cru 2016 y Drouhin Vosne-Romanée 1er Cru 2019: cuvée y climat.",
+      "Eulogio Pomares Parcela en Aios, Cantariña Godello de Consuelo: datos de elaboración.",
+      "Josep Foraster La Robina y Bruma de Arenero: variedad y elaboración.",
+      "La Rioja Alta 890 Selección Especial: añada.",
+      "Yamazaki Umeshu Barrel-Aged: si es umeshu o whisky.",
+      "Kuju New Born Peated #3 y Shizuoka Pot Still K: graduación y edición.",
+      "OSO Citrus: estilo. Heiwa Yuzu Spritz: receta de la casa."
+     ]
+    }
+   ]
+  }
+ ],
+ "glosario": [
+  {
+   "area": "Sake",
+   "termino": "Seimaibuai",
+   "definicion": "Porcentaje del grano de arroz que queda tras el pulido. 60 % = se eliminó el 40 %.",
+   "orden": 1
+  },
+  {
+   "area": "Sake",
+   "termino": "Junmai",
+   "definicion": "Sake hecho solo con arroz, agua, koji y levadura, sin alcohol añadido.",
+   "orden": 2
+  },
+  {
+   "area": "Sake",
+   "termino": "Ginjo / Daiginjo",
+   "definicion": "Categorías por pulido (60 % o menos / 50 % o menos) y fermentación fría; perfil más aromático.",
+   "orden": 3
+  },
+  {
+   "area": "Sake",
+   "termino": "Koji",
+   "definicion": "Arroz inoculado con el hongo que convierte el almidón en azúcar. Amarillo en sake; el blanco (de shochu) aporta acidez cítrica.",
+   "orden": 4
+  },
+  {
+   "area": "Sake",
+   "termino": "Shubo / moto",
+   "definicion": "Pie de cuba: el cultivo inicial de levadura.",
+   "orden": 5
+  },
+  {
+   "area": "Sake",
+   "termino": "Sokujo",
+   "definicion": "Pie de cuba moderno, con ácido láctico añadido.",
+   "orden": 6
+  },
+  {
+   "area": "Sake",
+   "termino": "Kimoto / Yamahai",
+   "definicion": "Pies de cuba tradicionales, con fermentación láctica natural; dan más acidez y umami.",
+   "orden": 7
+  },
+  {
+   "area": "Sake",
+   "termino": "Bodaimoto",
+   "definicion": "Método medieval de pie de cuba, origen en los templos de Nara.",
+   "orden": 8
+  },
+  {
+   "area": "Sake",
+   "termino": "Nama",
+   "definicion": "Sake sin pasteurizar. Siempre en frío.",
+   "orden": 9
+  },
+  {
+   "area": "Sake",
+   "termino": "Genshu",
+   "definicion": "Sin diluir con agua tras el prensado; más alcohol.",
+   "orden": 10
+  },
+  {
+   "area": "Sake",
+   "termino": "Muroka",
+   "definicion": "Sin filtrar con carbón.",
+   "orden": 11
+  },
+  {
+   "area": "Sake",
+   "termino": "Koshu",
+   "definicion": "Sake añejo.",
+   "orden": 12
+  },
+  {
+   "area": "Sake",
+   "termino": "Kijoshu",
+   "definicion": "Sake elaborado sustituyendo parte del agua por sake; dulce y denso.",
+   "orden": 13
+  },
+  {
+   "area": "Sake",
+   "termino": "Nihonshudo (SMV)",
+   "definicion": "Escala de densidad: valores negativos, más dulce; positivos, más seco.",
+   "orden": 14
+  },
+  {
+   "area": "Espumosos",
+   "termino": "Método tradicional",
+   "definicion": "Segunda fermentación dentro de la botella.",
+   "orden": 15
+  },
+  {
+   "area": "Espumosos",
+   "termino": "Lías",
+   "definicion": "Levaduras muertas que quedan en la botella y dan complejidad.",
+   "orden": 16
+  },
+  {
+   "area": "Espumosos",
+   "termino": "Degüelle",
+   "definicion": "Expulsión de las lías antes del taponado final.",
+   "orden": 17
+  },
+  {
+   "area": "Espumosos",
+   "termino": "Dosage",
+   "definicion": "Azúcar que se añade tras el degüelle. Brut nature: nada; extra brut: hasta 6 g/L; brut: hasta 12 g/L.",
+   "orden": 18
+  },
+  {
+   "area": "Espumosos",
+   "termino": "Blanc de blancs / de noirs",
+   "definicion": "Blanco de uva blanca / blanco de uva tinta.",
+   "orden": 19
+  },
+  {
+   "area": "Espumosos",
+   "termino": "NV",
+   "definicion": "Sin añada: mezcla de varias cosechas.",
+   "orden": 20
+  },
+  {
+   "area": "Espumosos",
+   "termino": "Millésimé",
+   "definicion": "De una sola cosecha.",
+   "orden": 21
+  },
+  {
+   "area": "Espumosos",
+   "termino": "Reserva perpetua / solera",
+   "definicion": "Depósito que se rellena cada año sin vaciarse nunca.",
+   "orden": 22
+  },
+  {
+   "area": "Espumosos",
+   "termino": "RM / NM",
+   "definicion": "Viticultor que elabora su uva / casa que también compra uva.",
+   "orden": 23
+  },
+  {
+   "area": "Espumosos",
+   "termino": "Special Club",
+   "definicion": "Cuvée de prestigio de una asociación de viticultores de Champagne.",
+   "orden": 24
+  },
+  {
+   "area": "Espumosos",
+   "termino": "Corpinnat",
+   "definicion": "Marca colectiva de espumosos del Penedès, ecológicos y de larga crianza.",
+   "orden": 25
+  },
+  {
+   "area": "Vino",
+   "termino": "Village / 1er cru / grand cru",
+   "definicion": "Los tres escalones superiores de Borgoña, de pueblo a viñedo excepcional.",
+   "orden": 26
+  },
+  {
+   "area": "Vino",
+   "termino": "Climat / lieu-dit",
+   "definicion": "Parcela con nombre propio.",
+   "orden": 27
+  },
+  {
+   "area": "Vino",
+   "termino": "Kimmeridgiano",
+   "definicion": "Suelo de marga con fósiles marinos; Chablis y sur de Champagne.",
+   "orden": 28
+  },
+  {
+   "area": "Vino",
+   "termino": "Ouillé",
+   "definicion": "Barrica mantenida llena; sin oxidación. Lo contrario de la crianza bajo velo.",
+   "orden": 29
+  },
+  {
+   "area": "Vino",
+   "termino": "Velo de flor",
+   "definicion": "Capa de levaduras que protege al fino en la bota.",
+   "orden": 30
+  },
+  {
+   "area": "Vino",
+   "termino": "Albariza",
+   "definicion": "Suelo blanco calcáreo de Jerez.",
+   "orden": 31
+  },
+  {
+   "area": "Vino",
+   "termino": "Saca",
+   "definicion": "Extracción de vino de la solera para embotellar.",
+   "orden": 32
+  },
+  {
+   "area": "Vino",
+   "termino": "Kabinett",
+   "definicion": "Categoría alemana de madurez ligera; suele llevar azúcar residual.",
+   "orden": 33
+  },
+  {
+   "area": "Vino",
+   "termino": "Complantation",
+   "definicion": "Variedades distintas plantadas y vendimiadas juntas.",
+   "orden": 34
+  },
+  {
+   "area": "Vino",
+   "termino": "Racimo entero",
+   "definicion": "Fermentar con el raspón; da perfume y frescura.",
+   "orden": 35
+  },
+  {
+   "area": "Vino",
+   "termino": "Qvevri",
+   "definicion": "Tinaja de barro georgiana.",
+   "orden": 36
+  },
+  {
+   "area": "Vino",
+   "termino": "Fudre",
+   "definicion": "Tonel grande de madera; aporta poca madera al vino.",
+   "orden": 37
+  },
+  {
+   "area": "Vino",
+   "termino": "Biodinámica",
+   "definicion": "Agricultura ecológica que sigue además un calendario y preparados propios.",
+   "orden": 38
+  },
+  {
+   "area": "Vino",
+   "termino": "Reducción",
+   "definicion": "Olor a cerilla o fósforo al abrir; se va con aire.",
+   "orden": 39
+  },
+  {
+   "area": "Vino",
+   "termino": "Tanino",
+   "definicion": "Sensación secante de pieles, pepitas y madera.",
+   "orden": 40
+  },
+  {
+   "area": "Destilados y otros",
+   "termino": "Single malt",
+   "definicion": "Whisky de malta de una sola destilería.",
+   "orden": 41
+  },
+  {
+   "area": "Destilados y otros",
+   "termino": "Blended",
+   "definicion": "Mezcla de whiskies de malta y de grano.",
+   "orden": 42
+  },
+  {
+   "area": "Destilados y otros",
+   "termino": "Peated",
+   "definicion": "Elaborado con malta ahumada con turba.",
+   "orden": 43
+  },
+  {
+   "area": "Destilados y otros",
+   "termino": "New Born",
+   "definicion": "Destilado con menos de tres años; aún no es whisky.",
+   "orden": 44
+  },
+  {
+   "area": "Destilados y otros",
+   "termino": "Mizunara",
+   "definicion": "Roble japonés; da notas de incienso y sándalo.",
+   "orden": 45
+  },
+  {
+   "area": "Destilados y otros",
+   "termino": "Umeshu",
+   "definicion": "Licor de ume macerado con azúcar.",
+   "orden": 46
+  },
+  {
+   "area": "Destilados y otros",
+   "termino": "Yuzushu",
+   "definicion": "Licor de yuzu, aquí con base de sake.",
+   "orden": 47
+  }
+ ],
+ "preguntas": [
+  {
+   "area": "Sake",
+   "pregunta": "¿Qué indica un seimaibuai de 50 %?",
+   "orden": 1
+  },
+  {
+   "area": "Sake",
+   "pregunta": "¿Qué diferencia a un junmai de un sake que no lo es?",
+   "orden": 2
+  },
+  {
+   "area": "Sake",
+   "pregunta": "¿Por qué un yamahai o un kimoto tiene más acidez y umami que un sokujo?",
+   "orden": 3
+  },
+  {
+   "area": "Sake",
+   "pregunta": "¿Qué tiene de particular el koji del Natsu no Omoide y cómo se nota en la copa?",
+   "orden": 4
+  },
+  {
+   "area": "Sake",
+   "pregunta": "¿Qué cuidado exige un nama? ¿Cuáles de la barra lo son?",
+   "orden": 5
+  },
+  {
+   "area": "Sake",
+   "pregunta": "El Biden ya no es de una sola añada. ¿Cómo se le explica al cliente?",
+   "orden": 6
+  },
+  {
+   "area": "Sake",
+   "pregunta": "Un cliente pide \"algo seco y limpio\". ¿Qué dos sakes le proponés y por qué?",
+   "orden": 7
+  },
+  {
+   "area": "Sake",
+   "pregunta": "Un cliente pide \"algo raro\". ¿A qué perfil vas?",
+   "orden": 8
+  },
+  {
+   "area": "Espumosos",
+   "pregunta": "Explicá en tres frases cómo se hace un champagne.",
+   "orden": 9
+  },
+  {
+   "area": "Espumosos",
+   "pregunta": "¿Qué diferencia hay entre brut nature, extra brut y brut?",
+   "orden": 10
+  },
+  {
+   "area": "Espumosos",
+   "pregunta": "¿Qué es un blanc de noirs? Nombrá dos de la carta.",
+   "orden": 11
+  },
+  {
+   "area": "Espumosos",
+   "pregunta": "¿Qué tienen en común Heri Hodie y Mémoire?",
+   "orden": 12
+  },
+  {
+   "area": "Espumosos",
+   "pregunta": "¿Qué es Corpinnat y qué tres productores tenemos?",
+   "orden": 13
+  },
+  {
+   "area": "Espumosos",
+   "pregunta": "¿Qué significa el número en Jacquesson 749 y en Krug 174ème?",
+   "orden": 14
+  },
+  {
+   "area": "Espumosos",
+   "pregunta": "¿Cuáles son los espumosos de mínima intervención?",
+   "orden": 15
+  },
+  {
+   "area": "Espumosos",
+   "pregunta": "¿Por qué Vouette et Sorbée, siendo de Champagne, comparte suelo con Chablis?",
+   "orden": 16
+  },
+  {
+   "area": "Blancos",
+   "pregunta": "Ordená de menor a mayor: Chablis 1er Cru, Petit Chablis, Chablis Grand Cru. ¿Qué referencia tenemos de cada uno?",
+   "orden": 17
+  },
+  {
+   "area": "Blancos",
+   "pregunta": "¿En qué se diferencian un Meursault y un Puligny-Montrachet?",
+   "orden": 18
+  },
+  {
+   "area": "Blancos",
+   "pregunta": "¿Qué quiere decir que Les Terrasses es un savagnin *ouillé*?",
+   "orden": 19
+  },
+  {
+   "area": "Blancos",
+   "pregunta": "¿Qué hay que avisar siempre antes de servir el Kabinett de Willi Schaefer?",
+   "orden": 20
+  },
+  {
+   "area": "Blancos",
+   "pregunta": "¿Por qué un fino funciona con sushi?",
+   "orden": 21
+  },
+  {
+   "area": "Blancos",
+   "pregunta": "Tenemos cuatro rieslings. ¿Cuál es cada uno y en qué se distinguen?",
+   "orden": 22
+  },
+  {
+   "area": "Blancos",
+   "pregunta": "¿Qué es la subasta de los Hospices de Beaune?",
+   "orden": 23
+  },
+  {
+   "area": "Blancos",
+   "pregunta": "¿Qué blancos están marcados como mínima intervención?",
+   "orden": 24
+  },
+  {
+   "area": "Tintos",
+   "pregunta": "¿Por qué la carta tiene tantos tintos ligeros?",
+   "orden": 25
+  },
+  {
+   "area": "Tintos",
+   "pregunta": "¿Cuáles son los dos tintos por copa y en qué se diferencian?",
+   "orden": 26
+  },
+  {
+   "area": "Tintos",
+   "pregunta": "¿Qué es el trepat? ¿Y el trousseau?",
+   "orden": 27
+  },
+  {
+   "area": "Tintos",
+   "pregunta": "¿Qué tiene de especial la crianza del Gevrey \"Qvevris\" de Cossard?",
+   "orden": 28
+  },
+  {
+   "area": "Tintos",
+   "pregunta": "¿Qué diferencia a un Rioja clásico (904, 890) de uno moderno (Contador)?",
+   "orden": 29
+  },
+  {
+   "area": "Tintos",
+   "pregunta": "¿Qué tintos conviene decantar?",
+   "orden": 30
+  },
+  {
+   "area": "Tintos",
+   "pregunta": "¿Qué dos vinos de Sandrone tenemos y cuál es más ligero?",
+   "orden": 31
+  },
+  {
+   "area": "Otras bebidas",
+   "pregunta": "¿Qué diferencia a un single malt de un blended?",
+   "orden": 32
+  },
+  {
+   "area": "Otras bebidas",
+   "pregunta": "¿Qué significa \"New Born\"?",
+   "orden": 33
+  },
+  {
+   "area": "Otras bebidas",
+   "pregunta": "¿Qué historia hay detrás de la \"K\" de Shizuoka?",
+   "orden": 34
+  },
+  {
+   "area": "Otras bebidas",
+   "pregunta": "¿Qué relación hay entre el umeshu de Mii no Kotobuki y un sake de la carta?",
+   "orden": 35
+  },
+  {
+   "area": "Otras bebidas",
+   "pregunta": "¿Cómo se presenta el Moscatel Toneles?",
+   "orden": 36
+  },
+  {
+   "area": "Otras bebidas",
+   "pregunta": "¿Qué hay que avisar del Vichy Catalan?",
+   "orden": 37
+  },
+  {
+   "area": "Situaciones de sala",
+   "pregunta": "Mesa de dos, omakase completo, quieren una sola botella y no toman sake. ¿Qué proponen y por qué?",
+   "orden": 38
+  },
+  {
+   "area": "Situaciones de sala",
+   "pregunta": "El cliente dice que los vinos naturales \"huelen raro\". ¿Qué le contestás y qué le ofrecés?",
+   "orden": 39
+  },
+  {
+   "area": "Situaciones de sala",
+   "pregunta": "Piden el Contador para acompañar todo el menú. ¿Cómo lo manejás?",
+   "orden": 40
+  },
+  {
+   "area": "Situaciones de sala",
+   "pregunta": "Un cliente que no bebe alcohol pregunta qué hay. ¿Qué le contás?",
+   "orden": 41
+  },
+  {
+   "area": "Situaciones de sala",
+   "pregunta": "Abrís un Cossard y sale con olor a cerilla. ¿Qué hacés?",
+   "orden": 42
+  }
+ ]
+}
