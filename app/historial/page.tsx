@@ -55,11 +55,11 @@ export default function HistorialPage() {
         return false;
       }
 
-      if (fechaDesde && registro.fecha < fechaDesde) {
+      if (fechaDesde && registro.fecha.slice(0, 10) < fechaDesde) {
         return false;
       }
 
-      if (fechaHasta && registro.fecha > fechaHasta) {
+      if (fechaHasta && registro.fecha.slice(0, 10) > fechaHasta) {
         return false;
       }
 

@@ -164,10 +164,10 @@ export default function EstadisticasPage() {
       if (filtroServicio !== "Todos" && r.servicio !== filtroServicio) {
         return false;
       }
-      if (fechaDesde && r.fecha < fechaDesde) {
+      if (fechaDesde && r.fecha.slice(0, 10) < fechaDesde) {
         return false;
       }
-      if (fechaHasta && r.fecha > fechaHasta) {
+      if (fechaHasta && r.fecha.slice(0, 10) > fechaHasta) {
         return false;
       }
       return true;
