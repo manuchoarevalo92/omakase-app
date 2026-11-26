@@ -17,6 +17,10 @@ export function partesDesdeMenuOmakaseGuardado(
   menuOmakase: string[] | null
 ): PartesMenuOmakase {
   const ids = (menuOmakase ?? []).filter((id) => String(id).trim());
+  // Menú "nigiri only": se guarda con exactamente los 12 nigiri y nada más.
+  if (ids.length === MENU_GUARDADO_NIGIRI) {
+    return { otsumami: [], nigiri: ids, postre: [], regalo: [] };
+  }
   let i = 0;
   const otsumami = ids.slice(i, i + MENU_GUARDADO_OTSUMAMI);
   i += MENU_GUARDADO_OTSUMAMI;

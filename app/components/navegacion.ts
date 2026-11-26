@@ -77,7 +77,7 @@ export const STAFF_HREFS = new Set<string>([
 export const PESTANAS: { href: Href; label: string }[] = [
   { href: "/", label: "Omakase" },
   { href: "/mep-deli", label: "MEP" },
-  { href: "/pedidos", label: "Pedidos" },
+  { href: "/bebidas", label: "Bebidas" },
   { href: "/guia-bebidas", label: "Guía" },
 ];
 
