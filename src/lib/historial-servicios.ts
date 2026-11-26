@@ -48,10 +48,42 @@ export function registroMasRecienteEnHistorial(
   return [...rows].sort(compararHistorialMasReciente)[0] ?? null;
 }
 
+const FORMATO_FECHA_SERVICIO = new Intl.DateTimeFormat("es-ES", {
+  weekday: "short",
+  day: "numeric",
+  month: "short",
+  year: "numeric",
+  timeZone: "UTC",
+});
+
+/**
+ * Fecha legible ("mié, 25 nov 2026") a partir de lo que devuelve Supabase
+ * ("2026-11-25" o "2026-11-25T00:00:00+00:00"). Solo para mostrar: no usar como clave ni para guardar.
+ */
+export function formatearFechaServicio(fecha: string | null | undefined): string {
+  const texto = fecha?.trim() ?? "";
+  const m = /^(\d{4})-(\d{2})-(\d{2})/.exec(texto);
+  if (!m) {
+    return texto;
+  }
+  const d = new Date(Date.UTC(Number(m[1]), Number(m[2]) - 1, Number(m[3])));
+  return FORMATO_FECHA_SERVICIO.format(d);
+}
+
+/** Hora legible "20:01" a partir de "20:01", "20:01:00" o "20:01:00+00". Solo para mostrar. */
+export function formatearHoraServicio(hora: string | null | undefined): string {
+  const texto = hora?.trim() ?? "";
+  const m = /^(\d{1,2}):(\d{2})/.exec(texto);
+  if (!m) {
+    return texto;
+  }
+  return `${m[1].padStart(2, "0")}:${m[2]}`;
+}
+
 export function etiquetaServicioHistorial(row: HistorialServicioRow): string {
-  const hora = row.hora?.trim() ? ` · ${row.hora}` : "";
+  const hora = row.hora?.trim() ? ` · ${formatearHoraServicio(row.hora)}` : "";
   const serv = row.servicio ?? "Servicio";
-  return `${row.fecha} · ${serv}${hora}`;
+  return `${formatearFechaServicio(row.fecha)} · ${serv}${hora}`;
 }
 
 export async function fetchUltimoHistorialServicio(): Promise<HistorialServicioRow | null> {

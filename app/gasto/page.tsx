@@ -71,7 +71,7 @@ function KpiCard(props: { icono: React.ReactNode; titulo: string; valor: string;
         {icono}
         <p className="text-[10px] font-semibold uppercase tracking-[0.14em]">{titulo}</p>
       </div>
-      <p className="mt-2 text-2xl font-semibold tabular-nums text-white">{valor}</p>
+      <p className="mt-2 text-2xl font-semibold tabular-nums text-zinc-100">{valor}</p>
       {sub ? <p className="mt-0.5 text-xs text-zinc-500">{sub}</p> : null}
     </div>
   );

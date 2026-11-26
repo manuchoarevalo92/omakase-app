@@ -11,6 +11,7 @@ import {
   MENU_GUARDADO_POSTRE,
   partesDesdeMenuOmakaseGuardado,
 } from "@/src/lib/menu-omakase-guardado";
+import { formatearFechaServicio, formatearHoraServicio } from "@/src/lib/historial-servicios";
 import { supabase } from "@/src/lib/supabase";
 
 type Categoria = "Otsumami" | "Nigiri" | "Postre" | "Extensión";
@@ -374,7 +375,7 @@ export default function Home() {
     setResumenServicio(resumenArmado);
     setEditorOcultoTrasGuardar(true);
     setSuccess(
-      `Último menú del historial cargado (${elegido.fecha} · ${servicioRow}${horaEtiqueta ? ` · ${horaEtiqueta}` : ""}). Tocá Editar menú para modificarlo o guardalo de nuevo.`
+      `Último menú del historial cargado (${formatearFechaServicio(elegido.fecha)} · ${servicioRow}${horaEtiqueta ? ` · ${formatearHoraServicio(horaEtiqueta)}` : ""}). Tocá Editar menú para modificarlo o guardalo de nuevo.`
     );
     setError(null);
   };
@@ -681,9 +682,9 @@ export default function Home() {
                       Visor · último menú del historial · solo lectura
                     </p>
                     <p className="mt-1 flex flex-wrap gap-x-1 text-sm text-zinc-100">
-                      <span className="tabular-nums">{resumenDerivadoDelFormulario.fecha}</span>
+                      <span className="tabular-nums">{formatearFechaServicio(resumenDerivadoDelFormulario.fecha)}</span>
                       <span className="text-zinc-600">·</span>
-                      <span className="tabular-nums">{resumenDerivadoDelFormulario.hora}</span>
+                      <span className="tabular-nums">{formatearHoraServicio(resumenDerivadoDelFormulario.hora)}</span>
                       <span className="text-zinc-600">·</span>
                       <span>{resumenDerivadoDelFormulario.servicio}</span>
                       <span className="text-zinc-600">·</span>
@@ -734,7 +735,7 @@ export default function Home() {
               <div className="mb-4 flex flex-col gap-2 rounded-lg border border-zinc-800 bg-zinc-950/60 px-3 py-2.5 sm:flex-row sm:flex-wrap sm:items-center sm:justify-between">
                 <p className="text-xs text-zinc-400">
                   Editando menú del{" "}
-                  <span className="tabular-nums text-zinc-200">{resumenDerivadoDelFormulario.fecha}</span>
+                  <span className="tabular-nums text-zinc-200">{formatearFechaServicio(resumenDerivadoDelFormulario.fecha)}</span>
                   {" · "}
                   <span className="text-zinc-200">{resumenDerivadoDelFormulario.servicio}</span>
                 </p>

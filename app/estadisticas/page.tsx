@@ -19,6 +19,7 @@ import {
   type RubroIngrediente,
 } from "@/src/lib/ingredientes-rubro";
 import { formatPostgrestError } from "@/src/lib/supabase-errors";
+import { formatearFechaServicio } from "@/src/lib/historial-servicios";
 import { supabase } from "@/src/lib/supabase";
 
 type Servicio = "Mediodia" | "Noche";
@@ -128,7 +129,7 @@ function KpiCard(props: {
           {titulo}
         </p>
       </div>
-      <p className="mt-2 text-2xl font-semibold tabular-nums text-white">{valor}</p>
+      <p className="mt-2 text-2xl font-semibold tabular-nums text-zinc-100">{valor}</p>
       {sub ? <p className="mt-0.5 text-xs text-zinc-500">{sub}</p> : null}
     </div>
   );
@@ -464,8 +465,8 @@ export default function EstadisticasPage() {
                 sub={
                   kpis.desde && kpis.hasta
                     ? kpis.desde === kpis.hasta
-                      ? kpis.desde
-                      : `${kpis.desde} → ${kpis.hasta}`
+                      ? formatearFechaServicio(kpis.desde)
+                      : `${formatearFechaServicio(kpis.desde)} → ${formatearFechaServicio(kpis.hasta)}`
                     : undefined
                 }
               />

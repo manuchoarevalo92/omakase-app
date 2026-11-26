@@ -11,6 +11,7 @@ import {
 } from "@/src/lib/bebidas-asientos";
 import { partesDesdeMenuOmakaseGuardado } from "@/src/lib/menu-omakase-guardado";
 import { formatPostgrestError } from "@/src/lib/supabase-errors";
+import { formatearFechaServicio, formatearHoraServicio } from "@/src/lib/historial-servicios";
 import { supabase } from "@/src/lib/supabase";
 
 type Servicio = "Mediodia" | "Noche";
@@ -238,7 +239,7 @@ export default function HistorialPage() {
             {historialAgrupado.map((grupo) => (
               <section key={grupo.fecha}>
                 <h2 className="mb-3 text-sm uppercase tracking-[0.16em] text-zinc-500">
-                  {grupo.fecha}
+                  {formatearFechaServicio(grupo.fecha)}
                 </h2>
                 <div className="space-y-2">
                   {grupo.registros.map((registro) => (
@@ -250,7 +251,7 @@ export default function HistorialPage() {
                         <p className="text-sm font-medium text-zinc-100">
                           {registro.servicio ?? "Servicio"}{" "}
                           <span className="text-zinc-500">
-                            {registro.hora ? `· ${registro.hora}` : ""}
+                            {registro.hora ? `· ${formatearHoraServicio(registro.hora)}` : ""}
                           </span>
                         </p>
                       </div>
