@@ -16,6 +16,9 @@ import { cx } from "./haptica";
 
 let bloqueos = 0;
 
+/** Hojas abiertas, de abajo hacia arriba: Escape cierra solo la de arriba. */
+const pilaHojas: string[] = [];
+
 const sinSuscripcion = () => () => {};
 
 /** true solo en el cliente, ya hidratado (para usar portales sin desajustes). */
@@ -77,15 +80,20 @@ export function Hoja(props: {
     if (!panel.current?.contains(document.activeElement)) {
       panel.current?.focus({ preventScroll: true });
     }
+    pilaHojas.push(idTitulo);
     const onKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape") alEscape();
+      if (e.key === "Escape" && pilaHojas[pilaHojas.length - 1] === idTitulo) {
+        alEscape();
+      }
     };
     window.addEventListener("keydown", onKey);
     return () => {
+      const i = pilaHojas.lastIndexOf(idTitulo);
+      if (i >= 0) pilaHojas.splice(i, 1);
       window.removeEventListener("keydown", onKey);
       previo?.focus?.({ preventScroll: true });
     };
-  }, [abierta]);
+  }, [abierta, idTitulo]);
 
   if (!montado || !abierta) return null;
 

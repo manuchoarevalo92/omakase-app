@@ -26,15 +26,6 @@ export const ESTADO_PRODUCCION_ORDEN: Record<EstadoProduccion, number> = {
   Inactiva: 5,
 };
 
-export const ESTADO_PRODUCCION_BADGE: Record<EstadoProduccion, string> = {
-  "Hacer ahora": "border-orange-900/70 bg-orange-950/50 text-orange-200",
-  Atrasado: "border-red-900/70 bg-red-950/50 text-red-200",
-  "Rehacer pronto": "border-amber-900/60 bg-amber-950/40 text-amber-200",
-  OK: "border-emerald-900/60 bg-emerald-950/40 text-emerald-200",
-  "Sin datos": "border-zinc-700 bg-zinc-900 text-zinc-500",
-  Inactiva: "border-zinc-800 bg-zinc-950/60 text-zinc-600",
-};
-
 export type PrediccionProduccion = {
   proximaFechaSugerida: string | null;
   diasParaProxima: number | null;
@@ -47,7 +38,7 @@ export type PrediccionProduccion = {
 export function calcularDuracionEfectivaDias(
   duracionDias: number,
   cantidadReferencia: number,
-  ultimaCantidad: number | null
+  ultimaCantidad: number | null,
 ): number {
   const ref = cantidadReferencia > 0 ? cantidadReferencia : 1;
   const cant =
@@ -65,9 +56,10 @@ export function calcularPrediccionProduccion(
     ultimaCantidad?: number | null;
     bufferPct?: number;
   },
-  hoy: Date = new Date()
+  hoy: Date = new Date(),
 ): PrediccionProduccion {
-  const { seguimientoActivo, pendiente, fechaUltimaProduccion, duracionDias } = input;
+  const { seguimientoActivo, pendiente, fechaUltimaProduccion, duracionDias } =
+    input;
   const bufferPct = input.bufferPct ?? BUFFER_PCT_DEFECTO;
   const cantidadReferencia = input.cantidadReferencia ?? 1;
 
@@ -101,13 +93,14 @@ export function calcularPrediccionProduccion(
   const duracionEfectivaDias = calcularDuracionEfectivaDias(
     duracionDias,
     cantidadReferencia,
-    input.ultimaCantidad ?? null
+    input.ultimaCantidad ?? null,
   );
 
   const bufferSeguro = Math.min(Math.max(bufferPct, 0), 90) / 100;
   const intervaloObjetivo = duracionEfectivaDias * (1 - bufferSeguro);
   const proximaEpoch =
-    fechaISOaEpoch(fechaUltimaProduccion) + Math.round(intervaloObjetivo) * MS_POR_DIA;
+    fechaISOaEpoch(fechaUltimaProduccion) +
+    Math.round(intervaloObjetivo) * MS_POR_DIA;
   const hoyEpoch = Date.UTC(hoy.getFullYear(), hoy.getMonth(), hoy.getDate());
   const diasParaProxima = Math.round((proximaEpoch - hoyEpoch) / MS_POR_DIA);
 
@@ -130,9 +123,10 @@ export function calcularPrediccionProduccion(
 
 export function compararPorUrgenciaProduccion(
   a: PrediccionProduccion,
-  b: PrediccionProduccion
+  b: PrediccionProduccion,
 ): number {
-  const orden = ESTADO_PRODUCCION_ORDEN[a.estado] - ESTADO_PRODUCCION_ORDEN[b.estado];
+  const orden =
+    ESTADO_PRODUCCION_ORDEN[a.estado] - ESTADO_PRODUCCION_ORDEN[b.estado];
   if (orden !== 0) {
     return orden;
   }

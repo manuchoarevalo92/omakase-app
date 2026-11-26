@@ -1,6 +1,15 @@
 "use client";
 
-import { Camera, ChevronLeft, ChevronRight, Leaf, Loader2, Pencil, TriangleAlert, X } from "lucide-react";
+import {
+  Camera,
+  ChevronLeft,
+  ChevronRight,
+  Leaf,
+  Loader2,
+  Pencil,
+  TriangleAlert,
+  X,
+} from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 
 import {
@@ -13,6 +22,8 @@ import {
   type GuiaBebida,
   type GuiaBebidaEdicion,
 } from "@/src/lib/guia-bebidas";
+
+import { Selector } from "@/app/ui";
 
 import { FotoBotella, Md } from "./ui";
 
@@ -48,7 +59,10 @@ export function Etiquetas(props: { bebida: GuiaBebida }) {
   );
 }
 
-function edicionDesde(bebida: GuiaBebida | null, categoria: CategoriaGuia): GuiaBebidaEdicion {
+function edicionDesde(
+  bebida: GuiaBebida | null,
+  categoria: CategoriaGuia,
+): GuiaBebidaEdicion {
   return {
     nombre: bebida?.nombre ?? "",
     categoria: bebida?.categoria ?? categoria,
@@ -70,9 +84,14 @@ function FormularioFicha(props: {
   onGuardada: (bebida: GuiaBebida) => void;
   onCancelar: () => void;
 }) {
-  const { bebida, categoriaInicial, ordenNuevo, onGuardada, onCancelar } = props;
-  const [form, setForm] = useState<GuiaBebidaEdicion>(() => edicionDesde(bebida, categoriaInicial));
-  const [datosTexto, setDatosTexto] = useState(() => (bebida?.datos ?? []).join("\n\n"));
+  const { bebida, categoriaInicial, ordenNuevo, onGuardada, onCancelar } =
+    props;
+  const [form, setForm] = useState<GuiaBebidaEdicion>(() =>
+    edicionDesde(bebida, categoriaInicial),
+  );
+  const [datosTexto, setDatosTexto] = useState(() =>
+    (bebida?.datos ?? []).join("\n\n"),
+  );
   const [guardando, setGuardando] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -111,21 +130,17 @@ function FormularioFicha(props: {
       </div>
       <div className="grid grid-cols-2 gap-3">
         <div>
-          <label className={LABEL} htmlFor="guia-categoria">
-            Categoría
-          </label>
-          <select
-            id="guia-categoria"
-            className={INPUT}
-            value={form.categoria}
-            onChange={(e) => setForm({ ...form, categoria: e.target.value as CategoriaGuia })}
-          >
-            {CATEGORIAS_GUIA.map((c) => (
-              <option key={c.id} value={c.id}>
-                {c.label}
-              </option>
-            ))}
-          </select>
+          <Selector
+            label="Categoría"
+            valor={form.categoria}
+            opciones={CATEGORIAS_GUIA.map((c) => ({
+              valor: c.id,
+              label: c.label,
+            }))}
+            onChange={(v) =>
+              setForm({ ...form, categoria: v as CategoriaGuia })
+            }
+          />
         </div>
         <div>
           <label className={LABEL} htmlFor="guia-precio">
@@ -225,7 +240,9 @@ function FormularioFicha(props: {
           disabled={guardando}
           className="inline-flex min-h-11 flex-1 items-center justify-center gap-2 rounded-lg bg-seal px-4 text-sm font-medium text-[#fff] disabled:opacity-60"
         >
-          {guardando ? <Loader2 className="h-4 w-4 animate-spin" aria-hidden /> : null}
+          {guardando ? (
+            <Loader2 className="h-4 w-4 animate-spin" aria-hidden />
+          ) : null}
           Guardar
         </button>
       </div>
@@ -247,7 +264,16 @@ export function FichaBebida(props: {
   onSiguiente?: () => void;
   onGuardada: (bebida: GuiaBebida) => void;
 }) {
-  const { bebida, esAdmin, categoriaInicial, ordenNuevo, onCerrar, onAnterior, onSiguiente, onGuardada } = props;
+  const {
+    bebida,
+    esAdmin,
+    categoriaInicial,
+    ordenNuevo,
+    onCerrar,
+    onAnterior,
+    onSiguiente,
+    onGuardada,
+  } = props;
   const [editando, setEditando] = useState(bebida === null);
   const [subiendo, setSubiendo] = useState(false);
   const [errorFoto, setErrorFoto] = useState<string | null>(null);
@@ -277,7 +303,9 @@ export function FichaBebida(props: {
       const url = await subirFotoBebida(bebida, file);
       onGuardada({ ...bebida, fotoUrl: url });
     } catch (e) {
-      setErrorFoto(e instanceof Error ? e.message : "No se pudo subir la foto.");
+      setErrorFoto(
+        e instanceof Error ? e.message : "No se pudo subir la foto.",
+      );
     } finally {
       setSubiendo(false);
       if (inputFoto.current) inputFoto.current.value = "";
@@ -286,7 +314,12 @@ export function FichaBebida(props: {
 
   return (
     <div className="fixed inset-0 z-[60] flex items-end justify-center bg-black/60 sm:items-center sm:p-6">
-      <button type="button" aria-label="Cerrar ficha" className="absolute inset-0 cursor-default" onClick={onCerrar} />
+      <button
+        type="button"
+        aria-label="Cerrar ficha"
+        className="absolute inset-0 cursor-default"
+        onClick={onCerrar}
+      />
       <div
         role="dialog"
         aria-modal="true"
@@ -349,7 +382,10 @@ export function FichaBebida(props: {
                     className="absolute bottom-2 right-2 inline-flex min-h-10 items-center gap-1.5 rounded-full bg-black/75 px-3 text-xs font-medium text-[#fff] backdrop-blur"
                   >
                     {subiendo ? (
-                      <Loader2 className="h-3.5 w-3.5 animate-spin" aria-hidden />
+                      <Loader2
+                        className="h-3.5 w-3.5 animate-spin"
+                        aria-hidden
+                      />
                     ) : (
                       <Camera className="h-3.5 w-3.5" aria-hidden />
                     )}
@@ -371,15 +407,23 @@ export function FichaBebida(props: {
               ) : null}
 
               <header className="space-y-2">
-                <h2 className="font-display text-[1.7rem] font-medium leading-tight text-ink">{bebida.nombre}</h2>
-                {bebida.precio ? <p className="font-mono text-sm text-seal">{bebida.precio}</p> : null}
-                {bebida.meta ? <p className="text-sm text-label-2">{bebida.meta}</p> : null}
+                <h2 className="font-display text-[1.7rem] font-medium leading-tight text-ink">
+                  {bebida.nombre}
+                </h2>
+                {bebida.precio ? (
+                  <p className="font-mono text-sm text-seal">{bebida.precio}</p>
+                ) : null}
+                {bebida.meta ? (
+                  <p className="text-sm text-label-2">{bebida.meta}</p>
+                ) : null}
                 <Etiquetas bebida={bebida} />
               </header>
 
               {bebida.enSala ? (
                 <section className="rounded-xl border border-seal/40 bg-seal/10 px-4 py-3">
-                  <h3 className="mb-1 text-[0.65rem] font-semibold uppercase tracking-[0.2em] text-seal">En sala</h3>
+                  <h3 className="mb-1 text-[0.65rem] font-semibold uppercase tracking-[0.2em] text-seal">
+                    En sala
+                  </h3>
                   <p className="text-[0.95rem] leading-relaxed text-ink first-letter:uppercase">
                     <Md texto={bebida.enSala} />
                   </p>
