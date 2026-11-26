@@ -1,13 +1,25 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import {
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  type ReactNode,
+  useCallback,
+  useEffectEvent,
+} from "react";
 import {
   AlertTriangle,
+  ArrowRight,
   CalendarClock,
   CalendarPlus,
+  Check,
   CheckCircle2,
   ChevronDown,
   ChevronRight,
+  CircleAlert,
+  CircleCheck,
   HelpCircle,
   Layers,
   ListPlus,
@@ -18,10 +30,27 @@ import {
   Trash2,
   TrendingDown,
   TrendingUp,
-  Undo2,
   X,
 } from "lucide-react";
-import { EsqueletoLista } from "@/app/ui";
+import {
+  AreaTexto,
+  Boton,
+  BotonIcono,
+  Campo,
+  cx,
+  EstadoVacio,
+  EsqueletoLista,
+  Etiqueta,
+  Fecha,
+  Hoja,
+  Interruptor,
+  Pantalla,
+  Seccion,
+  Segmentado,
+  Selector,
+  useAvisos,
+  vibrar,
+} from "@/app/ui";
 
 import {
   agruparComprasPorStockItem,
@@ -34,7 +63,6 @@ import {
 import {
   calcularPrediccionCompra,
   compararPorUrgencia,
-  ESTADO_COMPRA_BADGE,
   type EstadoCompra,
   type PrediccionCompra,
 } from "@/src/lib/compras-prediccion";
@@ -43,7 +71,10 @@ import {
   RUBROS_INGREDIENTE,
   type RubroIngrediente,
 } from "@/src/lib/ingredientes-rubro";
-import { parsearLineasMasivo, type LineaParseada } from "@/src/lib/parseo-lineas";
+import {
+  parsearLineasMasivo,
+  type LineaParseada,
+} from "@/src/lib/parseo-lineas";
 import {
   cambiosPrecioDesde,
   detectarCambiosPrecio,
@@ -105,12 +136,30 @@ type SnapshotAccion =
       etiqueta: string;
     };
 
-const ESTADO_ICONO: Record<EstadoCompra, React.ReactNode> = {
+const ESTADO_ICONO: Record<EstadoCompra, ReactNode> = {
   Atrasado: <AlertTriangle className="h-3.5 w-3.5" aria-hidden />,
   "Pedir pronto": <CalendarClock className="h-3.5 w-3.5" aria-hidden />,
   OK: <CheckCircle2 className="h-3.5 w-3.5" aria-hidden />,
   "Sin datos": <HelpCircle className="h-3.5 w-3.5" aria-hidden />,
 };
+
+/** Tono de la etiqueta de estado (tokens del sistema de diseño). */
+const ESTADO_TONO: Record<
+  EstadoCompra,
+  "peligro" | "alerta" | "exito" | "info"
+> = {
+  Atrasado: "peligro",
+  "Pedir pronto": "alerta",
+  OK: "exito",
+  "Sin datos": "info",
+};
+
+/** Input chico dentro de una fila (cantidad, precio…), como en MEP deli. */
+const INPUT_FILA =
+  "h-11 rounded-control bg-fill px-2 font-mono text-[1rem] tabular-nums text-label outline-none ring-accent/60 placeholder:text-label-3 focus:ring-2 disabled:opacity-50";
+
+const LISTA_AGRUPADA =
+  "overflow-hidden rounded-card bg-surface-3 shadow-[0_1px_2px_rgb(0_0_0/0.04)]";
 
 const ESTADOS_URGENTES: EstadoCompra[] = ["Atrasado", "Pedir pronto"];
 
@@ -158,43 +207,92 @@ function leerSoloUrgentesGuardado(): boolean {
 }
 
 function KpiCard(props: {
-  icono: React.ReactNode;
+  icono: ReactNode;
   titulo: string;
   valor: number;
+  /** Clase de color de texto con token (text-danger, text-warning…). */
   tono: string;
-  activo?: boolean;
+  className?: string;
   onClick?: () => void;
 }) {
-  const { icono, titulo, valor, tono, activo, onClick } = props;
-  const Comp = onClick ? "button" : "div";
-  return (
-    <Comp
-      type={onClick ? "button" : undefined}
-      onClick={onClick}
-      className={`rounded-xl border p-4 text-left transition ${
-        activo
-          ? "border-zinc-500 bg-zinc-900"
-          : "border-zinc-800 bg-zinc-950/60"
-      } ${onClick ? "hover:border-zinc-600" : ""}`}
-    >
-      <div className={`flex items-center gap-2 ${tono}`}>
+  const { icono, titulo, valor, tono, className, onClick } = props;
+  const contenido = (
+    <>
+      <span
+        className={cx(
+          "flex items-center gap-1.5 text-[0.8rem] font-semibold",
+          tono,
+        )}
+      >
         {icono}
-        <p className="text-[10px] font-semibold uppercase tracking-[0.14em]">{titulo}</p>
-      </div>
-      <p className="mt-2 text-2xl font-semibold tabular-nums text-white">{valor}</p>
-    </Comp>
+        {titulo}
+      </span>
+      <span className="mt-1 block text-[1.75rem] font-semibold leading-none tabular-nums text-label">
+        {valor}
+      </span>
+    </>
+  );
+  const clases = cx(
+    "block min-h-[5.25rem] rounded-card bg-surface-3 px-4 py-3 text-left shadow-[0_1px_2px_rgb(0_0_0/0.04)]",
+    className,
+  );
+  if (!onClick) {
+    return <div className={clases}>{contenido}</div>;
+  }
+  return (
+    <button
+      type="button"
+      onClick={() => {
+        vibrar();
+        onClick();
+      }}
+      className={cx(
+        clases,
+        "relative transition active:scale-[0.98] active:bg-fill",
+      )}
+    >
+      {contenido}
+      <ChevronRight
+        className="absolute right-3 top-3 h-4 w-4 text-label-3"
+        aria-hidden
+      />
+    </button>
   );
 }
 
 function EstadoBadge(props: { estado: EstadoCompra }) {
   const { estado } = props;
   return (
-    <span
-      className={`inline-flex shrink-0 items-center gap-1.5 rounded-full border px-2.5 py-1 text-[11px] font-medium ${ESTADO_COMPRA_BADGE[estado]}`}
-    >
-      {ESTADO_ICONO[estado]}
+    <Etiqueta tono={ESTADO_TONO[estado]} icono={ESTADO_ICONO[estado]}>
       {estado}
-    </span>
+    </Etiqueta>
+  );
+}
+
+/** Encabezado de sección que pliega/despliega su contenido. */
+function TituloPlegable(props: {
+  abierto: boolean;
+  onToggle: () => void;
+  children: ReactNode;
+}) {
+  const { abierto, onToggle, children } = props;
+  return (
+    <button
+      type="button"
+      aria-expanded={abierto}
+      onClick={() => {
+        vibrar();
+        onToggle();
+      }}
+      className="-ml-1 inline-flex min-h-11 items-center gap-1.5 rounded-control px-1 text-[0.8rem] font-semibold uppercase tracking-[0.07em] text-label-3 transition active:bg-fill"
+    >
+      {abierto ? (
+        <ChevronDown className="h-4 w-4 shrink-0" aria-hidden />
+      ) : (
+        <ChevronRight className="h-4 w-4 shrink-0" aria-hidden />
+      )}
+      {children}
+    </button>
   );
 }
 
@@ -207,22 +305,33 @@ export default function ComprasPage() {
 
   const [agregandoId, setAgregandoId] = useState<string | null>(null);
   const [agregadoOkId, setAgregadoOkId] = useState<string | null>(null);
-  const [agregandoLoteProveedor, setAgregandoLoteProveedor] = useState<string | null>(null);
+  const [agregandoLoteProveedor, setAgregandoLoteProveedor] = useState<
+    string | null
+  >(null);
   const [undoAccion, setUndoAccion] = useState<SnapshotAccion | null>(null);
 
-  const [cantidadPorId, setCantidadPorId] = useState<Record<string, string>>({});
+  const [cantidadPorId, setCantidadPorId] = useState<Record<string, string>>(
+    {},
+  );
   const [busqueda, setBusqueda] = useState("");
-  const [soloUrgentes, setSoloUrgentes] = useState(() => leerSoloUrgentesGuardado());
+  const [soloUrgentes, setSoloUrgentes] = useState(() =>
+    leerSoloUrgentesGuardado(),
+  );
   const [alDiaExpandido, setAlDiaExpandido] = useState(false);
   const [sinDatosExpandido, setSinDatosExpandido] = useState(true);
   const [cambiosPrecioExpandido, setCambiosPrecioExpandido] = useState(false);
-  const [gruposColapsados, setGruposColapsados] = useState<Set<string>>(() => new Set());
+  const [gruposColapsados, setGruposColapsados] = useState<Set<string>>(
+    () => new Set(),
+  );
 
   const [importAbierto, setImportAbierto] = useState(false);
   const [importProveedor, setImportProveedor] = useState<Proveedor | "">("");
   const [importFecha, setImportFecha] = useState(hoyISO());
-  const [importUnidadDefault, setImportUnidadDefault] = useState<UnidadMedida>("Unidad");
-  const [importTipoPrecio, setImportTipoPrecio] = useState<"unitario" | "total">("unitario");
+  const [importUnidadDefault, setImportUnidadDefault] =
+    useState<UnidadMedida>("Unidad");
+  const [importTipoPrecio, setImportTipoPrecio] = useState<
+    "unitario" | "total"
+  >("unitario");
   const [importTexto, setImportTexto] = useState("");
   const [importIsSaving, setImportIsSaving] = useState(false);
   const [importError, setImportError] = useState<string | null>(null);
@@ -231,16 +340,14 @@ export default function ComprasPage() {
   const [registrarFecha, setRegistrarFecha] = useState(hoyISO());
   const [registrarCantidad, setRegistrarCantidad] = useState("");
   const [registrarPrecio, setRegistrarPrecio] = useState("");
-  const [registrarTipoPrecio, setRegistrarTipoPrecio] = useState<"unitario" | "total">(
-    "unitario"
-  );
+  const [registrarTipoPrecio, setRegistrarTipoPrecio] = useState<
+    "unitario" | "total"
+  >("unitario");
   const [registrarFrecuencia, setRegistrarFrecuencia] = useState("");
   const [registrarIsSaving, setRegistrarIsSaving] = useState(false);
   const [registrarError, setRegistrarError] = useState<string | null>(null);
 
-  const [borrarItem, setBorrarItem] = useState<StockItem | null>(null);
   const [borrandoId, setBorrandoId] = useState<string | null>(null);
-  const [borrarError, setBorrarError] = useState<string | null>(null);
 
   const [frecuenciaItem, setFrecuenciaItem] = useState<StockItem | null>(null);
   const [frecuenciaValor, setFrecuenciaValor] = useState("");
@@ -250,15 +357,23 @@ export default function ComprasPage() {
   const [editarItem, setEditarItem] = useState<StockItem | null>(null);
   const [editarNombre, setEditarNombre] = useState("");
   const [editarProveedor, setEditarProveedor] = useState<Proveedor | "">("");
-  const [editarRubro, setEditarRubro] = useState<RubroIngrediente>("Despensa/Prep");
+  const [editarRubro, setEditarRubro] =
+    useState<RubroIngrediente>("Despensa/Prep");
   const [editarUnidad, setEditarUnidad] = useState<UnidadMedida>("Unidad");
   const [editarBuffer, setEditarBuffer] = useState("15");
-  const [editarHistorial, setEditarHistorial] = useState<FilaHistorialEditable[]>([]);
+  const [editarHistorial, setEditarHistorial] = useState<
+    FilaHistorialEditable[]
+  >([]);
   const [editarIsSaving, setEditarIsSaving] = useState(false);
   const [editarError, setEditarError] = useState<string | null>(null);
-  const [editarBorrandoFilaId, setEditarBorrandoFilaId] = useState<string | null>(null);
+  const [editarBorrandoFilaId, setEditarBorrandoFilaId] = useState<
+    string | null
+  >(null);
 
   const buscadorRef = useRef<HTMLInputElement>(null);
+  /** Snapshots ya deshechos (para no deshacer dos veces con Z + botón del aviso). */
+  const deshechosRef = useRef(new WeakSet<SnapshotAccion>());
+  const { aviso, confirmar } = useAvisos();
 
   const cargarDatos = async () => {
     setIsLoading(true);
@@ -274,7 +389,7 @@ export default function ComprasPage() {
       setProveedores(listaProveedores);
     } catch (err) {
       setError(
-        err instanceof Error ? err.message : "Error al conectar con Supabase."
+        err instanceof Error ? err.message : "Error al conectar con Supabase.",
       );
     } finally {
       setIsLoading(false);
@@ -283,7 +398,10 @@ export default function ComprasPage() {
 
   useEffect(() => {
     try {
-      window.localStorage.setItem(STORAGE_SOLO_URGENTES, soloUrgentes ? "1" : "0");
+      window.localStorage.setItem(
+        STORAGE_SOLO_URGENTES,
+        soloUrgentes ? "1" : "0",
+      );
     } catch {
       // ignore
     }
@@ -298,12 +416,12 @@ export default function ComprasPage() {
 
   const comprasPorStockItem = useMemo(
     () => agruparComprasPorStockItem(compras),
-    [compras]
+    [compras],
   );
 
   const ultimoPrecioPorItem = useMemo(
     () => ultimoPrecioUnitarioPorStockItem(compras),
-    [compras]
+    [compras],
   );
 
   const itemsConPrediccion = useMemo(() => {
@@ -317,45 +435,49 @@ export default function ComprasPage() {
         const prediccion = calcularPrediccionCompra(
           puntos,
           item.bufferPct,
-          item.intervaloEstimadoDias
+          item.intervaloEstimadoDias,
         );
         return { item, prediccion };
       });
   }, [stockItems, comprasPorStockItem]);
 
-  useEffect(() => {
-    setCantidadPorId((prev) => {
-      const next = { ...prev };
-      itemsConPrediccion.forEach(({ item, prediccion }) => {
-        if (next[item.id] === undefined && prediccion.cantidadSugerida != null) {
-          next[item.id] = String(prediccion.cantidadSugerida);
-        }
-      });
-      return next;
+  // Cantidad a mostrar: lo que escribió el usuario o, si no tocó nada, la sugerida.
+  const cantidades = useMemo(() => {
+    const next: Record<string, string> = {};
+    itemsConPrediccion.forEach(({ item, prediccion }) => {
+      if (prediccion.cantidadSugerida != null) {
+        next[item.id] = String(prediccion.cantidadSugerida);
+      }
     });
-  }, [itemsConPrediccion]);
+    return { ...next, ...cantidadPorId };
+  }, [itemsConPrediccion, cantidadPorId]);
 
   const kpis = useMemo(() => {
-    const base = { Atrasado: 0, "Pedir pronto": 0, OK: 0, "Sin datos": 0 } as Record<
-      EstadoCompra,
-      number
-    >;
+    const base = {
+      Atrasado: 0,
+      "Pedir pronto": 0,
+      OK: 0,
+      "Sin datos": 0,
+    } as Record<EstadoCompra, number>;
     itemsConPrediccion.forEach(({ prediccion }) => {
       base[prediccion.estado] += 1;
     });
     return base;
   }, [itemsConPrediccion]);
 
-  const cambiosPrecio = useMemo(() => detectarCambiosPrecio(compras), [compras]);
+  const cambiosPrecio = useMemo(
+    () => detectarCambiosPrecio(compras),
+    [compras],
+  );
 
   const cambiosPrecioRecientes = useMemo(
     () => cambiosPrecioDesde(compras, fechaHaceDias(90)),
-    [compras]
+    [compras],
   );
 
   const subidasRecientes = useMemo(
     () => cambiosPrecioRecientes.filter((c) => c.variacionPct > 0).length,
-    [cambiosPrecioRecientes]
+    [cambiosPrecioRecientes],
   );
 
   const busquedaNormalizada = normalizarBusqueda(busqueda);
@@ -365,57 +487,66 @@ export default function ComprasPage() {
       return itemsConPrediccion;
     }
     return itemsConPrediccion.filter((entry) =>
-      normalizarBusqueda(entry.item.nombre).includes(busquedaNormalizada)
+      normalizarBusqueda(entry.item.nombre).includes(busquedaNormalizada),
     );
   }, [itemsConPrediccion, busquedaNormalizada]);
 
-  const agruparPorProveedor = (
-    lista: ItemConPrediccion[]
-  ): [string, ItemConPrediccion[]][] => {
-    const grupos = new Map<string, ItemConPrediccion[]>();
-    lista.forEach((entry) => {
-      const clave = entry.item.proveedor ?? SIN_PROVEEDOR;
-      const l = grupos.get(clave) ?? [];
-      l.push(entry);
-      grupos.set(clave, l);
-    });
-    grupos.forEach((l) => {
-      l.sort((a, b) => compararPorUrgencia(a.prediccion, b.prediccion));
-    });
-    const ordenados: [string, ItemConPrediccion[]][] = [];
-    const vistos = new Set<string>();
-    ordenarProveedores([...proveedores, ...grupos.keys()]).forEach((p) => {
-      if (p === SIN_PROVEEDOR) return;
-      const l = grupos.get(p);
-      if (l && l.length > 0) {
-        ordenados.push([p, l]);
-        vistos.add(p);
+  const agruparPorProveedor = useCallback(
+    (lista: ItemConPrediccion[]): [string, ItemConPrediccion[]][] => {
+      const grupos = new Map<string, ItemConPrediccion[]>();
+      lista.forEach((entry) => {
+        const clave = entry.item.proveedor ?? SIN_PROVEEDOR;
+        const l = grupos.get(clave) ?? [];
+        l.push(entry);
+        grupos.set(clave, l);
+      });
+      grupos.forEach((l) => {
+        l.sort((a, b) => compararPorUrgencia(a.prediccion, b.prediccion));
+      });
+      const ordenados: [string, ItemConPrediccion[]][] = [];
+      const vistos = new Set<string>();
+      ordenarProveedores([...proveedores, ...grupos.keys()]).forEach((p) => {
+        if (p === SIN_PROVEEDOR) return;
+        const l = grupos.get(p);
+        if (l && l.length > 0) {
+          ordenados.push([p, l]);
+          vistos.add(p);
+        }
+      });
+      grupos.forEach((l, clave) => {
+        if (clave !== SIN_PROVEEDOR && !vistos.has(clave) && l.length > 0) {
+          ordenados.push([clave, l]);
+        }
+      });
+      const sinProveedor = grupos.get(SIN_PROVEEDOR);
+      if (sinProveedor && sinProveedor.length > 0) {
+        ordenados.push([SIN_PROVEEDOR, sinProveedor]);
       }
-    });
-    grupos.forEach((l, clave) => {
-      if (clave !== SIN_PROVEEDOR && !vistos.has(clave) && l.length > 0) {
-        ordenados.push([clave, l]);
-      }
-    });
-    const sinProveedor = grupos.get(SIN_PROVEEDOR);
-    if (sinProveedor && sinProveedor.length > 0) {
-      ordenados.push([SIN_PROVEEDOR, sinProveedor]);
-    }
-    return ordenados;
-  };
+      return ordenados;
+    },
+    [proveedores],
+  );
 
   const urgentesPorProveedor = useMemo(
-    () => agruparPorProveedor(itemsFiltrados.filter((e) => esUrgente(e.prediccion.estado))),
-    [itemsFiltrados]
+    () =>
+      agruparPorProveedor(
+        itemsFiltrados.filter((e) => esUrgente(e.prediccion.estado)),
+      ),
+    [itemsFiltrados, agruparPorProveedor],
   );
   const alDiaPorProveedor = useMemo(
-    () => agruparPorProveedor(itemsFiltrados.filter((e) => e.prediccion.estado === "OK")),
-    [itemsFiltrados]
+    () =>
+      agruparPorProveedor(
+        itemsFiltrados.filter((e) => e.prediccion.estado === "OK"),
+      ),
+    [itemsFiltrados, agruparPorProveedor],
   );
   const sinDatosPorProveedor = useMemo(
     () =>
-      agruparPorProveedor(itemsFiltrados.filter((e) => e.prediccion.estado === "Sin datos")),
-    [itemsFiltrados]
+      agruparPorProveedor(
+        itemsFiltrados.filter((e) => e.prediccion.estado === "Sin datos"),
+      ),
+    [itemsFiltrados, agruparPorProveedor],
   );
 
   const totalUrgentes = kpis.Atrasado + kpis["Pedir pronto"];
@@ -433,7 +564,8 @@ export default function ComprasPage() {
     });
   };
 
-  const todoExpandido = alDiaExpandido && sinDatosExpandido && gruposColapsados.size === 0;
+  const todoExpandido =
+    alDiaExpandido && sinDatosExpandido && gruposColapsados.size === 0;
   const alternarExpandirTodo = () => {
     const nuevoValor = !todoExpandido;
     setAlDiaExpandido(nuevoValor);
@@ -464,38 +596,6 @@ export default function ComprasPage() {
     return () => window.removeEventListener("keydown", onKeyDown);
   }, [itemsConPrediccion.length]);
 
-  useEffect(() => {
-    if (!undoAccion) {
-      return;
-    }
-    const snap = undoAccion;
-    const timer = window.setTimeout(() => {
-      setUndoAccion((current) => (current === snap ? null : current));
-    }, UNDO_AGREGADO_MS);
-
-    const onKeyDown = (e: KeyboardEvent) => {
-      if (e.key.toLowerCase() !== "z" || e.metaKey || e.ctrlKey || e.altKey) {
-        return;
-      }
-      const target = e.target;
-      if (
-        target instanceof HTMLInputElement ||
-        target instanceof HTMLTextAreaElement ||
-        target instanceof HTMLSelectElement
-      ) {
-        return;
-      }
-      e.preventDefault();
-      void deshacerAccion();
-    };
-    window.addEventListener("keydown", onKeyDown);
-    return () => {
-      window.clearTimeout(timer);
-      window.removeEventListener("keydown", onKeyDown);
-    };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [undoAccion]);
-
   const cambiosPrecioVisibles = soloUrgentes ? [] : cambiosPrecio;
 
   const importLineasPreview = useMemo(() => {
@@ -504,7 +604,10 @@ export default function ComprasPage() {
     }
     return parsearLineasMasivo(importTexto, importUnidadDefault)
       .filter((l) => l.item.trim().length > 0)
-      .map((l) => ({ ...l, existente: buscarStockItemPorNombre(l.item, stockItems) }));
+      .map((l) => ({
+        ...l,
+        existente: buscarStockItemPorNombre(l.item, stockItems),
+      }));
   }, [importAbierto, importTexto, importUnidadDefault, stockItems]);
 
   const abrirImport = (proveedorPreseleccionado?: Proveedor) => {
@@ -548,7 +651,9 @@ export default function ComprasPage() {
           continue;
         }
         const yaCreado = nuevosItems.find(
-          (it) => normalizarNombreClave(it.nombre) === normalizarNombreClave(linea.item)
+          (it) =>
+            normalizarNombreClave(it.nombre) ===
+            normalizarNombreClave(linea.item),
         );
         if (yaCreado) {
           continue;
@@ -578,7 +683,9 @@ export default function ComprasPage() {
         const match =
           linea.existente ??
           itemsActuales.find(
-            (it) => normalizarNombreClave(it.nombre) === normalizarNombreClave(linea.item)
+            (it) =>
+              normalizarNombreClave(it.nombre) ===
+              normalizarNombreClave(linea.item),
           ) ??
           null;
         const cantidad = parseCantidad(linea.cantidad);
@@ -599,9 +706,13 @@ export default function ComprasPage() {
       await insertarComprasHistorial(payload);
       await cargarDatos();
       cerrarImport();
+      aviso(
+        `Albarán importado: ${payload.length} ${payload.length === 1 ? "línea" : "líneas"}`,
+        { tono: "exito" },
+      );
     } catch (err) {
       setImportError(
-        err instanceof Error ? err.message : "No se pudo importar el albarán."
+        err instanceof Error ? err.message : "No se pudo importar el albarán.",
       );
     } finally {
       setImportIsSaving(false);
@@ -611,11 +722,13 @@ export default function ComprasPage() {
   const abrirRegistrar = (item: StockItem) => {
     setRegistrarItem(item);
     setRegistrarFecha(hoyISO());
-    setRegistrarCantidad(cantidadPorId[item.id] ?? "");
+    setRegistrarCantidad(cantidades[item.id] ?? "");
     setRegistrarPrecio("");
     setRegistrarTipoPrecio("unitario");
     setRegistrarFrecuencia(
-      item.intervaloEstimadoDias != null ? String(item.intervaloEstimadoDias) : ""
+      item.intervaloEstimadoDias != null
+        ? String(item.intervaloEstimadoDias)
+        : "",
     );
     setRegistrarError(null);
   };
@@ -643,7 +756,9 @@ export default function ComprasPage() {
     if (frecuenciaTrim) {
       const n = parseCantidad(frecuenciaTrim);
       if (n == null) {
-        setRegistrarError("La frecuencia estimada tiene que ser un número mayor que 0.");
+        setRegistrarError(
+          "La frecuencia estimada tiene que ser un número mayor que 0.",
+        );
         return;
       }
       frecuenciaDias = Math.round(n);
@@ -652,11 +767,13 @@ export default function ComprasPage() {
     setRegistrarIsSaving(true);
     setRegistrarError(null);
     try {
-      const precioIngresado = registrarPrecio.trim() ? parseCantidad(registrarPrecio) : null;
+      const precioIngresado = registrarPrecio.trim()
+        ? parseCantidad(registrarPrecio)
+        : null;
       const { precioUnitario, importeTotal } = completarPrecio(
         cantidad,
         registrarTipoPrecio === "unitario" ? precioIngresado : null,
-        registrarTipoPrecio === "total" ? precioIngresado : null
+        registrarTipoPrecio === "total" ? precioIngresado : null,
       );
 
       if (frecuenciaDias !== registrarItem.intervaloEstimadoDias) {
@@ -692,36 +809,33 @@ export default function ComprasPage() {
       const nombreItem = registrarItem.nombre;
       await cargarDatos();
       cerrarRegistrar();
-      setUndoAccion({
+      anunciarDeshacer({
         tipo: "registro",
         compraId: (data as { id: string }).id,
         etiqueta: `Compra de ${nombreItem} (${formatearFechaCorta(registrarFecha)})`,
       });
     } catch (err) {
       setRegistrarError(
-        err instanceof Error ? err.message : "No se pudo registrar la compra."
+        err instanceof Error ? err.message : "No se pudo registrar la compra.",
       );
     } finally {
       setRegistrarIsSaving(false);
     }
   };
 
-  const abrirBorrar = (item: StockItem) => {
-    setBorrarItem(item);
-    setBorrarError(null);
-  };
-
-  const cerrarBorrar = () => {
-    setBorrarItem(null);
-    setBorrarError(null);
-  };
-
-  const confirmarBorrar = async () => {
-    if (!borrarItem) {
+  const abrirBorrar = async (borrarItem: StockItem) => {
+    const ok = await confirmar({
+      titulo: `¿Borrar «${borrarItem.nombre}» de Stock?`,
+      texto:
+        "Ya no va a aparecer en Compras ni en Pedidos. No se puede deshacer (el historial de compras queda guardado, solo se desvincula del ítem).",
+      confirmar: "Borrar ítem",
+      peligro: true,
+    });
+    if (!ok) {
       return;
     }
     setBorrandoId(borrarItem.id);
-    setBorrarError(null);
+    setError(null);
     try {
       const { error: deleteError } = await supabase
         .from("stock_items")
@@ -731,9 +845,11 @@ export default function ComprasPage() {
         throw new Error(formatPostgrestError(deleteError));
       }
       setStockItems((prev) => prev.filter((it) => it.id !== borrarItem.id));
-      setBorrarItem(null);
+      aviso(`${borrarItem.nombre}: borrado de Stock`, { tono: "exito" });
     } catch (err) {
-      setBorrarError(err instanceof Error ? err.message : "No se pudo borrar el ítem.");
+      setError(
+        err instanceof Error ? err.message : "No se pudo borrar el ítem.",
+      );
     } finally {
       setBorrandoId(null);
     }
@@ -741,7 +857,11 @@ export default function ComprasPage() {
 
   const abrirFrecuencia = (item: StockItem) => {
     setFrecuenciaItem(item);
-    setFrecuenciaValor(item.intervaloEstimadoDias != null ? String(item.intervaloEstimadoDias) : "");
+    setFrecuenciaValor(
+      item.intervaloEstimadoDias != null
+        ? String(item.intervaloEstimadoDias)
+        : "",
+    );
     setFrecuenciaError(null);
   };
 
@@ -777,9 +897,12 @@ export default function ComprasPage() {
       }
       await cargarDatos();
       setFrecuenciaItem(null);
+      aviso("Frecuencia guardada", { tono: "exito" });
     } catch (err) {
       setFrecuenciaError(
-        err instanceof Error ? err.message : "No se pudo guardar la frecuencia estimada."
+        err instanceof Error
+          ? err.message
+          : "No se pudo guardar la frecuencia estimada.",
       );
     } finally {
       setFrecuenciaIsSaving(false);
@@ -797,16 +920,15 @@ export default function ComprasPage() {
       .filter((c) => c.stockItemId === item.id)
       .slice()
       .sort((a, b) => (a.fecha < b.fecha ? 1 : a.fecha > b.fecha ? -1 : 0))
-      .map(
-        (c): FilaHistorialEditable => ({
-          id: c.id,
-          fecha: c.fecha,
-          cantidad: c.cantidad != null ? String(c.cantidad) : "",
-          unidad: c.unidad,
-          precioUnitario: c.precioUnitario != null ? String(c.precioUnitario) : "",
-          origen: c.origen,
-        })
-      );
+      .map((c): FilaHistorialEditable => ({
+        id: c.id,
+        fecha: c.fecha,
+        cantidad: c.cantidad != null ? String(c.cantidad) : "",
+        unidad: c.unidad,
+        precioUnitario:
+          c.precioUnitario != null ? String(c.precioUnitario) : "",
+        origen: c.origen,
+      }));
     setEditarHistorial(filas);
     setEditarError(null);
   };
@@ -818,15 +940,20 @@ export default function ComprasPage() {
 
   const actualizarFilaHistorialEditar = (
     id: string,
-    patch: Partial<FilaHistorialEditable>
+    patch: Partial<FilaHistorialEditable>,
   ) => {
-    setEditarHistorial((prev) => prev.map((f) => (f.id === id ? { ...f, ...patch } : f)));
+    setEditarHistorial((prev) =>
+      prev.map((f) => (f.id === id ? { ...f, ...patch } : f)),
+    );
   };
 
   const borrarFilaHistorialEditar = async (fila: FilaHistorialEditable) => {
-    const ok = window.confirm(
-      `¿Borrar la compra del ${formatearFechaCorta(fila.fecha)}? No se puede deshacer.`
-    );
+    const ok = await confirmar({
+      titulo: `¿Borrar la compra del ${formatearFechaCorta(fila.fecha)}?`,
+      texto: "Se borra del historial y no se puede deshacer.",
+      confirmar: "Borrar compra",
+      peligro: true,
+    });
     if (!ok) {
       return;
     }
@@ -843,7 +970,9 @@ export default function ComprasPage() {
       setEditarHistorial((prev) => prev.filter((f) => f.id !== fila.id));
       setCompras((prev) => prev.filter((c) => c.id !== fila.id));
     } catch (err) {
-      setEditarError(err instanceof Error ? err.message : "No se pudo borrar la compra.");
+      setEditarError(
+        err instanceof Error ? err.message : "No se pudo borrar la compra.",
+      );
     } finally {
       setEditarBorrandoFilaId(null);
     }
@@ -869,11 +998,18 @@ export default function ComprasPage() {
         return;
       }
       if (parseCantidad(fila.cantidad) == null) {
-        setEditarError(`Cantidad inválida en la compra del ${formatearFechaCorta(fila.fecha)}.`);
+        setEditarError(
+          `Cantidad inválida en la compra del ${formatearFechaCorta(fila.fecha)}.`,
+        );
         return;
       }
-      if (fila.precioUnitario.trim() && parseCantidad(fila.precioUnitario) == null) {
-        setEditarError(`Precio inválido en la compra del ${formatearFechaCorta(fila.fecha)}.`);
+      if (
+        fila.precioUnitario.trim() &&
+        parseCantidad(fila.precioUnitario) == null
+      ) {
+        setEditarError(
+          `Precio inválido en la compra del ${formatearFechaCorta(fila.fecha)}.`,
+        );
         return;
       }
     }
@@ -886,10 +1022,13 @@ export default function ComprasPage() {
       const cambioNombre = nombre !== editarItem.nombre;
       const patchItem: Record<string, unknown> = {};
       if (cambioNombre) patchItem.nombre = nombre;
-      if (proveedorFinal !== editarItem.proveedor) patchItem.proveedor = proveedorFinal;
+      if (proveedorFinal !== editarItem.proveedor)
+        patchItem.proveedor = proveedorFinal;
       if (editarRubro !== editarItem.rubro) patchItem.rubro = editarRubro;
-      if (editarUnidad !== editarItem.unidadCompra) patchItem.unidad_compra = editarUnidad;
-      if (bufferRedondeado !== editarItem.bufferPct) patchItem.buffer_pct = bufferRedondeado;
+      if (editarUnidad !== editarItem.unidadCompra)
+        patchItem.unidad_compra = editarUnidad;
+      if (bufferRedondeado !== editarItem.bufferPct)
+        patchItem.buffer_pct = bufferRedondeado;
 
       if (Object.keys(patchItem).length > 0) {
         const { error: updateError } = await supabase
@@ -911,7 +1050,11 @@ export default function ComprasPage() {
         const precioIngresado = fila.precioUnitario.trim()
           ? parseCantidad(fila.precioUnitario)
           : null;
-        const { precioUnitario, importeTotal } = completarPrecio(cantidad, precioIngresado, null);
+        const { precioUnitario, importeTotal } = completarPrecio(
+          cantidad,
+          precioIngresado,
+          null,
+        );
 
         const sinCambios =
           fila.fecha === original.fecha &&
@@ -945,9 +1088,12 @@ export default function ComprasPage() {
 
       await cargarDatos();
       cerrarEditar();
+      aviso("Cambios guardados", { tono: "exito" });
     } catch (err) {
       setEditarError(
-        err instanceof Error ? err.message : "No se pudieron guardar los cambios."
+        err instanceof Error
+          ? err.message
+          : "No se pudieron guardar los cambios.",
       );
     } finally {
       setEditarIsSaving(false);
@@ -955,7 +1101,9 @@ export default function ComprasPage() {
   };
 
   /** Trae el array actual de items del pedido de un proveedor. */
-  const obtenerItemsPedido = async (proveedor: Proveedor): Promise<PedidoItemDraft[]> => {
+  const obtenerItemsPedido = async (
+    proveedor: Proveedor,
+  ): Promise<PedidoItemDraft[]> => {
     const { data, error: fetchError } = await supabase
       .from("pedidos_proveedores")
       .select("items")
@@ -973,28 +1121,33 @@ export default function ComprasPage() {
 
   const guardarItemsPedido = async (
     proveedor: Proveedor,
-    items: PedidoItemDraft[]
+    items: PedidoItemDraft[],
   ): Promise<void> => {
-    const { error: upsertError } = await supabase.from("pedidos_proveedores").upsert(
-      {
-        proveedor,
-        items,
-        updated_at: new Date().toISOString(),
-      },
-      { onConflict: "proveedor" }
-    );
+    const { error: upsertError } = await supabase
+      .from("pedidos_proveedores")
+      .upsert(
+        {
+          proveedor,
+          items,
+          updated_at: new Date().toISOString(),
+        },
+        { onConflict: "proveedor" },
+      );
     if (upsertError) {
       throw new Error(formatPostgrestError(upsertError));
     }
   };
 
-  const agregarAPedido = async (proveedor: Proveedor, entry: ItemConPrediccion) => {
+  const agregarAPedido = async (
+    proveedor: Proveedor,
+    entry: ItemConPrediccion,
+  ) => {
     setAgregandoId(entry.item.id);
     setError(null);
     try {
       const itemsAnteriores = await obtenerItemsPedido(proveedor);
 
-      const cantidadDraft = cantidadPorId[entry.item.id];
+      const cantidadDraft = cantidades[entry.item.id];
       const cantidad =
         cantidadDraft !== undefined && cantidadDraft.trim() !== ""
           ? cantidadDraft
@@ -1013,29 +1166,36 @@ export default function ComprasPage() {
 
       setAgregadoOkId(entry.item.id);
       window.setTimeout(() => {
-        setAgregadoOkId((current) => (current === entry.item.id ? null : current));
+        setAgregadoOkId((current) =>
+          current === entry.item.id ? null : current,
+        );
       }, 2200);
-      setUndoAccion({
+      anunciarDeshacer({
         tipo: "pedido",
         proveedor,
         itemsAnteriores,
         etiqueta: entry.item.nombre,
       });
     } catch (err) {
-      setError(err instanceof Error ? err.message : "No se pudo agregar al pedido.");
+      setError(
+        err instanceof Error ? err.message : "No se pudo agregar al pedido.",
+      );
     } finally {
       setAgregandoId(null);
     }
   };
 
-  const agregarLoteAPedido = async (proveedor: Proveedor, lista: ItemConPrediccion[]) => {
+  const agregarLoteAPedido = async (
+    proveedor: Proveedor,
+    lista: ItemConPrediccion[],
+  ) => {
     setAgregandoLoteProveedor(proveedor);
     setError(null);
     try {
       const itemsAnteriores = await obtenerItemsPedido(proveedor);
 
       const nuevos: PedidoItemDraft[] = lista.map((entry) => {
-        const cantidadDraft = cantidadPorId[entry.item.id];
+        const cantidadDraft = cantidades[entry.item.id];
         const cantidad =
           cantidadDraft !== undefined && cantidadDraft.trim() !== ""
             ? cantidadDraft
@@ -1058,25 +1218,44 @@ export default function ComprasPage() {
       window.setTimeout(() => {
         setAgregadoOkId(null);
       }, 2200);
-      setUndoAccion({
+      anunciarDeshacer({
         tipo: "pedido",
         proveedor,
         itemsAnteriores,
         etiqueta: `${nuevos.length} ítems de ${proveedor}`,
       });
     } catch (err) {
-      setError(err instanceof Error ? err.message : "No se pudo agregar el lote al pedido.");
+      setError(
+        err instanceof Error
+          ? err.message
+          : "No se pudo agregar el lote al pedido.",
+      );
     } finally {
       setAgregandoLoteProveedor(null);
     }
   };
 
-  const deshacerAccion = async () => {
-    if (!undoAccion) {
+  /** Guarda el snapshot para deshacer (tecla Z) y muestra el aviso con Deshacer. */
+  function anunciarDeshacer(snap: SnapshotAccion) {
+    setUndoAccion(snap);
+    aviso(
+      snap.tipo === "pedido"
+        ? `${snap.etiqueta}: agregado a ${snap.proveedor}`
+        : `${snap.etiqueta} registrada`,
+      {
+        tono: "exito",
+        ms: UNDO_AGREGADO_MS,
+        deshacer: () => void deshacerSnap(snap),
+      },
+    );
+  }
+
+  async function deshacerSnap(snap: SnapshotAccion) {
+    if (deshechosRef.current.has(snap)) {
       return;
     }
-    const snap = undoAccion;
-    setUndoAccion(null);
+    deshechosRef.current.add(snap);
+    setUndoAccion((current) => (current === snap ? null : current));
     try {
       if (snap.tipo === "pedido") {
         await guardarItemsPedido(snap.proveedor, snap.itemsAnteriores);
@@ -1093,158 +1272,242 @@ export default function ComprasPage() {
     } catch (err) {
       setError(err instanceof Error ? err.message : "No se pudo deshacer.");
     }
+  }
+
+  const deshacerAccion = async () => {
+    if (!undoAccion) {
+      return;
+    }
+    await deshacerSnap(undoAccion);
   };
+
+  const deshacerConTecla = useEffectEvent(() => {
+    void deshacerAccion();
+  });
+
+  useEffect(() => {
+    if (!undoAccion) {
+      return;
+    }
+    const snap = undoAccion;
+    const timer = window.setTimeout(() => {
+      setUndoAccion((current) => (current === snap ? null : current));
+    }, UNDO_AGREGADO_MS);
+
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (e.key.toLowerCase() !== "z" || e.metaKey || e.ctrlKey || e.altKey) {
+        return;
+      }
+      const target = e.target;
+      if (
+        target instanceof HTMLInputElement ||
+        target instanceof HTMLTextAreaElement ||
+        target instanceof HTMLSelectElement
+      ) {
+        return;
+      }
+      e.preventDefault();
+      deshacerConTecla();
+    };
+    window.addEventListener("keydown", onKeyDown);
+    return () => {
+      window.clearTimeout(timer);
+      window.removeEventListener("keydown", onKeyDown);
+    };
+  }, [undoAccion]);
+
+  const renderControles = (
+    proveedor: string,
+    entry: ItemConPrediccion,
+    urgente: boolean,
+  ) => {
+    const { item } = entry;
+    const busy = agregandoId === item.id;
+    const puedeAgregar = proveedor !== SIN_PROVEEDOR;
+    const agregado = agregadoOkId === item.id;
+    const borrando = borrandoId === item.id;
+
+    return (
+      <div className="flex shrink-0 items-center gap-1">
+        <label className="mr-auto flex items-center gap-1.5 sm:mr-1">
+          <span className="sr-only">Cantidad de {item.nombre}</span>
+          <input
+            type="text"
+            inputMode="decimal"
+            enterKeyHint="done"
+            value={cantidades[item.id] ?? ""}
+            disabled={busy}
+            onChange={(e) =>
+              setCantidadPorId((prev) => ({
+                ...prev,
+                [item.id]: e.target.value,
+              }))
+            }
+            placeholder="—"
+            className={cx(INPUT_FILA, "w-16 text-right")}
+          />
+          <span className="w-10 truncate text-[0.8rem] text-label-3">
+            {item.unidadCompra}
+          </span>
+        </label>
+        <BotonIcono
+          etiqueta={`Registrar última compra de ${item.nombre}`}
+          icono={<CalendarPlus className="h-5 w-5" aria-hidden />}
+          onClick={() => abrirRegistrar(item)}
+        />
+        <BotonIcono
+          etiqueta={`Editar ${item.nombre}`}
+          variante="plano"
+          icono={<Pencil className="h-[18px] w-[18px]" aria-hidden />}
+          onClick={() => abrirEditar(item)}
+          className="text-label-3"
+        />
+        <BotonIcono
+          etiqueta={`Borrar ${item.nombre} de Stock`}
+          variante="plano"
+          disabled={borrando}
+          icono={
+            borrando ? (
+              <Loader2 className="h-[18px] w-[18px] animate-spin" aria-hidden />
+            ) : (
+              <Trash2 className="h-[18px] w-[18px]" aria-hidden />
+            )
+          }
+          onClick={() => void abrirBorrar(item)}
+          className="text-label-3 hover:text-danger"
+        />
+        <button
+          type="button"
+          disabled={busy || !puedeAgregar}
+          onClick={() => {
+            vibrar();
+            void agregarAPedido(item.proveedor as Proveedor, entry);
+          }}
+          aria-label={`Agregar ${item.nombre} al pedido`}
+          title={
+            puedeAgregar
+              ? `Agregar al pedido de ${proveedor}`
+              : "Asigná un proveedor en /stock para poder agregarlo a un pedido"
+          }
+          className={cx(
+            "inline-flex size-11 shrink-0 items-center justify-center rounded-full transition active:scale-90 disabled:opacity-40",
+            agregado
+              ? "bg-success text-[#fff]"
+              : urgente
+                ? "bg-success-soft text-success"
+                : "bg-fill text-label",
+          )}
+        >
+          {busy ? (
+            <Loader2 className="h-5 w-5 animate-spin" aria-hidden />
+          ) : agregado ? (
+            <Check className="h-5 w-5" aria-hidden />
+          ) : (
+            <Plus className="h-5 w-5" aria-hidden />
+          )}
+        </button>
+      </div>
+    );
+  };
+
+  const CLASE_FILA_ITEM =
+    "flex flex-col gap-2 border-b border-separator py-3 pl-4 pr-2 last:border-0 sm:flex-row sm:items-center sm:gap-3";
+
+  /** Botón de texto dentro de una línea de detalle (área tocable agrandada). */
+  const CLASE_LINK_DETALLE =
+    "-my-3 py-3 font-medium text-info underline decoration-dotted underline-offset-2";
 
   const renderFilaCompacta = (proveedor: string, entry: ItemConPrediccion) => {
     const { item, prediccion } = entry;
-    const busy = agregandoId === item.id;
-    const puedeAgregar = proveedor !== SIN_PROVEEDOR;
     const ultimoPrecio = ultimoPrecioPorItem.get(item.id);
 
     return (
-      <li
-        key={item.id}
-        className="flex flex-col gap-2 px-3 py-2.5 sm:flex-row sm:items-center sm:gap-3"
-      >
+      <li key={item.id} className={CLASE_FILA_ITEM}>
         <div className="min-w-0 flex-1">
-          <div className="flex flex-wrap items-center gap-1.5">
-            <span className="truncate text-sm font-medium text-white">{item.nombre}</span>
+          <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
+            <span className="text-[1rem] font-medium leading-snug text-label">
+              {item.nombre}
+            </span>
             <EstadoBadge estado={prediccion.estado} />
           </div>
-          <p className="mt-0.5 text-[11px] text-zinc-500">
+          <p className="mt-0.5 text-[0.86rem] leading-snug text-label-3">
             {prediccion.diasParaProxima != null ? (
               prediccion.diasParaProxima <= 0 ? (
-                <span className="text-red-300">
+                <span className="font-medium text-danger">
                   Atrasado {Math.abs(prediccion.diasParaProxima)} día
                   {Math.abs(prediccion.diasParaProxima) === 1 ? "" : "s"}
                 </span>
               ) : (
-                <>En {prediccion.diasParaProxima} día{prediccion.diasParaProxima === 1 ? "" : "s"}</>
+                <>
+                  En {prediccion.diasParaProxima} día
+                  {prediccion.diasParaProxima === 1 ? "" : "s"}
+                </>
               )
             ) : (
               "Sin historial suficiente"
             )}
             {prediccion.esEstimado ? (
-              <span className="text-indigo-300"> (estimado)</span>
+              <span className="text-info"> (estimado)</span>
             ) : null}
             {ultimoPrecio != null ? (
-              <span className="text-zinc-600">
+              <span className="tabular-nums">
                 {" "}
                 · {formatearPrecioUnitario(ultimoPrecio, item.unidadCompra)}
               </span>
             ) : null}
           </p>
         </div>
-        <div className="flex items-center gap-2">
-          <input
-            type="text"
-            inputMode="decimal"
-            value={cantidadPorId[item.id] ?? ""}
-            disabled={busy}
-            onChange={(e) =>
-              setCantidadPorId((prev) => ({ ...prev, [item.id]: e.target.value }))
-            }
-            aria-label={`Cantidad de ${item.nombre}`}
-            className="w-16 rounded-lg border border-zinc-700 bg-zinc-900 px-2 py-2 text-center text-sm tabular-nums text-white"
-          />
-          <span className="w-14 shrink-0 text-xs text-zinc-500">{item.unidadCompra}</span>
-          <button
-            type="button"
-            onClick={() => abrirRegistrar(item)}
-            aria-label={`Registrar última compra de ${item.nombre}`}
-            title="Registrar última compra (fecha + cantidad) a mano"
-            className="inline-flex size-11 shrink-0 items-center justify-center rounded-xl border border-dashed border-zinc-700 bg-zinc-900/60 text-zinc-400 transition hover:border-zinc-500 hover:text-zinc-200"
-          >
-            <CalendarPlus className="h-4 w-4" aria-hidden />
-          </button>
-          <button
-            type="button"
-            disabled={busy || !puedeAgregar}
-            onClick={() => void agregarAPedido(item.proveedor as Proveedor, entry)}
-            title={
-              puedeAgregar
-                ? undefined
-                : "Asigná un proveedor en /stock para poder agregarlo a un pedido"
-            }
-            aria-label={`Agregar ${item.nombre} al pedido`}
-            className="inline-flex size-11 shrink-0 items-center justify-center rounded-xl border border-emerald-700/80 bg-emerald-800/60 text-emerald-50 transition active:scale-95 hover:bg-emerald-700/70 disabled:cursor-not-allowed disabled:opacity-40"
-          >
-            {busy ? (
-              <Loader2 className="h-5 w-5 animate-spin" aria-hidden />
-            ) : agregadoOkId === item.id ? (
-              <CheckCircle2 className="h-5 w-5" aria-hidden />
-            ) : (
-              <Plus className="h-5 w-5" aria-hidden />
-            )}
-          </button>
-          <button
-            type="button"
-            onClick={() => abrirEditar(item)}
-            aria-label={`Editar ${item.nombre}`}
-            title="Editar nombre, proveedor, unidad o precios de compras pasadas"
-            className="inline-flex size-11 shrink-0 items-center justify-center rounded-xl border border-transparent text-zinc-600 transition hover:border-zinc-600 hover:bg-zinc-800 hover:text-zinc-200"
-          >
-            <Pencil className="h-4 w-4" aria-hidden />
-          </button>
-          <button
-            type="button"
-            onClick={() => abrirBorrar(item)}
-            aria-label={`Borrar ${item.nombre} de Stock`}
-            title="Borrar este ítem de Stock (se cargó sin querer)"
-            className="inline-flex size-11 shrink-0 items-center justify-center rounded-xl border border-transparent text-zinc-600 transition hover:border-red-900/60 hover:bg-red-950/40 hover:text-red-300"
-          >
-            <Trash2 className="h-4 w-4" aria-hidden />
-          </button>
-        </div>
+        {renderControles(proveedor, entry, true)}
       </li>
     );
   };
 
   const renderFilaAlDia = (proveedor: string, entry: ItemConPrediccion) => {
     const { item, prediccion } = entry;
-    const busy = agregandoId === item.id;
-    const puedeAgregar = proveedor !== SIN_PROVEEDOR;
     const ultimoPrecio = ultimoPrecioPorItem.get(item.id);
 
     return (
-      <li
-        key={item.id}
-        className="flex flex-col gap-2 rounded-lg border border-zinc-800 bg-zinc-900/50 px-3 py-2.5 sm:flex-row sm:items-center sm:justify-between"
-      >
+      <li key={item.id} className={CLASE_FILA_ITEM}>
         <div className="min-w-0 flex-1">
-          <div className="flex flex-wrap items-center gap-2">
-            <span className="text-sm font-medium text-zinc-100">{item.nombre}</span>
+          <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
+            <span className="text-[1rem] font-medium leading-snug text-label">
+              {item.nombre}
+            </span>
             <EstadoBadge estado={prediccion.estado} />
           </div>
-          <p className="mt-1 text-[11px] text-zinc-500">
+          <p className="mt-0.5 text-[0.86rem] leading-snug text-label-3">
             {prediccion.ultimaCompra ? (
               <>
                 Última compra: {prediccion.ultimaCompra}
                 {prediccion.intervaloTipicoDias != null ? (
                   <>
                     {" "}
-                    · Ciclo {prediccion.esEstimado ? "estimado" : "típico"}:{" "}
-                    {prediccion.intervaloTipicoDias} días
+                    · Ciclo {prediccion.esEstimado
+                      ? "estimado"
+                      : "típico"}: {prediccion.intervaloTipicoDias} días
                     {prediccion.esEstimado ? (
-                      <button
-                        type="button"
-                        onClick={() => abrirFrecuencia(item)}
-                        className="ml-1 text-indigo-300 underline decoration-dotted hover:text-indigo-200"
-                      >
-                        editar
-                      </button>
+                      <>
+                        {" "}
+                        <button
+                          type="button"
+                          onClick={() => abrirFrecuencia(item)}
+                          className={CLASE_LINK_DETALLE}
+                        >
+                          editar
+                        </button>
+                      </>
                     ) : null}
                   </>
                 ) : (
                   <>
                     {" "}
                     ·{" "}
-                    <span className="text-indigo-300">
+                    <span className="text-info">
                       Registrá otra fecha o{" "}
                       <button
                         type="button"
                         onClick={() => abrirFrecuencia(item)}
-                        className="underline decoration-dotted hover:text-indigo-200"
+                        className={CLASE_LINK_DETALLE}
                       >
                         cargá una frecuencia estimada
                       </button>{" "}
@@ -1257,1303 +1520,980 @@ export default function ComprasPage() {
                 ) : null}
               </>
             ) : (
-              <span className="text-indigo-300">
-                Sin compras registradas todavía. Tocá Registrar para cargar la última.
+              <span className="text-info">
+                Sin compras registradas todavía. Tocá el calendario para cargar
+                la última.
               </span>
             )}
             {ultimoPrecio != null ? (
-              <span className="text-zinc-600">
+              <span className="tabular-nums">
                 {" "}
                 · {formatearPrecioUnitario(ultimoPrecio, item.unidadCompra)}
               </span>
             ) : null}
           </p>
         </div>
-        <div className="flex shrink-0 items-center gap-2">
-          <input
-            type="text"
-            inputMode="decimal"
-            value={cantidadPorId[item.id] ?? ""}
-            disabled={busy}
-            onChange={(e) =>
-              setCantidadPorId((prev) => ({ ...prev, [item.id]: e.target.value }))
-            }
-            aria-label={`Cantidad de ${item.nombre}`}
-            className="w-16 rounded-lg border border-zinc-700 bg-zinc-900 px-2 py-1.5 text-center text-xs tabular-nums text-white"
-          />
-          <button
-            type="button"
-            onClick={() => abrirRegistrar(item)}
-            title="Registrar última compra (fecha + cantidad) a mano"
-            className="inline-flex items-center gap-1.5 rounded-lg border border-dashed border-zinc-700 bg-zinc-900/60 px-2.5 py-1.5 text-xs font-medium text-zinc-400 transition hover:border-zinc-500 hover:text-zinc-200"
-          >
-            <CalendarPlus className="h-3.5 w-3.5" aria-hidden />
-            Registrar
-          </button>
-          <button
-            type="button"
-            disabled={busy || !puedeAgregar}
-            onClick={() => void agregarAPedido(item.proveedor as Proveedor, entry)}
-            title={
-              puedeAgregar
-                ? undefined
-                : "Asigná un proveedor en /stock para poder agregarlo a un pedido"
-            }
-            className="inline-flex items-center gap-1.5 rounded-lg border border-zinc-600 bg-zinc-800 px-2.5 py-1.5 text-xs font-medium text-zinc-100 transition hover:border-zinc-500 hover:bg-zinc-700 disabled:cursor-not-allowed disabled:opacity-40"
-          >
-            {busy ? (
-              <Loader2 className="h-3.5 w-3.5 animate-spin" aria-hidden />
-            ) : (
-              <Plus className="h-3.5 w-3.5" aria-hidden />
-            )}
-            {agregadoOkId === item.id ? "Agregado" : "Agregar"}
-          </button>
-          <button
-            type="button"
-            onClick={() => abrirEditar(item)}
-            aria-label={`Editar ${item.nombre}`}
-            title="Editar nombre, proveedor, unidad o precios de compras pasadas"
-            className="inline-flex items-center justify-center rounded-lg border border-transparent p-1.5 text-zinc-600 transition hover:border-zinc-600 hover:bg-zinc-800 hover:text-zinc-200"
-          >
-            <Pencil className="h-3.5 w-3.5" aria-hidden />
-          </button>
-          <button
-            type="button"
-            onClick={() => abrirBorrar(item)}
-            aria-label={`Borrar ${item.nombre} de Stock`}
-            title="Borrar este ítem de Stock (se cargó sin querer)"
-            className="inline-flex items-center justify-center rounded-lg border border-transparent p-1.5 text-zinc-600 transition hover:border-red-900/60 hover:bg-red-950/40 hover:text-red-300"
-          >
-            <Trash2 className="h-3.5 w-3.5" aria-hidden />
-          </button>
-        </div>
+        {renderControles(proveedor, entry, false)}
       </li>
     );
   };
 
-  return (
-    <main className="min-h-screen min-w-0 bg-zinc-950 px-4 py-6 text-zinc-100 sm:px-6 sm:py-10">
-      <section className="mx-auto w-full max-w-5xl rounded-2xl border border-zinc-800 bg-zinc-900/60 p-6 shadow-[0_0_0_1px_rgba(255,255,255,0.02)] backdrop-blur">
-        <header className="mb-6 flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
-          <div>
-            <h1 className="font-display text-3xl font-medium tracking-tight text-ink">Compras</h1>
-            <p className="mt-1 text-sm text-zinc-400">
-              Cada cuánto conviene volver a pedir cada ítem de{" "}
-              <span className="text-zinc-300">Stock</span>, según el historial real de compras
-              (sin conteo de stock: el margen de seguridad adelanta el aviso antes de que se
-              acabe).
-            </p>
-          </div>
+  /** Tarjeta de un proveedor: encabezado plegable (+ "Agregar los N") y sus ítems. */
+  const renderGrupo = (
+    seccion: "urgentes" | "alDia" | "sinDatos",
+    proveedor: string,
+    lista: ItemConPrediccion[],
+  ) => {
+    const clave = `${seccion}:${proveedor}`;
+    const colapsado = gruposColapsados.has(clave);
+    const conLote = seccion === "urgentes" && proveedor !== SIN_PROVEEDOR;
+    const render =
+      seccion === "urgentes" ? renderFilaCompacta : renderFilaAlDia;
+    return (
+      <div key={proveedor} className={LISTA_AGRUPADA}>
+        <div
+          className={cx(
+            "flex min-h-14 items-center gap-1 px-2",
+            !colapsado && "border-b border-separator",
+          )}
+        >
           <button
             type="button"
-            onClick={() => abrirImport()}
-            className="inline-flex shrink-0 items-center justify-center gap-1.5 rounded-xl border border-emerald-800/80 bg-emerald-900/50 px-4 py-2.5 text-sm font-semibold text-emerald-50 transition hover:bg-emerald-800/50"
+            aria-expanded={!colapsado}
+            onClick={() => {
+              vibrar();
+              toggleGrupo(clave);
+            }}
+            className="flex min-h-11 min-w-0 flex-1 items-center gap-2 rounded-control px-2 text-left transition active:bg-fill"
           >
-            <ListPlus className="h-4 w-4" aria-hidden />
-            Importar albarán
+            {colapsado ? (
+              <ChevronRight
+                className="h-[18px] w-[18px] shrink-0 text-label-3"
+                aria-hidden
+              />
+            ) : (
+              <ChevronDown
+                className="h-[18px] w-[18px] shrink-0 text-label-3"
+                aria-hidden
+              />
+            )}
+            <span className="truncate text-[1rem] font-semibold text-label">
+              {proveedor}
+            </span>
+            <span className="shrink-0 text-[0.9rem] tabular-nums text-label-3">
+              {lista.length}
+            </span>
           </button>
-        </header>
-
-        {error ? (
-          <p className="mb-4 rounded-lg border border-red-900/70 bg-red-950/50 px-3 py-2 text-sm text-red-200">
-            {error}
-          </p>
+          {conLote ? (
+            <Boton
+              variante="terciario"
+              cargando={agregandoLoteProveedor === proveedor}
+              icono={<Layers className="h-[18px] w-[18px]" aria-hidden />}
+              onClick={() =>
+                void agregarLoteAPedido(proveedor as Proveedor, lista)
+              }
+              className="shrink-0 px-3"
+            >
+              Agregar los {lista.length}
+              <span className="hidden sm:inline"> al pedido</span>
+            </Boton>
+          ) : null}
+        </div>
+        {!colapsado ? (
+          <ul>{lista.map((entry) => render(proveedor, entry))}</ul>
         ) : null}
+      </div>
+    );
+  };
 
-        {isLoading ? (
-          <EsqueletoLista filas={6} />
-        ) : (
-          <>
-            <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-              <div className="relative flex-1 sm:max-w-xs">
-                <Search
-                  className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-zinc-500"
-                  aria-hidden
-                />
-                <input
-                  ref={buscadorRef}
-                  type="text"
-                  value={busqueda}
-                  onChange={(e) => setBusqueda(e.target.value)}
-                  placeholder="Buscar ítem..."
-                  aria-label="Buscar ítem"
-                  className="w-full rounded-lg border border-zinc-700 bg-zinc-950 py-2 pl-9 pr-8 text-sm text-zinc-100 outline-none transition placeholder:text-zinc-600 focus:border-zinc-500"
-                />
-                {busqueda ? (
-                  <button
-                    type="button"
-                    onClick={() => setBusqueda("")}
-                    aria-label="Limpiar búsqueda"
-                    className="absolute right-2 top-1/2 -translate-y-1/2 rounded p-1 text-zinc-500 hover:text-zinc-200"
-                  >
-                    <X className="h-3.5 w-3.5" aria-hidden />
-                  </button>
-                ) : null}
-              </div>
-              <div className="flex shrink-0 items-center gap-3">
-                {!soloUrgentes ? (
-                  <button
-                    type="button"
-                    onClick={alternarExpandirTodo}
-                    className="inline-flex items-center gap-1.5 text-xs font-medium text-zinc-400 transition hover:text-zinc-200"
-                  >
-                    {todoExpandido ? (
-                      <ChevronDown className="h-3.5 w-3.5" aria-hidden />
-                    ) : (
-                      <ChevronRight className="h-3.5 w-3.5" aria-hidden />
-                    )}
-                    {todoExpandido ? "Colapsar todo" : "Expandir todo"}
-                  </button>
-                ) : null}
-                <label className="inline-flex items-center gap-2 text-xs font-medium text-zinc-400">
-                  <input
-                    type="checkbox"
-                    checked={soloUrgentes}
-                    onChange={(e) => setSoloUrgentes(e.target.checked)}
-                    className="size-4 rounded border-zinc-600 bg-zinc-900 accent-orange-600"
-                  />
-                  Solo urgentes
-                  <kbd className="hidden rounded border border-zinc-700 bg-zinc-900 px-1.5 py-0.5 text-[10px] text-zinc-500 sm:inline">
-                    U
-                  </kbd>
-                </label>
-              </div>
-            </div>
+  const nItemsActivos = itemsConPrediccion.length;
+  const nLineasImport = importLineasPreview.length;
 
-            {!soloUrgentes ? (
-              <div className="mb-8 grid grid-cols-2 gap-3 sm:grid-cols-5">
-                <KpiCard
-                  icono={<AlertTriangle className="h-4 w-4" aria-hidden />}
-                  titulo="Atrasados"
-                  valor={kpis.Atrasado}
-                  tono="text-red-300"
-                />
-                <KpiCard
-                  icono={<CalendarClock className="h-4 w-4" aria-hidden />}
-                  titulo="Pedir pronto"
-                  valor={kpis["Pedir pronto"]}
-                  tono="text-amber-300"
-                />
-                <KpiCard
-                  icono={<CheckCircle2 className="h-4 w-4" aria-hidden />}
-                  titulo="OK"
-                  valor={kpis.OK}
-                  tono="text-emerald-300"
-                />
-                <KpiCard
-                  icono={<HelpCircle className="h-4 w-4" aria-hidden />}
-                  titulo="Sin datos"
-                  valor={kpis["Sin datos"]}
-                  tono="text-indigo-300"
-                  onClick={
-                    kpis["Sin datos"] > 0
-                      ? () => {
-                          setSoloUrgentes(false);
-                          setSinDatosExpandido(true);
-                        }
-                      : undefined
-                  }
-                />
-                <KpiCard
-                  icono={<TrendingUp className="h-4 w-4" aria-hidden />}
-                  titulo="Subidas 90 días"
-                  valor={subidasRecientes}
-                  tono="text-orange-300"
-                />
-              </div>
-            ) : null}
+  return (
+    <Pantalla
+      titulo="Compras"
+      ancho="amplio"
+      subtitulo={
+        isLoading
+          ? "Cargando…"
+          : nItemsActivos === 0
+            ? "Sin ítems activos"
+            : totalUrgentes > 0
+              ? `${totalUrgentes} para pedir · ${nItemsActivos} ítems`
+              : `Nada urgente · ${nItemsActivos} ítems`
+      }
+      ayuda={
+        <>
+          <p>
+            Cada cuánto conviene volver a pedir cada ítem de{" "}
+            <strong className="text-label">Stock</strong>, según el historial
+            real de compras. No hay conteo de stock: el margen de seguridad
+            (buffer) adelanta el aviso antes de que se acabe.
+          </p>
+          <p>
+            En cada ítem: la cantidad a pedir, el calendario para registrar a
+            mano la última compra, y <strong className="text-label">+</strong>{" "}
+            para agregarlo al pedido del proveedor (se puede deshacer). El lápiz
+            edita el ítem y sus compras; el tacho lo borra de Stock.
+          </p>
+          <p>
+            Con <strong className="text-label">Importar albarán</strong> pegás
+            las líneas de un albarán y se cargan todas las compras juntas.
+          </p>
+          <p>
+            En la compu: <strong className="text-label">U</strong> alterna Solo
+            urgentes y <strong className="text-label">Z</strong> deshace lo
+            último que agregaste o registraste.
+          </p>
+        </>
+      }
+      acciones={
+        <Boton
+          variante="secundario"
+          icono={<ListPlus className="h-[18px] w-[18px]" aria-hidden />}
+          onClick={() => abrirImport()}
+          aria-label="Importar albarán"
+        >
+          <span className="sm:hidden">Albarán</span>
+          <span className="hidden sm:inline">Importar albarán</span>
+        </Boton>
+      }
+    >
+      {error ? <Alerta className="mb-4">{error}</Alerta> : null}
 
-            {cambiosPrecioVisibles.length > 0 ? (
-              <section className="mb-8 rounded-xl border border-zinc-800 bg-zinc-950/60 p-4">
+      {isLoading ? (
+        <EsqueletoLista filas={6} />
+      ) : (
+        <>
+          <div className="space-y-1">
+            <div className="relative">
+              <Campo
+                ref={buscadorRef}
+                type="text"
+                enterKeyHint="search"
+                value={busqueda}
+                onChange={(e) => setBusqueda(e.target.value)}
+                placeholder="Buscar ítem"
+                aria-label="Buscar ítem"
+                autoComplete="off"
+                icono={<Search className="h-[18px] w-[18px]" aria-hidden />}
+                className={busqueda ? "pr-12" : undefined}
+              />
+              {busqueda ? (
                 <button
                   type="button"
-                  onClick={() => setCambiosPrecioExpandido((v) => !v)}
-                  className="flex w-full items-center gap-2 text-left text-sm uppercase tracking-[0.14em] text-zinc-400 transition hover:text-zinc-200"
+                  onClick={() => setBusqueda("")}
+                  aria-label="Limpiar búsqueda"
+                  className="absolute right-0.5 top-0.5 inline-flex size-11 items-center justify-center rounded-full text-label-3 transition active:bg-fill"
                 >
-                  {cambiosPrecioExpandido ? (
-                    <ChevronDown className="h-4 w-4 shrink-0" aria-hidden />
-                  ) : (
-                    <ChevronRight className="h-4 w-4 shrink-0" aria-hidden />
-                  )}
-                  Cambios de precio
-                  <span className="rounded-full border border-zinc-700 bg-zinc-900 px-2 py-0.5 text-[11px] font-bold tabular-nums text-zinc-400">
-                    {cambiosPrecio.length}
-                  </span>
-                  {subidasRecientes > 0 ? (
-                    <span className="inline-flex items-center gap-1 rounded-full border border-orange-900/60 bg-orange-950/40 px-2 py-0.5 text-[11px] font-medium text-orange-300">
-                      <TrendingUp className="h-3 w-3" aria-hidden />
-                      {subidasRecientes} subidas · 90 días
-                    </span>
-                  ) : null}
+                  <X className="h-[18px] w-[18px]" aria-hidden />
                 </button>
-                {cambiosPrecioExpandido ? (
-                  <>
-                    <p className="mb-4 mt-3 text-xs text-zinc-500">
-                      Comparación del precio por kg, caja o unidad entre albaranes consecutivos
-                      del mismo ítem y proveedor. Solo se muestran variaciones de al menos 0,5 % o
-                      2 céntimos.
-                    </p>
-                    <div className="max-h-72 overflow-y-auto rounded-lg border border-zinc-800/80">
-                      <table className="w-full min-w-[32rem] text-left text-sm">
-                        <thead className="sticky top-0 bg-zinc-900/95 text-[10px] uppercase tracking-[0.12em] text-zinc-500">
-                          <tr>
-                            <th className="px-3 py-2 font-medium">Fecha</th>
-                            <th className="px-3 py-2 font-medium">Ítem</th>
-                            <th className="px-3 py-2 font-medium">Proveedor</th>
-                            <th className="px-3 py-2 font-medium text-right">Antes</th>
-                            <th className="px-3 py-2 font-medium text-right">Ahora</th>
-                            <th className="px-3 py-2 font-medium text-right">Cambio</th>
-                          </tr>
-                        </thead>
-                        <tbody className="divide-y divide-zinc-800/80">
-                          {cambiosPrecio.map((c, i) => {
-                            const subio = c.variacionPct > 0;
-                            const pct = `${subio ? "+" : ""}${c.variacionPct.toLocaleString("es-ES", {
-                              maximumFractionDigits: 1,
-                            })} %`;
-                            return (
-                              <tr
-                                key={`${c.fecha}-${c.nombre}-${c.proveedor}-${i}`}
-                                className="text-zinc-200"
-                              >
-                                <td className="whitespace-nowrap px-3 py-2 text-zinc-400">
-                                  {formatearFechaCorta(c.fecha)}
-                                </td>
-                                <td className="px-3 py-2 font-medium text-white">{c.nombre}</td>
-                                <td className="px-3 py-2 text-zinc-400">{c.proveedor ?? "—"}</td>
-                                <td className="whitespace-nowrap px-3 py-2 text-right tabular-nums text-zinc-400">
-                                  {formatearPrecioUnitario(c.precioAnterior, c.unidad)}
-                                </td>
-                                <td className="whitespace-nowrap px-3 py-2 text-right tabular-nums text-white">
-                                  {formatearPrecioUnitario(c.precioNuevo, c.unidad)}
-                                </td>
-                                <td className="px-3 py-2 text-right">
-                                  <span
-                                    className={`inline-flex items-center justify-end gap-1 tabular-nums text-xs font-medium ${
-                                      subio ? "text-red-300" : "text-emerald-300"
-                                    }`}
-                                  >
-                                    {subio ? (
-                                      <TrendingUp className="h-3.5 w-3.5 shrink-0" aria-hidden />
-                                    ) : (
-                                      <TrendingDown className="h-3.5 w-3.5 shrink-0" aria-hidden />
-                                    )}
-                                    {pct}
-                                  </span>
-                                </td>
-                              </tr>
-                            );
-                          })}
-                        </tbody>
-                      </table>
-                    </div>
-                  </>
-                ) : null}
-              </section>
-            ) : null}
+              ) : null}
+            </div>
+            <div className="flex min-h-12 items-center justify-between gap-3 pl-1">
+              <div className="flex items-center gap-3">
+                <Interruptor
+                  activo={soloUrgentes}
+                  onChange={setSoloUrgentes}
+                  etiqueta="Solo urgentes"
+                />
+                <span className="text-[0.94rem] text-label-2">
+                  Solo urgentes
+                </span>
+                <kbd className="hidden rounded-md bg-fill px-1.5 py-0.5 font-sans text-[0.8rem] text-label-3 sm:inline">
+                  U
+                </kbd>
+              </div>
+              {!soloUrgentes ? (
+                <Boton
+                  variante="terciario"
+                  onClick={alternarExpandirTodo}
+                  icono={
+                    todoExpandido ? (
+                      <ChevronDown className="h-4 w-4" aria-hidden />
+                    ) : (
+                      <ChevronRight className="h-4 w-4" aria-hidden />
+                    )
+                  }
+                  className="px-2"
+                >
+                  {todoExpandido ? "Colapsar todo" : "Expandir todo"}
+                </Boton>
+              ) : null}
+            </div>
+          </div>
 
-            {itemsConPrediccion.length === 0 ? (
-              <p className="text-sm text-zinc-500">
-                Todavía no hay ítems activos en Stock, o no tienen historial de compras. Cargá el
-                catálogo en <span className="text-zinc-300">/stock</span> e importá algún albarán
-                acá para empezar.
-              </p>
-            ) : hayBusqueda &&
-              urgentesPorProveedor.length === 0 &&
-              alDiaPorProveedor.length === 0 &&
-              sinDatosPorProveedor.length === 0 ? (
-              <p className="text-sm text-zinc-500">
-                Ningún ítem coincide con “{busqueda}”.
-              </p>
-            ) : (
-              <>
-                {totalUrgentes === 0 && !hayBusqueda ? (
-                  <div className="mb-6 flex flex-col gap-2 rounded-xl border border-emerald-900/50 bg-emerald-950/30 px-4 py-3 text-sm text-emerald-200">
-                    <div className="flex items-center gap-2">
-                      <CheckCircle2 className="h-4 w-4 shrink-0" aria-hidden />
+          {!soloUrgentes ? (
+            <div className="mt-3 grid grid-cols-2 gap-2.5 sm:grid-cols-5">
+              <KpiCard
+                icono={<AlertTriangle className="h-4 w-4" aria-hidden />}
+                titulo="Atrasados"
+                valor={kpis.Atrasado}
+                tono="text-danger"
+              />
+              <KpiCard
+                icono={<CalendarClock className="h-4 w-4" aria-hidden />}
+                titulo="Pedir pronto"
+                valor={kpis["Pedir pronto"]}
+                tono="text-warning"
+              />
+              <KpiCard
+                icono={<CheckCircle2 className="h-4 w-4" aria-hidden />}
+                titulo="OK"
+                valor={kpis.OK}
+                tono="text-success"
+              />
+              <KpiCard
+                icono={<HelpCircle className="h-4 w-4" aria-hidden />}
+                titulo="Sin datos"
+                valor={kpis["Sin datos"]}
+                tono="text-info"
+                onClick={
+                  kpis["Sin datos"] > 0
+                    ? () => {
+                        setSoloUrgentes(false);
+                        setSinDatosExpandido(true);
+                        window.requestAnimationFrame(() => {
+                          document
+                            .getElementById("compras-sin-datos")
+                            ?.scrollIntoView({
+                              behavior: "smooth",
+                              block: "start",
+                            });
+                        });
+                      }
+                    : undefined
+                }
+              />
+              <KpiCard
+                icono={<TrendingUp className="h-4 w-4" aria-hidden />}
+                titulo="Subidas 90 días"
+                valor={subidasRecientes}
+                tono="text-accent"
+                className="col-span-2 sm:col-span-1"
+              />
+            </div>
+          ) : null}
+
+          {cambiosPrecioVisibles.length > 0 ? (
+            <Seccion
+              titulo={
+                <TituloPlegable
+                  abierto={cambiosPrecioExpandido}
+                  onToggle={() => setCambiosPrecioExpandido((v) => !v)}
+                >
+                  Cambios de precio · {cambiosPrecio.length}
+                </TituloPlegable>
+              }
+              accion={
+                subidasRecientes > 0 ? (
+                  <Etiqueta
+                    tono="acento"
+                    icono={<TrendingUp className="h-3.5 w-3.5" aria-hidden />}
+                  >
+                    {subidasRecientes} subidas · 90 días
+                  </Etiqueta>
+                ) : null
+              }
+              pie={
+                cambiosPrecioExpandido
+                  ? "Precio por kg, caja o unidad entre albaranes seguidos del mismo ítem y proveedor. Solo se muestran variaciones de 0,5 % o 2 céntimos o más."
+                  : undefined
+              }
+            >
+              {cambiosPrecioExpandido ? (
+                <div className={cx(LISTA_AGRUPADA, "max-h-96 overflow-y-auto")}>
+                  <ul className="sm:hidden">
+                    {cambiosPrecio.map((c, i) => (
+                      <li
+                        key={`${c.fecha}-${c.nombre}-${c.proveedor}-${i}`}
+                        className="border-b border-separator px-4 py-3 last:border-0"
+                      >
+                        <div className="flex items-baseline justify-between gap-3">
+                          <span className="min-w-0 truncate text-[1rem] font-medium text-label">
+                            {c.nombre}
+                          </span>
+                          <VariacionPrecio pct={c.variacionPct} />
+                        </div>
+                        <div className="mt-0.5 flex items-baseline justify-between gap-3 text-[0.86rem] text-label-3">
+                          <span className="min-w-0 truncate">
+                            {formatearFechaCorta(c.fecha)} ·{" "}
+                            {c.proveedor ?? "—"}
+                          </span>
+                          <span className="inline-flex shrink-0 items-center gap-1 tabular-nums">
+                            {formatearPrecioUnitario(
+                              c.precioAnterior,
+                              c.unidad,
+                            )}
+                            <ArrowRight
+                              className="h-3.5 w-3.5"
+                              aria-label="pasó a"
+                            />
+                            <span className="text-label">
+                              {formatearPrecioUnitario(c.precioNuevo, c.unidad)}
+                            </span>
+                          </span>
+                        </div>
+                      </li>
+                    ))}
+                  </ul>
+                  <table className="hidden w-full text-left text-[0.94rem] sm:table">
+                    <thead className="sticky top-0 bg-surface-3 text-[0.8rem] uppercase tracking-[0.07em] text-label-3">
+                      <tr className="border-b border-separator">
+                        <th className="px-4 py-2.5 font-semibold">Fecha</th>
+                        <th className="px-4 py-2.5 font-semibold">Ítem</th>
+                        <th className="px-4 py-2.5 font-semibold">Proveedor</th>
+                        <th className="px-4 py-2.5 text-right font-semibold">
+                          Antes
+                        </th>
+                        <th className="px-4 py-2.5 text-right font-semibold">
+                          Ahora
+                        </th>
+                        <th className="px-4 py-2.5 text-right font-semibold">
+                          Cambio
+                        </th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {cambiosPrecio.map((c, i) => (
+                        <tr
+                          key={`${c.fecha}-${c.nombre}-${c.proveedor}-${i}`}
+                          className="border-b border-separator last:border-0"
+                        >
+                          <td className="whitespace-nowrap px-4 py-2.5 text-label-2">
+                            {formatearFechaCorta(c.fecha)}
+                          </td>
+                          <td className="px-4 py-2.5 font-medium text-label">
+                            {c.nombre}
+                          </td>
+                          <td className="px-4 py-2.5 text-label-2">
+                            {c.proveedor ?? "—"}
+                          </td>
+                          <td className="whitespace-nowrap px-4 py-2.5 text-right tabular-nums text-label-2">
+                            {formatearPrecioUnitario(
+                              c.precioAnterior,
+                              c.unidad,
+                            )}
+                          </td>
+                          <td className="whitespace-nowrap px-4 py-2.5 text-right tabular-nums text-label">
+                            {formatearPrecioUnitario(c.precioNuevo, c.unidad)}
+                          </td>
+                          <td className="px-4 py-2.5 text-right">
+                            <VariacionPrecio pct={c.variacionPct} />
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              ) : null}
+            </Seccion>
+          ) : null}
+
+          {nItemsActivos === 0 ? (
+            <div className="mt-6 rounded-card bg-surface-3">
+              <EstadoVacio
+                icono={<ListPlus className="h-6 w-6" aria-hidden />}
+                titulo="Todavía no hay ítems para predecir"
+                texto="Cargá el catálogo en Stock e importá algún albarán acá para empezar."
+                accion={
+                  <Boton
+                    icono={
+                      <ListPlus className="h-[18px] w-[18px]" aria-hidden />
+                    }
+                    onClick={() => abrirImport()}
+                  >
+                    Importar albarán
+                  </Boton>
+                }
+              />
+            </div>
+          ) : hayBusqueda &&
+            urgentesPorProveedor.length === 0 &&
+            alDiaPorProveedor.length === 0 &&
+            sinDatosPorProveedor.length === 0 ? (
+            <div className="mt-6 rounded-card bg-surface-3">
+              <EstadoVacio
+                icono={<Search className="h-6 w-6" aria-hidden />}
+                titulo="Sin resultados"
+                texto={`Ningún ítem coincide con «${busqueda}».`}
+              />
+            </div>
+          ) : (
+            <>
+              {totalUrgentes === 0 && !hayBusqueda ? (
+                <div
+                  role="status"
+                  className="mt-6 flex gap-3 rounded-card bg-success-soft px-4 py-3 text-success"
+                >
+                  <CircleCheck
+                    className="mt-0.5 h-[18px] w-[18px] shrink-0"
+                    aria-hidden
+                  />
+                  <div className="min-w-0 flex-1">
+                    <p className="text-[0.94rem] font-semibold">
                       Nada urgente para pedir.
-                    </div>
+                    </p>
                     {soloUrgentes && (kpis.OK > 0 || kpis["Sin datos"] > 0) ? (
-                      <p className="text-xs text-emerald-300/80">
-                        Desactivá <span className="text-emerald-100">Solo urgentes</span> para ver{" "}
-                        {kpis.OK + kpis["Sin datos"]} ítem
+                      <p className="mt-0.5 text-[0.86rem] text-label-2">
+                        Desactivá{" "}
+                        <strong className="text-label">Solo urgentes</strong>{" "}
+                        para ver {kpis.OK + kpis["Sin datos"]} ítem
                         {kpis.OK + kpis["Sin datos"] === 1 ? "" : "s"} al día.
                       </p>
                     ) : null}
                   </div>
-                ) : null}
+                </div>
+              ) : null}
 
-                {urgentesPorProveedor.length > 0 ? (
-                  <section className="mb-6">
-                    <h2 className="mb-3 flex items-center gap-2 text-sm font-semibold uppercase tracking-[0.14em] text-orange-300">
+              {urgentesPorProveedor.length > 0 ? (
+                <Seccion
+                  titulo={
+                    <span className="inline-flex items-center gap-1.5 text-accent">
                       <AlertTriangle className="h-4 w-4" aria-hidden />
-                      Para pedir
-                      <span className="rounded-full bg-orange-900/60 px-2 py-0.5 text-[11px] font-bold tabular-nums text-orange-100">
-                        {totalUrgentes}
-                      </span>
-                    </h2>
-                    <div className="space-y-4">
-                      {urgentesPorProveedor.map(([proveedor, lista]) => {
-                        const clave = `urgentes:${proveedor}`;
-                        const colapsado = gruposColapsados.has(clave);
-                        return (
-                          <div
-                            key={proveedor}
-                            className="overflow-hidden rounded-xl border border-zinc-800"
-                          >
-                            <div className="flex flex-wrap items-center justify-between gap-2 border-b border-zinc-800/80 bg-zinc-950/60 px-3 py-2">
-                              <button
-                                type="button"
-                                onClick={() => toggleGrupo(clave)}
-                                className="flex items-center gap-1.5 text-xs font-semibold uppercase tracking-[0.12em] text-zinc-400 transition hover:text-zinc-200"
-                              >
-                                {colapsado ? (
-                                  <ChevronRight className="h-3.5 w-3.5 shrink-0" aria-hidden />
-                                ) : (
-                                  <ChevronDown className="h-3.5 w-3.5 shrink-0" aria-hidden />
-                                )}
-                                {proveedor}
-                                <span className="text-zinc-600">({lista.length})</span>
-                              </button>
-                              {proveedor !== SIN_PROVEEDOR ? (
-                                <button
-                                  type="button"
-                                  disabled={agregandoLoteProveedor === proveedor}
-                                  onClick={() =>
-                                    void agregarLoteAPedido(proveedor as Proveedor, lista)
-                                  }
-                                  className="inline-flex items-center gap-1.5 rounded-lg border border-emerald-800/70 bg-emerald-900/40 px-2.5 py-1 text-[11px] font-medium text-emerald-200 transition hover:bg-emerald-800/40 disabled:cursor-not-allowed disabled:opacity-40"
-                                >
-                                  {agregandoLoteProveedor === proveedor ? (
-                                    <Loader2 className="h-3.5 w-3.5 animate-spin" aria-hidden />
-                                  ) : (
-                                    <Layers className="h-3.5 w-3.5" aria-hidden />
-                                  )}
-                                  Agregar los {lista.length} al pedido
-                                </button>
-                              ) : null}
-                            </div>
-                            {!colapsado ? (
-                              <ul className="divide-y divide-zinc-800/90 bg-zinc-950/30">
-                                {lista.map((entry) => renderFilaCompacta(proveedor, entry))}
-                              </ul>
-                            ) : null}
-                          </div>
-                        );
-                      })}
+                      Para pedir · {totalUrgentes}
+                    </span>
+                  }
+                >
+                  <div className="space-y-3">
+                    {urgentesPorProveedor.map(([proveedor, lista]) =>
+                      renderGrupo("urgentes", proveedor, lista),
+                    )}
+                  </div>
+                </Seccion>
+              ) : null}
+
+              {!soloUrgentes && alDiaPorProveedor.length > 0 ? (
+                <Seccion
+                  titulo={
+                    <TituloPlegable
+                      abierto={alDiaExpandido || hayBusqueda}
+                      onToggle={() => setAlDiaExpandido((v) => !v)}
+                    >
+                      Al día · {kpis.OK}
+                    </TituloPlegable>
+                  }
+                >
+                  {alDiaExpandido || hayBusqueda ? (
+                    <div className="space-y-3">
+                      {alDiaPorProveedor.map(([proveedor, lista]) =>
+                        renderGrupo("alDia", proveedor, lista),
+                      )}
                     </div>
-                  </section>
-                ) : null}
+                  ) : null}
+                </Seccion>
+              ) : null}
 
-                {!soloUrgentes && alDiaPorProveedor.length > 0 ? (
-                  <section className="mb-6">
-                    <button
-                      type="button"
-                      onClick={() => setAlDiaExpandido((v) => !v)}
-                      className="mb-3 flex w-full items-center gap-2 rounded-lg py-1 text-left text-sm font-semibold uppercase tracking-[0.14em] text-zinc-500 transition hover:text-zinc-300"
-                    >
-                      {alDiaExpandido || hayBusqueda ? (
-                        <ChevronDown className="h-4 w-4 shrink-0" aria-hidden />
-                      ) : (
-                        <ChevronRight className="h-4 w-4 shrink-0" aria-hidden />
-                      )}
-                      Al día
-                      <span className="rounded-full border border-zinc-700 bg-zinc-900 px-2 py-0.5 text-[11px] font-bold tabular-nums text-zinc-400">
-                        {kpis.OK}
-                      </span>
-                    </button>
-                    {alDiaExpandido || hayBusqueda ? (
-                      <div className="space-y-4 opacity-90">
-                        {alDiaPorProveedor.map(([proveedor, lista]) => {
-                          const clave = `alDia:${proveedor}`;
-                          const colapsado = gruposColapsados.has(clave);
-                          return (
-                            <div key={proveedor}>
-                              <button
-                                type="button"
-                                onClick={() => toggleGrupo(clave)}
-                                className="mb-2 flex items-center gap-1.5 text-xs font-semibold uppercase tracking-[0.12em] text-zinc-500 transition hover:text-zinc-300"
-                              >
-                                {colapsado ? (
-                                  <ChevronRight className="h-3.5 w-3.5 shrink-0" aria-hidden />
-                                ) : (
-                                  <ChevronDown className="h-3.5 w-3.5 shrink-0" aria-hidden />
-                                )}
-                                {proveedor}
-                                <span className="text-zinc-600">({lista.length})</span>
-                              </button>
-                              {!colapsado ? (
-                                <ul className="space-y-2" role="list">
-                                  {lista.map((entry) => renderFilaAlDia(proveedor, entry))}
-                                </ul>
-                              ) : null}
-                            </div>
-                          );
-                        })}
-                      </div>
-                    ) : null}
-                  </section>
-                ) : null}
-
-                {!soloUrgentes && sinDatosPorProveedor.length > 0 ? (
-                  <section className="mb-6 rounded-xl border border-indigo-900/40 bg-indigo-950/10 p-3">
-                    <button
-                      type="button"
-                      onClick={() => setSinDatosExpandido((v) => !v)}
-                      className="flex w-full items-center gap-2 rounded-lg py-1 text-left text-sm font-semibold uppercase tracking-[0.14em] text-indigo-300 transition hover:text-indigo-200"
-                    >
-                      {sinDatosExpandido || hayBusqueda ? (
-                        <ChevronDown className="h-4 w-4 shrink-0" aria-hidden />
-                      ) : (
-                        <ChevronRight className="h-4 w-4 shrink-0" aria-hidden />
-                      )}
-                      <CalendarPlus className="h-4 w-4 shrink-0" aria-hidden />
-                      Sin datos
-                      <span className="rounded-full bg-indigo-900/60 px-2 py-0.5 text-[11px] font-bold tabular-nums text-indigo-100">
-                        {kpis["Sin datos"]}
-                      </span>
-                    </button>
+              {!soloUrgentes && sinDatosPorProveedor.length > 0 ? (
+                <div id="compras-sin-datos" className="scroll-mt-16">
+                  <Seccion
+                    titulo={
+                      <TituloPlegable
+                        abierto={sinDatosExpandido || hayBusqueda}
+                        onToggle={() => setSinDatosExpandido((v) => !v)}
+                      >
+                        Sin datos · {kpis["Sin datos"]}
+                      </TituloPlegable>
+                    }
+                  >
                     {sinDatosExpandido || hayBusqueda ? (
                       <>
-                        <p className="mb-3 mt-2 text-[11px] leading-relaxed text-indigo-200/70">
-                          Sin albarán todavía. Tocá <span className="text-indigo-200">Registrar</span>{" "}
-                          para cargar a mano cuándo y cuánto se compró — con 2 fechas cargadas ya se
-                          puede estimar el ciclo y el ítem pasa a Al día / Para pedir.
+                        <p className="mb-3 px-1 text-[0.86rem] leading-snug text-label-2">
+                          Sin albarán todavía. Tocá el calendario{" "}
+                          <CalendarPlus
+                            className="inline h-4 w-4 align-[-3px] text-label-3"
+                            aria-hidden
+                          />{" "}
+                          para cargar a mano cuándo y cuánto se compró: con 2
+                          fechas ya se estima el ciclo y el ítem pasa a Al día o
+                          Para pedir.
                         </p>
-                        <div className="space-y-4">
-                          {sinDatosPorProveedor.map(([proveedor, lista]) => {
-                            const clave = `sinDatos:${proveedor}`;
-                            const colapsado = gruposColapsados.has(clave);
-                            return (
-                              <div key={proveedor}>
-                                <button
-                                  type="button"
-                                  onClick={() => toggleGrupo(clave)}
-                                  className="mb-2 flex items-center gap-1.5 text-xs font-semibold uppercase tracking-[0.12em] text-indigo-300/80 transition hover:text-indigo-200"
-                                >
-                                  {colapsado ? (
-                                    <ChevronRight className="h-3.5 w-3.5 shrink-0" aria-hidden />
-                                  ) : (
-                                    <ChevronDown className="h-3.5 w-3.5 shrink-0" aria-hidden />
-                                  )}
-                                  {proveedor}
-                                  <span className="text-indigo-400/60">({lista.length})</span>
-                                </button>
-                                {!colapsado ? (
-                                  <ul className="space-y-2" role="list">
-                                    {lista.map((entry) => renderFilaAlDia(proveedor, entry))}
-                                  </ul>
-                                ) : null}
-                              </div>
-                            );
-                          })}
+                        <div className="space-y-3">
+                          {sinDatosPorProveedor.map(([proveedor, lista]) =>
+                            renderGrupo("sinDatos", proveedor, lista),
+                          )}
                         </div>
                       </>
                     ) : null}
-                  </section>
-                ) : null}
-              </>
-            )}
-          </>
-        )}
-
-        {importAbierto ? (
-          <div
-            className="fixed inset-0 z-[100] flex items-end justify-center bg-black/70 p-0 sm:items-center sm:p-6"
-            role="presentation"
-            onClick={(e) => {
-              if (e.target === e.currentTarget) {
-                cerrarImport();
-              }
-            }}
-          >
-            <div
-              role="dialog"
-              aria-modal="true"
-              aria-labelledby="import-compras-title"
-              className="flex max-h-[min(92dvh,42rem)] w-full max-w-lg flex-col rounded-t-2xl border border-zinc-700 bg-zinc-900 shadow-2xl sm:max-h-[min(88vh,38rem)] sm:rounded-2xl"
-              onClick={(e) => e.stopPropagation()}
-            >
-              <div className="flex shrink-0 items-start justify-between gap-3 border-b border-zinc-800 px-4 py-3">
-                <div className="min-w-0 pr-2">
-                  <h2 id="import-compras-title" className="text-sm font-semibold text-white">
-                    Importar albarán
-                  </h2>
-                  <p className="mt-1 text-[11px] leading-relaxed text-zinc-500">
-                    Elegí proveedor y fecha, y pegá las líneas del albarán. Los ítems que no
-                    existan en Stock se crean automáticamente.
-                  </p>
+                  </Seccion>
                 </div>
-                <button
-                  type="button"
-                  onClick={() => cerrarImport()}
-                  className="shrink-0 rounded-lg border border-zinc-700 p-2 text-zinc-400 transition hover:border-zinc-500 hover:text-zinc-100"
-                  aria-label="Cerrar"
-                >
-                  <X className="h-4 w-4" aria-hidden />
-                </button>
-              </div>
-
-              <div className="min-h-0 flex-1 space-y-3 overflow-y-auto overscroll-contain px-4 py-3">
-                <div className="grid grid-cols-2 gap-2">
-                  <div>
-                    <label
-                      htmlFor="import-proveedor"
-                      className="mb-1 block text-[11px] font-medium uppercase tracking-wide text-zinc-500"
-                    >
-                      Proveedor
-                    </label>
-                    <select
-                      id="import-proveedor"
-                      value={importProveedor}
-                      onChange={(e) => setImportProveedor(e.target.value as Proveedor)}
-                      className="w-full rounded-lg border border-zinc-700 bg-zinc-950 px-3 py-2 text-sm text-zinc-100 outline-none transition focus:border-zinc-500"
-                    >
-                      <option value="">Elegir...</option>
-                      {proveedores.map((p) => (
-                        <option key={p} value={p}>
-                          {p}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-                  <div>
-                    <label
-                      htmlFor="import-fecha"
-                      className="mb-1 block text-[11px] font-medium uppercase tracking-wide text-zinc-500"
-                    >
-                      Fecha del albarán
-                    </label>
-                    <input
-                      id="import-fecha"
-                      type="date"
-                      value={importFecha}
-                      onChange={(e) => setImportFecha(e.target.value)}
-                      className="w-full rounded-lg border border-zinc-700 bg-zinc-950 px-3 py-2 text-sm text-zinc-100 outline-none transition focus:border-zinc-500"
-                    />
-                  </div>
-                </div>
-                <div className="grid grid-cols-2 gap-2">
-                  <div>
-                    <label
-                      htmlFor="import-unidad-default"
-                      className="mb-1 block text-[11px] font-medium uppercase tracking-wide text-zinc-500"
-                    >
-                      Unidad por defecto
-                    </label>
-                    <select
-                      id="import-unidad-default"
-                      value={importUnidadDefault}
-                      onChange={(e) => setImportUnidadDefault(e.target.value as UnidadMedida)}
-                      className="w-full rounded-lg border border-zinc-700 bg-zinc-950 px-3 py-2 text-sm text-zinc-100 outline-none transition focus:border-zinc-500"
-                    >
-                      {UNIDADES.map((u) => (
-                        <option key={u} value={u}>
-                          {u}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-                  <div>
-                    <label
-                      htmlFor="import-tipo-precio"
-                      className="mb-1 block text-[11px] font-medium uppercase tracking-wide text-zinc-500"
-                    >
-                      La 4ta columna del precio es
-                    </label>
-                    <select
-                      id="import-tipo-precio"
-                      value={importTipoPrecio}
-                      onChange={(e) => setImportTipoPrecio(e.target.value as "unitario" | "total")}
-                      className="w-full rounded-lg border border-zinc-700 bg-zinc-950 px-3 py-2 text-sm text-zinc-100 outline-none transition focus:border-zinc-500"
-                    >
-                      <option value="unitario">Precio unitario</option>
-                      <option value="total">Total de la línea</option>
-                    </select>
-                  </div>
-                </div>
-                <div>
-                  <label
-                    htmlFor="import-textarea"
-                    className="mb-1 block text-[11px] font-medium uppercase tracking-wide text-zinc-500"
-                  >
-                    Pegá las líneas del albarán
-                  </label>
-                  <textarea
-                    id="import-textarea"
-                    value={importTexto}
-                    onChange={(e) => setImportTexto(e.target.value)}
-                    rows={10}
-                    autoFocus
-                    spellCheck={false}
-                    className="w-full resize-y rounded-lg border border-zinc-700 bg-zinc-950 px-3 py-2 font-mono text-[13px] leading-relaxed text-zinc-100 outline-none transition placeholder:text-zinc-600 focus:border-zinc-500"
-                    placeholder={`Salmón: 8 Kilo\nAtún: 5 Kilo\nAguacate | 2 | Caja | 12.50`}
-                  />
-                  <p className="mt-1 text-[11px] text-zinc-600">
-                    El precio (opcional) solo se reconoce con formato{" "}
-                    <span className="font-mono text-zinc-500">nombre | cantidad | unidad | precio</span>{" "}
-                    o separado por tabs.
-                  </p>
-                </div>
-                {importError ? (
-                  <p className="rounded-lg border border-red-900/70 bg-red-950/50 px-3 py-2 text-xs text-red-200">
-                    {importError}
-                  </p>
-                ) : null}
-                <p className="text-xs text-zinc-400">
-                  <span className="font-semibold text-zinc-200">{importLineasPreview.length}</span>{" "}
-                  línea(s) reconocida(s)
-                </p>
-                {importLineasPreview.length > 0 ? (
-                  <div className="rounded-lg border border-zinc-800/90 bg-zinc-950/60 px-3 py-2">
-                    <ul className="max-h-40 space-y-0.5 overflow-y-auto text-[11px] text-zinc-300">
-                      {importLineasPreview.slice(0, 20).map((l, i) => (
-                        <li key={i} className="truncate">
-                          <span className="text-zinc-600">·</span>{" "}
-                          <span className="font-medium text-zinc-100">{l.item}</span>
-                          <span className="text-zinc-500">
-                            {" "}
-                            → {l.cantidad || "—"} {l.unidad}
-                            {l.precio ? ` · ${l.precio}€` : ""}
-                          </span>
-                          {l.existente ? (
-                            <span className="text-emerald-400"> (vinculado)</span>
-                          ) : (
-                            <span className="text-amber-400"> (nuevo en Stock)</span>
-                          )}
-                        </li>
-                      ))}
-                    </ul>
-                    {importLineasPreview.length > 20 ? (
-                      <p className="mt-1.5 text-[10px] text-zinc-600">
-                        … y {importLineasPreview.length - 20} más
-                      </p>
-                    ) : null}
-                  </div>
-                ) : null}
-              </div>
-
-              <div className="flex shrink-0 flex-wrap gap-2 border-t border-zinc-800 bg-zinc-900/95 px-4 pb-[max(0.75rem,env(safe-area-inset-bottom,0px))] pt-3">
-                <button
-                  type="button"
-                  onClick={() => cerrarImport()}
-                  className="inline-flex flex-1 items-center justify-center rounded-lg border border-zinc-600 bg-zinc-800 px-3 py-2.5 text-xs font-medium text-zinc-200 transition hover:border-zinc-500 sm:flex-initial sm:px-4"
-                >
-                  Cancelar
-                </button>
-                <button
-                  type="button"
-                  disabled={importIsSaving || importLineasPreview.length === 0}
-                  onClick={() => void confirmarImport()}
-                  className="inline-flex flex-1 items-center justify-center gap-1.5 rounded-lg border border-emerald-800/80 bg-emerald-900/50 px-3 py-2.5 text-xs font-semibold text-emerald-50 transition hover:bg-emerald-800/50 disabled:cursor-not-allowed disabled:opacity-40 sm:flex-initial sm:px-4"
-                >
-                  {importIsSaving ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : null}
-                  Importar {importLineasPreview.length > 0 ? importLineasPreview.length : ""}{" "}
-                  línea(s)
-                </button>
-              </div>
-            </div>
-          </div>
-        ) : null}
-
-        {registrarItem ? (
-          <div
-            className="fixed inset-0 z-[100] flex items-end justify-center bg-black/70 p-0 sm:items-center sm:p-6"
-            role="presentation"
-            onClick={(e) => {
-              if (e.target === e.currentTarget) {
-                cerrarRegistrar();
-              }
-            }}
-          >
-            <div
-              role="dialog"
-              aria-modal="true"
-              aria-labelledby="registrar-compra-title"
-              className="flex max-h-[min(92dvh,32rem)] w-full max-w-md flex-col rounded-t-2xl border border-zinc-700 bg-zinc-900 shadow-2xl sm:max-h-[min(88vh,30rem)] sm:rounded-2xl"
-              onClick={(e) => e.stopPropagation()}
-            >
-              <div className="flex shrink-0 items-start justify-between gap-3 border-b border-zinc-800 px-4 py-3">
-                <div className="min-w-0 pr-2">
-                  <h2 id="registrar-compra-title" className="text-sm font-semibold text-white">
-                    Registrar última compra
-                  </h2>
-                  <p className="mt-1 text-[11px] leading-relaxed text-zinc-500">
-                    Para <span className="text-zinc-300">{registrarItem.nombre}</span>, sin
-                    albarán: cargá cuánto y cuándo se compró por última vez para que la
-                    predicción de urgencia tenga con qué calcular.
-                  </p>
-                </div>
-                <button
-                  type="button"
-                  onClick={() => cerrarRegistrar()}
-                  className="shrink-0 rounded-lg border border-zinc-700 p-2 text-zinc-400 transition hover:border-zinc-500 hover:text-zinc-100"
-                  aria-label="Cerrar"
-                >
-                  <X className="h-4 w-4" aria-hidden />
-                </button>
-              </div>
-
-              <div className="min-h-0 flex-1 space-y-3 overflow-y-auto overscroll-contain px-4 py-3">
-                <div className="grid grid-cols-2 gap-2">
-                  <div>
-                    <label
-                      htmlFor="registrar-fecha"
-                      className="mb-1 block text-[11px] font-medium uppercase tracking-wide text-zinc-500"
-                    >
-                      Fecha de la compra
-                    </label>
-                    <input
-                      id="registrar-fecha"
-                      type="date"
-                      value={registrarFecha}
-                      onChange={(e) => setRegistrarFecha(e.target.value)}
-                      className="w-full rounded-lg border border-zinc-700 bg-zinc-950 px-3 py-2 text-sm text-zinc-100 outline-none transition focus:border-zinc-500"
-                    />
-                  </div>
-                  <div>
-                    <label
-                      htmlFor="registrar-cantidad"
-                      className="mb-1 block text-[11px] font-medium uppercase tracking-wide text-zinc-500"
-                    >
-                      Cantidad ({registrarItem.unidadCompra})
-                    </label>
-                    <input
-                      id="registrar-cantidad"
-                      type="text"
-                      inputMode="decimal"
-                      value={registrarCantidad}
-                      onChange={(e) => setRegistrarCantidad(e.target.value)}
-                      placeholder="0"
-                      className="w-full rounded-lg border border-zinc-700 bg-zinc-950 px-3 py-2 text-sm tabular-nums text-zinc-100 outline-none transition placeholder:text-zinc-600 focus:border-zinc-500"
-                    />
-                  </div>
-                </div>
-                <div className="grid grid-cols-2 gap-2">
-                  <div>
-                    <label
-                      htmlFor="registrar-precio"
-                      className="mb-1 block text-[11px] font-medium uppercase tracking-wide text-zinc-500"
-                    >
-                      Precio (opcional)
-                    </label>
-                    <input
-                      id="registrar-precio"
-                      type="text"
-                      inputMode="decimal"
-                      value={registrarPrecio}
-                      onChange={(e) => setRegistrarPrecio(e.target.value)}
-                      placeholder="0.00"
-                      className="w-full rounded-lg border border-zinc-700 bg-zinc-950 px-3 py-2 text-sm tabular-nums text-zinc-100 outline-none transition placeholder:text-zinc-600 focus:border-zinc-500"
-                    />
-                  </div>
-                  <div>
-                    <label
-                      htmlFor="registrar-tipo-precio"
-                      className="mb-1 block text-[11px] font-medium uppercase tracking-wide text-zinc-500"
-                    >
-                      Ese precio es
-                    </label>
-                    <select
-                      id="registrar-tipo-precio"
-                      value={registrarTipoPrecio}
-                      onChange={(e) =>
-                        setRegistrarTipoPrecio(e.target.value as "unitario" | "total")
-                      }
-                      disabled={!registrarPrecio.trim()}
-                      className="w-full rounded-lg border border-zinc-700 bg-zinc-950 px-3 py-2 text-sm text-zinc-100 outline-none transition focus:border-zinc-500 disabled:opacity-50"
-                    >
-                      <option value="unitario">Precio unitario</option>
-                      <option value="total">Total de la compra</option>
-                    </select>
-                  </div>
-                </div>
-                <div>
-                  <label
-                    htmlFor="registrar-frecuencia"
-                    className="mb-1 block text-[11px] font-medium uppercase tracking-wide text-zinc-500"
-                  >
-                    Cada cuántos días aprox. se repite (opcional)
-                  </label>
-                  <input
-                    id="registrar-frecuencia"
-                    type="text"
-                    inputMode="numeric"
-                    value={registrarFrecuencia}
-                    onChange={(e) => setRegistrarFrecuencia(e.target.value)}
-                    placeholder="Ej: 30"
-                    className="w-full rounded-lg border border-zinc-700 bg-zinc-950 px-3 py-2 text-sm tabular-nums text-zinc-100 outline-none transition placeholder:text-zinc-600 focus:border-zinc-500"
-                  />
-                  <p className="mt-1 text-[11px] text-zinc-600">
-                    Solo hace falta si es la primera compra que cargás de este ítem: con una
-                    estimación tuya ya se puede calcular la urgencia, sin esperar a una 2da
-                    compra real.
-                  </p>
-                </div>
-                {registrarError ? (
-                  <p className="rounded-lg border border-red-900/70 bg-red-950/50 px-3 py-2 text-xs text-red-200">
-                    {registrarError}
-                  </p>
-                ) : null}
-              </div>
-
-              <div className="flex shrink-0 flex-wrap gap-2 border-t border-zinc-800 bg-zinc-900/95 px-4 pb-[max(0.75rem,env(safe-area-inset-bottom,0px))] pt-3">
-                <button
-                  type="button"
-                  onClick={() => cerrarRegistrar()}
-                  className="inline-flex flex-1 items-center justify-center rounded-lg border border-zinc-600 bg-zinc-800 px-3 py-2.5 text-xs font-medium text-zinc-200 transition hover:border-zinc-500 sm:flex-initial sm:px-4"
-                >
-                  Cancelar
-                </button>
-                <button
-                  type="button"
-                  disabled={registrarIsSaving}
-                  onClick={() => void confirmarRegistrar()}
-                  className="inline-flex flex-1 items-center justify-center gap-1.5 rounded-lg border border-emerald-800/80 bg-emerald-900/50 px-3 py-2.5 text-xs font-semibold text-emerald-50 transition hover:bg-emerald-800/50 disabled:cursor-not-allowed disabled:opacity-40 sm:flex-initial sm:px-4"
-                >
-                  {registrarIsSaving ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : null}
-                  Guardar
-                </button>
-              </div>
-            </div>
-          </div>
-        ) : null}
-
-        {borrarItem ? (
-          <div
-            className="fixed inset-0 z-[100] flex items-end justify-center bg-black/70 p-0 sm:items-center sm:p-6"
-            role="presentation"
-            onClick={(e) => {
-              if (e.target === e.currentTarget) {
-                cerrarBorrar();
-              }
-            }}
-          >
-            <div
-              role="dialog"
-              aria-modal="true"
-              aria-labelledby="borrar-item-title"
-              className="flex w-full max-w-sm flex-col rounded-t-2xl border border-zinc-700 bg-zinc-900 shadow-2xl sm:rounded-2xl"
-              onClick={(e) => e.stopPropagation()}
-            >
-              <div className="flex items-start justify-between gap-3 border-b border-zinc-800 px-4 py-3">
-                <div className="min-w-0 pr-2">
-                  <h2 id="borrar-item-title" className="text-sm font-semibold text-white">
-                    Borrar ítem de Stock
-                  </h2>
-                  <p className="mt-1 text-[11px] leading-relaxed text-zinc-500">
-                    Vas a borrar <span className="text-zinc-300">{borrarItem.nombre}</span> del
-                    catálogo de Stock. Ya no va a aparecer en Compras ni en Pedidos. Esta acción
-                    no se puede deshacer (el historial de compras que ya tenía queda guardado,
-                    solo se desvincula del ítem).
-                  </p>
-                </div>
-                <button
-                  type="button"
-                  onClick={() => cerrarBorrar()}
-                  className="shrink-0 rounded-lg border border-zinc-700 p-2 text-zinc-400 transition hover:border-zinc-500 hover:text-zinc-100"
-                  aria-label="Cerrar"
-                >
-                  <X className="h-4 w-4" aria-hidden />
-                </button>
-              </div>
-              {borrarError ? (
-                <p className="mx-4 mt-3 rounded-lg border border-red-900/70 bg-red-950/50 px-3 py-2 text-xs text-red-200">
-                  {borrarError}
-                </p>
               ) : null}
-              <div className="flex flex-wrap gap-2 px-4 pb-[max(0.75rem,env(safe-area-inset-bottom,0px))] pt-3">
-                <button
-                  type="button"
-                  onClick={() => cerrarBorrar()}
-                  className="inline-flex flex-1 items-center justify-center rounded-lg border border-zinc-600 bg-zinc-800 px-3 py-2.5 text-xs font-medium text-zinc-200 transition hover:border-zinc-500 sm:flex-initial sm:px-4"
-                >
-                  Cancelar
-                </button>
-                <button
-                  type="button"
-                  disabled={borrandoId === borrarItem.id}
-                  onClick={() => void confirmarBorrar()}
-                  className="inline-flex flex-1 items-center justify-center gap-1.5 rounded-lg border border-red-900/70 bg-red-950/50 px-3 py-2.5 text-xs font-semibold text-red-200 transition hover:bg-red-900/50 disabled:cursor-not-allowed disabled:opacity-40 sm:flex-initial sm:px-4"
-                >
-                  {borrandoId === borrarItem.id ? (
-                    <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                  ) : (
-                    <Trash2 className="h-3.5 w-3.5" aria-hidden />
-                  )}
-                  Borrar
-                </button>
-              </div>
-            </div>
-          </div>
-        ) : null}
+            </>
+          )}
+        </>
+      )}
 
-        {frecuenciaItem ? (
-          <div
-            className="fixed inset-0 z-[100] flex items-end justify-center bg-black/70 p-0 sm:items-center sm:p-6"
-            role="presentation"
-            onClick={(e) => {
-              if (e.target === e.currentTarget) {
-                cerrarFrecuencia();
-              }
-            }}
-          >
-            <div
-              role="dialog"
-              aria-modal="true"
-              aria-labelledby="frecuencia-title"
-              className="flex w-full max-w-sm flex-col rounded-t-2xl border border-zinc-700 bg-zinc-900 shadow-2xl sm:rounded-2xl"
-              onClick={(e) => e.stopPropagation()}
-            >
-              <div className="flex items-start justify-between gap-3 border-b border-zinc-800 px-4 py-3">
-                <div className="min-w-0 pr-2">
-                  <h2 id="frecuencia-title" className="text-sm font-semibold text-white">
-                    Frecuencia estimada
-                  </h2>
-                  <p className="mt-1 text-[11px] leading-relaxed text-zinc-500">
-                    Para <span className="text-zinc-300">{frecuenciaItem.nombre}</span>: cada
-                    cuántos días aprox. volvés a comprarlo. Con esto se puede calcular la
-                    urgencia aunque todavía tenga una sola compra registrada.
-                  </p>
-                </div>
-                <button
-                  type="button"
-                  onClick={() => cerrarFrecuencia()}
-                  className="shrink-0 rounded-lg border border-zinc-700 p-2 text-zinc-400 transition hover:border-zinc-500 hover:text-zinc-100"
-                  aria-label="Cerrar"
-                >
-                  <X className="h-4 w-4" aria-hidden />
-                </button>
-              </div>
-              <div className="px-4 py-3">
-                <label
-                  htmlFor="frecuencia-dias"
-                  className="mb-1 block text-[11px] font-medium uppercase tracking-wide text-zinc-500"
-                >
-                  Días aprox.
-                </label>
-                <input
-                  id="frecuencia-dias"
-                  type="text"
-                  inputMode="numeric"
-                  autoFocus
-                  value={frecuenciaValor}
-                  onChange={(e) => setFrecuenciaValor(e.target.value)}
-                  placeholder="Ej: 30"
-                  className="w-full rounded-lg border border-zinc-700 bg-zinc-950 px-3 py-2 text-sm tabular-nums text-zinc-100 outline-none transition placeholder:text-zinc-600 focus:border-zinc-500"
-                />
-                <p className="mt-1 text-[11px] text-zinc-600">
-                  Dejalo vacío para borrar la estimación (vuelve a quedar en Sin datos hasta la
-                  próxima compra real).
-                </p>
-                {frecuenciaError ? (
-                  <p className="mt-2 rounded-lg border border-red-900/70 bg-red-950/50 px-3 py-2 text-xs text-red-200">
-                    {frecuenciaError}
-                  </p>
-                ) : null}
-              </div>
-              <div className="flex flex-wrap gap-2 border-t border-zinc-800 px-4 pb-[max(0.75rem,env(safe-area-inset-bottom,0px))] pt-3">
-                <button
-                  type="button"
-                  onClick={() => cerrarFrecuencia()}
-                  className="inline-flex flex-1 items-center justify-center rounded-lg border border-zinc-600 bg-zinc-800 px-3 py-2.5 text-xs font-medium text-zinc-200 transition hover:border-zinc-500 sm:flex-initial sm:px-4"
-                >
-                  Cancelar
-                </button>
-                <button
-                  type="button"
-                  disabled={frecuenciaIsSaving}
-                  onClick={() => void confirmarFrecuencia()}
-                  className="inline-flex flex-1 items-center justify-center gap-1.5 rounded-lg border border-emerald-800/80 bg-emerald-900/50 px-3 py-2.5 text-xs font-semibold text-emerald-50 transition hover:bg-emerald-800/50 disabled:cursor-not-allowed disabled:opacity-40 sm:flex-initial sm:px-4"
-                >
-                  {frecuenciaIsSaving ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : null}
-                  Guardar
-                </button>
-              </div>
-            </div>
-          </div>
-        ) : null}
-
-        {editarItem ? (
-          <div
-            className="fixed inset-0 z-[100] flex items-end justify-center bg-black/70 p-0 sm:items-center sm:p-6"
-            role="presentation"
-            onClick={(e) => {
-              if (e.target === e.currentTarget) {
-                cerrarEditar();
-              }
-            }}
-          >
-            <div
-              role="dialog"
-              aria-modal="true"
-              aria-labelledby="editar-item-title"
-              className="flex max-h-[min(92dvh,42rem)] w-full max-w-lg flex-col rounded-t-2xl border border-zinc-700 bg-zinc-900 shadow-2xl sm:max-h-[min(88vh,38rem)] sm:rounded-2xl"
-              onClick={(e) => e.stopPropagation()}
-            >
-              <div className="flex shrink-0 items-start justify-between gap-3 border-b border-zinc-800 px-4 py-3">
-                <div className="min-w-0 pr-2">
-                  <h2 id="editar-item-title" className="text-sm font-semibold text-white">
-                    Editar ítem
-                  </h2>
-                  <p className="mt-1 text-[11px] leading-relaxed text-zinc-500">
-                    Cambiá nombre, proveedor o unidad, y corregí cantidades o precios de compras
-                    ya cargadas (por errores de importación o de carga manual).
-                  </p>
-                </div>
-                <button
-                  type="button"
-                  onClick={() => cerrarEditar()}
-                  className="shrink-0 rounded-lg border border-zinc-700 p-2 text-zinc-400 transition hover:border-zinc-500 hover:text-zinc-100"
-                  aria-label="Cerrar"
-                >
-                  <X className="h-4 w-4" aria-hidden />
-                </button>
-              </div>
-
-              <div className="min-h-0 flex-1 space-y-4 overflow-y-auto overscroll-contain px-4 py-3">
-                <div>
-                  <label
-                    htmlFor="editar-nombre"
-                    className="mb-1 block text-[11px] font-medium uppercase tracking-wide text-zinc-500"
-                  >
-                    Nombre
-                  </label>
-                  <input
-                    id="editar-nombre"
-                    type="text"
-                    value={editarNombre}
-                    onChange={(e) => setEditarNombre(e.target.value)}
-                    className="w-full rounded-lg border border-zinc-700 bg-zinc-950 px-3 py-2 text-sm text-zinc-100 outline-none transition focus:border-zinc-500"
-                  />
-                </div>
-
-                <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
-                  <div>
-                    <label
-                      htmlFor="editar-proveedor"
-                      className="mb-1 block text-[11px] font-medium uppercase tracking-wide text-zinc-500"
-                    >
-                      Proveedor
-                    </label>
-                    <select
-                      id="editar-proveedor"
-                      value={editarProveedor}
-                      onChange={(e) => setEditarProveedor(e.target.value as Proveedor | "")}
-                      className="w-full rounded-lg border border-zinc-700 bg-zinc-950 px-2 py-2 text-xs text-zinc-100 outline-none transition focus:border-zinc-500"
-                    >
-                      <option value="">Sin proveedor</option>
-                      {proveedores.map((p) => (
-                        <option key={p} value={p}>
-                          {p}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-                  <div>
-                    <label
-                      htmlFor="editar-rubro"
-                      className="mb-1 block text-[11px] font-medium uppercase tracking-wide text-zinc-500"
-                    >
-                      Rubro
-                    </label>
-                    <select
-                      id="editar-rubro"
-                      value={editarRubro}
-                      onChange={(e) => setEditarRubro(normalizarRubro(e.target.value))}
-                      className="w-full rounded-lg border border-zinc-700 bg-zinc-950 px-2 py-2 text-xs text-zinc-100 outline-none transition focus:border-zinc-500"
-                    >
-                      {RUBROS_INGREDIENTE.map((r) => (
-                        <option key={r} value={r}>
-                          {r}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-                  <div>
-                    <label
-                      htmlFor="editar-unidad"
-                      className="mb-1 block text-[11px] font-medium uppercase tracking-wide text-zinc-500"
-                    >
-                      Unidad
-                    </label>
-                    <select
-                      id="editar-unidad"
-                      value={editarUnidad}
-                      onChange={(e) => setEditarUnidad(e.target.value as UnidadMedida)}
-                      className="w-full rounded-lg border border-zinc-700 bg-zinc-950 px-2 py-2 text-xs text-zinc-100 outline-none transition focus:border-zinc-500"
-                    >
-                      {UNIDADES.map((u) => (
-                        <option key={u} value={u}>
-                          {u}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-                  <div>
-                    <label
-                      htmlFor="editar-buffer"
-                      className="mb-1 block text-[11px] font-medium uppercase tracking-wide text-zinc-500"
-                    >
-                      Buffer %
-                    </label>
-                    <input
-                      id="editar-buffer"
-                      type="number"
-                      min={0}
-                      max={90}
-                      value={editarBuffer}
-                      onChange={(e) => setEditarBuffer(e.target.value)}
-                      className="w-full rounded-lg border border-zinc-700 bg-zinc-950 px-2 py-2 text-xs tabular-nums text-zinc-100 outline-none transition focus:border-zinc-500"
-                    />
-                  </div>
-                </div>
-
-                <div className="border-t border-zinc-800/80 pt-3">
-                  <p className="mb-2 text-[11px] font-semibold uppercase tracking-[0.12em] text-zinc-500">
-                    Historial de compras{" "}
-                    {editarHistorial.length > 0 ? `(${editarHistorial.length})` : ""}
-                  </p>
-                  {editarHistorial.length === 0 ? (
-                    <p className="text-xs italic text-zinc-600">
-                      Sin compras registradas todavía para este ítem.
-                    </p>
-                  ) : (
-                    <ul className="space-y-2">
-                      {editarHistorial.map((fila) => (
-                        <li
-                          key={fila.id}
-                          className="flex flex-wrap items-center gap-1.5 rounded-lg border border-zinc-800 bg-zinc-950/60 px-2 py-2"
-                        >
-                          <input
-                            type="date"
-                            value={fila.fecha}
-                            onChange={(e) =>
-                              actualizarFilaHistorialEditar(fila.id, { fecha: e.target.value })
-                            }
-                            aria-label={`Fecha de la compra del ${formatearFechaCorta(fila.fecha)}`}
-                            className="min-w-0 flex-1 rounded-md border border-zinc-700 bg-zinc-900 px-2 py-1.5 text-xs text-zinc-200 outline-none focus:border-zinc-500"
-                          />
-                          <input
-                            type="text"
-                            inputMode="decimal"
-                            value={fila.cantidad}
-                            onChange={(e) =>
-                              actualizarFilaHistorialEditar(fila.id, { cantidad: e.target.value })
-                            }
-                            aria-label="Cantidad"
-                            placeholder="Cant."
-                            className="w-16 shrink-0 rounded-md border border-zinc-700 bg-zinc-900 px-2 py-1.5 text-center text-xs tabular-nums text-zinc-200 outline-none focus:border-zinc-500"
-                          />
-                          <select
-                            value={fila.unidad}
-                            onChange={(e) =>
-                              actualizarFilaHistorialEditar(fila.id, {
-                                unidad: e.target.value as UnidadMedida,
-                              })
-                            }
-                            aria-label="Unidad"
-                            className="shrink-0 rounded-md border border-zinc-700 bg-zinc-900 px-1.5 py-1.5 text-xs text-zinc-200 outline-none focus:border-zinc-500"
-                          >
-                            {UNIDADES.map((u) => (
-                              <option key={u} value={u}>
-                                {u}
-                              </option>
-                            ))}
-                          </select>
-                          <input
-                            type="text"
-                            inputMode="decimal"
-                            value={fila.precioUnitario}
-                            onChange={(e) =>
-                              actualizarFilaHistorialEditar(fila.id, {
-                                precioUnitario: e.target.value,
-                              })
-                            }
-                            aria-label="Precio unitario"
-                            placeholder="Precio/u"
-                            className="w-20 shrink-0 rounded-md border border-zinc-700 bg-zinc-900 px-2 py-1.5 text-center text-xs tabular-nums text-zinc-200 outline-none focus:border-zinc-500"
-                          />
-                          <button
-                            type="button"
-                            disabled={editarBorrandoFilaId === fila.id}
-                            onClick={() => void borrarFilaHistorialEditar(fila)}
-                            aria-label={`Borrar compra del ${formatearFechaCorta(fila.fecha)}`}
-                            title="Borrar esta compra del historial"
-                            className="inline-flex shrink-0 items-center justify-center rounded-md border border-transparent p-1.5 text-zinc-600 transition hover:border-red-900/60 hover:bg-red-950/40 hover:text-red-300 disabled:opacity-40"
-                          >
-                            {editarBorrandoFilaId === fila.id ? (
-                              <Loader2 className="h-3.5 w-3.5 animate-spin" aria-hidden />
-                            ) : (
-                              <Trash2 className="h-3.5 w-3.5" aria-hidden />
-                            )}
-                          </button>
-                        </li>
-                      ))}
-                    </ul>
-                  )}
-                </div>
-
-                {editarError ? (
-                  <p className="rounded-lg border border-red-900/70 bg-red-950/50 px-3 py-2 text-xs text-red-200">
-                    {editarError}
-                  </p>
-                ) : null}
-              </div>
-
-              <div className="flex shrink-0 flex-wrap gap-2 border-t border-zinc-800 bg-zinc-900/95 px-4 pb-[max(0.75rem,env(safe-area-inset-bottom,0px))] pt-3">
-                <button
-                  type="button"
-                  onClick={() => cerrarEditar()}
-                  className="inline-flex flex-1 items-center justify-center rounded-lg border border-zinc-600 bg-zinc-800 px-3 py-2.5 text-xs font-medium text-zinc-200 transition hover:border-zinc-500 sm:flex-initial sm:px-4"
-                >
-                  Cancelar
-                </button>
-                <button
-                  type="button"
-                  disabled={editarIsSaving}
-                  onClick={() => void guardarEditar()}
-                  className="inline-flex flex-1 items-center justify-center gap-1.5 rounded-lg border border-emerald-800/80 bg-emerald-900/50 px-3 py-2.5 text-xs font-semibold text-emerald-50 transition hover:bg-emerald-800/50 disabled:cursor-not-allowed disabled:opacity-40 sm:flex-initial sm:px-4"
-                >
-                  {editarIsSaving ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : null}
-                  Guardar cambios
-                </button>
-              </div>
-            </div>
-          </div>
-        ) : null}
-      </section>
-
-      {undoAccion ? (
-        <div
-          className="fixed inset-x-4 bottom-4 z-50 mx-auto flex max-w-3xl items-center gap-3 rounded-xl border border-zinc-700 bg-zinc-900/95 px-4 py-3 shadow-xl backdrop-blur-sm sm:inset-x-6"
-          role="status"
-          aria-live="polite"
-        >
-          <CheckCircle2 className="h-5 w-5 shrink-0 text-emerald-400" aria-hidden />
-          <p className="min-w-0 flex-1 text-sm text-zinc-200">
-            {undoAccion.tipo === "pedido" ? (
-              <>
-                <span className="font-medium text-white">{undoAccion.etiqueta}</span> agregado a{" "}
-                {undoAccion.proveedor}
-              </>
-            ) : (
-              <span className="font-medium text-white">{undoAccion.etiqueta} registrada</span>
-            )}
+      {/* ---------- Importar albarán ---------- */}
+      <Hoja
+        abierta={importAbierto}
+        onCerrar={cerrarImport}
+        titulo="Importar albarán"
+        alto="alta"
+      >
+        <div className="space-y-4">
+          <p className="px-1 text-[0.9rem] leading-snug text-label-2">
+            Elegí proveedor y fecha, y pegá las líneas del albarán. Los ítems
+            que no estén en Stock se crean solos.
           </p>
-          <button
-            type="button"
-            onClick={() => void deshacerAccion()}
-            className="inline-flex shrink-0 items-center gap-1.5 rounded-lg border border-zinc-600 bg-zinc-800 px-3 py-1.5 text-sm font-semibold text-white transition hover:bg-zinc-700"
-          >
-            <Undo2 className="h-4 w-4" aria-hidden />
-            Deshacer
-            <kbd className="hidden rounded border border-zinc-600 bg-zinc-900 px-1.5 py-0.5 text-[10px] font-medium text-zinc-400 sm:inline">
-              Z
-            </kbd>
-          </button>
+          <div className="grid gap-3 sm:grid-cols-2">
+            <Selector
+              label="Proveedor"
+              titulo="Proveedor del albarán"
+              valor={importProveedor || null}
+              opciones={proveedores.map((p) => ({ valor: p, label: p }))}
+              onChange={(v) => setImportProveedor(v)}
+              buscar={proveedores.length > 10}
+            />
+            <Fecha
+              label="Fecha del albarán"
+              valor={importFecha}
+              onChange={setImportFecha}
+            />
+          </div>
+          <div>
+            <p className="mb-1.5 pl-1 text-[0.82rem] font-medium text-label-2">
+              Unidad por defecto
+            </p>
+            <Segmentado
+              etiqueta="Unidad por defecto"
+              valor={importUnidadDefault}
+              opciones={UNIDADES.map((u) => ({ valor: u, label: u }))}
+              onChange={setImportUnidadDefault}
+            />
+          </div>
+          <div>
+            <p className="mb-1.5 pl-1 text-[0.82rem] font-medium text-label-2">
+              El precio (4.ª columna) es
+            </p>
+            <Segmentado
+              etiqueta="El precio de la 4.ª columna es"
+              valor={importTipoPrecio}
+              opciones={[
+                { valor: "unitario", label: "Precio unitario" },
+                { valor: "total", label: "Total de la línea" },
+              ]}
+              onChange={setImportTipoPrecio}
+            />
+          </div>
+          <AreaTexto
+            label="Líneas del albarán"
+            value={importTexto}
+            onChange={(e) => setImportTexto(e.target.value)}
+            rows={8}
+            spellCheck={false}
+            className="resize-y font-mono text-[0.9rem]"
+            placeholder={`Salmón: 8 Kilo\nAtún: 5 Kilo\nAguacate | 2 | Caja | 12.50`}
+            ayuda="El precio (opcional) solo se reconoce con «nombre | cantidad | unidad | precio» o separado por tabs."
+          />
+          {importError ? <Alerta>{importError}</Alerta> : null}
+          <div>
+            <p className="mb-1.5 px-1 text-[0.86rem] text-label-2">
+              <strong className="font-semibold tabular-nums text-label">
+                {nLineasImport}
+              </strong>{" "}
+              {nLineasImport === 1 ? "línea reconocida" : "líneas reconocidas"}
+            </p>
+            {nLineasImport > 0 ? (
+              <ul className="max-h-64 overflow-y-auto rounded-card bg-surface-3">
+                {importLineasPreview.slice(0, 20).map((l, i) => (
+                  <li
+                    key={i}
+                    className="flex min-h-11 items-center gap-2 border-b border-separator px-3 py-2 text-[0.9rem] last:border-0"
+                  >
+                    <span className="min-w-0 flex-1 truncate">
+                      <span className="font-medium text-label">{l.item}</span>
+                      <span className="text-label-3">
+                        {" "}
+                        · {l.cantidad || "—"} {l.unidad}
+                        {l.precio ? ` · ${l.precio} €` : ""}
+                      </span>
+                    </span>
+                    {l.existente ? (
+                      <Etiqueta tono="exito">Vinculado</Etiqueta>
+                    ) : (
+                      <Etiqueta tono="alerta">Nuevo en Stock</Etiqueta>
+                    )}
+                  </li>
+                ))}
+              </ul>
+            ) : null}
+            {nLineasImport > 20 ? (
+              <p className="mt-1.5 px-1 text-[0.82rem] text-label-3">
+                … y {nLineasImport - 20} más
+              </p>
+            ) : null}
+          </div>
+          <PieHoja>
+            <Boton variante="secundario" onClick={cerrarImport}>
+              Cancelar
+            </Boton>
+            <Boton
+              cargando={importIsSaving}
+              disabled={nLineasImport === 0}
+              onClick={() => void confirmarImport()}
+            >
+              {nLineasImport > 0
+                ? `Importar ${nLineasImport} ${nLineasImport === 1 ? "línea" : "líneas"}`
+                : "Importar"}
+            </Boton>
+          </PieHoja>
         </div>
-      ) : null}
-    </main>
+      </Hoja>
+
+      {/* ---------- Registrar última compra ---------- */}
+      <Hoja
+        abierta={registrarItem !== null}
+        onCerrar={cerrarRegistrar}
+        titulo="Registrar última compra"
+      >
+        {registrarItem ? (
+          <div className="space-y-4">
+            <p className="px-1 text-[0.9rem] leading-snug text-label-2">
+              <strong className="text-label">{registrarItem.nombre}</strong>,
+              sin albarán: cuánto y cuándo se compró por última vez, para que la
+              predicción tenga con qué calcular.
+            </p>
+            <Fecha
+              label="Fecha de la compra"
+              valor={registrarFecha}
+              onChange={setRegistrarFecha}
+            />
+            <div className="grid grid-cols-2 gap-3">
+              <Campo
+                label={`Cantidad (${registrarItem.unidadCompra})`}
+                inputMode="decimal"
+                value={registrarCantidad}
+                onChange={(e) => setRegistrarCantidad(e.target.value)}
+                placeholder="0"
+                className="tabular-nums"
+              />
+              <Campo
+                label="Precio (opcional)"
+                inputMode="decimal"
+                value={registrarPrecio}
+                onChange={(e) => setRegistrarPrecio(e.target.value)}
+                placeholder="0,00"
+                className="tabular-nums"
+              />
+            </div>
+            <div
+              aria-disabled={!registrarPrecio.trim() || undefined}
+              className={cx(
+                !registrarPrecio.trim() && "pointer-events-none opacity-50",
+              )}
+            >
+              <p className="mb-1.5 pl-1 text-[0.82rem] font-medium text-label-2">
+                Ese precio es
+              </p>
+              <Segmentado
+                etiqueta="Ese precio es"
+                valor={registrarTipoPrecio}
+                opciones={[
+                  { valor: "unitario", label: "Precio unitario" },
+                  { valor: "total", label: "Total de la compra" },
+                ]}
+                onChange={setRegistrarTipoPrecio}
+              />
+            </div>
+            <Campo
+              label="Cada cuántos días se repite (opcional)"
+              inputMode="numeric"
+              value={registrarFrecuencia}
+              onChange={(e) => setRegistrarFrecuencia(e.target.value)}
+              placeholder="Ej: 30"
+              className="tabular-nums"
+              ayuda="Solo hace falta si es la primera compra que cargás de este ítem: con tu estimación ya se calcula la urgencia, sin esperar a una 2.ª compra."
+            />
+            {registrarError ? <Alerta>{registrarError}</Alerta> : null}
+            <PieHoja>
+              <Boton variante="secundario" onClick={cerrarRegistrar}>
+                Cancelar
+              </Boton>
+              <Boton
+                cargando={registrarIsSaving}
+                onClick={() => void confirmarRegistrar()}
+              >
+                Guardar
+              </Boton>
+            </PieHoja>
+          </div>
+        ) : null}
+      </Hoja>
+
+      {/* ---------- Frecuencia estimada ---------- */}
+      <Hoja
+        abierta={frecuenciaItem !== null}
+        onCerrar={cerrarFrecuencia}
+        titulo="Frecuencia estimada"
+      >
+        {frecuenciaItem ? (
+          <div className="space-y-4">
+            <p className="px-1 text-[0.9rem] leading-snug text-label-2">
+              Cada cuántos días aprox. volvés a comprar{" "}
+              <strong className="text-label">{frecuenciaItem.nombre}</strong>.
+              Con esto se calcula la urgencia aunque tenga una sola compra
+              registrada.
+            </p>
+            <Campo
+              label="Días aprox."
+              inputMode="numeric"
+              enterKeyHint="done"
+              value={frecuenciaValor}
+              onChange={(e) => setFrecuenciaValor(e.target.value)}
+              placeholder="Ej: 30"
+              className="tabular-nums"
+              ayuda="Dejalo vacío para borrar la estimación (vuelve a Sin datos hasta la próxima compra real)."
+              onKeyDown={(e) => {
+                if (e.key === "Enter") {
+                  e.preventDefault();
+                  void confirmarFrecuencia();
+                }
+              }}
+            />
+            {frecuenciaError ? <Alerta>{frecuenciaError}</Alerta> : null}
+            <PieHoja>
+              <Boton variante="secundario" onClick={cerrarFrecuencia}>
+                Cancelar
+              </Boton>
+              <Boton
+                cargando={frecuenciaIsSaving}
+                onClick={() => void confirmarFrecuencia()}
+              >
+                Guardar
+              </Boton>
+            </PieHoja>
+          </div>
+        ) : null}
+      </Hoja>
+
+      {/* ---------- Editar ítem ---------- */}
+      <Hoja
+        abierta={editarItem !== null}
+        onCerrar={cerrarEditar}
+        titulo="Editar ítem"
+        alto="alta"
+      >
+        {editarItem ? (
+          <div className="space-y-4">
+            <Campo
+              label="Nombre"
+              value={editarNombre}
+              onChange={(e) => setEditarNombre(e.target.value)}
+            />
+            <div className="grid grid-cols-2 gap-3">
+              <Selector
+                label="Proveedor"
+                valor={editarProveedor}
+                opciones={[
+                  { valor: "", label: "Sin proveedor" },
+                  ...proveedores.map((p) => ({ valor: p, label: p })),
+                ]}
+                onChange={(v) => setEditarProveedor(v as Proveedor | "")}
+                buscar={proveedores.length > 10}
+              />
+              <Selector
+                label="Rubro"
+                valor={editarRubro}
+                opciones={RUBROS_INGREDIENTE.map((r) => ({
+                  valor: r,
+                  label: r,
+                }))}
+                onChange={(v) => setEditarRubro(normalizarRubro(v))}
+              />
+              <Selector
+                label="Unidad"
+                valor={editarUnidad}
+                opciones={UNIDADES.map((u) => ({ valor: u, label: u }))}
+                onChange={(v) => setEditarUnidad(v)}
+              />
+              <Campo
+                label="Buffer %"
+                type="number"
+                inputMode="numeric"
+                min={0}
+                max={90}
+                value={editarBuffer}
+                onChange={(e) => setEditarBuffer(e.target.value)}
+                className="tabular-nums"
+              />
+            </div>
+
+            <Seccion
+              titulo={`Historial de compras${
+                editarHistorial.length > 0 ? ` · ${editarHistorial.length}` : ""
+              }`}
+              pie="Corregí cantidades o precios mal cargados (importación o carga a mano)."
+            >
+              {editarHistorial.length === 0 ? (
+                <p className="rounded-card bg-surface-3 px-4 py-4 text-[0.94rem] text-label-3">
+                  Sin compras registradas todavía para este ítem.
+                </p>
+              ) : (
+                <ul className={LISTA_AGRUPADA}>
+                  {editarHistorial.map((fila) => {
+                    const borrandoFila = editarBorrandoFilaId === fila.id;
+                    return (
+                      <li
+                        key={fila.id}
+                        className="border-b border-separator px-3 py-3 last:border-0"
+                      >
+                        <div className="flex items-end gap-1">
+                          <div className="min-w-0 flex-1">
+                            <Fecha
+                              valor={fila.fecha}
+                              onChange={(iso) =>
+                                actualizarFilaHistorialEditar(fila.id, {
+                                  fecha: iso,
+                                })
+                              }
+                            />
+                          </div>
+                          <BotonIcono
+                            etiqueta={`Borrar compra del ${formatearFechaCorta(fila.fecha)}`}
+                            variante="plano"
+                            disabled={borrandoFila}
+                            onClick={() => void borrarFilaHistorialEditar(fila)}
+                            className="text-danger"
+                            icono={
+                              borrandoFila ? (
+                                <Loader2
+                                  className="h-[18px] w-[18px] animate-spin"
+                                  aria-hidden
+                                />
+                              ) : (
+                                <Trash2
+                                  className="h-[18px] w-[18px]"
+                                  aria-hidden
+                                />
+                              )
+                            }
+                          />
+                        </div>
+                        <div className="mt-2 grid grid-cols-3 gap-2">
+                          <label className="min-w-0">
+                            <span className="mb-1.5 block pl-1 text-[0.82rem] font-medium text-label-2">
+                              Cantidad
+                            </span>
+                            <input
+                              type="text"
+                              inputMode="decimal"
+                              value={fila.cantidad}
+                              onChange={(e) =>
+                                actualizarFilaHistorialEditar(fila.id, {
+                                  cantidad: e.target.value,
+                                })
+                              }
+                              placeholder="Cant."
+                              className={cx(
+                                INPUT_FILA,
+                                "h-12 w-full text-right",
+                              )}
+                            />
+                          </label>
+                          <Selector
+                            label="Unidad"
+                            valor={fila.unidad}
+                            opciones={UNIDADES.map((u) => ({
+                              valor: u,
+                              label: u,
+                            }))}
+                            onChange={(v) =>
+                              actualizarFilaHistorialEditar(fila.id, {
+                                unidad: v,
+                              })
+                            }
+                          />
+                          <label className="min-w-0">
+                            <span className="mb-1.5 block pl-1 text-[0.82rem] font-medium text-label-2">
+                              Precio/u
+                            </span>
+                            <input
+                              type="text"
+                              inputMode="decimal"
+                              value={fila.precioUnitario}
+                              onChange={(e) =>
+                                actualizarFilaHistorialEditar(fila.id, {
+                                  precioUnitario: e.target.value,
+                                })
+                              }
+                              placeholder="—"
+                              className={cx(
+                                INPUT_FILA,
+                                "h-12 w-full text-right",
+                              )}
+                            />
+                          </label>
+                        </div>
+                      </li>
+                    );
+                  })}
+                </ul>
+              )}
+            </Seccion>
+
+            {editarError ? <Alerta>{editarError}</Alerta> : null}
+            <PieHoja>
+              <Boton variante="secundario" onClick={cerrarEditar}>
+                Cancelar
+              </Boton>
+              <Boton
+                cargando={editarIsSaving}
+                onClick={() => void guardarEditar()}
+              >
+                Guardar cambios
+              </Boton>
+            </PieHoja>
+          </div>
+        ) : null}
+      </Hoja>
+    </Pantalla>
+  );
+}
+
+/** Bloque de error (mismo estilo que Avisos). */
+function Alerta(props: { children: ReactNode; className?: string }) {
+  return (
+    <div
+      role="alert"
+      className={cx(
+        "flex gap-3 rounded-card bg-danger-soft px-4 py-3 text-[0.94rem] text-danger",
+        props.className,
+      )}
+    >
+      <CircleAlert className="mt-0.5 h-[18px] w-[18px] shrink-0" aria-hidden />
+      <p className="min-w-0 flex-1">{props.children}</p>
+    </div>
+  );
+}
+
+/** Botonera fija al pie de una hoja: Cancelar + acción principal. */
+function PieHoja(props: { children: ReactNode }) {
+  return (
+    <div className="sticky bottom-0 -mx-4 grid grid-cols-[auto_1fr] gap-2 bg-surface-2 px-4 pb-1 pt-3">
+      {props.children}
+    </div>
+  );
+}
+
+/** Variación porcentual de precio: sube = peligro, baja = éxito. */
+function VariacionPrecio(props: { pct: number }) {
+  const subio = props.pct > 0;
+  const texto = `${subio ? "+" : ""}${props.pct.toLocaleString("es-ES", {
+    maximumFractionDigits: 1,
+  })} %`;
+  return (
+    <span
+      className={cx(
+        "inline-flex shrink-0 items-center justify-end gap-1 text-[0.86rem] font-semibold tabular-nums",
+        subio ? "text-danger" : "text-success",
+      )}
+    >
+      {subio ? (
+        <TrendingUp className="h-3.5 w-3.5 shrink-0" aria-hidden />
+      ) : (
+        <TrendingDown className="h-3.5 w-3.5 shrink-0" aria-hidden />
+      )}
+      {texto}
+    </span>
   );
 }
