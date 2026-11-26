@@ -1,8 +1,15 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { Scale, TrendingUp, Wallet } from "lucide-react";
-import { EsqueletoLista } from "@/app/ui";
+import { CircleAlert, Receipt, Scale, TrendingUp, Wallet } from "lucide-react";
+import {
+  EsqueletoLista,
+  EstadoVacio,
+  Pantalla,
+  Seccion,
+  Segmentado,
+  Selector,
+} from "@/app/ui";
 import {
   Bar,
   BarChart,
@@ -60,23 +67,38 @@ function formatearKilos(n: number): string {
     return "—";
   }
   return (
-    n.toLocaleString("es-ES", { maximumFractionDigits: 1, minimumFractionDigits: 0 }) + " kg"
+    n.toLocaleString("es-ES", {
+      maximumFractionDigits: 1,
+      minimumFractionDigits: 0,
+    }) + " kg"
   );
 }
 
-function KpiCard(props: { icono: React.ReactNode; titulo: string; valor: string; sub?: string }) {
+function KpiCard(props: {
+  icono: React.ReactNode;
+  titulo: string;
+  valor: string;
+  sub?: string;
+}) {
   const { icono, titulo, valor, sub } = props;
   return (
-    <div className="rounded-xl border border-zinc-800 bg-zinc-950/60 p-4">
-      <div className="flex items-center gap-2 text-zinc-400">
+    <div className="min-w-0 rounded-card bg-surface-3 p-4 shadow-[0_1px_2px_rgb(0_0_0/0.04)]">
+      <p className="flex items-center gap-1.5 text-[0.8rem] font-medium text-label-3">
         {icono}
-        <p className="text-[10px] font-semibold uppercase tracking-[0.14em]">{titulo}</p>
-      </div>
-      <p className="mt-2 text-2xl font-semibold tabular-nums text-zinc-100">{valor}</p>
-      {sub ? <p className="mt-0.5 text-xs text-zinc-500">{sub}</p> : null}
+        <span className="truncate">{titulo}</span>
+      </p>
+      <p className="mt-1.5 text-[1.6rem] font-semibold leading-tight tabular-nums text-label">
+        {valor}
+      </p>
+      {sub ? (
+        <p className="mt-0.5 text-[0.82rem] leading-snug text-label-3">{sub}</p>
+      ) : null}
     </div>
   );
 }
+
+const LISTA =
+  "overflow-hidden rounded-card bg-surface-3 shadow-[0_1px_2px_rgb(0_0_0/0.04)]";
 
 type ChartPoint = {
   etiqueta: string;
@@ -97,11 +119,13 @@ function TooltipGasto({
   }
   const p = payload[0].payload;
   return (
-    <div className="rounded-lg border border-zinc-700 bg-zinc-900 px-3 py-2 text-xs shadow-xl">
-      <p className="font-medium text-zinc-100">{p.etiquetaLarga}</p>
-      <p className="mt-0.5 text-zinc-300">
+    <div className="rounded-control border border-separator bg-surface-2 px-3 py-2 text-[0.86rem] shadow-lg">
+      <p className="font-medium text-label">{p.etiquetaLarga}</p>
+      <p className="mt-0.5 tabular-nums text-label-2">
         {formatearEuros(p.valor)}{" "}
-        {p.esProyectado ? <span className="text-amber-400">(proyectado)</span> : null}
+        {p.esProyectado ? (
+          <span className="text-warning">(proyectado)</span>
+        ) : null}
       </p>
     </div>
   );
@@ -113,7 +137,9 @@ export default function GastoPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [periodoGrafico, setPeriodoGrafico] = useState<PeriodoGasto>("semana");
-  const [semanaSeleccionada, setSemanaSeleccionada] = useState<string | null>(null);
+  const [semanaSeleccionada, setSemanaSeleccionada] = useState<string | null>(
+    null,
+  );
 
   useEffect(() => {
     const timer = window.setTimeout(() => {
@@ -128,7 +154,11 @@ export default function GastoPage() {
           setStockItems(items);
           setCompras(historial);
         } catch (err) {
-          setError(err instanceof Error ? err.message : "Error al conectar con Supabase.");
+          setError(
+            err instanceof Error
+              ? err.message
+              : "Error al conectar con Supabase.",
+          );
         } finally {
           setIsLoading(false);
         }
@@ -138,22 +168,31 @@ export default function GastoPage() {
     return () => window.clearTimeout(timer);
   }, []);
 
-  const config = PERIODOS_GRAFICO.find((p) => p.id === periodoGrafico) ?? PERIODOS_GRAFICO[0];
+  const config =
+    PERIODOS_GRAFICO.find((p) => p.id === periodoGrafico) ??
+    PERIODOS_GRAFICO[0];
 
-  const comprasPorStockItem = useMemo(() => agruparComprasPorStockItem(compras), [compras]);
-  const precioPorStockItem = useMemo(() => ultimoPrecioUnitarioPorStockItem(compras), [compras]);
+  const comprasPorStockItem = useMemo(
+    () => agruparComprasPorStockItem(compras),
+    [compras],
+  );
+  const precioPorStockItem = useMemo(
+    () => ultimoPrecioUnitarioPorStockItem(compras),
+    [compras],
+  );
 
   const consumoSemanal = useMemo(
     () => agruparConsumoIngredientePorSemana(compras),
-    [compras]
+    [compras],
   );
 
   const semanasDisponibles = useMemo(
     () => semanasConConsumo(consumoSemanal, 12),
-    [consumoSemanal]
+    [consumoSemanal],
   );
 
-  const claveSemanaActiva = semanaSeleccionada ?? semanasDisponibles[0]?.clave ?? null;
+  const claveSemanaActiva =
+    semanaSeleccionada ?? semanasDisponibles[0]?.clave ?? null;
 
   const filasSemanaActiva = useMemo(() => {
     if (!claveSemanaActiva) {
@@ -167,13 +206,13 @@ export default function GastoPage() {
   const totalesSemanaActiva = useMemo(() => {
     return filasSemanaActiva.reduce(
       (acc, f) => ({ kilos: acc.kilos + f.kilos, gasto: acc.gasto + f.gasto }),
-      { kilos: 0, gasto: 0 }
+      { kilos: 0, gasto: 0 },
     );
   }, [filasSemanaActiva]);
 
   const gastoReal = useMemo(
     () => agruparGastoPorPeriodo(compras, periodoGrafico),
-    [compras, periodoGrafico]
+    [compras, periodoGrafico],
   );
   const gastoProyectado = useMemo(
     () =>
@@ -182,13 +221,23 @@ export default function GastoPage() {
         comprasPorStockItem,
         precioPorStockItem,
         periodoGrafico,
-        config.horizonteDias
+        config.horizonteDias,
       ),
-    [stockItems, comprasPorStockItem, precioPorStockItem, periodoGrafico, config.horizonteDias]
+    [
+      stockItems,
+      comprasPorStockItem,
+      precioPorStockItem,
+      periodoGrafico,
+      config.horizonteDias,
+    ],
   );
 
   const chartData = useMemo((): ChartPoint[] => {
-    const serie = combinarSeriesGasto(gastoReal, gastoProyectado, periodoGrafico);
+    const serie = combinarSeriesGasto(
+      gastoReal,
+      gastoProyectado,
+      periodoGrafico,
+    );
     const pasado = serie.filter((p) => p.real != null);
     const futuro = serie.filter((p) => p.real == null && p.proyectado != null);
     const pasadoRecortado = pasado.slice(-config.nBuckets);
@@ -203,9 +252,15 @@ export default function GastoPage() {
 
   const claveActual = clavePeriodo(hoyISO(), periodoGrafico);
   const gastoPeriodoActual = gastoReal.get(claveActual) ?? 0;
-  const kilosPeriodoActual = totalKilosEnPeriodo(compras, periodoGrafico, claveActual);
+  const kilosPeriodoActual = totalKilosEnPeriodo(
+    compras,
+    periodoGrafico,
+    claveActual,
+  );
 
-  const clavesPasadasCompletas = [...gastoReal.keys()].filter((k) => k !== claveActual).sort();
+  const clavesPasadasCompletas = [...gastoReal.keys()]
+    .filter((k) => k !== claveActual)
+    .sort();
   const ultimasCompletas = clavesPasadasCompletas.slice(-config.nBuckets);
   const promedioPeriodo =
     ultimasCompletas.length > 0
@@ -215,68 +270,80 @@ export default function GastoPage() {
 
   const proximaClaveProyectada = [...gastoProyectado.keys()].sort()[0];
   const proyeccionProximoPeriodo = proximaClaveProyectada
-    ? gastoProyectado.get(proximaClaveProyectada) ?? 0
+    ? (gastoProyectado.get(proximaClaveProyectada) ?? 0)
     : 0;
 
   const gastoTotalHistorico = useMemo(
     () => compras.reduce((acc, c) => acc + (c.importeTotal ?? 0), 0),
-    [compras]
+    [compras],
   );
 
-  const proveedoresTop = useMemo<GastoProveedor[]>(() => gastoPorProveedor(compras), [compras]);
+  const proveedoresTop = useMemo<GastoProveedor[]>(
+    () => gastoPorProveedor(compras),
+    [compras],
+  );
   const conPrecioCount = useMemo(
     () => stockItems.filter((it) => precioPorStockItem.has(it.id)).length,
-    [stockItems, precioPorStockItem]
+    [stockItems, precioPorStockItem],
   );
 
   const etiquetaPeriodoActual =
     periodoGrafico === "semana" ? "esta semana" : "este mes";
 
   return (
-    <main className="min-h-screen min-w-0 bg-zinc-950 px-4 py-6 text-zinc-100 sm:px-6 sm:py-10">
-      <section className="mx-auto w-full max-w-5xl rounded-2xl border border-zinc-800 bg-zinc-900/60 p-6 shadow-[0_0_0_1px_rgba(255,255,255,0.02)] backdrop-blur">
-        <header className="mb-6 flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
-          <div>
-            <h1 className="font-display text-3xl font-medium tracking-tight text-ink">Gasto</h1>
-            <p className="mt-1 text-sm text-zinc-400">
-              Gasto en euros según albaranes importados, consumo en kilos por ingrediente, y
-              proyección según el ritmo de compra de cada ítem de Stock.
-            </p>
-          </div>
-          <div className="inline-flex shrink-0 rounded-lg border border-zinc-700 bg-zinc-900 p-0.5">
-            {PERIODOS_GRAFICO.map((p) => (
-              <button
-                key={p.id}
-                type="button"
-                onClick={() => setPeriodoGrafico(p.id)}
-                className={`rounded-md px-3 py-1.5 text-xs font-medium transition ${
-                  periodoGrafico === p.id
-                    ? "border border-zinc-500 bg-zinc-800 text-zinc-50"
-                    : "border border-transparent text-zinc-400 hover:text-zinc-200"
-                }`}
-              >
-                {p.label}
-              </button>
-            ))}
-          </div>
-        </header>
-
-        {error ? (
-          <p className="mb-4 rounded-lg border border-red-900/70 bg-red-950/50 px-3 py-2 text-sm text-red-200">
-            {error}
+    <Pantalla
+      titulo="Gasto"
+      subtitulo={
+        isLoading
+          ? "Cargando…"
+          : `${compras.length} ${compras.length === 1 ? "compra cargada" : "compras cargadas"}`
+      }
+      ancho="amplio"
+      ayuda={
+        <>
+          <p>Gasto en euros según los albaranes importados.</p>
+          <p>
+            Consumo en kilos por ingrediente (solo ítems comprados en Kilo) y
+            proyección según el ritmo de compra de cada ítem de Stock.
           </p>
-        ) : null}
+        </>
+      }
+    >
+      {error ? (
+        <div
+          role="alert"
+          className="mb-4 flex gap-3 rounded-card bg-danger-soft px-4 py-3 text-[0.94rem] text-danger"
+        >
+          <CircleAlert
+            className="mt-0.5 h-[18px] w-[18px] shrink-0"
+            aria-hidden
+          />
+          <p className="min-w-0 flex-1">{error}</p>
+        </div>
+      ) : null}
 
-        {isLoading ? (
-          <EsqueletoLista filas={6} />
-        ) : compras.length === 0 ? (
-          <p className="text-sm text-zinc-500">
-            Todavía no hay compras cargadas. Importá albaranes con precio desde{" "}
-            <span className="text-zinc-300">/compras</span> para ver el gasto acá.
-          </p>
-        ) : (
-          <>
-            <div className="mb-6 grid grid-cols-2 gap-3 sm:grid-cols-4">
+      {isLoading ? (
+        <EsqueletoLista filas={6} />
+      ) : compras.length === 0 ? (
+        <EstadoVacio
+          icono={<Receipt className="h-6 w-6" aria-hidden />}
+          titulo="Todavía no hay compras"
+          texto="Importá albaranes con precio desde Compras para ver el gasto acá."
+        />
+      ) : (
+        <>
+          <Segmentado
+            etiqueta="Período"
+            valor={periodoGrafico}
+            onChange={setPeriodoGrafico}
+            opciones={PERIODOS_GRAFICO.map((p) => ({
+              valor: p.id,
+              label: p.label,
+            }))}
+          />
+
+          <Seccion titulo="Resumen">
+            <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
               <KpiCard
                 icono={<Wallet className="h-4 w-4" aria-hidden />}
                 titulo={`Gasto ${etiquetaPeriodoActual}`}
@@ -286,14 +353,22 @@ export default function GastoPage() {
               <KpiCard
                 icono={<Scale className="h-4 w-4" aria-hidden />}
                 titulo={`Kg ${etiquetaPeriodoActual}`}
-                valor={kilosPeriodoActual > 0 ? formatearKilos(kilosPeriodoActual) : "—"}
+                valor={
+                  kilosPeriodoActual > 0
+                    ? formatearKilos(kilosPeriodoActual)
+                    : "—"
+                }
                 sub="Solo ítems comprados en Kilo"
               />
               <KpiCard
                 icono={<TrendingUp className="h-4 w-4" aria-hidden />}
                 titulo="Próximo período (proy.)"
                 valor={formatearEuros(proyeccionProximoPeriodo)}
-                sub={conPrecioCount === 0 ? "Cargá precios para estimar" : undefined}
+                sub={
+                  conPrecioCount === 0
+                    ? "Cargá precios para estimar"
+                    : undefined
+                }
               />
               <KpiCard
                 icono={<Wallet className="h-4 w-4" aria-hidden />}
@@ -302,175 +377,188 @@ export default function GastoPage() {
                 sub={`Prom. ${config.label.toLowerCase()}: ${formatearEuros(promedioPeriodo)}`}
               />
             </div>
+          </Seccion>
 
-            <div className="mb-2 flex items-baseline justify-between gap-2">
-              <h2 className="text-sm uppercase tracking-[0.14em] text-zinc-400">
-                Evolución del gasto
-              </h2>
-              <p className="text-[11px] text-zinc-600">
-                {periodoGrafico === "semana"
-                  ? "Semanas por rango de fechas (lun–dom)"
-                  : "Por mes calendario"}
-              </p>
-            </div>
-            <div className="mb-8 h-64 rounded-xl border border-zinc-800 bg-zinc-950/60 p-3">
+          <Seccion
+            titulo="Evolución del gasto"
+            pie={
+              <span className="flex flex-wrap items-center gap-x-4 gap-y-1">
+                <span className="inline-flex items-center gap-1.5">
+                  <span
+                    aria-hidden
+                    className="inline-block size-2.5 rounded-sm bg-success"
+                  />
+                  Real
+                </span>
+                <span className="inline-flex items-center gap-1.5">
+                  <span
+                    aria-hidden
+                    className="inline-block size-2.5 rounded-sm bg-warning/45"
+                  />
+                  Proyectado
+                </span>
+                <span>
+                  {periodoGrafico === "semana"
+                    ? "Semanas de lunes a domingo"
+                    : "Por mes calendario"}
+                </span>
+              </span>
+            }
+          >
+            <div className="h-64 rounded-card bg-surface-3 p-3 shadow-[0_1px_2px_rgb(0_0_0/0.04)]">
               {chartData.length === 0 ? (
-                <div className="flex h-full items-center justify-center text-sm text-zinc-600">
+                <div className="flex h-full items-center justify-center text-[0.94rem] text-label-3">
                   Sin datos suficientes para graficar.
                 </div>
               ) : (
                 <ResponsiveContainer width="100%" height="100%">
-                  <BarChart data={chartData} margin={{ top: 8, right: 8, left: 0, bottom: 0 }}>
-                    <CartesianGrid strokeDasharray="3 3" stroke="#27272a" vertical={false} />
+                  <BarChart
+                    data={chartData}
+                    margin={{ top: 8, right: 8, left: 0, bottom: 0 }}
+                  >
+                    <CartesianGrid
+                      strokeDasharray="3 3"
+                      stroke="var(--separator)"
+                      vertical={false}
+                    />
                     <XAxis
                       dataKey="etiqueta"
-                      tick={{ fill: "#a1a1aa", fontSize: 10 }}
-                      axisLine={{ stroke: "#3f3f46" }}
+                      tick={{ fill: "var(--label-3)", fontSize: 13 }}
+                      axisLine={{ stroke: "var(--separator)" }}
                       tickLine={false}
-                      interval={0}
+                      interval="preserveStartEnd"
+                      minTickGap={4}
                       angle={periodoGrafico === "semana" ? -35 : 0}
-                      textAnchor={periodoGrafico === "semana" ? "end" : "middle"}
-                      height={periodoGrafico === "semana" ? 52 : 30}
+                      textAnchor={
+                        periodoGrafico === "semana" ? "end" : "middle"
+                      }
+                      height={periodoGrafico === "semana" ? 56 : 30}
                     />
                     <YAxis
-                      tick={{ fill: "#a1a1aa", fontSize: 11 }}
+                      tick={{ fill: "var(--label-3)", fontSize: 13 }}
                       axisLine={false}
                       tickLine={false}
-                      width={48}
+                      width={52}
                     />
-                    <Tooltip content={<TooltipGasto />} cursor={{ fill: "#3f3f4630" }} />
+                    <Tooltip
+                      content={<TooltipGasto />}
+                      cursor={{ fill: "var(--fill)" }}
+                    />
                     <Bar dataKey="valor" radius={[4, 4, 0, 0]}>
                       {chartData.map((entry, i) => (
-                        <Cell key={i} fill={entry.esProyectado ? "#f59e0b55" : "#34d399"} />
+                        <Cell
+                          key={i}
+                          fill={
+                            entry.esProyectado
+                              ? "var(--warning)"
+                              : "var(--success)"
+                          }
+                          fillOpacity={entry.esProyectado ? 0.45 : 1}
+                        />
                       ))}
                     </Bar>
                   </BarChart>
                 </ResponsiveContainer>
               )}
             </div>
-            <p className="-mt-6 mb-8 flex flex-wrap items-center gap-3 text-[11px] text-zinc-500">
-              <span className="inline-flex items-center gap-1.5">
-                <span className="inline-block h-2 w-2 rounded-sm bg-emerald-400" /> Real
-              </span>
-              <span className="inline-flex items-center gap-1.5">
-                <span className="inline-block h-2 w-2 rounded-sm bg-amber-500/40" /> Proyectado
-              </span>
-            </p>
+          </Seccion>
 
-            <section className="mb-8 rounded-xl border border-zinc-800 bg-zinc-950/60 p-4">
-              <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
-                <div>
-                  <h2 className="text-sm uppercase tracking-[0.14em] text-zinc-400">
-                    Consumo por ingrediente
-                  </h2>
-                  <p className="mt-1 text-xs text-zinc-500">
-                    Kilos (solo compras en Kilo) y gasto por semana. Los ítems en Caja o Unidad
-                    muestran gasto pero no kg.
-                  </p>
-                </div>
-                {semanasDisponibles.length > 0 ? (
-                  <div className="flex flex-wrap gap-1.5">
-                    {semanasDisponibles.map((s) => (
-                      <button
-                        key={s.clave}
-                        type="button"
-                        onClick={() => setSemanaSeleccionada(s.clave)}
-                        className={`rounded-md border px-2.5 py-1 text-[11px] font-medium transition ${
-                          claveSemanaActiva === s.clave
-                            ? "border-zinc-500 bg-zinc-800 text-zinc-100"
-                            : "border-zinc-800 bg-zinc-900 text-zinc-500 hover:border-zinc-600 hover:text-zinc-300"
-                        }`}
-                      >
-                        {s.etiqueta}
-                      </button>
-                    ))}
-                  </div>
-                ) : null}
+          <Seccion
+            titulo="Consumo por ingrediente"
+            pie="Kilos (solo compras en Kilo) y gasto por semana. Los ítems en Caja o Unidad muestran gasto pero no kg."
+          >
+            {semanasDisponibles.length > 0 ? (
+              <div className="mb-3">
+                <Selector
+                  label="Semana"
+                  titulo="Elegir semana"
+                  opciones={semanasDisponibles.map((s) => ({
+                    valor: s.clave,
+                    label: s.etiqueta,
+                  }))}
+                  valor={claveSemanaActiva}
+                  onChange={setSemanaSeleccionada}
+                />
               </div>
+            ) : null}
 
-              {filasSemanaActiva.length === 0 ? (
-                <p className="text-sm text-zinc-600">Sin compras en esta semana.</p>
-              ) : (
-                <>
-                  <div className="mb-3 flex flex-wrap gap-4 text-xs text-zinc-400">
-                    <span>
-                      Total kg:{" "}
-                      <span className="font-semibold text-zinc-200">
-                        {formatearKilos(totalesSemanaActiva.kilos)}
-                      </span>
+            {filasSemanaActiva.length === 0 ? (
+              <p className="px-1 text-[0.94rem] text-label-3">
+                Sin compras en esta semana.
+              </p>
+            ) : (
+              <ul className={LISTA}>
+                <li className="flex min-h-10 items-center gap-3 border-b border-separator px-4 text-[0.8rem] font-medium text-label-3">
+                  <span className="min-w-0 flex-1">Ingrediente</span>
+                  <span className="w-20 shrink-0 text-right">Kg</span>
+                  <span className="w-20 shrink-0 text-right">Gasto</span>
+                </li>
+                {filasSemanaActiva.map((fila) => (
+                  <li
+                    key={`${fila.claveSemana}-${fila.nombre}`}
+                    className="flex min-h-12 items-center gap-3 border-b border-separator px-4 py-2 text-[1rem]"
+                  >
+                    <span className="min-w-0 flex-1 text-label">
+                      {fila.nombre}
                     </span>
-                    <span>
-                      Total gasto:{" "}
-                      <span className="font-semibold text-zinc-200">
-                        {formatearEuros(totalesSemanaActiva.gasto)}
-                      </span>
+                    <span className="w-20 shrink-0 text-right tabular-nums text-label-2">
+                      {fila.kilos > 0 ? formatearKilos(fila.kilos) : "—"}
                     </span>
-                  </div>
-                  <div className="overflow-x-auto">
-                    <table className="w-full min-w-[320px] text-left text-sm">
-                      <thead>
-                        <tr className="border-b border-zinc-800 text-[11px] uppercase tracking-wide text-zinc-500">
-                          <th className="pb-2 pr-4 font-medium">Ingrediente</th>
-                          <th className="pb-2 pr-4 text-right font-medium">Kg</th>
-                          <th className="pb-2 text-right font-medium">Gasto</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {filasSemanaActiva.map((fila) => (
-                          <tr
-                            key={`${fila.claveSemana}-${fila.nombre}`}
-                            className="border-b border-zinc-800/60 last:border-0"
-                          >
-                            <td className="py-2 pr-4 text-zinc-100">{fila.nombre}</td>
-                            <td className="py-2 pr-4 text-right tabular-nums text-zinc-300">
-                              {fila.kilos > 0 ? formatearKilos(fila.kilos) : "—"}
-                            </td>
-                            <td className="py-2 text-right tabular-nums text-zinc-300">
-                              {fila.gasto > 0 ? formatearEuros(fila.gasto) : "—"}
-                            </td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                  </div>
-                </>
-              )}
-            </section>
+                    <span className="w-20 shrink-0 text-right tabular-nums text-label-2">
+                      {fila.gasto > 0 ? formatearEuros(fila.gasto) : "—"}
+                    </span>
+                  </li>
+                ))}
+                <li className="flex min-h-12 items-center gap-3 bg-fill px-4 py-2 text-[1rem] font-semibold">
+                  <span className="min-w-0 flex-1 text-label">Total</span>
+                  <span className="w-20 shrink-0 text-right tabular-nums text-label">
+                    {formatearKilos(totalesSemanaActiva.kilos)}
+                  </span>
+                  <span className="w-20 shrink-0 text-right tabular-nums text-label">
+                    {formatearEuros(totalesSemanaActiva.gasto)}
+                  </span>
+                </li>
+              </ul>
+            )}
+          </Seccion>
 
-            <section className="rounded-xl border border-zinc-800 bg-zinc-950/60 p-4">
-              <h2 className="mb-3 text-sm uppercase tracking-[0.14em] text-zinc-400">
-                Gasto histórico por proveedor
-              </h2>
-              {proveedoresTop.length === 0 ? (
-                <p className="text-sm text-zinc-600">Sin importes cargados todavía.</p>
-              ) : (
-                <ul className="space-y-2">
-                  {proveedoresTop.map(({ proveedor, total }) => {
-                    const max = proveedoresTop[0]?.total || 1;
-                    const pct = Math.max(4, Math.round((total / max) * 100));
-                    return (
-                      <li key={proveedor} className="space-y-1">
-                        <div className="flex items-baseline justify-between gap-3 text-sm">
-                          <span className="text-zinc-100">{proveedor}</span>
-                          <span className="tabular-nums text-zinc-300">
-                            {formatearEuros(total)}
-                          </span>
-                        </div>
-                        <div className="h-1.5 w-full overflow-hidden rounded-full bg-zinc-800">
-                          <div
-                            className="h-full rounded-full bg-zinc-400"
-                            style={{ width: `${pct}%` }}
-                          />
-                        </div>
-                      </li>
-                    );
-                  })}
-                </ul>
-              )}
-            </section>
-          </>
-        )}
-      </section>
-    </main>
+          <Seccion titulo="Gasto histórico por proveedor">
+            {proveedoresTop.length === 0 ? (
+              <p className="px-1 text-[0.94rem] text-label-3">
+                Sin importes cargados todavía.
+              </p>
+            ) : (
+              <ul className={LISTA}>
+                {proveedoresTop.map(({ proveedor, total }) => {
+                  const max = proveedoresTop[0]?.total || 1;
+                  const pct = Math.max(4, Math.round((total / max) * 100));
+                  return (
+                    <li
+                      key={proveedor}
+                      className="border-b border-separator px-4 py-3 last:border-0"
+                    >
+                      <div className="flex items-center justify-between gap-3">
+                        <span className="min-w-0 truncate text-[1rem] text-label">
+                          {proveedor}
+                        </span>
+                        <span className="shrink-0 text-[0.95rem] tabular-nums text-label-2">
+                          {formatearEuros(total)}
+                        </span>
+                      </div>
+                      <div className="mt-2 h-1.5 w-full overflow-hidden rounded-full bg-fill">
+                        <div
+                          className="h-full rounded-full bg-info"
+                          style={{ width: `${pct}%` }}
+                        />
+                      </div>
+                    </li>
+                  );
+                })}
+              </ul>
+            )}
+          </Seccion>
+        </>
+      )}
+    </Pantalla>
   );
 }

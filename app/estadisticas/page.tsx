@@ -3,12 +3,24 @@
 import { useEffect, useMemo, useState } from "react";
 import {
   CalendarRange,
+  ChartColumn,
+  CircleAlert,
   GlassWater,
-  Loader2,
   Sparkles,
-  Sprout,
+  TriangleAlert,
   UtensilsCrossed,
 } from "lucide-react";
+
+import {
+  Boton,
+  Campo,
+  EsqueletoLista,
+  EstadoVacio,
+  Etiqueta,
+  Pantalla,
+  Seccion,
+  Segmentado,
+} from "@/app/ui";
 
 import {
   fetchBebidasPorHistorial,
@@ -47,24 +59,27 @@ type IngredienteLite = {
   rubro: string | null;
 };
 
-const CATEGORIA_CHIP: Record<Categoria, string> = {
-  Otsumami: "border-amber-500/40 bg-amber-950/40 text-amber-200",
-  Nigiri: "border-sky-500/40 bg-sky-950/40 text-sky-200",
-  Postre: "border-rose-500/40 bg-rose-950/40 text-rose-200",
-  Extensión: "border-emerald-500/40 bg-emerald-950/40 text-emerald-200",
+const CATEGORIA_TONO: Record<
+  Categoria,
+  "alerta" | "info" | "acento" | "exito"
+> = {
+  Otsumami: "alerta",
+  Nigiri: "info",
+  Postre: "acento",
+  Extensión: "exito",
 };
 
 const CATEGORIA_BAR: Record<Categoria, string> = {
-  Otsumami: "bg-amber-500/70",
-  Nigiri: "bg-sky-500/70",
-  Postre: "bg-rose-500/70",
-  Extensión: "bg-emerald-500/70",
+  Otsumami: "bg-warning",
+  Nigiri: "bg-info",
+  Postre: "bg-accent",
+  Extensión: "bg-success",
 };
 
 const RUBRO_DOT: Record<RubroIngrediente, string> = {
-  "Pescado/Marisco": "bg-sky-400",
-  "Fruta/Vegetal": "bg-emerald-400",
-  "Despensa/Prep": "bg-amber-400",
+  "Pescado/Marisco": "bg-info",
+  "Fruta/Vegetal": "bg-success",
+  "Despensa/Prep": "bg-warning",
 };
 
 /** Cantidad de bebida a número: vacío o no parseable cuenta como 1 (una línea = al menos un consumo). */
@@ -92,25 +107,25 @@ function BarraRanking(props: {
   const { etiqueta, valor, max, sufijo, colorBarra, detalle, prefijo } = props;
   const pct = max > 0 ? Math.max(4, Math.round((valor / max) * 100)) : 0;
   return (
-    <div className="space-y-1">
-      <div className="flex items-baseline justify-between gap-3">
-        <span className="flex min-w-0 items-center gap-2 text-sm text-zinc-100">
+    <li className="border-b border-separator px-4 py-3 last:border-0">
+      <div className="flex items-center justify-between gap-3">
+        <span className="flex min-w-0 items-center gap-2 text-[1rem] text-label">
           {prefijo}
           <span className="truncate">{etiqueta}</span>
           {detalle}
         </span>
-        <span className="shrink-0 text-sm tabular-nums text-zinc-300">
+        <span className="shrink-0 text-[0.95rem] tabular-nums text-label-2">
           {valor}
-          {sufijo ? <span className="text-zinc-500">{sufijo}</span> : null}
+          {sufijo ? <span className="text-label-3">{sufijo}</span> : null}
         </span>
       </div>
-      <div className="h-1.5 w-full overflow-hidden rounded-full bg-zinc-800">
+      <div className="mt-2 h-1.5 w-full overflow-hidden rounded-full bg-fill">
         <div
-          className={`h-full rounded-full ${colorBarra ?? "bg-zinc-400"}`}
+          className={`h-full rounded-full ${colorBarra ?? "bg-label-3"}`}
           style={{ width: `${pct}%` }}
         />
       </div>
-    </div>
+    </li>
   );
 }
 
@@ -122,16 +137,27 @@ function KpiCard(props: {
 }) {
   const { icono, titulo, valor, sub } = props;
   return (
-    <div className="rounded-xl border border-zinc-800 bg-zinc-950/60 p-4">
-      <div className="flex items-center gap-2 text-zinc-400">
+    <div className="min-w-0 rounded-card bg-surface-3 p-4 shadow-[0_1px_2px_rgb(0_0_0/0.04)]">
+      <p className="flex items-center gap-1.5 text-[0.8rem] font-medium text-label-3">
         {icono}
-        <p className="text-[10px] font-semibold uppercase tracking-[0.14em]">
-          {titulo}
-        </p>
-      </div>
-      <p className="mt-2 text-2xl font-semibold tabular-nums text-zinc-100">{valor}</p>
-      {sub ? <p className="mt-0.5 text-xs text-zinc-500">{sub}</p> : null}
+        <span className="truncate">{titulo}</span>
+      </p>
+      <p className="mt-1.5 text-[1.6rem] font-semibold leading-tight tabular-nums text-label">
+        {valor}
+      </p>
+      {sub ? (
+        <p className="mt-0.5 text-[0.82rem] leading-snug text-label-3">{sub}</p>
+      ) : null}
     </div>
+  );
+}
+
+/** Lista agrupada donde van las filas de ranking. */
+function ListaRanking(props: { children: React.ReactNode }) {
+  return (
+    <ul className="overflow-hidden rounded-card bg-surface-3 shadow-[0_1px_2px_rgb(0_0_0/0.04)]">
+      {props.children}
+    </ul>
   );
 }
 
@@ -144,19 +170,23 @@ export default function EstadisticasPage() {
   >(() => new Map());
   const [fechaDesde, setFechaDesde] = useState("");
   const [fechaHasta, setFechaHasta] = useState("");
-  const [filtroServicio, setFiltroServicio] = useState<"Todos" | Servicio>("Todos");
+  const [filtroServicio, setFiltroServicio] = useState<"Todos" | Servicio>(
+    "Todos",
+  );
   const [verTodosPlatos, setVerTodosPlatos] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [advertenciaBebidas, setAdvertenciaBebidas] = useState<string | null>(null);
+  const [advertenciaBebidas, setAdvertenciaBebidas] = useState<string | null>(
+    null,
+  );
 
   const platosMap = useMemo(
     () => new Map(platos.map((p) => [p.id, p])),
-    [platos]
+    [platos],
   );
   const ingredientesMap = useMemo(
     () => new Map(ingredientes.map((i) => [i.id, i])),
-    [ingredientes]
+    [ingredientes],
   );
 
   const historialFiltrado = useMemo(() => {
@@ -176,8 +206,12 @@ export default function EstadisticasPage() {
 
   const kpis = useMemo(() => {
     const total = historialFiltrado.length;
-    const mediodia = historialFiltrado.filter((r) => r.servicio === "Mediodia").length;
-    const noche = historialFiltrado.filter((r) => r.servicio === "Noche").length;
+    const mediodia = historialFiltrado.filter(
+      (r) => r.servicio === "Mediodia",
+    ).length;
+    const noche = historialFiltrado.filter(
+      (r) => r.servicio === "Noche",
+    ).length;
     const fechas = historialFiltrado.map((r) => r.fecha).sort();
     const desde = fechas[0] ?? null;
     const hasta = fechas[fechas.length - 1] ?? null;
@@ -185,7 +219,7 @@ export default function EstadisticasPage() {
     let sumaExtensiones = 0;
     historialFiltrado.forEach((r) => {
       sumaExtensiones += (r.extensiones ?? []).filter((id) =>
-        String(id ?? "").trim()
+        String(id ?? "").trim(),
       ).length;
     });
     const promedioExtensiones = total > 0 ? sumaExtensiones / total : 0;
@@ -203,10 +237,7 @@ export default function EstadisticasPage() {
   const rankingPlatos = useMemo(() => {
     const conteo = new Map<string, number>();
     historialFiltrado.forEach((r) => {
-      const ids = [
-        ...(r.menu_omakase ?? []),
-        ...(r.extensiones ?? []),
-      ]
+      const ids = [...(r.menu_omakase ?? []), ...(r.extensiones ?? [])]
         .map((id) => String(id ?? "").trim())
         .filter(Boolean);
       ids.forEach((id) => conteo.set(id, (conteo.get(id) ?? 0) + 1));
@@ -222,7 +253,9 @@ export default function EstadisticasPage() {
           veces,
         };
       })
-      .sort((a, b) => b.veces - a.veces || a.nombre.localeCompare(b.nombre, "es"));
+      .sort(
+        (a, b) => b.veces - a.veces || a.nombre.localeCompare(b.nombre, "es"),
+      );
 
     return filas;
   }, [historialFiltrado, platosMap]);
@@ -265,7 +298,9 @@ export default function EstadisticasPage() {
 
     const filas = [...conteo.values()]
       .map((f) => ({ ...f, total: Math.round(f.total * 100) / 100 }))
-      .sort((a, b) => b.total - a.total || a.nombre.localeCompare(b.nombre, "es"));
+      .sort(
+        (a, b) => b.total - a.total || a.nombre.localeCompare(b.nombre, "es"),
+      );
 
     const totalUnidades = filas.reduce((acc, f) => acc + f.total, 0);
 
@@ -276,10 +311,7 @@ export default function EstadisticasPage() {
   const rankingIngredientes = useMemo(() => {
     const conteo = new Map<string, number>();
     historialFiltrado.forEach((r) => {
-      const platoIds = [
-        ...(r.menu_omakase ?? []),
-        ...(r.extensiones ?? []),
-      ]
+      const platoIds = [...(r.menu_omakase ?? []), ...(r.extensiones ?? [])]
         .map((id) => String(id ?? "").trim())
         .filter(Boolean);
 
@@ -295,7 +327,7 @@ export default function EstadisticasPage() {
       });
 
       ingredientesDelServicio.forEach((id) =>
-        conteo.set(id, (conteo.get(id) ?? 0) + 1)
+        conteo.set(id, (conteo.get(id) ?? 0) + 1),
       );
     });
 
@@ -310,7 +342,8 @@ export default function EstadisticasPage() {
         };
       })
       .sort(
-        (a, b) => b.servicios - a.servicios || a.nombre.localeCompare(b.nombre, "es")
+        (a, b) =>
+          b.servicios - a.servicios || a.nombre.localeCompare(b.nombre, "es"),
       );
   }, [historialFiltrado, platosMap, ingredientesMap]);
 
@@ -356,12 +389,19 @@ export default function EstadisticasPage() {
         setBebidasPorServicio(new Map());
         setAdvertenciaBebidas(
           formatPostgrestError(
-            bebidasErr as { message: string; code?: string; details?: string; hint?: string }
-          )
+            bebidasErr as {
+              message: string;
+              code?: string;
+              details?: string;
+              hint?: string;
+            },
+          ),
         );
       }
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Error al conectar con Supabase.");
+      setError(
+        err instanceof Error ? err.message : "Error al conectar con Supabase.",
+      );
     } finally {
       setIsLoading(false);
     }
@@ -377,7 +417,9 @@ export default function EstadisticasPage() {
   const hayFiltros =
     Boolean(fechaDesde) || Boolean(fechaHasta) || filtroServicio !== "Todos";
 
-  const platosVisibles = verTodosPlatos ? rankingPlatos : rankingPlatos.slice(0, 12);
+  const platosVisibles = verTodosPlatos
+    ? rankingPlatos
+    : rankingPlatos.slice(0, 12);
   const maxPlatos = rankingPlatos[0]?.veces ?? 0;
   const bebidasVisibles = rankingBebidas.filas.slice(0, 12);
   const maxBebidas = rankingBebidas.filas[0]?.total ?? 0;
@@ -385,79 +427,107 @@ export default function EstadisticasPage() {
   const maxIngredientes = rankingIngredientes[0]?.servicios ?? 0;
 
   return (
-    <main className="min-h-screen min-w-0 bg-zinc-950 px-4 py-6 text-zinc-100 sm:px-6 sm:py-10">
-      <section className="mx-auto w-full max-w-5xl rounded-2xl border border-zinc-800 bg-zinc-900/60 p-6 shadow-[0_0_0_1px_rgba(255,255,255,0.02)] backdrop-blur">
-        <header className="mb-6">
-          <h1 className="flex items-center gap-2 font-display text-3xl font-medium tracking-tight text-ink">
-            <Sparkles className="h-5 w-5 text-zinc-400" aria-hidden />
-            Estadísticas
-          </h1>
-          <p className="mt-1 text-sm text-zinc-400">
-            Análisis del historial de servicios: platos más servidos, bebidas más
-            pedidas e ingredientes más usados. Filtrá por fecha y servicio.
+    <Pantalla
+      titulo="Estadísticas"
+      subtitulo={
+        isLoading
+          ? "Cargando…"
+          : `${kpis.total} ${kpis.total === 1 ? "servicio" : "servicios"}${hayFiltros ? " · con filtros" : ""}`
+      }
+      ancho="amplio"
+      ayuda={
+        <>
+          <p>
+            Análisis del historial de servicios: platos más servidos, bebidas
+            más pedidas e ingredientes más usados.
           </p>
-        </header>
+          <p>
+            Filtrá por fecha y servicio. Las fechas son opcionales: si las dejás
+            vacías se cuenta todo el historial.
+          </p>
+        </>
+      }
+    >
+      {error ? (
+        <div
+          role="alert"
+          className="mb-4 flex gap-3 rounded-card bg-danger-soft px-4 py-3 text-[0.94rem] text-danger"
+        >
+          <CircleAlert
+            className="mt-0.5 h-[18px] w-[18px] shrink-0"
+            aria-hidden
+          />
+          <p className="min-w-0 flex-1">{error}</p>
+        </div>
+      ) : null}
 
-        <section className="mb-6 grid gap-2 rounded-xl border border-zinc-800 bg-zinc-950/60 p-3 sm:grid-cols-3">
-          <input
-            type="date"
-            value={fechaDesde}
-            onChange={(e) => setFechaDesde(e.target.value)}
-            className="rounded-lg border border-zinc-700 bg-zinc-900 px-3 py-2 text-sm text-zinc-100 outline-none transition focus:border-zinc-500"
-            aria-label="Fecha desde"
-          />
-          <input
-            type="date"
-            value={fechaHasta}
-            onChange={(e) => setFechaHasta(e.target.value)}
-            className="rounded-lg border border-zinc-700 bg-zinc-900 px-3 py-2 text-sm text-zinc-100 outline-none transition focus:border-zinc-500"
-            aria-label="Fecha hasta"
-          />
-          <select
-            value={filtroServicio}
-            onChange={(e) => setFiltroServicio(e.target.value as "Todos" | Servicio)}
-            className="rounded-lg border border-zinc-700 bg-zinc-900 px-3 py-2 text-sm text-zinc-100 outline-none transition focus:border-zinc-500"
-            aria-label="Filtrar por servicio"
-          >
-            <option value="Todos">Todos los servicios</option>
-            <option value="Mediodia">Mediodia</option>
-            <option value="Noche">Noche</option>
-          </select>
-          {hayFiltros ? (
-            <button
-              type="button"
+      <Seccion
+        titulo="Filtros"
+        accion={
+          hayFiltros ? (
+            <Boton
+              variante="terciario"
               onClick={() => {
                 setFechaDesde("");
                 setFechaHasta("");
                 setFiltroServicio("Todos");
               }}
-              className="sm:col-span-3 rounded-lg border border-zinc-700 bg-zinc-900 px-3 py-2 text-sm text-zinc-200 transition hover:border-zinc-500 hover:text-zinc-100"
             >
-              Limpiar filtros
-            </button>
-          ) : null}
-        </section>
-
-        {error ? (
-          <p className="mb-5 rounded-lg border border-red-900/70 bg-red-950/40 px-3 py-2 text-sm text-red-200">
-            {error}
-          </p>
-        ) : null}
-
-        {isLoading ? (
-          <div className="flex items-center gap-2 text-sm text-zinc-400">
-            <Loader2 className="h-4 w-4 animate-spin" />
-            Calculando estadísticas...
+              Limpiar
+            </Boton>
+          ) : null
+        }
+      >
+        <div className="space-y-3">
+          <Segmentado
+            etiqueta="Filtrar por servicio"
+            valor={filtroServicio}
+            onChange={setFiltroServicio}
+            opciones={[
+              { valor: "Todos", label: "Todos" },
+              { valor: "Mediodia", label: "Mediodía" },
+              { valor: "Noche", label: "Noche" },
+            ]}
+          />
+          <div className="grid grid-cols-2 gap-3">
+            <Campo
+              type="date"
+              label="Desde"
+              value={fechaDesde}
+              onChange={(e) => setFechaDesde(e.target.value)}
+            />
+            <Campo
+              type="date"
+              label="Hasta"
+              value={fechaHasta}
+              onChange={(e) => setFechaHasta(e.target.value)}
+            />
           </div>
-        ) : kpis.total === 0 ? (
-          <p className="rounded-lg border border-zinc-800 bg-zinc-950/60 px-4 py-4 text-sm text-zinc-400">
-            {historial.length === 0
-              ? "Todavía no hay servicios guardados en el historial."
-              : "No hay servicios para los filtros seleccionados."}
-          </p>
-        ) : (
-          <div className="space-y-6">
-            <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+        </div>
+      </Seccion>
+
+      {isLoading ? (
+        <Seccion>
+          <EsqueletoLista filas={6} />
+        </Seccion>
+      ) : kpis.total === 0 ? (
+        <EstadoVacio
+          icono={<ChartColumn className="h-6 w-6" aria-hidden />}
+          titulo={
+            historial.length === 0
+              ? "Todavía no hay servicios"
+              : "Nada para estos filtros"
+          }
+          texto={
+            historial.length === 0
+              ? "Cuando se guarden servicios en el historial, vas a ver las estadísticas acá."
+              : "No hay servicios para los filtros elegidos."
+          }
+        />
+      ) : (
+        <>
+          <Seccion titulo="Resumen">
+            <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
               <KpiCard
                 icono={<CalendarRange className="h-4 w-4" aria-hidden />}
                 titulo="Servicios"
@@ -474,142 +544,163 @@ export default function EstadisticasPage() {
                 icono={<UtensilsCrossed className="h-4 w-4" aria-hidden />}
                 titulo="Mediodía / Noche"
                 valor={`${kpis.mediodia} / ${kpis.noche}`}
-                sub="servicios por franja"
+                sub="Servicios por franja"
               />
               <KpiCard
                 icono={<Sparkles className="h-4 w-4" aria-hidden />}
                 titulo="Extensiones/serv."
                 valor={kpis.promedioExtensiones.toFixed(1)}
-                sub="promedio de extras"
+                sub="Promedio de extras"
               />
               <KpiCard
                 icono={<GlassWater className="h-4 w-4" aria-hidden />}
                 titulo="Bebidas"
                 valor={String(Math.round(rankingBebidas.totalUnidades))}
-                sub={`en ${rankingBebidas.serviciosConBebidas} servicio(s)`}
+                sub={`En ${rankingBebidas.serviciosConBebidas} ${rankingBebidas.serviciosConBebidas === 1 ? "servicio" : "servicios"}`}
               />
             </div>
+          </Seccion>
 
-            <section className="rounded-xl border border-zinc-800 bg-zinc-950/60 p-4">
-              <div className="mb-4 flex flex-wrap items-center justify-between gap-2">
-                <h2 className="flex items-center gap-2 text-sm uppercase tracking-[0.16em] text-zinc-400">
-                  <UtensilsCrossed className="h-4 w-4" aria-hidden />
-                  Platos más servidos
-                </h2>
-                {rankingPlatos.length > 12 ? (
-                  <button
-                    type="button"
-                    onClick={() => setVerTodosPlatos((v) => !v)}
-                    className="rounded-md border border-zinc-700 px-2 py-1 text-xs text-zinc-300 transition hover:border-zinc-500 hover:text-zinc-100"
-                  >
-                    {verTodosPlatos ? "Ver top 12" : `Ver todos (${rankingPlatos.length})`}
-                  </button>
-                ) : null}
-              </div>
-              {platosVisibles.length === 0 ? (
-                <p className="text-sm text-zinc-500">Sin platos en el período.</p>
-              ) : (
-                <div className="space-y-3">
-                  {platosVisibles.map((fila) => (
-                    <BarraRanking
-                      key={fila.id}
-                      etiqueta={fila.nombre}
-                      valor={fila.veces}
-                      max={maxPlatos}
-                      sufijo=" serv."
-                      colorBarra={
-                        fila.categoria ? CATEGORIA_BAR[fila.categoria] : "bg-zinc-400"
-                      }
-                      detalle={
-                        fila.categoria ? (
-                          <span
-                            className={`shrink-0 rounded-full border px-1.5 py-0.5 text-[10px] font-medium ${CATEGORIA_CHIP[fila.categoria]}`}
-                          >
+          <Seccion
+            titulo="Platos más servidos"
+            accion={
+              rankingPlatos.length > 12 ? (
+                <Boton
+                  variante="terciario"
+                  onClick={() => setVerTodosPlatos((v) => !v)}
+                >
+                  {verTodosPlatos
+                    ? "Ver top 12"
+                    : `Ver todos (${rankingPlatos.length})`}
+                </Boton>
+              ) : null
+            }
+            pie={
+              platosSinUso.length > 0 ? (
+                <>
+                  <span className="font-semibold text-label-2">
+                    Sin uso en el período ({platosSinUso.length}):
+                  </span>{" "}
+                  {platosSinUso.map((p) => p.nombre).join(" · ")}
+                </>
+              ) : null
+            }
+          >
+            {platosVisibles.length === 0 ? (
+              <p className="px-1 text-[0.94rem] text-label-3">
+                Sin platos en el período.
+              </p>
+            ) : (
+              <ListaRanking>
+                {platosVisibles.map((fila) => (
+                  <BarraRanking
+                    key={fila.id}
+                    etiqueta={fila.nombre}
+                    valor={fila.veces}
+                    max={maxPlatos}
+                    sufijo=" serv."
+                    colorBarra={
+                      fila.categoria
+                        ? CATEGORIA_BAR[fila.categoria]
+                        : "bg-label-3"
+                    }
+                    detalle={
+                      fila.categoria ? (
+                        <span className="shrink-0">
+                          <Etiqueta tono={CATEGORIA_TONO[fila.categoria]}>
                             {fila.categoria}
-                          </span>
-                        ) : null
-                      }
-                    />
-                  ))}
-                </div>
-              )}
-              {platosSinUso.length > 0 ? (
-                <div className="mt-4 border-t border-zinc-800/80 pt-3">
-                  <p className="mb-1.5 text-[10px] font-semibold uppercase tracking-[0.12em] text-zinc-500">
-                    Sin uso en el período ({platosSinUso.length})
-                  </p>
-                  <p className="text-xs leading-relaxed text-zinc-500">
-                    {platosSinUso.map((p) => p.nombre).join(" · ")}
-                  </p>
-                </div>
-              ) : null}
-            </section>
+                          </Etiqueta>
+                        </span>
+                      ) : null
+                    }
+                  />
+                ))}
+              </ListaRanking>
+            )}
+          </Seccion>
 
-            <section className="rounded-xl border border-zinc-800 bg-zinc-950/60 p-4">
-              <h2 className="mb-4 flex items-center gap-2 text-sm uppercase tracking-[0.16em] text-zinc-400">
-                <GlassWater className="h-4 w-4" aria-hidden />
-                Bebidas más pedidas
-              </h2>
-              {advertenciaBebidas ? (
-                <p className="rounded-lg border border-amber-900/70 bg-amber-950/40 px-3 py-2 text-xs text-amber-200">
+          <Seccion titulo="Bebidas más pedidas">
+            {advertenciaBebidas ? (
+              <div
+                role="alert"
+                className="flex gap-3 rounded-card bg-warning-soft px-4 py-3 text-[0.94rem] text-warning"
+              >
+                <TriangleAlert
+                  className="mt-0.5 h-[18px] w-[18px] shrink-0"
+                  aria-hidden
+                />
+                <p className="min-w-0 flex-1">
                   No se pudieron cargar las bebidas: {advertenciaBebidas}
                 </p>
-              ) : bebidasVisibles.length === 0 ? (
-                <p className="text-sm text-zinc-500">
-                  No hay bebidas registradas en el período.
-                </p>
-              ) : (
-                <div className="space-y-3">
-                  {bebidasVisibles.map((fila) => (
-                    <BarraRanking
-                      key={fila.nombre}
-                      etiqueta={fila.nombre}
-                      valor={fila.total}
-                      max={maxBebidas}
-                      colorBarra="bg-fuchsia-500/70"
-                    />
-                  ))}
-                </div>
-              )}
-            </section>
-
-            <section className="rounded-xl border border-zinc-800 bg-zinc-950/60 p-4">
-              <h2 className="mb-1 flex items-center gap-2 text-sm uppercase tracking-[0.16em] text-zinc-400">
-                <Sprout className="h-4 w-4" aria-hidden />
-                Ingredientes más usados
-              </h2>
-              <p className="mb-4 text-xs text-zinc-500">
-                Por cantidad de servicios en los que se necesitaron (según los platos
-                del menú). Útil para anticipar compras.
+              </div>
+            ) : bebidasVisibles.length === 0 ? (
+              <p className="px-1 text-[0.94rem] text-label-3">
+                No hay bebidas registradas en el período.
               </p>
-              {ingredientesVisibles.length === 0 ? (
-                <p className="text-sm text-zinc-500">
-                  No hay ingredientes asociados a los platos del período.
-                </p>
-              ) : (
-                <div className="space-y-3">
-                  {ingredientesVisibles.map((fila) => (
-                    <BarraRanking
-                      key={fila.id}
-                      etiqueta={fila.nombre}
-                      valor={fila.servicios}
-                      max={maxIngredientes}
-                      sufijo=" serv."
-                      colorBarra="bg-zinc-400"
-                      prefijo={
-                        <span
-                          className={`h-2 w-2 shrink-0 rounded-full ${RUBRO_DOT[fila.rubro]}`}
-                          title={fila.rubro}
-                        />
-                      }
-                    />
+            ) : (
+              <ListaRanking>
+                {bebidasVisibles.map((fila) => (
+                  <BarraRanking
+                    key={fila.nombre}
+                    etiqueta={fila.nombre}
+                    valor={fila.total}
+                    max={maxBebidas}
+                    colorBarra="bg-accent"
+                  />
+                ))}
+              </ListaRanking>
+            )}
+          </Seccion>
+
+          <Seccion
+            titulo="Ingredientes más usados"
+            pie={
+              <>
+                Por cantidad de servicios en los que se necesitaron (según los
+                platos del menú). Sirve para anticipar compras.
+                <span className="mt-2 flex flex-wrap gap-x-4 gap-y-1">
+                  {(Object.keys(RUBRO_DOT) as RubroIngrediente[]).map((r) => (
+                    <span key={r} className="inline-flex items-center gap-1.5">
+                      <span
+                        aria-hidden
+                        className={`size-2.5 rounded-full ${RUBRO_DOT[r]}`}
+                      />
+                      {r}
+                    </span>
                   ))}
-                </div>
-              )}
-            </section>
-          </div>
-        )}
-      </section>
-    </main>
+                </span>
+              </>
+            }
+          >
+            {ingredientesVisibles.length === 0 ? (
+              <p className="px-1 text-[0.94rem] text-label-3">
+                No hay ingredientes asociados a los platos del período.
+              </p>
+            ) : (
+              <ListaRanking>
+                {ingredientesVisibles.map((fila) => (
+                  <BarraRanking
+                    key={fila.id}
+                    etiqueta={fila.nombre}
+                    valor={fila.servicios}
+                    max={maxIngredientes}
+                    sufijo=" serv."
+                    colorBarra="bg-label-3"
+                    prefijo={
+                      <span
+                        className={`size-2.5 shrink-0 rounded-full ${RUBRO_DOT[fila.rubro]}`}
+                        title={fila.rubro}
+                        aria-label={fila.rubro}
+                        role="img"
+                      />
+                    }
+                  />
+                ))}
+              </ListaRanking>
+            )}
+          </Seccion>
+        </>
+      )}
+    </Pantalla>
   );
 }

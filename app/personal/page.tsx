@@ -1,8 +1,27 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { Loader2, Plus, Trash2, UserRound } from "lucide-react";
-import { EsqueletoLista } from "@/app/ui";
+import {
+  CircleAlert,
+  ClipboardList,
+  Plus,
+  Trash2,
+  UserRound,
+} from "lucide-react";
+import {
+  Boton,
+  BotonIcono,
+  Campo,
+  EsqueletoLista,
+  EstadoVacio,
+  Etiqueta,
+  Fecha,
+  Pantalla,
+  Seccion,
+  Selector,
+  useAvisos,
+  type OpcionSelector,
+} from "@/app/ui";
 
 import { fetchSessionUsuario } from "@/src/lib/produccion-sesiones";
 import {
@@ -31,15 +50,53 @@ function formatearEuros(v: number): string {
   });
 }
 
+const MESES = [
+  "ene",
+  "feb",
+  "mar",
+  "abr",
+  "may",
+  "jun",
+  "jul",
+  "ago",
+  "sep",
+  "oct",
+  "nov",
+  "dic",
+];
+
+/** YYYY-MM-DD → "12 mar 2026" (solo para mostrar). */
+function fechaCorta(iso: string): string {
+  const [y, m, d] = iso.slice(0, 10).split("-").map(Number);
+  if (!y || !m || !d) return iso;
+  return `${d} ${MESES[m - 1]} ${y}`;
+}
+
+const OPCIONES_PERSONA: OpcionSelector<string>[] = PERSONAL_PERSONAS.map(
+  (p) => ({
+    valor: p.id,
+    label: p.name,
+    grupo: p.esStaff ? "Equipo" : "Apoyo",
+  }),
+).sort((a, b) => (a.grupo === b.grupo ? 0 : a.grupo === "Equipo" ? -1 : 1));
+
+const OPCIONES_TIPO: OpcionSelector<PersonalTipoMovimiento>[] =
+  PERSONAL_TIPO_MOVIMIENTO.map((t) => ({
+    valor: t,
+    label: ETIQUETA_TIPO_MOVIMIENTO[t],
+  }));
+
 export default function PersonalPage() {
+  const { aviso, confirmar } = useAvisos();
   const [isLoading, setIsLoading] = useState(true);
   const [isBusy, setIsBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [success, setSuccess] = useState<string | null>(null);
   const [permisoOk, setPermisoOk] = useState(false);
   const [registros, setRegistros] = useState<PersonalRegistro[]>([]);
 
-  const [personaId, setPersonaId] = useState(PERSONAL_PERSONAS[0]?.id ?? "manu");
+  const [personaId, setPersonaId] = useState(
+    PERSONAL_PERSONAS[0]?.id ?? "manu",
+  );
   const [tipo, setTipo] = useState<PersonalTipoMovimiento>("vacaciones");
   const [fecha, setFecha] = useState(hoyISO());
   const [fechaHasta, setFechaHasta] = useState("");
@@ -74,7 +131,9 @@ export default function PersonalPage() {
         }
       } catch (err) {
         if (!cancelado) {
-          setError(err instanceof Error ? err.message : "No se pudo cargar personal.");
+          setError(
+            err instanceof Error ? err.message : "No se pudo cargar personal.",
+          );
         }
       } finally {
         if (!cancelado) {
@@ -96,7 +155,10 @@ export default function PersonalPage() {
   const resumenMes = useMemo(() => {
     const yyyyMm = hoyISO().slice(0, 7);
     const base = new Map(
-      PERSONAL_PERSONAS.map((p) => [p.id, { efectivo: 0, transferencia: 0, propina: 0 }])
+      PERSONAL_PERSONAS.map((p) => [
+        p.id,
+        { efectivo: 0, transferencia: 0, propina: 0 },
+      ]),
     );
     for (const r of registros) {
       if (!r.fecha.startsWith(yyyyMm)) continue;
@@ -142,7 +204,7 @@ export default function PersonalPage() {
       setMonto("");
       setNotas("");
       setFechaHasta("");
-      setSuccess("Registro guardado.");
+      aviso("Registro guardado.", { tono: "exito" });
     } catch (err) {
       setError(err instanceof Error ? err.message : "No se pudo guardar.");
     } finally {
@@ -151,13 +213,19 @@ export default function PersonalPage() {
   };
 
   const borrar = async (id: string) => {
-    if (!window.confirm("¿Eliminar este registro?")) return;
+    const ok = await confirmar({
+      titulo: "¿Eliminar este registro?",
+      texto: "No se puede deshacer.",
+      confirmar: "Eliminar",
+      peligro: true,
+    });
+    if (!ok) return;
     setIsBusy(true);
     setError(null);
     try {
       await eliminarPersonalRegistro(id);
       setRegistros((prev) => prev.filter((r) => r.id !== id));
-      setSuccess("Registro eliminado.");
+      aviso("Registro eliminado.", { tono: "exito" });
     } catch (err) {
       setError(err instanceof Error ? err.message : "No se pudo eliminar.");
     } finally {
@@ -166,208 +234,211 @@ export default function PersonalPage() {
   };
 
   return (
-    <main className="min-h-screen min-w-0 bg-zinc-950 px-4 py-6 text-zinc-100 sm:px-6 sm:py-10">
-      <section className="mx-auto w-full max-w-5xl rounded-2xl border border-zinc-800 bg-zinc-900/60 p-6 shadow-[0_0_0_1px_rgba(255,255,255,0.02)] backdrop-blur">
-        <header className="mb-6">
-          <h1 className="font-display text-3xl font-medium tracking-tight text-ink">Personal</h1>
-          <p className="mt-1 text-sm text-zinc-400">
-            Fichas internas: vacaciones, cobros en efectivo/transferencia y extras por propinas.
-          </p>
-        </header>
+    <Pantalla
+      titulo="Personal"
+      subtitulo={
+        isLoading
+          ? "Cargando…"
+          : permisoOk
+            ? `${registros.length} ${registros.length === 1 ? "registro" : "registros"}`
+            : undefined
+      }
+      ancho="amplio"
+      ayuda={
+        <p>
+          Fichas internas: vacaciones, cobros en efectivo o transferencia y
+          extras por propinas. El resumen de arriba suma los montos del mes en
+          curso.
+        </p>
+      }
+    >
+      {error ? (
+        <div
+          role="alert"
+          className="mb-4 flex gap-3 rounded-card bg-danger-soft px-4 py-3 text-[0.94rem] text-danger"
+        >
+          <CircleAlert
+            className="mt-0.5 h-[18px] w-[18px] shrink-0"
+            aria-hidden
+          />
+          <p className="min-w-0 flex-1">{error}</p>
+        </div>
+      ) : null}
 
-        {error ? (
-          <p className="mb-4 rounded-xl border border-red-900/60 bg-red-950/40 px-4 py-3 text-sm text-red-200">
-            {error}
-          </p>
-        ) : null}
-        {success && !error ? (
-          <p className="mb-4 rounded-xl border border-emerald-900/50 bg-emerald-950/30 px-4 py-3 text-sm text-emerald-200">
-            {success}
-          </p>
-        ) : null}
-
-        {isLoading ? (
-          <EsqueletoLista filas={6} />
-        ) : !permisoOk ? null : (
-          <>
-            <div className="mb-6 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+      {isLoading ? (
+        <EsqueletoLista filas={6} />
+      ) : !permisoOk ? null : (
+        <>
+          <Seccion titulo="Este mes">
+            <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
               {PERSONAL_PERSONAS.map((p) => {
                 const r = resumenMes.get(p.id)!;
                 return (
-                  <div key={p.id} className="rounded-xl border border-zinc-800 bg-zinc-950/50 p-4">
-                    <p className="flex flex-wrap items-center gap-1.5 text-sm font-semibold text-white">
-                      <UserRound className="h-4 w-4 text-zinc-500" />
+                  <div
+                    key={p.id}
+                    className="min-w-0 rounded-card bg-surface-3 p-4 shadow-[0_1px_2px_rgb(0_0_0/0.04)]"
+                  >
+                    <p className="flex flex-wrap items-center gap-2 text-[1rem] font-semibold text-label">
+                      <UserRound
+                        className="h-[18px] w-[18px] text-label-3"
+                        aria-hidden
+                      />
                       {p.name}
                       {!p.esStaff ? (
-                        <span className="rounded-md border border-amber-800/50 bg-amber-950/40 px-1.5 py-0.5 text-[10px] font-medium text-amber-200/90">
-                          Apoyo delivery
-                        </span>
+                        <Etiqueta tono="alerta">Apoyo delivery</Etiqueta>
                       ) : null}
                     </p>
-                    <p className="mt-2 text-xs text-zinc-400">
-                      Efectivo: <span className="text-zinc-200">{formatearEuros(r.efectivo)}€</span>
-                    </p>
-                    <p className="text-xs text-zinc-400">
-                      Transferencia:{" "}
-                      <span className="text-zinc-200">{formatearEuros(r.transferencia)}€</span>
-                    </p>
-                    <p className="text-xs text-zinc-400">
-                      Propinas: <span className="text-zinc-200">{formatearEuros(r.propina)}€</span>
-                    </p>
+                    <dl className="mt-3 grid grid-cols-3 gap-2">
+                      <div className="min-w-0">
+                        <dt className="text-[0.8rem] text-label-3">Efectivo</dt>
+                        <dd className="text-[1.05rem] font-semibold tabular-nums text-label">
+                          {formatearEuros(r.efectivo)}€
+                        </dd>
+                      </div>
+                      <div className="min-w-0">
+                        <dt className="text-[0.8rem] text-label-3">Transf.</dt>
+                        <dd className="text-[1.05rem] font-semibold tabular-nums text-label">
+                          {formatearEuros(r.transferencia)}€
+                        </dd>
+                      </div>
+                      <div className="min-w-0">
+                        <dt className="text-[0.8rem] text-label-3">Propinas</dt>
+                        <dd className="text-[1.05rem] font-semibold tabular-nums text-label">
+                          {formatearEuros(r.propina)}€
+                        </dd>
+                      </div>
+                    </dl>
                   </div>
                 );
               })}
             </div>
+          </Seccion>
 
-            <div className="mb-6 rounded-xl border border-zinc-800 bg-zinc-950/50 p-4">
-              <p className="mb-3 text-sm font-medium text-zinc-300">Agregar registro</p>
-              <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-                <label className="text-xs text-zinc-500">
-                  Persona
-                  <select
-                    value={personaId}
-                    onChange={(e) => setPersonaId(e.target.value)}
-                    className="mt-1 block w-full rounded-lg border border-zinc-700 bg-zinc-900 px-3 py-2 text-sm text-white"
-                  >
-                    <optgroup label="Equipo">
-                      {PERSONAL_PERSONAS.filter((p) => p.esStaff).map((p) => (
-                        <option key={p.id} value={p.id}>
-                          {p.name}
-                        </option>
-                      ))}
-                    </optgroup>
-                    <optgroup label="Apoyo">
-                      {PERSONAL_PERSONAS.filter((p) => !p.esStaff).map((p) => (
-                        <option key={p.id} value={p.id}>
-                          {p.name}
-                        </option>
-                      ))}
-                    </optgroup>
-                  </select>
-                </label>
-                <label className="text-xs text-zinc-500">
-                  Tipo
-                  <select
-                    value={tipo}
-                    onChange={(e) => setTipo(e.target.value as PersonalTipoMovimiento)}
-                    className="mt-1 block w-full rounded-lg border border-zinc-700 bg-zinc-900 px-3 py-2 text-sm text-white"
-                  >
-                    {PERSONAL_TIPO_MOVIMIENTO.map((t) => (
-                      <option key={t} value={t}>
-                        {ETIQUETA_TIPO_MOVIMIENTO[t]}
-                      </option>
-                    ))}
-                  </select>
-                </label>
-                <label className="text-xs text-zinc-500">
-                  Fecha
-                  <input
-                    type="date"
-                    value={fecha}
-                    onChange={(e) => setFecha(e.target.value)}
-                    className="mt-1 block w-full rounded-lg border border-zinc-700 bg-zinc-900 px-3 py-2 text-sm text-white"
-                  />
-                </label>
+          <Seccion titulo="Agregar registro">
+            <div className="space-y-3 rounded-card bg-surface-3 p-4 shadow-[0_1px_2px_rgb(0_0_0/0.04)]">
+              <div className="grid gap-3 sm:grid-cols-2">
+                <Selector
+                  label="Persona"
+                  titulo="Elegir persona"
+                  opciones={OPCIONES_PERSONA}
+                  valor={personaId}
+                  onChange={setPersonaId}
+                />
+                <Selector
+                  label="Tipo"
+                  titulo="Tipo de registro"
+                  opciones={OPCIONES_TIPO}
+                  valor={tipo}
+                  onChange={setTipo}
+                />
+                <Fecha
+                  label={tipo === "vacaciones" ? "Desde" : "Fecha"}
+                  valor={fecha}
+                  onChange={setFecha}
+                />
                 {tipo === "vacaciones" ? (
-                  <label className="text-xs text-zinc-500">
-                    Fecha hasta
-                    <input
-                      type="date"
-                      value={fechaHasta}
-                      onChange={(e) => setFechaHasta(e.target.value)}
-                      className="mt-1 block w-full rounded-lg border border-zinc-700 bg-zinc-900 px-3 py-2 text-sm text-white"
-                    />
-                  </label>
+                  <Campo
+                    type="date"
+                    label="Hasta (opcional)"
+                    value={fechaHasta}
+                    onChange={(e) => setFechaHasta(e.target.value)}
+                  />
                 ) : (
-                  <label className="text-xs text-zinc-500">
-                    Monto (€)
-                    <input
-                      type="text"
-                      inputMode="decimal"
-                      value={monto}
-                      onChange={(e) => setMonto(e.target.value)}
-                      className="mt-1 block w-full rounded-lg border border-zinc-700 bg-zinc-900 px-3 py-2 text-sm text-white"
-                    />
-                  </label>
+                  <Campo
+                    type="text"
+                    inputMode="decimal"
+                    label="Monto (€)"
+                    placeholder="0"
+                    value={monto}
+                    onChange={(e) => setMonto(e.target.value)}
+                  />
                 )}
               </div>
-              <label className="mt-3 block text-xs text-zinc-500">
-                Notas
-                <input
-                  type="text"
-                  value={notas}
-                  onChange={(e) => setNotas(e.target.value)}
-                  className="mt-1 block w-full rounded-lg border border-zinc-700 bg-zinc-900 px-3 py-2 text-sm text-white"
-                />
-              </label>
-              <button
-                type="button"
+              <Campo
+                type="text"
+                label="Notas"
+                placeholder="Opcional"
+                value={notas}
+                onChange={(e) => setNotas(e.target.value)}
+              />
+              <Boton
+                icono={<Plus className="h-[18px] w-[18px]" aria-hidden />}
+                cargando={isBusy}
                 onClick={() => void guardar()}
-                disabled={isBusy}
-                className="mt-3 inline-flex items-center gap-2 rounded-xl border border-emerald-800/80 bg-emerald-900/50 px-4 py-2 text-sm font-semibold text-emerald-50 disabled:opacity-50"
+                className="w-full sm:w-auto"
               >
-                {isBusy ? <Loader2 className="h-4 w-4 animate-spin" /> : <Plus className="h-4 w-4" />}
-                Guardar
-              </button>
+                Guardar registro
+              </Boton>
             </div>
+          </Seccion>
 
-            <div className="mb-2 flex items-center justify-between gap-2">
-              <p className="text-sm font-medium text-zinc-300">Registros</p>
-              <select
-                value={filtroPersona}
-                onChange={(e) => setFiltroPersona(e.target.value)}
-                className="rounded-lg border border-zinc-700 bg-zinc-900 px-2 py-1 text-xs text-white"
-              >
-                <option value="">Todas las personas</option>
-                {PERSONAL_PERSONAS.map((p) => (
-                  <option key={p.id} value={p.id}>
-                    {p.name}
-                  </option>
+          <Seccion titulo="Registros">
+            <div className="mb-3 sm:max-w-xs">
+              <Selector
+                titulo="Filtrar por persona"
+                opciones={OPCIONES_PERSONA}
+                valor={filtroPersona}
+                onChange={setFiltroPersona}
+                placeholder="Todas las personas"
+                vaciar={{ valor: "", label: "Todas las personas" }}
+              />
+            </div>
+            {visibles.length === 0 ? (
+              <EstadoVacio
+                icono={<ClipboardList className="h-6 w-6" aria-hidden />}
+                titulo="Sin registros"
+                texto={
+                  filtroPersona
+                    ? "Esta persona no tiene registros cargados."
+                    : "Todavía no se cargó ningún registro."
+                }
+              />
+            ) : (
+              <ul className="overflow-hidden rounded-card bg-surface-3 shadow-[0_1px_2px_rgb(0_0_0/0.04)]">
+                {visibles.map((r) => (
+                  <li
+                    key={r.id}
+                    className="flex min-h-14 items-center gap-3 border-b border-separator pl-4 pr-1.5 last:border-0"
+                  >
+                    <div className="min-w-0 flex-1 py-3">
+                      <p className="text-[1rem] leading-snug text-label">
+                        <span className="font-medium">
+                          {nombrePersonalFicha(r.personaId)}
+                        </span>
+                        <span className="text-label-3"> · </span>
+                        {ETIQUETA_TIPO_MOVIMIENTO[r.tipo]}
+                      </p>
+                      <p className="mt-0.5 text-[0.86rem] tabular-nums text-label-3">
+                        {fechaCorta(r.fecha)}
+                        {r.fechaHasta ? ` → ${fechaCorta(r.fechaHasta)}` : ""}
+                      </p>
+                      {r.notas ? (
+                        <p className="mt-0.5 text-[0.86rem] text-label-2">
+                          {r.notas}
+                        </p>
+                      ) : null}
+                    </div>
+                    {r.monto != null ? (
+                      <span className="shrink-0 text-[1rem] font-semibold tabular-nums text-label">
+                        {formatearEuros(r.monto)}€
+                      </span>
+                    ) : null}
+                    <BotonIcono
+                      etiqueta="Eliminar registro"
+                      variante="plano"
+                      disabled={isBusy}
+                      onClick={() => void borrar(r.id)}
+                      icono={
+                        <Trash2 className="h-[18px] w-[18px]" aria-hidden />
+                      }
+                    />
+                  </li>
                 ))}
-              </select>
-            </div>
-            <div className="overflow-x-auto rounded-xl border border-zinc-800">
-              <table className="w-full min-w-[760px] text-sm">
-                <thead className="bg-zinc-900/80 text-zinc-400">
-                  <tr>
-                    <th className="px-3 py-2 text-left">Persona</th>
-                    <th className="px-3 py-2 text-left">Tipo</th>
-                    <th className="px-3 py-2 text-left">Fecha</th>
-                    <th className="px-3 py-2 text-left">Hasta</th>
-                    <th className="px-3 py-2 text-right">Monto</th>
-                    <th className="px-3 py-2 text-left">Notas</th>
-                    <th className="px-3 py-2 text-right" />
-                  </tr>
-                </thead>
-                <tbody>
-                  {visibles.map((r) => (
-                    <tr key={r.id} className="border-t border-zinc-800 text-zinc-200">
-                      <td className="px-3 py-2">{nombrePersonalFicha(r.personaId)}</td>
-                      <td className="px-3 py-2">{ETIQUETA_TIPO_MOVIMIENTO[r.tipo]}</td>
-                      <td className="px-3 py-2 tabular-nums">{r.fecha}</td>
-                      <td className="px-3 py-2 tabular-nums">{r.fechaHasta ?? "—"}</td>
-                      <td className="px-3 py-2 text-right tabular-nums">
-                        {r.monto != null ? `${formatearEuros(r.monto)}€` : "—"}
-                      </td>
-                      <td className="px-3 py-2">{r.notas ?? "—"}</td>
-                      <td className="px-3 py-2 text-right">
-                        <button
-                          type="button"
-                          onClick={() => void borrar(r.id)}
-                          className="rounded-md border border-zinc-700 p-1 text-zinc-400 hover:text-zinc-100"
-                          title="Eliminar"
-                        >
-                          <Trash2 className="h-4 w-4" />
-                        </button>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          </>
-        )}
-      </section>
-    </main>
+              </ul>
+            )}
+          </Seccion>
+        </>
+      )}
+    </Pantalla>
   );
 }
