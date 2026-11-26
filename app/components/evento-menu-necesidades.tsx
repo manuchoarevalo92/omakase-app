@@ -1,14 +1,9 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import {
-  CheckCircle2,
-  ChevronDown,
-  ChevronRight,
-  Circle,
-  Loader2,
-} from "lucide-react";
+import { ChevronRight, Circle, CircleAlert, CircleCheck } from "lucide-react";
 
+import { EsqueletoLista, Seccion, cx, vibrar } from "@/app/ui";
 import {
   ETIQUETA_EVENTO_SECCION,
   EVENTO_MENU_SECCIONES,
@@ -69,7 +64,9 @@ export function EventoMenuNecesidades({
   const platoIdsKey = useMemo(() => {
     const ids = [
       ...new Set(
-        menuItems.map((m) => m.platoId).filter((id): id is string => Boolean(id))
+        menuItems
+          .map((m) => m.platoId)
+          .filter((id): id is string => Boolean(id)),
       ),
     ].sort();
     return ids.join(",");
@@ -77,17 +74,16 @@ export function EventoMenuNecesidades({
 
   useEffect(() => {
     const ids = platoIdsKey ? platoIdsKey.split(",") : [];
-    if (ids.length === 0) {
-      setNecesidades([]);
-      setError(null);
-      return;
-    }
-
     let cancelled = false;
-    setLoading(true);
-    setError(null);
 
     void (async () => {
+      if (ids.length === 0) {
+        setNecesidades([]);
+        setError(null);
+        return;
+      }
+      setLoading(true);
+      setError(null);
       try {
         const rows = await fetchNecesidadesPorPlatos(ids);
         if (!cancelled) setNecesidades(rows);
@@ -96,7 +92,7 @@ export function EventoMenuNecesidades({
           setError(
             err instanceof Error
               ? err.message
-              : "No se pudieron cargar las necesidades por plato."
+              : "No se pudieron cargar las necesidades por plato.",
           );
         }
       } finally {
@@ -128,11 +124,13 @@ export function EventoMenuNecesidades({
     const vistos = new Set<string>();
     const resultado: PlatoConNecesidades[] = [];
     const menuOrdenado = [...menuItems].sort(
-      (a, b) => a.orden - b.orden || a.platoNombre.localeCompare(b.platoNombre, "es")
+      (a, b) =>
+        a.orden - b.orden || a.platoNombre.localeCompare(b.platoNombre, "es"),
     );
 
     for (const menu of menuOrdenado) {
-      const dedupeKey = menu.platoId ?? `libre:${menu.platoNombre.toLowerCase()}`;
+      const dedupeKey =
+        menu.platoId ?? `libre:${menu.platoNombre.toLowerCase()}`;
       if (vistos.has(dedupeKey)) continue;
       vistos.add(dedupeKey);
 
@@ -189,175 +187,193 @@ export function EventoMenuNecesidades({
 
   if (menuItems.length === 0) return null;
 
-  return (
-    <section className="mb-6 rounded-2xl border border-zinc-800 bg-zinc-900/60 p-5">
-      <div className="mb-4">
-        <h2 className="text-sm font-semibold uppercase tracking-wide text-zinc-400">
-          Menú del evento
-        </h2>
-        <p className="mt-1 text-xs text-zinc-500">
-          Tocá un plato para ver qué necesitás. El tilde sigue la checklist general.
-        </p>
+  if (loading) {
+    return (
+      <div className="mt-6">
+        <EsqueletoLista filas={5} />
       </div>
+    );
+  }
 
-      {loading ? (
-        <p className="inline-flex items-center gap-2 text-sm text-zinc-500">
-          <Loader2 className="h-4 w-4 animate-spin" />
-          Cargando…
-        </p>
-      ) : null}
+  if (error) {
+    return (
+      <div
+        role="alert"
+        className="mt-6 flex gap-3 rounded-card bg-danger-soft px-4 py-3 text-[0.94rem] text-danger"
+      >
+        <CircleAlert
+          className="mt-0.5 h-[18px] w-[18px] shrink-0"
+          aria-hidden
+        />
+        <p className="min-w-0 flex-1">{error}</p>
+      </div>
+    );
+  }
 
-      {error ? (
-        <p className="rounded-xl border border-red-900/40 bg-red-950/20 px-3 py-2 text-sm text-red-200">
-          {error}
-        </p>
-      ) : null}
-
-      {!loading && !error ? (
-        <div className="space-y-3">
-          {porSeccion.map((bloque) => (
-            <section
-              key={bloque.seccion}
-              className="rounded-lg border border-zinc-800/90 bg-zinc-950/50 px-3 py-2.5"
-            >
-              <h3 className="text-[10px] font-semibold uppercase tracking-[0.16em] text-zinc-500">
-                {bloque.titulo}
-              </h3>
-              <ul className="mt-1.5 space-y-1">
-                {bloque.platos.map((plato, index) => {
-                  const abierto = abiertos.has(plato.key);
-                  const prog = progresoPlato(plato);
-                  return (
-                    <li
-                      key={plato.key}
-                      className="overflow-hidden rounded-lg border border-zinc-800/80 bg-zinc-950/40"
-                    >
-                      <button
-                        type="button"
-                        onClick={() => toggleAbierto(plato.key)}
-                        aria-expanded={abierto}
-                        className="flex w-full items-center gap-2 px-3 py-2.5 text-left transition hover:bg-zinc-900/60"
-                      >
-                        {abierto ? (
-                          <ChevronDown className="h-4 w-4 shrink-0 text-zinc-500" />
-                        ) : (
-                          <ChevronRight className="h-4 w-4 shrink-0 text-zinc-500" />
-                        )}
-                        <span className="w-5 shrink-0 text-right font-mono text-[11px] tabular-nums text-zinc-500">
-                          {index + 1}
+  return (
+    <>
+      {porSeccion.map((bloque) => (
+        <Seccion key={bloque.seccion} titulo={bloque.titulo}>
+          <ul className="overflow-hidden rounded-card bg-surface-3 shadow-[0_1px_2px_rgb(0_0_0/0.04)]">
+            {bloque.platos.map((plato, index) => {
+              const abierto = abiertos.has(plato.key);
+              const prog = progresoPlato(plato);
+              return (
+                <li
+                  key={plato.key}
+                  className="border-b border-separator last:border-0"
+                >
+                  <button
+                    type="button"
+                    onClick={() => {
+                      vibrar();
+                      toggleAbierto(plato.key);
+                    }}
+                    aria-expanded={abierto}
+                    className="flex min-h-14 w-full items-center gap-3 py-2 pl-4 pr-3 text-left transition active:bg-fill"
+                  >
+                    <span className="flex size-7 shrink-0 items-center justify-center rounded-full bg-fill font-mono text-[0.8rem] tabular-nums text-label-2">
+                      {index + 1}
+                    </span>
+                    <span className="min-w-0 flex-1 text-[1rem] leading-snug text-label">
+                      {plato.nombre}
+                    </span>
+                    {prog.total > 0 ? (
+                      <span className="shrink-0 text-right text-[0.8rem] leading-tight tabular-nums text-label-3">
+                        <span
+                          className={cx(
+                            "block",
+                            prog.listos === prog.total && "text-info",
+                          )}
+                        >
+                          {prog.listos}/{prog.total} listos
                         </span>
-                        <span className="min-w-0 flex-1 text-sm text-zinc-100">
-                          {plato.nombre}
+                        <span
+                          className={cx(
+                            "block",
+                            prog.enValija === prog.total &&
+                              "font-semibold text-success",
+                          )}
+                        >
+                          {prog.enValija}/{prog.total} valija
                         </span>
-                        {prog.total > 0 ? (
-                          <span className="shrink-0 text-[10px] tabular-nums text-zinc-500">
-                            <span
-                              className={
-                                prog.listos === prog.total
-                                  ? "text-emerald-400"
-                                  : undefined
-                              }
-                            >
-                              {prog.listos}/{prog.total}
-                            </span>
-                            {" · "}
-                            <span
-                              className={
-                                prog.enValija === prog.total
-                                  ? "text-sky-400"
-                                  : undefined
-                              }
-                            >
-                              V {prog.enValija}/{prog.total}
-                            </span>
-                          </span>
-                        ) : null}
-                      </button>
+                      </span>
+                    ) : null}
+                    <ChevronRight
+                      className={cx(
+                        "h-[18px] w-[18px] shrink-0 text-label-3 transition-transform",
+                        abierto && "rotate-90",
+                      )}
+                      aria-hidden
+                    />
+                  </button>
 
-                      {abierto ? (
-                        <div className="border-t border-zinc-800/80 px-3 py-2">
-                          {plato.items.length === 0 ? (
-                            <p className="text-xs text-zinc-500">
-                              {plato.platoId
-                                ? "Sin necesidades cargadas para este plato."
-                                : "Ítem libre — sin ficha de necesidades."}
-                            </p>
-                          ) : (
-                            <ul className="space-y-1">
-                              {plato.items.map((fila) => {
-                                const check = fila.checklist;
-                                const listo = check?.completado === true;
-                                const enValija = check?.enValija === true;
-                                const contenido = (
-                                  <>
-                                    {check ? (
-                                      listo ? (
-                                        <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0 text-emerald-400" />
-                                      ) : (
-                                        <Circle className="mt-0.5 h-4 w-4 shrink-0 text-zinc-500" />
-                                      )
-                                    ) : (
-                                      <Circle className="mt-0.5 h-4 w-4 shrink-0 text-amber-500/70" />
-                                    )}
-                                    <span
-                                      className={`min-w-0 flex-1 text-sm ${
-                                        enValija
-                                          ? "text-zinc-500 line-through"
-                                          : "text-zinc-200"
-                                      }`}
-                                    >
-                                      {fila.item}
-                                    </span>
-                                    {check ? (
-                                      <span className="shrink-0 text-[11px] tabular-nums text-zinc-500">
-                                        {check.cantidad} {check.unidad}
-                                        {enValija ? " · valija" : listo ? " · listo" : ""}
+                  {abierto ? (
+                    <div className="border-t border-separator bg-surface-2">
+                      {plato.items.length === 0 ? (
+                        <p className="px-4 py-3 text-[0.9rem] text-label-3">
+                          {plato.platoId
+                            ? "Sin necesidades cargadas para este plato."
+                            : "Ítem libre: no tiene ficha de necesidades."}
+                        </p>
+                      ) : (
+                        <ul>
+                          {plato.items.map((fila) => {
+                            const check = fila.checklist;
+                            const listo = check?.completado === true;
+                            const enValija = check?.enValija === true;
+                            const contenido = (
+                              <>
+                                {check ? (
+                                  listo ? (
+                                    <CircleCheck
+                                      className="h-5 w-5 shrink-0 text-info"
+                                      aria-hidden
+                                    />
+                                  ) : (
+                                    <Circle
+                                      className="h-5 w-5 shrink-0 text-label-3"
+                                      aria-hidden
+                                    />
+                                  )
+                                ) : (
+                                  <Circle
+                                    className="h-5 w-5 shrink-0 text-warning"
+                                    aria-hidden
+                                  />
+                                )}
+                                <span
+                                  className={cx(
+                                    "min-w-0 flex-1 text-[0.97rem] leading-snug",
+                                    enValija
+                                      ? "text-label-3 line-through"
+                                      : "text-label",
+                                  )}
+                                >
+                                  {fila.item}
+                                </span>
+                                {check ? (
+                                  <span className="shrink-0 text-right text-[0.84rem] tabular-nums text-label-3">
+                                    {check.cantidad} {check.unidad}
+                                    {enValija ? (
+                                      <span className="block font-semibold text-success">
+                                        En valija
                                       </span>
-                                    ) : (
-                                      <span className="shrink-0 text-[10px] text-amber-500/90">
-                                        No en checklist
+                                    ) : listo ? (
+                                      <span className="block text-info">
+                                        Listo
                                       </span>
-                                    )}
-                                  </>
-                                );
+                                    ) : null}
+                                  </span>
+                                ) : (
+                                  <span className="shrink-0 text-[0.8rem] text-warning">
+                                    No está en la checklist
+                                  </span>
+                                )}
+                              </>
+                            );
 
-                                if (check && onToggleChecklistItem) {
-                                  return (
-                                    <li key={`${plato.key}-${fila.item}`}>
-                                      <button
-                                        type="button"
-                                        onClick={() =>
-                                          onToggleChecklistItem(check.id)
-                                        }
-                                        className="flex w-full items-start gap-2 rounded-md px-1.5 py-1.5 text-left transition hover:bg-zinc-900/70"
-                                      >
-                                        {contenido}
-                                      </button>
-                                    </li>
-                                  );
-                                }
-
-                                return (
-                                  <li
-                                    key={`${plato.key}-${fila.item}`}
-                                    className="flex items-start gap-2 px-1.5 py-1.5"
+                            if (check && onToggleChecklistItem) {
+                              return (
+                                <li
+                                  key={`${plato.key}-${fila.item}`}
+                                  className="border-b border-separator last:border-0"
+                                >
+                                  <button
+                                    type="button"
+                                    aria-pressed={listo}
+                                    aria-label={`${fila.item}: ${listo ? "marcar no listo" : "marcar listo"}`}
+                                    onClick={() => {
+                                      vibrar(listo ? "toque" : "exito");
+                                      onToggleChecklistItem(check.id);
+                                    }}
+                                    className="flex min-h-12 w-full items-center gap-3 py-2 pl-4 pr-3 text-left transition active:bg-fill"
                                   >
                                     {contenido}
-                                  </li>
-                                );
-                              })}
-                            </ul>
-                          )}
-                        </div>
-                      ) : null}
-                    </li>
-                  );
-                })}
-              </ul>
-            </section>
-          ))}
-        </div>
-      ) : null}
-    </section>
+                                  </button>
+                                </li>
+                              );
+                            }
+
+                            return (
+                              <li
+                                key={`${plato.key}-${fila.item}`}
+                                className="flex min-h-12 items-center gap-3 border-b border-separator py-2 pl-4 pr-3 last:border-0"
+                              >
+                                {contenido}
+                              </li>
+                            );
+                          })}
+                        </ul>
+                      )}
+                    </div>
+                  ) : null}
+                </li>
+              );
+            })}
+          </ul>
+        </Seccion>
+      ))}
+    </>
   );
 }

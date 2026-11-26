@@ -1,24 +1,52 @@
 "use client";
 
-import { FormEvent, useCallback, useEffect, useMemo, useState } from "react";
 import {
-  ArrowLeft,
-  Briefcase,
-  Calendar,
+  FormEvent,
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
+import {
+  CalendarDays,
   Check,
-  CheckCircle2,
   Circle,
+  CircleAlert,
+  CircleCheck,
+  Ellipsis,
   List,
-  Loader2,
-  Package,
+  Luggage,
+  Minus,
   Pencil,
   Plus,
   RefreshCw,
-  Search,
+  SearchX,
   Trash2,
 } from "lucide-react";
-import { EsqueletoLista } from "@/app/ui";
 
+import {
+  AreaTexto,
+  Boton,
+  BotonIcono,
+  Campo,
+  CampoBusqueda,
+  EstadoVacio,
+  EsqueletoLista,
+  Etiqueta,
+  Fecha,
+  Fila,
+  Hoja,
+  Lista,
+  Pantalla,
+  Seccion,
+  Segmentado,
+  Selector,
+  cx,
+  useAvisos,
+  vibrar,
+  type OpcionSelector,
+} from "@/app/ui";
 import { EventoMenuOmakase } from "@/app/components/evento-menu-omakase";
 import { EventoMenuNecesidades } from "@/app/components/evento-menu-necesidades";
 import {
@@ -53,6 +81,7 @@ import {
   toggleEventoChecklistItem,
   type Evento,
   type EventoChecklistCategoria,
+  type EventoChecklistItem,
   type EventoDetalle,
   type EventoEstado,
   type EventoMenuItem,
@@ -68,7 +97,7 @@ type PlatoCatalogo = {
 
 function formatFechaLocalYYYYMMDD(d: Date): string {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(
-    d.getDate()
+    d.getDate(),
   ).padStart(2, "0")}`;
 }
 
@@ -94,11 +123,17 @@ export default function EventosPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [success, setSuccess] = useState<string | null>(null);
+  const { aviso, confirmar } = useAvisos();
+  /** Pestaña del detalle: checklist para armar la valija o el menú. */
+  const [vista, setVista] = useState<"llevar" | "menu">("llevar");
+  const [editandoDatos, setEditandoDatos] = useState(false);
+  const [itemEditandoId, setItemEditandoId] = useState<string | null>(null);
 
   const [mostrarNuevo, setMostrarNuevo] = useState(false);
   const [nuevoTitulo, setNuevoTitulo] = useState("");
-  const [nuevoFecha, setNuevoFecha] = useState(() => formatFechaLocalYYYYMMDD(now));
+  const [nuevoFecha, setNuevoFecha] = useState(() =>
+    formatFechaLocalYYYYMMDD(now),
+  );
   const [nuevoHora, setNuevoHora] = useState(() => horaLocalHHmm(now));
   const [nuevoLugar, setNuevoLugar] = useState("");
   const [nuevoComensales, setNuevoComensales] = useState("");
@@ -112,28 +147,32 @@ export default function EventosPage() {
     useState<EventoChecklistCategoria>("otros");
   const [checklistBusqueda, setChecklistBusqueda] = useState("");
   const [menuSlots, setMenuSlots] = useState<EventoMenuOmakaseSlots>(() =>
-    slotsVaciosMenuOmakase()
+    slotsVaciosMenuOmakase(),
   );
   /** Como en el Omakase diario: tras guardar, vista lista; editar vuelve al formulario. */
   const [menuVistaLista, setMenuVistaLista] = useState(false);
 
   const eventosProximos = useMemo(() => {
     const hoy = formatFechaLocalYYYYMMDD(new Date());
-    const activos = eventos.filter((e) => e.estado !== "cancelado" && e.estado !== "completado");
+    const activos = eventos.filter(
+      (e) => e.estado !== "cancelado" && e.estado !== "completado",
+    );
     const futuros = activos.filter((e) => e.fecha >= hoy);
     const pasados = activos.filter((e) => e.fecha < hoy);
-    const cerrados = eventos.filter((e) => e.estado === "completado" || e.estado === "cancelado");
+    const cerrados = eventos.filter(
+      (e) => e.estado === "completado" || e.estado === "cancelado",
+    );
     return { futuros, pasados, cerrados };
   }, [eventos]);
 
   const platosPorId = useMemo(
     () => new Map(platos.map((p) => [p.id, p])),
-    [platos]
+    [platos],
   );
 
   const extrasMenu = useMemo(
     () => (detalle ? extrasDesdeMenuItems(detalle.menuItems) : []),
-    [detalle]
+    [detalle],
   );
 
   const progreso = useMemo(
@@ -141,7 +180,7 @@ export default function EventosPage() {
       detalle
         ? progresoChecklist(detalle.checklistItems)
         : { total: 0, listos: 0, enValija: 0 },
-    [detalle]
+    [detalle],
   );
 
   const checklistPorCategoria = useMemo(() => {
@@ -150,7 +189,8 @@ export default function EventosPage() {
     const items = q
       ? detalle.checklistItems.filter((item) => {
           const titulo = item.titulo.toLowerCase();
-          const cat = ETIQUETA_CHECKLIST_CATEGORIA[item.categoria]?.toLowerCase() ?? "";
+          const cat =
+            ETIQUETA_CHECKLIST_CATEGORIA[item.categoria]?.toLowerCase() ?? "";
           const unidad = item.unidad.toLowerCase();
           return titulo.includes(q) || cat.includes(q) || unidad.includes(q);
         })
@@ -160,7 +200,7 @@ export default function EventosPage() {
 
   const checklistFiltradosCount = useMemo(
     () => checklistPorCategoria.reduce((acc, b) => acc + b.items.length, 0),
-    [checklistPorCategoria]
+    [checklistPorCategoria],
   );
 
   const cargarLista = useCallback(async () => {
@@ -186,7 +226,12 @@ export default function EventosPage() {
     try {
       const [lista, platosRes] = await Promise.all([
         fetchEventos(),
-        supabase.from("platos").select("id, nombre, categoria").eq("tipo", "carta").order("categoria").order("nombre"),
+        supabase
+          .from("platos")
+          .select("id, nombre, categoria")
+          .eq("tipo", "carta")
+          .order("categoria")
+          .order("nombre"),
       ]);
       setEventos(lista);
       if (platosRes.error) throw platosRes.error;
@@ -207,12 +252,14 @@ export default function EventosPage() {
 
   const abrirEvento = async (id: string) => {
     setError(null);
-    setSuccess(null);
     setMostrarNuevo(false);
     try {
-      await cargarDetalle(id);
+      const data = await cargarDetalle(id);
+      setVista(data && data.menuItems.length === 0 ? "menu" : "llevar");
     } catch (err) {
-      setError(err instanceof Error ? err.message : "No se pudo abrir el evento.");
+      setError(
+        err instanceof Error ? err.message : "No se pudo abrir el evento.",
+      );
     }
   };
 
@@ -221,8 +268,9 @@ export default function EventosPage() {
     setMenuSlots(slotsVaciosMenuOmakase());
     setMenuVistaLista(false);
     setChecklistBusqueda("");
+    setEditandoDatos(false);
+    setItemEditandoId(null);
     setError(null);
-    setSuccess(null);
     void cargarLista();
   };
 
@@ -233,7 +281,6 @@ export default function EventosPage() {
 
     setIsSaving(true);
     setError(null);
-    setSuccess(null);
     try {
       const creado = await crearEvento({
         titulo,
@@ -249,19 +296,21 @@ export default function EventosPage() {
       setNuevoTitulo("");
       setNuevoLugar("");
       setNuevoComensales("");
-      setSuccess("Evento creado. Armá el menú Omakase abajo.");
+      setVista("menu");
+      aviso("Evento creado. Ahora armá el menú.", { tono: "exito" });
     } catch (err) {
-      setError(err instanceof Error ? err.message : "No se pudo crear el evento.");
+      setError(
+        err instanceof Error ? err.message : "No se pudo crear el evento.",
+      );
     } finally {
       setIsSaving(false);
     }
   };
 
-  const guardarCabecera = async () => {
-    if (!detalle) return;
+  const guardarCabecera = async (): Promise<boolean> => {
+    if (!detalle) return false;
     setIsSaving(true);
     setError(null);
-    setSuccess(null);
     try {
       const actualizado = await actualizarEvento(detalle.id, {
         titulo: detalle.titulo,
@@ -274,9 +323,11 @@ export default function EventosPage() {
       });
       setDetalle((prev) => (prev ? { ...prev, ...actualizado } : prev));
       await cargarLista();
-      setSuccess("Evento actualizado.");
+      aviso("Evento actualizado.", { tono: "exito" });
+      return true;
     } catch (err) {
       setError(err instanceof Error ? err.message : "No se pudo guardar.");
+      return false;
     } finally {
       setIsSaving(false);
     }
@@ -284,7 +335,12 @@ export default function EventosPage() {
 
   const borrarEvento = async () => {
     if (!detalle) return;
-    const ok = window.confirm(`¿Eliminar "${detalle.titulo}"?`);
+    const ok = await confirmar({
+      titulo: `¿Eliminar «${detalle.titulo}»?`,
+      texto: "No se puede deshacer.",
+      confirmar: "Eliminar",
+      peligro: true,
+    });
     if (!ok) return;
     setIsSaving(true);
     setError(null);
@@ -306,34 +362,40 @@ export default function EventosPage() {
     }
     setIsSaving(true);
     setError(null);
-    setSuccess(null);
     try {
       const menuItems = await guardarMenuOmakaseEvento(
         detalle.id,
         menuSlots,
-        platosPorId
+        platosPorId,
       );
-      const { checklist, agregados } = await sincronizarChecklistDesdeMenu(detalle.id);
+      const { checklist, agregados } = await sincronizarChecklistDesdeMenu(
+        detalle.id,
+      );
       let estado = detalle.estado;
       if (estado === "borrador") {
-        const actualizado = await actualizarEvento(detalle.id, { estado: "confirmado" });
+        const actualizado = await actualizarEvento(detalle.id, {
+          estado: "confirmado",
+        });
         estado = actualizado.estado;
       }
       setDetalle((prev) =>
-        prev ? { ...prev, menuItems, checklistItems: checklist, estado } : prev
+        prev ? { ...prev, menuItems, checklistItems: checklist, estado } : prev,
       );
       setMenuVistaLista(true);
-      setSuccess(
+      aviso(
         `Menú guardado: ${conteo.base}/${conteo.baseObjetivo} base` +
           (!menuSlots.nigiriOnly && conteo.regalo > 0
             ? ` + ${conteo.regalo} regalo`
             : "") +
           (agregados > 0 ? ` · checklist +${agregados} insumos` : "") +
           (estado === "confirmado" ? " · estado Guardado" : "") +
-          "."
+          ".",
+        { tono: "exito" },
       );
     } catch (err) {
-      setError(err instanceof Error ? err.message : "No se pudo guardar el menú.");
+      setError(
+        err instanceof Error ? err.message : "No se pudo guardar el menú.",
+      );
     } finally {
       setIsSaving(false);
     }
@@ -354,11 +416,13 @@ export default function EventosPage() {
         seccion: "extra",
       });
       setDetalle((prev) =>
-        prev ? { ...prev, menuItems: [...prev.menuItems, item] } : prev
+        prev ? { ...prev, menuItems: [...prev.menuItems, item] } : prev,
       );
       setPlatoSeleccionado("");
     } catch (err) {
-      setError(err instanceof Error ? err.message : "No se pudo agregar extra.");
+      setError(
+        err instanceof Error ? err.message : "No se pudo agregar extra.",
+      );
     } finally {
       setIsSaving(false);
     }
@@ -375,11 +439,13 @@ export default function EventosPage() {
         seccion: "extra",
       });
       setDetalle((prev) =>
-        prev ? { ...prev, menuItems: [...prev.menuItems, item] } : prev
+        prev ? { ...prev, menuItems: [...prev.menuItems, item] } : prev,
       );
       setMenuLibre("");
     } catch (err) {
-      setError(err instanceof Error ? err.message : "No se pudo agregar al menú.");
+      setError(
+        err instanceof Error ? err.message : "No se pudo agregar al menú.",
+      );
     } finally {
       setIsSaving(false);
     }
@@ -393,11 +459,16 @@ export default function EventosPage() {
       await eliminarEventoMenuItem(item.id);
       setDetalle((prev) =>
         prev
-          ? { ...prev, menuItems: prev.menuItems.filter((m) => m.id !== item.id) }
-          : prev
+          ? {
+              ...prev,
+              menuItems: prev.menuItems.filter((m) => m.id !== item.id),
+            }
+          : prev,
       );
     } catch (err) {
-      setError(err instanceof Error ? err.message : "No se pudo quitar del menú.");
+      setError(
+        err instanceof Error ? err.message : "No se pudo quitar del menú.",
+      );
     } finally {
       setIsSaving(false);
     }
@@ -417,7 +488,9 @@ export default function EventosPage() {
         categoria: checklistCategoriaNueva,
       });
       setDetalle((prev) =>
-        prev ? { ...prev, checklistItems: [...prev.checklistItems, item] } : prev
+        prev
+          ? { ...prev, checklistItems: [...prev.checklistItems, item] }
+          : prev,
       );
       setChecklistNuevo("");
       setChecklistCantidadNueva("1");
@@ -433,32 +506,38 @@ export default function EventosPage() {
   const cambiarCantidadChecklist = async (itemId: string, raw: string) => {
     if (!detalle) return;
     const parsed = Number(raw);
-    const cantidad = Number.isFinite(parsed) && parsed > 0 ? Math.floor(parsed) : 1;
+    const cantidad =
+      Number.isFinite(parsed) && parsed > 0 ? Math.floor(parsed) : 1;
     setDetalle((prev) =>
       prev
         ? {
             ...prev,
             checklistItems: prev.checklistItems.map((i) =>
-              i.id === itemId ? { ...i, cantidad } : i
+              i.id === itemId ? { ...i, cantidad } : i,
             ),
           }
-        : prev
+        : prev,
     );
     try {
-      const actualizado = await actualizarCantidadChecklistItem(itemId, cantidad);
+      const actualizado = await actualizarCantidadChecklistItem(
+        itemId,
+        cantidad,
+      );
       setDetalle((prev) =>
         prev
           ? {
               ...prev,
               checklistItems: prev.checklistItems.map((i) =>
-                i.id === itemId ? actualizado : i
+                i.id === itemId ? actualizado : i,
               ),
             }
-          : prev
+          : prev,
       );
     } catch (err) {
       setError(
-        err instanceof Error ? err.message : "No se pudo actualizar la cantidad."
+        err instanceof Error
+          ? err.message
+          : "No se pudo actualizar la cantidad.",
       );
     }
   };
@@ -478,10 +557,10 @@ export default function EventosPage() {
         ? {
             ...prev,
             checklistItems: prev.checklistItems.map((i) =>
-              i.id === itemId ? { ...i, titulo } : i
+              i.id === itemId ? { ...i, titulo } : i,
             ),
           }
-        : prev
+        : prev,
     );
     try {
       const actualizado = await actualizarTituloChecklistItem(itemId, titulo);
@@ -490,14 +569,14 @@ export default function EventosPage() {
           ? {
               ...prev,
               checklistItems: prev.checklistItems.map((i) =>
-                i.id === itemId ? actualizado : i
+                i.id === itemId ? actualizado : i,
               ),
             }
-          : prev
+          : prev,
       );
     } catch (err) {
       setError(
-        err instanceof Error ? err.message : "No se pudo actualizar el nombre."
+        err instanceof Error ? err.message : "No se pudo actualizar el nombre.",
       );
     }
   };
@@ -510,10 +589,10 @@ export default function EventosPage() {
         ? {
             ...prev,
             checklistItems: prev.checklistItems.map((i) =>
-              i.id === itemId ? { ...i, unidad: valor } : i
+              i.id === itemId ? { ...i, unidad: valor } : i,
             ),
           }
-        : prev
+        : prev,
     );
     try {
       const actualizado = await actualizarUnidadChecklistItem(itemId, valor);
@@ -522,21 +601,21 @@ export default function EventosPage() {
           ? {
               ...prev,
               checklistItems: prev.checklistItems.map((i) =>
-                i.id === itemId ? actualizado : i
+                i.id === itemId ? actualizado : i,
               ),
             }
-          : prev
+          : prev,
       );
     } catch (err) {
       setError(
-        err instanceof Error ? err.message : "No se pudo actualizar la unidad."
+        err instanceof Error ? err.message : "No se pudo actualizar la unidad.",
       );
     }
   };
 
   const cambiarCategoriaChecklist = async (
     itemId: string,
-    categoria: EventoChecklistCategoria
+    categoria: EventoChecklistCategoria,
   ) => {
     if (!detalle) return;
     setDetalle((prev) =>
@@ -544,26 +623,31 @@ export default function EventosPage() {
         ? {
             ...prev,
             checklistItems: prev.checklistItems.map((i) =>
-              i.id === itemId ? { ...i, categoria } : i
+              i.id === itemId ? { ...i, categoria } : i,
             ),
           }
-        : prev
+        : prev,
     );
     try {
-      const actualizado = await actualizarCategoriaChecklistItem(itemId, categoria);
+      const actualizado = await actualizarCategoriaChecklistItem(
+        itemId,
+        categoria,
+      );
       setDetalle((prev) =>
         prev
           ? {
               ...prev,
               checklistItems: prev.checklistItems.map((i) =>
-                i.id === itemId ? actualizado : i
+                i.id === itemId ? actualizado : i,
               ),
             }
-          : prev
+          : prev,
       );
     } catch (err) {
       setError(
-        err instanceof Error ? err.message : "No se pudo actualizar la categoría."
+        err instanceof Error
+          ? err.message
+          : "No se pudo actualizar la categoría.",
       );
     }
   };
@@ -572,18 +656,24 @@ export default function EventosPage() {
     if (!detalle) return;
     setIsSaving(true);
     setError(null);
-    setSuccess(null);
     try {
-      const { checklist, agregados } = await sincronizarChecklistDesdeMenu(detalle.id);
-      setDetalle((prev) => (prev ? { ...prev, checklistItems: checklist } : prev));
-      setSuccess(
+      const { checklist, agregados } = await sincronizarChecklistDesdeMenu(
+        detalle.id,
+      );
+      setDetalle((prev) =>
+        prev ? { ...prev, checklistItems: checklist } : prev,
+      );
+      aviso(
         agregados > 0
           ? `Checklist actualizada: +${agregados} insumos desde el menú.`
-          : "Checklist al día: no había insumos nuevos."
+          : "Checklist al día: no había insumos nuevos.",
+        { tono: agregados > 0 ? "exito" : "neutro" },
       );
     } catch (err) {
       setError(
-        err instanceof Error ? err.message : "No se pudo sincronizar la checklist."
+        err instanceof Error
+          ? err.message
+          : "No se pudo sincronizar la checklist.",
       );
     } finally {
       setIsSaving(false);
@@ -596,16 +686,19 @@ export default function EventosPage() {
     if (!item) return;
     setError(null);
     try {
-      const actualizado = await toggleEventoChecklistItem(item, !item.completado);
+      const actualizado = await toggleEventoChecklistItem(
+        item,
+        !item.completado,
+      );
       setDetalle((prev) =>
         prev
           ? {
               ...prev,
               checklistItems: prev.checklistItems.map((i) =>
-                i.id === itemId ? actualizado : i
+                i.id === itemId ? actualizado : i,
               ),
             }
-          : prev
+          : prev,
       );
     } catch (err) {
       setError(err instanceof Error ? err.message : "No se pudo actualizar.");
@@ -623,10 +716,10 @@ export default function EventosPage() {
         ? {
             ...prev,
             checklistItems: prev.checklistItems.map((i) =>
-              i.id === itemId ? { ...i, enValija: next } : i
+              i.id === itemId ? { ...i, enValija: next } : i,
             ),
           }
-        : prev
+        : prev,
     );
     try {
       const actualizado = await toggleEventoChecklistEnValija(item, next);
@@ -635,10 +728,10 @@ export default function EventosPage() {
           ? {
               ...prev,
               checklistItems: prev.checklistItems.map((i) =>
-                i.id === itemId ? actualizado : i
+                i.id === itemId ? actualizado : i,
               ),
             }
-          : prev
+          : prev,
       );
     } catch (err) {
       setDetalle((prev) =>
@@ -646,12 +739,14 @@ export default function EventosPage() {
           ? {
               ...prev,
               checklistItems: prev.checklistItems.map((i) =>
-                i.id === itemId ? item : i
+                i.id === itemId ? item : i,
               ),
             }
-          : prev
+          : prev,
       );
-      setError(err instanceof Error ? err.message : "No se pudo marcar la valija.");
+      setError(
+        err instanceof Error ? err.message : "No se pudo marcar la valija.",
+      );
     }
   };
 
@@ -662,210 +757,364 @@ export default function EventosPage() {
       await eliminarEventoChecklistItem(id);
       setDetalle((prev) =>
         prev
-          ? { ...prev, checklistItems: prev.checklistItems.filter((i) => i.id !== id) }
-          : prev
+          ? {
+              ...prev,
+              checklistItems: prev.checklistItems.filter((i) => i.id !== id),
+            }
+          : prev,
       );
     } catch (err) {
       setError(err instanceof Error ? err.message : "No se pudo eliminar.");
     }
   };
 
+  // Callbacks estables: Hoja re-ejecuta su efecto de foco si cambia onCerrar.
+  const cerrarDatos = useCallback(() => setEditandoDatos(false), []);
+  const cerrarNuevo = useCallback(() => setMostrarNuevo(false), []);
+  const cerrarItem = useCallback(() => setItemEditandoId(null), []);
+
+  const bloqueError = error ? (
+    <div
+      role="alert"
+      className="mb-4 flex gap-3 rounded-card bg-danger-soft px-4 py-3 text-[0.94rem] text-danger"
+    >
+      <CircleAlert className="mt-0.5 h-[18px] w-[18px] shrink-0" aria-hidden />
+      <p className="min-w-0 flex-1">{error}</p>
+    </div>
+  ) : null;
+
   if (detalle) {
+    const itemEditando = itemEditandoId
+      ? (detalle.checklistItems.find((i) => i.id === itemEditandoId) ?? null)
+      : null;
+    const todoEnValija =
+      progreso.total > 0 && progreso.enValija === progreso.total;
+    const busqueda = checklistBusqueda.trim();
+    const opcionesEstado: OpcionSelector<EventoEstado>[] = EVENTO_ESTADOS.map(
+      (estado) => ({ valor: estado, label: ETIQUETA_EVENTO_ESTADO[estado] }),
+    );
+
     return (
-      <main className="min-h-screen min-w-0 bg-zinc-950 px-4 py-6 text-zinc-100 sm:px-6 sm:py-10">
-        <section className="mx-auto w-full max-w-3xl">
-          <button
-            type="button"
+      <Pantalla
+        titulo={detalle.titulo || "Evento"}
+        subtitulo={[
+          etiquetaFechaCorta(detalle.fecha),
+          detalle.hora ? detalle.hora.slice(0, 5) : null,
+          detalle.comensales ? `${detalle.comensales} pax` : null,
+        ]
+          .filter(Boolean)
+          .join(" · ")}
+        acciones={
+          <BotonIcono
+            etiqueta="Volver a la lista"
+            icono={<List className="h-[22px] w-[22px]" aria-hidden />}
             onClick={volverALista}
-            className="mb-4 inline-flex items-center gap-2 text-sm text-zinc-400 transition hover:text-white"
-          >
-            <ArrowLeft className="h-4 w-4" />
-            Todos los eventos
-          </button>
-
-          {error ? (
-            <p className="mb-4 rounded-xl border border-red-900/60 bg-red-950/40 px-4 py-3 text-sm text-red-200">
-              {error}
+          />
+        }
+        ayuda={
+          <>
+            <p>
+              <strong className="text-label">Qué llevar</strong> es la checklist
+              para armar la valija: tocá la fila para marcarla{" "}
+              <strong className="text-label">en la valija</strong> (otro toque
+              la saca). <strong className="text-label">Listo</strong> marca que
+              ya está preparado.
             </p>
-          ) : null}
-          {success ? (
-            <p className="mb-4 rounded-xl border border-emerald-900/50 bg-emerald-950/30 px-4 py-3 text-sm text-emerald-200">
-              {success}
+            <p>
+              Con <strong className="text-label">Del menú</strong> se suman los
+              insumos de los platos del menú que todavía no están en la lista.
+              Con los tres puntos de cada fila cambiás nombre, cantidad, unidad
+              o categoría, o lo borrás.
             </p>
-          ) : null}
+            <p>
+              En <strong className="text-label">Menú</strong> se arma el menú
+              Omakase del evento. Ya guardado, tocá un plato para ver qué
+              necesita; el tilde de cada insumo es el mismo «Listo» de la
+              checklist.
+            </p>
+          </>
+        }
+      >
+        {bloqueError}
 
-          <header className="mb-6 rounded-2xl border border-zinc-800 bg-zinc-900/60 p-5">
-            <div className="mb-4 grid gap-3 sm:grid-cols-2">
-              <label className="block sm:col-span-2">
-                <span className="mb-1 block text-xs uppercase tracking-wide text-zinc-500">
-                  Título
-                </span>
-                <input
-                  value={detalle.titulo}
-                  onChange={(e) =>
-                    setDetalle((prev) => (prev ? { ...prev, titulo: e.target.value } : prev))
-                  }
-                  className="w-full rounded-xl border border-zinc-700 bg-zinc-950 px-4 py-2.5 text-sm outline-none focus:border-zinc-500"
-                />
-              </label>
-              <label className="block">
-                <span className="mb-1 block text-xs uppercase tracking-wide text-zinc-500">
-                  Fecha
-                </span>
-                <input
-                  type="date"
-                  value={detalle.fecha}
-                  onChange={(e) =>
-                    setDetalle((prev) => (prev ? { ...prev, fecha: e.target.value } : prev))
-                  }
-                  className="w-full rounded-xl border border-zinc-700 bg-zinc-950 px-4 py-2.5 text-sm outline-none focus:border-zinc-500"
-                />
-              </label>
-              <label className="block">
-                <span className="mb-1 block text-xs uppercase tracking-wide text-zinc-500">
-                  Hora
-                </span>
-                <input
-                  type="time"
-                  value={detalle.hora ?? ""}
-                  onChange={(e) =>
-                    setDetalle((prev) =>
-                      prev ? { ...prev, hora: e.target.value || null } : prev
-                    )
-                  }
-                  className="w-full rounded-xl border border-zinc-700 bg-zinc-950 px-4 py-2.5 text-sm outline-none focus:border-zinc-500"
-                />
-              </label>
-              <label className="block">
-                <span className="mb-1 block text-xs uppercase tracking-wide text-zinc-500">
-                  Lugar
-                </span>
-                <input
-                  value={detalle.lugar ?? ""}
-                  onChange={(e) =>
-                    setDetalle((prev) =>
-                      prev ? { ...prev, lugar: e.target.value || null } : prev
-                    )
-                  }
-                  placeholder="Domicilio, salón, etc."
-                  className="w-full rounded-xl border border-zinc-700 bg-zinc-950 px-4 py-2.5 text-sm outline-none focus:border-zinc-500"
-                />
-              </label>
-              <label className="block">
-                <span className="mb-1 block text-xs uppercase tracking-wide text-zinc-500">
-                  Comensales
-                </span>
-                <input
-                  type="number"
-                  min={1}
-                  value={detalle.comensales ?? ""}
-                  onChange={(e) =>
-                    setDetalle((prev) =>
-                      prev
-                        ? {
-                            ...prev,
-                            comensales: e.target.value ? Number(e.target.value) : null,
-                          }
-                        : prev
-                    )
-                  }
-                  className="w-full rounded-xl border border-zinc-700 bg-zinc-950 px-4 py-2.5 text-sm outline-none focus:border-zinc-500"
-                />
-              </label>
-              <label className="block sm:col-span-2">
-                <span className="mb-1 block text-xs uppercase tracking-wide text-zinc-500">
-                  Estado
-                </span>
-                <select
-                  value={detalle.estado}
-                  onChange={(e) =>
-                    setDetalle((prev) =>
-                      prev ? { ...prev, estado: e.target.value as EventoEstado } : prev
-                    )
-                  }
-                  className="w-full rounded-xl border border-zinc-700 bg-zinc-950 px-4 py-2.5 text-sm outline-none focus:border-zinc-500"
-                >
-                  {EVENTO_ESTADOS.map((estado) => (
-                    <option key={estado} value={estado}>
-                      {ETIQUETA_EVENTO_ESTADO[estado]}
-                    </option>
-                  ))}
-                </select>
-              </label>
-              <label className="block sm:col-span-2">
-                <span className="mb-1 block text-xs uppercase tracking-wide text-zinc-500">
-                  Notas
-                </span>
-                <textarea
-                  value={detalle.notas ?? ""}
-                  onChange={(e) =>
-                    setDetalle((prev) =>
-                      prev ? { ...prev, notas: e.target.value || null } : prev
-                    )
-                  }
-                  rows={2}
-                  className="w-full rounded-xl border border-zinc-700 bg-zinc-950 px-4 py-2.5 text-sm outline-none focus:border-zinc-500"
-                />
-              </label>
-            </div>
-            <div className="flex flex-wrap gap-2">
-              <button
-                type="button"
-                onClick={() => void guardarCabecera()}
-                disabled={isSaving}
-                className="inline-flex items-center gap-2 rounded-xl bg-ink px-4 py-2 text-sm font-semibold text-paper disabled:opacity-50"
-              >
-                {isSaving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Check className="h-4 w-4" />}
-                Guardar
-              </button>
-              <button
-                type="button"
-                onClick={() => void borrarEvento()}
-                disabled={isSaving}
-                className="inline-flex items-center gap-2 rounded-xl border border-red-900/50 px-4 py-2 text-sm text-red-300"
-              >
-                <Trash2 className="h-4 w-4" />
-                Eliminar
-              </button>
-            </div>
-          </header>
+        <button
+          type="button"
+          onClick={() => {
+            vibrar();
+            setEditandoDatos(true);
+          }}
+          className="flex min-h-14 w-full items-center gap-3 rounded-card bg-surface-3 py-3 pl-4 pr-3 text-left shadow-[0_1px_2px_rgb(0_0_0/0.04)] transition active:bg-fill"
+        >
+          <span className="min-w-0 flex-1">
+            <span className="block text-[1rem] leading-snug text-label">
+              {detalle.lugar || "Sin lugar"}
+            </span>
+            {detalle.notas ? (
+              <span className="mt-0.5 line-clamp-2 block whitespace-pre-line text-[0.86rem] leading-snug text-label-3">
+                {detalle.notas}
+              </span>
+            ) : null}
+          </span>
+          <Etiqueta tono={TONO_ESTADO[detalle.estado]}>
+            {ETIQUETA_EVENTO_ESTADO[detalle.estado]}
+          </Etiqueta>
+          <Pencil
+            className="h-[18px] w-[18px] shrink-0 text-label-3"
+            aria-hidden
+          />
+        </button>
 
-          {menuVistaLista && detalle.menuItems.length > 0 ? (
-            <>
-              <div className="mb-4 flex flex-col gap-2 rounded-lg border border-zinc-800 bg-zinc-950/60 px-3 py-2.5 sm:flex-row sm:flex-wrap sm:items-center sm:justify-between">
-                <p className="text-xs text-zinc-400">
-                  Menú guardado · tocá cada plato para ver qué llevar
-                </p>
-                <button
-                  type="button"
-                  onClick={() => setMenuVistaLista(false)}
-                  className="inline-flex shrink-0 items-center justify-center gap-1.5 rounded-md border border-emerald-900/50 bg-emerald-950/50 px-3 py-2 text-[11px] font-semibold text-emerald-50 transition hover:bg-emerald-900/40"
+        <div className="mt-4">
+          <Segmentado
+            etiqueta="Sección del evento"
+            valor={vista}
+            onChange={setVista}
+            opciones={[
+              {
+                valor: "llevar",
+                label: (
+                  <>
+                    Qué llevar
+                    {progreso.total > 0 ? (
+                      <span className="tabular-nums text-label-3">
+                        {progreso.enValija}/{progreso.total}
+                      </span>
+                    ) : null}
+                  </>
+                ),
+              },
+              { valor: "menu", label: "Menú" },
+            ]}
+          />
+        </div>
+
+        {vista === "llevar" ? (
+          <div className="mt-4">
+            {progreso.total > 0 ? (
+              <div className="sticky top-[calc(env(safe-area-inset-top,0px)+3.25rem)] z-20 sm:top-3">
+                <div
+                  className={cx(
+                    "rounded-card px-4 py-3 shadow-[0_6px_20px_rgb(0_0_0/0.14)] transition-colors",
+                    todoEnValija ? "bg-success-soft" : "bg-surface-3",
+                  )}
                 >
-                  <Pencil className="h-3.5 w-3.5 shrink-0" />
-                  Editar menú
-                </button>
-              </div>
-              <EventoMenuNecesidades
-                menuItems={detalle.menuItems}
-                checklistItems={detalle.checklistItems}
-                onToggleChecklistItem={(id) => void toggleChecklist(id)}
-              />
-            </>
-          ) : (
-            <>
-              {detalle.menuItems.length > 0 ? (
-                <div className="mb-4 flex flex-col gap-2 rounded-lg border border-zinc-800 bg-zinc-950/60 px-3 py-2.5 sm:flex-row sm:flex-wrap sm:items-center sm:justify-between">
-                  <p className="text-xs text-zinc-400">Editando menú del evento</p>
-                  <button
-                    type="button"
-                    onClick={() => setMenuVistaLista(true)}
-                    className="inline-flex shrink-0 items-center justify-center gap-1.5 rounded-md border border-zinc-600 bg-zinc-900 px-3 py-2 text-[11px] font-medium text-zinc-200 transition hover:border-zinc-500 hover:bg-zinc-800/90"
+                  <div className="flex items-baseline justify-between gap-3">
+                    <p className="text-[0.94rem] text-label-2">
+                      {todoEnValija ? (
+                        <span className="font-semibold text-success">
+                          Todo en la valija
+                        </span>
+                      ) : (
+                        <>
+                          <span className="text-[1.1rem] font-semibold tabular-nums text-label">
+                            {progreso.enValija}/{progreso.total}
+                          </span>{" "}
+                          en la valija
+                        </>
+                      )}
+                    </p>
+                    <p className="text-[0.84rem] tabular-nums text-label-3">
+                      {progreso.listos}/{progreso.total} listos
+                    </p>
+                  </div>
+                  <div
+                    className="mt-2.5 h-2 overflow-hidden rounded-full bg-fill"
+                    role="progressbar"
+                    aria-label="Ítems en la valija"
+                    aria-valuenow={progreso.enValija}
+                    aria-valuemin={0}
+                    aria-valuemax={progreso.total}
                   >
-                    <List className="h-3.5 w-3.5 shrink-0" />
-                    Ver sólo menú
-                  </button>
+                    <div
+                      className="h-full rounded-full bg-success transition-all duration-300"
+                      style={{
+                        width: `${(progreso.enValija / Math.max(progreso.total, 1)) * 100}%`,
+                      }}
+                    />
+                  </div>
                 </div>
-              ) : null}
+              </div>
+            ) : null}
+
+            <div className="mt-3 flex items-start gap-2">
+              <div className="min-w-0 flex-1">
+                <CampoBusqueda
+                  value={checklistBusqueda}
+                  onChange={(e) => setChecklistBusqueda(e.target.value)}
+                  placeholder="Buscar en la checklist"
+                  etiqueta="Buscar en la checklist"
+                />
+              </div>
+              <Boton
+                variante="secundario"
+                className="min-h-12 shrink-0"
+                icono={<RefreshCw className="h-[18px] w-[18px]" aria-hidden />}
+                onClick={() => void sincronizarChecklist()}
+                disabled={isSaving}
+                title="Suma los insumos de los platos del menú que falten"
+              >
+                Del menú
+              </Boton>
+            </div>
+            {busqueda && checklistPorCategoria.length > 0 ? (
+              <p className="mt-2 px-1 text-[0.84rem] text-label-3">
+                Mostrando {checklistFiltradosCount} de {progreso.total}
+              </p>
+            ) : null}
+
+            {checklistPorCategoria.length === 0 ? (
+              <div className="mt-6 rounded-card bg-surface-3">
+                {busqueda ? (
+                  <EstadoVacio
+                    icono={<SearchX className="h-6 w-6" aria-hidden />}
+                    titulo="Sin resultados"
+                    texto={`Nada coincide con «${busqueda}».`}
+                  />
+                ) : (
+                  <EstadoVacio
+                    icono={<Luggage className="h-6 w-6" aria-hidden />}
+                    titulo="La checklist está vacía"
+                    texto="Agregá ítems abajo o sumá los insumos del menú con «Del menú»."
+                  />
+                )}
+              </div>
+            ) : (
+              checklistPorCategoria.map((bloque) => {
+                const valijaBloque = bloque.items.filter(
+                  (i) => i.enValija,
+                ).length;
+                const completo = valijaBloque === bloque.items.length;
+                return (
+                  <Seccion
+                    key={bloque.categoria}
+                    titulo={bloque.etiqueta}
+                    accion={
+                      <span
+                        className={cx(
+                          "text-[0.8rem] tabular-nums",
+                          completo
+                            ? "font-semibold text-success"
+                            : "text-label-3",
+                        )}
+                      >
+                        {valijaBloque}/{bloque.items.length} en valija
+                      </span>
+                    }
+                  >
+                    <ul className="overflow-hidden rounded-card bg-surface-3 shadow-[0_1px_2px_rgb(0_0_0/0.04)]">
+                      {bloque.items.map((item) => (
+                        <FilaChecklist
+                          key={item.id}
+                          item={item}
+                          onValija={() => void toggleValija(item.id)}
+                          onListo={() => void toggleChecklist(item.id)}
+                          onEditar={() => setItemEditandoId(item.id)}
+                        />
+                      ))}
+                    </ul>
+                  </Seccion>
+                );
+              })
+            )}
+
+            <Seccion titulo="Agregar ítem">
+              <div className="space-y-3 rounded-card bg-surface-3 p-3 shadow-[0_1px_2px_rgb(0_0_0/0.04)]">
+                <Campo
+                  aria-label="Nombre del nuevo ítem"
+                  value={checklistNuevo}
+                  onChange={(e) => {
+                    const valor = e.target.value;
+                    setChecklistNuevo(valor);
+                    if (valor.trim()) {
+                      setChecklistCategoriaNueva(
+                        inferirCategoriaChecklist(valor),
+                      );
+                    }
+                  }}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter") {
+                      e.preventDefault();
+                      void agregarChecklist();
+                    }
+                  }}
+                  enterKeyHint="done"
+                  placeholder="Qué hay que llevar…"
+                />
+                <div className="grid grid-cols-[5.5rem_minmax(0,1fr)] gap-2">
+                  <Campo
+                    label="Cantidad"
+                    type="number"
+                    min={1}
+                    inputMode="numeric"
+                    value={checklistCantidadNueva}
+                    onChange={(e) => setChecklistCantidadNueva(e.target.value)}
+                    className="text-center tabular-nums"
+                  />
+                  <Selector
+                    label="Unidad"
+                    valor={checklistUnidadNueva}
+                    opciones={EVENTO_CHECKLIST_UNIDADES.map((u) => ({
+                      valor: u as string,
+                      label: u,
+                    }))}
+                    onChange={setChecklistUnidadNueva}
+                  />
+                </div>
+                <Selector
+                  label="Categoría"
+                  valor={checklistCategoriaNueva}
+                  opciones={OPCIONES_CATEGORIA}
+                  onChange={setChecklistCategoriaNueva}
+                />
+                <Boton
+                  variante="secundario"
+                  ancho
+                  icono={<Plus className="h-[18px] w-[18px]" aria-hidden />}
+                  onClick={() => void agregarChecklist()}
+                  disabled={isSaving || !checklistNuevo.trim()}
+                >
+                  Agregar a la checklist
+                </Boton>
+              </div>
+            </Seccion>
+          </div>
+        ) : menuVistaLista && detalle.menuItems.length > 0 ? (
+          <>
+            <div className="mt-4 flex items-center gap-2 rounded-card bg-fill py-1 pl-4 pr-1">
+              <p className="min-w-0 flex-1 text-[0.9rem] leading-snug text-label-2">
+                Menú guardado. Tocá un plato para ver qué lleva.
+              </p>
+              <Boton
+                variante="terciario"
+                icono={<Pencil className="h-4 w-4" aria-hidden />}
+                onClick={() => setMenuVistaLista(false)}
+              >
+                Editar
+              </Boton>
+            </div>
+            <EventoMenuNecesidades
+              menuItems={detalle.menuItems}
+              checklistItems={detalle.checklistItems}
+              onToggleChecklistItem={(id) => void toggleChecklist(id)}
+            />
+          </>
+        ) : (
+          <>
+            {detalle.menuItems.length > 0 ? (
+              <div className="mt-4 flex items-center gap-2 rounded-card bg-fill py-1 pl-4 pr-1">
+                <p className="min-w-0 flex-1 text-[0.9rem] leading-snug text-label-2">
+                  Editando el menú del evento
+                </p>
+                <Boton
+                  variante="terciario"
+                  icono={<List className="h-4 w-4" aria-hidden />}
+                  onClick={() => setMenuVistaLista(true)}
+                >
+                  Ver menú
+                </Boton>
+              </div>
+            ) : null}
+            <div className="mt-4">
               <EventoMenuOmakase
                 slots={menuSlots}
                 onSlotsChange={setMenuSlots}
@@ -881,443 +1130,307 @@ export default function EventosPage() {
                 extraLibre={menuLibre}
                 onExtraLibreChange={setMenuLibre}
               />
-            </>
-          )}
-
-          <section className="rounded-2xl border border-zinc-800 bg-zinc-900/60 p-3 sm:p-5">
-            <div className="mb-4 flex flex-wrap items-start justify-between gap-3">
-              <div className="min-w-0">
-                <h2 className="text-sm font-semibold uppercase tracking-wide text-zinc-400">
-                  Qué llevar / checklist
-                </h2>
-                <p className="mt-1 text-xs text-zinc-500">
-                  Listos {progreso.listos}/{progreso.total} · en valija{" "}
-                  {progreso.enValija}/{progreso.total}
-                </p>
-              </div>
-              <div className="flex flex-wrap items-center gap-2">
-                {progreso.total > 0 ? (
-                  <div className="h-2 w-28 overflow-hidden rounded-full bg-zinc-800">
-                    <div
-                      className="h-full bg-emerald-500 transition-all"
-                      style={{
-                        width: `${(progreso.listos / Math.max(progreso.total, 1)) * 100}%`,
-                      }}
-                    />
-                  </div>
-                ) : null}
-                <button
-                  type="button"
-                  onClick={() => void sincronizarChecklist()}
-                  disabled={isSaving}
-                  className="inline-flex items-center gap-1.5 border border-zinc-600 bg-zinc-950 px-3 py-2 text-[11px] font-medium text-zinc-200 disabled:opacity-40"
-                  title="Suma insumos únicos de los platos del menú"
-                >
-                  <RefreshCw className="h-3.5 w-3.5" />
-                  Desde menú
-                </button>
-              </div>
             </div>
+          </>
+        )}
 
-            <label className="relative mb-4 block">
-              <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-zinc-500" />
-              <input
-                value={checklistBusqueda}
-                onChange={(e) => setChecklistBusqueda(e.target.value)}
-                placeholder="Buscar en la checklist…"
-                className="w-full rounded-xl border border-zinc-700 bg-zinc-950 py-2.5 pl-9 pr-3 text-sm outline-none focus:border-zinc-500"
-                aria-label="Buscar en la checklist"
+        <Hoja
+          abierta={editandoDatos}
+          onCerrar={cerrarDatos}
+          titulo="Datos del evento"
+        >
+          <div className="space-y-3 pb-2">
+            {bloqueError}
+            <Campo
+              label="Título"
+              value={detalle.titulo}
+              onChange={(e) =>
+                setDetalle((prev) =>
+                  prev ? { ...prev, titulo: e.target.value } : prev,
+                )
+              }
+            />
+            <Fecha
+              label="Fecha"
+              valor={detalle.fecha}
+              onChange={(iso) =>
+                setDetalle((prev) => (prev ? { ...prev, fecha: iso } : prev))
+              }
+            />
+            <div className="grid grid-cols-2 gap-3">
+              <Campo
+                label="Hora"
+                type="time"
+                value={detalle.hora ?? ""}
+                onChange={(e) =>
+                  setDetalle((prev) =>
+                    prev ? { ...prev, hora: e.target.value || null } : prev,
+                  )
+                }
+                className="tabular-nums"
               />
-            </label>
-
-            <div className="mb-4 space-y-4">
-              {checklistPorCategoria.length === 0 ? (
-                <p className="rounded-xl border border-zinc-800 bg-zinc-950/40 px-3 py-3 text-sm text-zinc-500">
-                  {checklistBusqueda.trim()
-                    ? `Nada coincide con “${checklistBusqueda.trim()}”.`
-                    : "Todavía no hay ítems en la checklist."}
-                </p>
-              ) : null}
-              {checklistBusqueda.trim() && checklistPorCategoria.length > 0 ? (
-                <p className="text-[11px] text-zinc-500">
-                  Mostrando {checklistFiltradosCount} de {progreso.total}
-                </p>
-              ) : null}
-              {checklistPorCategoria.map((bloque) => {
-                const listosBloque = bloque.items.filter((i) => i.completado).length;
-                const valijaBloque = bloque.items.filter((i) => i.enValija).length;
-                return (
-                  <section
-                    key={bloque.categoria}
-                    className="rounded-lg border border-zinc-800/90 bg-zinc-950/40 p-2.5 sm:p-3"
-                  >
-                    <div className="mb-2 flex flex-wrap items-baseline justify-between gap-2">
-                      <h3 className="text-[10px] font-semibold uppercase tracking-[0.16em] text-zinc-500">
-                        {bloque.etiqueta}
-                      </h3>
-                      <span className="text-[10px] tabular-nums text-zinc-600">
-                        listos {listosBloque}/{bloque.items.length} · valija{" "}
-                        {valijaBloque}/{bloque.items.length}
-                      </span>
-                    </div>
-                    <ul className="space-y-2">
-                      {bloque.items.map((item) => (
-                        <li
-                          key={item.id}
-                          className={`rounded-xl border px-3 py-2.5 ${
-                            item.enValija
-                              ? "border-sky-900/40 bg-sky-950/20"
-                              : item.completado
-                                ? "border-emerald-900/40 bg-emerald-950/20"
-                                : "border-zinc-800 bg-zinc-950/40"
-                          }`}
-                        >
-                          <div className="flex items-start gap-2">
-                            <div className="flex shrink-0 flex-col gap-1.5 pt-0.5">
-                              <button
-                                type="button"
-                                onClick={() => void toggleChecklist(item.id)}
-                                className={`inline-flex items-center gap-1 rounded-md border px-1.5 py-1 text-[10px] font-medium ${
-                                  item.completado
-                                    ? "border-emerald-800/60 bg-emerald-950/40 text-emerald-300"
-                                    : "border-zinc-700 text-zinc-500"
-                                }`}
-                                aria-label={
-                                  item.completado ? "Marcar no listo" : "Marcar listo"
-                                }
-                                title="Listo (preparado)"
-                              >
-                                {item.completado ? (
-                                  <CheckCircle2 className="h-3.5 w-3.5" />
-                                ) : (
-                                  <Circle className="h-3.5 w-3.5" />
-                                )}
-                                Listo
-                              </button>
-                              <button
-                                type="button"
-                                onClick={() => void toggleValija(item.id)}
-                                className={`inline-flex items-center gap-1 rounded-md border px-1.5 py-1 text-[10px] font-medium ${
-                                  item.enValija
-                                    ? "border-sky-800/60 bg-sky-950/40 text-sky-300"
-                                    : "border-zinc-700 text-zinc-500"
-                                }`}
-                                aria-label={
-                                  item.enValija
-                                    ? "Sacar de la valija"
-                                    : "Marcar en valija"
-                                }
-                                title="Cargado en la valija"
-                              >
-                                {item.enValija ? (
-                                  <Package className="h-3.5 w-3.5" />
-                                ) : (
-                                  <Briefcase className="h-3.5 w-3.5" />
-                                )}
-                                Valija
-                              </button>
-                            </div>
-                            <div className="min-w-0 flex-1">
-                              <input
-                                value={item.titulo}
-                                onChange={(e) => {
-                                  const titulo = e.target.value;
-                                  setDetalle((prev) =>
-                                    prev
-                                      ? {
-                                          ...prev,
-                                          checklistItems: prev.checklistItems.map((i) =>
-                                            i.id === item.id ? { ...i, titulo } : i
-                                          ),
-                                        }
-                                      : prev
-                                  );
-                                }}
-                                onBlur={(e) =>
-                                  void cambiarTituloChecklist(item.id, e.target.value)
-                                }
-                                onKeyDown={(e) => {
-                                  if (e.key === "Enter") {
-                                    e.currentTarget.blur();
-                                  }
-                                }}
-                                disabled={item.enValija}
-                                className={`w-full min-w-0 border border-transparent bg-transparent px-0 py-0.5 text-sm outline-none focus:border-zinc-600 focus:bg-zinc-950 focus:px-2 disabled:opacity-60 ${
-                                  item.enValija
-                                    ? "text-zinc-400 line-through"
-                                    : "text-zinc-100"
-                                }`}
-                                aria-label={`Nombre de ${item.titulo}`}
-                              />
-                              {item.completado && item.completadoPorNombre ? (
-                                <p className="mt-0.5 text-[10px] text-zinc-500">
-                                  Listo · {item.completadoPorNombre}
-                                </p>
-                              ) : null}
-                            </div>
-                            <button
-                              type="button"
-                              onClick={() => void quitarChecklist(item.id)}
-                              className="shrink-0 rounded-lg p-1 text-zinc-600 hover:text-red-400"
-                              aria-label="Eliminar ítem"
-                            >
-                              <Trash2 className="h-3.5 w-3.5" />
-                            </button>
-                          </div>
-
-                          <div className="mt-2 flex flex-wrap items-center gap-2">
-                            <select
-                              value={item.categoria}
-                              onChange={(e) =>
-                                void cambiarCategoriaChecklist(
-                                  item.id,
-                                  e.target.value as EventoChecklistCategoria
-                                )
-                              }
-                              disabled={item.enValija}
-                              className="max-w-full flex-1 basis-[8rem] border border-zinc-700 bg-zinc-950 px-2 py-1.5 text-[11px] text-zinc-300 outline-none focus:border-zinc-500 disabled:opacity-50"
-                              aria-label={`Categoría de ${item.titulo}`}
-                            >
-                              {EVENTO_CHECKLIST_CATEGORIAS.map((cat) => (
-                                <option key={cat} value={cat}>
-                                  {ETIQUETA_CHECKLIST_CATEGORIA[cat]}
-                                </option>
-                              ))}
-                            </select>
-                            <input
-                              type="number"
-                              min={1}
-                              inputMode="numeric"
-                              value={item.cantidad}
-                              onChange={(e) =>
-                                void cambiarCantidadChecklist(item.id, e.target.value)
-                              }
-                              disabled={item.enValija}
-                              className="w-14 shrink-0 border border-zinc-700 bg-zinc-950 px-2 py-1.5 text-center text-sm tabular-nums text-zinc-100 outline-none focus:border-zinc-500 disabled:opacity-50"
-                              aria-label={`Cantidad de ${item.titulo}`}
-                            />
-                            <select
-                              value={item.unidad}
-                              onChange={(e) =>
-                                void cambiarUnidadChecklist(item.id, e.target.value)
-                              }
-                              disabled={item.enValija}
-                              className="min-w-0 flex-1 basis-[5.5rem] border border-zinc-700 bg-zinc-950 px-1.5 py-1.5 text-xs text-zinc-200 outline-none focus:border-zinc-500 disabled:opacity-50"
-                              aria-label={`Unidad de ${item.titulo}`}
-                            >
-                              {!EVENTO_CHECKLIST_UNIDADES.includes(
-                                item.unidad as (typeof EVENTO_CHECKLIST_UNIDADES)[number]
-                              ) ? (
-                                <option value={item.unidad}>{item.unidad}</option>
-                              ) : null}
-                              {EVENTO_CHECKLIST_UNIDADES.map((u) => (
-                                <option key={u} value={u}>
-                                  {u}
-                                </option>
-                              ))}
-                            </select>
-                          </div>
-                        </li>
-                      ))}
-                    </ul>
-                  </section>
-                );
-              })}
-            </div>
-
-            <div className="flex flex-col gap-2">
-              <input
-                value={checklistNuevo}
-                onChange={(e) => {
-                  const valor = e.target.value;
-                  setChecklistNuevo(valor);
-                  if (valor.trim()) {
-                    setChecklistCategoriaNueva(inferirCategoriaChecklist(valor));
-                  }
-                }}
-                onKeyDown={(e) => {
-                  if (e.key === "Enter") {
-                    e.preventDefault();
-                    void agregarChecklist();
-                  }
-                }}
-                placeholder="Agregar ítem a la checklist…"
-                className="w-full min-w-0 rounded-xl border border-zinc-700 bg-zinc-950 px-3 py-2 text-sm outline-none focus:border-zinc-500"
+              <Campo
+                label="Comensales"
+                type="number"
+                min={1}
+                inputMode="numeric"
+                value={detalle.comensales ?? ""}
+                onChange={(e) =>
+                  setDetalle((prev) =>
+                    prev
+                      ? {
+                          ...prev,
+                          comensales: e.target.value
+                            ? Number(e.target.value)
+                            : null,
+                        }
+                      : prev,
+                  )
+                }
+                className="tabular-nums"
               />
-              <div className="flex flex-wrap gap-2">
-                <input
-                  type="number"
-                  min={1}
-                  inputMode="numeric"
-                  value={checklistCantidadNueva}
-                  onChange={(e) => setChecklistCantidadNueva(e.target.value)}
-                  className="w-16 border border-zinc-700 bg-zinc-950 px-2 py-2 text-center text-sm tabular-nums outline-none focus:border-zinc-500"
-                  aria-label="Cantidad del nuevo ítem"
-                  title="Cantidad"
-                />
-                <select
-                  value={checklistUnidadNueva}
-                  onChange={(e) => setChecklistUnidadNueva(e.target.value)}
-                  className="min-w-0 flex-1 basis-[5.5rem] border border-zinc-700 bg-zinc-950 px-2 py-2 text-sm text-zinc-200 outline-none focus:border-zinc-500"
-                  aria-label="Unidad del nuevo ítem"
-                  title="Unidad"
-                >
-                  {EVENTO_CHECKLIST_UNIDADES.map((u) => (
-                    <option key={u} value={u}>
-                      {u}
-                    </option>
-                  ))}
-                </select>
-                <select
-                  value={checklistCategoriaNueva}
-                  onChange={(e) =>
-                    setChecklistCategoriaNueva(e.target.value as EventoChecklistCategoria)
-                  }
-                  className="min-w-0 flex-1 basis-[8rem] border border-zinc-700 bg-zinc-950 px-2 py-2 text-sm text-zinc-200 outline-none focus:border-zinc-500"
-                  aria-label="Categoría del nuevo ítem"
-                  title="Categoría"
-                >
-                  {EVENTO_CHECKLIST_CATEGORIAS.map((cat) => (
-                    <option key={cat} value={cat}>
-                      {ETIQUETA_CHECKLIST_CATEGORIA[cat]}
-                    </option>
-                  ))}
-                </select>
-                <button
-                  type="button"
-                  onClick={() => void agregarChecklist()}
-                  disabled={isSaving || !checklistNuevo.trim()}
-                  className="inline-flex flex-1 items-center justify-center gap-1 rounded-xl border border-zinc-600 px-3 py-2 text-sm disabled:opacity-40 sm:flex-none"
-                >
-                  <Plus className="h-4 w-4" />
-                  Agregar
-                </button>
-              </div>
             </div>
-          </section>
-        </section>
-      </main>
+            <Campo
+              label="Lugar"
+              value={detalle.lugar ?? ""}
+              onChange={(e) =>
+                setDetalle((prev) =>
+                  prev ? { ...prev, lugar: e.target.value || null } : prev,
+                )
+              }
+              placeholder="Domicilio, salón, etc."
+            />
+            <Selector
+              label="Estado"
+              valor={detalle.estado}
+              opciones={opcionesEstado}
+              onChange={(estado) =>
+                setDetalle((prev) => (prev ? { ...prev, estado } : prev))
+              }
+            />
+            <AreaTexto
+              label="Notas"
+              rows={3}
+              value={detalle.notas ?? ""}
+              onChange={(e) =>
+                setDetalle((prev) =>
+                  prev ? { ...prev, notas: e.target.value || null } : prev,
+                )
+              }
+            />
+            <div className="space-y-2 pt-2">
+              <Boton
+                ancho
+                tamano="grande"
+                cargando={isSaving}
+                icono={<Check className="h-[18px] w-[18px]" aria-hidden />}
+                onClick={async () => {
+                  if (await guardarCabecera()) setEditandoDatos(false);
+                }}
+              >
+                Guardar
+              </Boton>
+              <Boton
+                ancho
+                variante="peligro"
+                disabled={isSaving}
+                icono={<Trash2 className="h-[18px] w-[18px]" aria-hidden />}
+                onClick={() => void borrarEvento()}
+              >
+                Eliminar evento
+              </Boton>
+            </div>
+          </div>
+        </Hoja>
+
+        {itemEditando ? (
+          <HojaItemChecklist
+            key={itemEditando.id}
+            item={itemEditando}
+            onCerrar={cerrarItem}
+            onTitulo={(raw) =>
+              void cambiarTituloChecklist(itemEditando.id, raw)
+            }
+            onCantidad={(raw) =>
+              void cambiarCantidadChecklist(itemEditando.id, raw)
+            }
+            onUnidad={(u) => void cambiarUnidadChecklist(itemEditando.id, u)}
+            onCategoria={(c) =>
+              void cambiarCategoriaChecklist(itemEditando.id, c)
+            }
+            onValija={() => void toggleValija(itemEditando.id)}
+            onEliminar={() => {
+              setItemEditandoId(null);
+              void quitarChecklist(itemEditando.id);
+            }}
+          />
+        ) : null}
+      </Pantalla>
     );
   }
 
+  const totalActivos =
+    eventosProximos.futuros.length + eventosProximos.pasados.length;
+
   return (
-    <main className="min-h-screen min-w-0 bg-zinc-950 px-4 py-6 text-zinc-100 sm:px-6 sm:py-10">
-      <section className="mx-auto w-full max-w-3xl rounded-2xl border border-zinc-800 bg-zinc-900/60 p-6">
-        <header className="mb-6 flex flex-wrap items-start justify-between gap-3">
-          <div>
-            <h1 className="font-display text-3xl font-medium tracking-tight text-ink">Eventos</h1>
-            <p className="mt-1 text-sm text-zinc-400">
-              Menú propio y checklist de qué llevar para cada evento.
-            </p>
-          </div>
-          <button
-            type="button"
-            onClick={() => {
-              setMostrarNuevo((v) => !v);
-              setError(null);
-              setSuccess(null);
-            }}
-            className="inline-flex items-center gap-2 rounded-xl bg-ink px-4 py-2 text-sm font-semibold text-paper"
-          >
-            <Plus className="h-4 w-4" />
-            Nuevo evento
-          </button>
-        </header>
-
-        {error ? (
-          <p className="mb-4 rounded-xl border border-red-900/60 bg-red-950/40 px-4 py-3 text-sm text-red-200">
-            {error}
+    <Pantalla
+      titulo="Eventos"
+      subtitulo={
+        isLoading
+          ? "Cargando…"
+          : eventos.length === 0
+            ? "Sin eventos"
+            : totalActivos === 0
+              ? "Nada pendiente"
+              : `${totalActivos} ${totalActivos === 1 ? "evento pendiente" : "eventos pendientes"}`
+      }
+      acciones={
+        <BotonIcono
+          etiqueta="Nuevo evento"
+          icono={<Plus className="h-[22px] w-[22px]" aria-hidden />}
+          onClick={() => {
+            setMostrarNuevo(true);
+            setError(null);
+          }}
+        />
+      }
+      ayuda={
+        <>
+          <p>
+            Cada evento o catering tiene su propio menú Omakase y una checklist
+            de qué llevar.
           </p>
-        ) : null}
+          <p>
+            Creá uno con el <strong className="text-label">+</strong>: arranca
+            con una checklist base. Después armá el menú y sumá sus insumos a la
+            checklist.
+          </p>
+          <p>
+            Los eventos con fecha pasada que no se marcaron como completados o
+            cancelados quedan en{" "}
+            <strong className="text-label">Pendientes</strong>.
+          </p>
+        </>
+      }
+    >
+      {mostrarNuevo ? null : bloqueError}
 
-        {mostrarNuevo ? (
-          <form
-            onSubmit={crearNuevoEvento}
-            className="mb-6 space-y-3 rounded-xl border border-zinc-700 bg-zinc-950/60 p-4"
-          >
-            <h2 className="text-sm font-medium text-zinc-200">Nuevo evento</h2>
-            <input
-              value={nuevoTitulo}
-              onChange={(e) => setNuevoTitulo(e.target.value)}
-              placeholder="Título (ej. Cena privada García)"
-              required
-              className="w-full rounded-xl border border-zinc-700 bg-zinc-950 px-4 py-2.5 text-sm outline-none focus:border-zinc-500"
+      {isLoading ? (
+        <EsqueletoLista filas={6} />
+      ) : eventos.length === 0 ? (
+        <div className="rounded-card bg-surface-3">
+          <EstadoVacio
+            icono={<CalendarDays className="h-6 w-6" aria-hidden />}
+            titulo="Todavía no hay eventos"
+            texto="Creá el primero para armar su menú y la checklist de qué llevar."
+            accion={
+              <Boton
+                icono={<Plus className="h-[18px] w-[18px]" aria-hidden />}
+                onClick={() => {
+                  setMostrarNuevo(true);
+                  setError(null);
+                }}
+              >
+                Nuevo evento
+              </Boton>
+            }
+          />
+        </div>
+      ) : (
+        <>
+          {eventosProximos.futuros.length > 0 ? (
+            <ListaEventos
+              titulo="Próximos"
+              eventos={eventosProximos.futuros}
+              onAbrir={abrirEvento}
             />
-            <div className="grid gap-3 sm:grid-cols-2">
-              <input
-                type="date"
-                value={nuevoFecha}
-                onChange={(e) => setNuevoFecha(e.target.value)}
-                className="rounded-xl border border-zinc-700 bg-zinc-950 px-4 py-2.5 text-sm"
-              />
-              <input
-                type="time"
-                value={nuevoHora}
-                onChange={(e) => setNuevoHora(e.target.value)}
-                className="rounded-xl border border-zinc-700 bg-zinc-950 px-4 py-2.5 text-sm"
-              />
-            </div>
-            <input
-              value={nuevoLugar}
-              onChange={(e) => setNuevoLugar(e.target.value)}
-              placeholder="Lugar (opcional)"
-              className="w-full rounded-xl border border-zinc-700 bg-zinc-950 px-4 py-2.5 text-sm"
+          ) : null}
+          {eventosProximos.pasados.length > 0 ? (
+            <ListaEventos
+              titulo="Pendientes (fecha pasada)"
+              eventos={eventosProximos.pasados}
+              onAbrir={abrirEvento}
             />
-            <input
+          ) : null}
+          {eventosProximos.cerrados.length > 0 ? (
+            <ListaEventos
+              titulo="Completados y cancelados"
+              eventos={eventosProximos.cerrados}
+              onAbrir={abrirEvento}
+              atenuado
+            />
+          ) : null}
+        </>
+      )}
+
+      <Hoja abierta={mostrarNuevo} onCerrar={cerrarNuevo} titulo="Nuevo evento">
+        <form onSubmit={crearNuevoEvento} className="space-y-3 pb-2">
+          {bloqueError}
+          <Campo
+            label="Título"
+            value={nuevoTitulo}
+            onChange={(e) => setNuevoTitulo(e.target.value)}
+            placeholder="Ej. Cena privada García"
+            required
+          />
+          <Fecha label="Fecha" valor={nuevoFecha} onChange={setNuevoFecha} />
+          <div className="grid grid-cols-2 gap-3">
+            <Campo
+              label="Hora"
+              type="time"
+              value={nuevoHora}
+              onChange={(e) => setNuevoHora(e.target.value)}
+              className="tabular-nums"
+            />
+            <Campo
+              label="Comensales"
               type="number"
               min={1}
+              inputMode="numeric"
               value={nuevoComensales}
               onChange={(e) => setNuevoComensales(e.target.value)}
-              placeholder="Comensales (opcional)"
-              className="w-full rounded-xl border border-zinc-700 bg-zinc-950 px-4 py-2.5 text-sm"
+              placeholder="Opcional"
+              className="tabular-nums"
             />
-            <button
-              type="submit"
-              disabled={isSaving || !nuevoTitulo.trim()}
-              className="inline-flex items-center gap-2 rounded-xl bg-ink px-4 py-2 text-sm font-semibold text-paper disabled:opacity-50"
-            >
-              {isSaving ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
-              Crear con checklist
-            </button>
-          </form>
-        ) : null}
-
-        {isLoading ? (
-          <EsqueletoLista filas={6} />
-        ) : eventos.length === 0 ? (
-          <p className="py-8 text-center text-sm text-zinc-500">
-            No hay eventos. Creá el primero con el botón de arriba.
-          </p>
-        ) : (
-          <div className="space-y-6">
-            {eventosProximos.futuros.length > 0 ? (
-              <ListaEventos
-                titulo="Próximos"
-                eventos={eventosProximos.futuros}
-                onAbrir={abrirEvento}
-              />
-            ) : null}
-            {eventosProximos.pasados.length > 0 ? (
-              <ListaEventos
-                titulo="Pendientes (fecha pasada)"
-                eventos={eventosProximos.pasados}
-                onAbrir={abrirEvento}
-              />
-            ) : null}
-            {eventosProximos.cerrados.length > 0 ? (
-              <ListaEventos
-                titulo="Completados / cancelados"
-                eventos={eventosProximos.cerrados}
-                onAbrir={abrirEvento}
-                atenuado
-              />
-            ) : null}
           </div>
-        )}
-      </section>
-    </main>
+          <Campo
+            label="Lugar"
+            value={nuevoLugar}
+            onChange={(e) => setNuevoLugar(e.target.value)}
+            placeholder="Opcional"
+          />
+          <div className="pt-2">
+            <Boton
+              type="submit"
+              ancho
+              tamano="grande"
+              cargando={isSaving}
+              disabled={!nuevoTitulo.trim()}
+            >
+              Crear con checklist
+            </Boton>
+          </div>
+        </form>
+      </Hoja>
+    </Pantalla>
   );
 }
+
+const TONO_ESTADO: Record<
+  EventoEstado,
+  "neutro" | "info" | "exito" | "peligro"
+> = {
+  borrador: "neutro",
+  confirmado: "info",
+  completado: "exito",
+  cancelado: "peligro",
+};
+
+const OPCIONES_CATEGORIA: OpcionSelector<EventoChecklistCategoria>[] =
+  EVENTO_CHECKLIST_CATEGORIAS.map((cat) => ({
+    valor: cat,
+    label: ETIQUETA_CHECKLIST_CATEGORIA[cat],
+  }));
 
 function ListaEventos(props: {
   titulo: string;
@@ -1327,37 +1440,301 @@ function ListaEventos(props: {
 }) {
   const { titulo, eventos, onAbrir, atenuado } = props;
   return (
-    <div className={atenuado ? "opacity-60" : ""}>
-      <h2 className="mb-2 text-xs font-semibold uppercase tracking-wide text-zinc-500">
-        {titulo}
-      </h2>
-      <ul className="divide-y divide-zinc-800 rounded-xl border border-zinc-800">
+    <Seccion
+      titulo={`${titulo} · ${eventos.length}`}
+      className={atenuado ? "opacity-70" : undefined}
+    >
+      <Lista>
         {eventos.map((evento) => (
-          <li key={evento.id}>
-            <button
-              type="button"
-              onClick={() => void onAbrir(evento.id)}
-              className="flex w-full items-start justify-between gap-3 px-4 py-3 text-left transition hover:bg-zinc-900/80"
-            >
-              <div className="min-w-0">
-                <p className="font-medium text-zinc-100">{evento.titulo}</p>
-                <p className="mt-0.5 flex flex-wrap items-center gap-x-2 text-xs text-zinc-500">
-                  <span className="inline-flex items-center gap-1">
-                    <Calendar className="h-3 w-3" />
-                    {etiquetaFechaCorta(evento.fecha)}
-                    {evento.hora ? ` · ${evento.hora}` : ""}
-                  </span>
-                  {evento.lugar ? <span>{evento.lugar}</span> : null}
-                  {evento.comensales ? <span>{evento.comensales} pax</span> : null}
-                </p>
-              </div>
-              <span className="shrink-0 rounded-full border border-zinc-700 px-2 py-0.5 text-[10px] uppercase tracking-wide text-zinc-400">
+          <Fila
+            key={evento.id}
+            titulo={evento.titulo}
+            detalle={[
+              `${etiquetaFechaCorta(evento.fecha)}${evento.hora ? ` · ${evento.hora.slice(0, 5)}` : ""}`,
+              evento.lugar,
+              evento.comensales ? `${evento.comensales} pax` : null,
+            ]
+              .filter(Boolean)
+              .join(" · ")}
+            valor={
+              <Etiqueta tono={TONO_ESTADO[evento.estado]}>
                 {ETIQUETA_EVENTO_ESTADO[evento.estado]}
-              </span>
-            </button>
-          </li>
+              </Etiqueta>
+            }
+            onClick={() => void onAbrir(evento.id)}
+          />
         ))}
-      </ul>
-    </div>
+      </Lista>
+    </Seccion>
+  );
+}
+
+/**
+ * Fila de la checklist pensada para armar la valija con una mano: toda la fila
+ * es el tilde de «en la valija»; a la derecha, «Listo» y el menú de edición.
+ */
+function FilaChecklist(props: {
+  item: EventoChecklistItem;
+  onValija: () => void;
+  onListo: () => void;
+  onEditar: () => void;
+}) {
+  const { item, onValija, onListo, onEditar } = props;
+  return (
+    <li
+      className={cx(
+        "flex items-center border-b border-separator transition-colors duration-200 last:border-0",
+        item.enValija && "bg-success-soft",
+      )}
+    >
+      <button
+        type="button"
+        aria-pressed={item.enValija}
+        aria-label={`${item.titulo}, ${item.cantidad} ${item.unidad}: ${item.enValija ? "sacar de la valija" : "marcar en la valija"}`}
+        onClick={() => {
+          vibrar(item.enValija ? "toque" : "exito");
+          onValija();
+        }}
+        className="flex min-h-16 min-w-0 flex-1 items-center gap-3 py-2 pl-3 pr-2 text-left transition active:bg-fill"
+      >
+        <span
+          className={cx(
+            "flex size-9 shrink-0 items-center justify-center rounded-full border-2 transition-all duration-200",
+            item.enValija
+              ? "scale-100 border-success bg-success text-[#fff]"
+              : "border-label-3/60 text-transparent",
+          )}
+        >
+          <Check className="h-5 w-5" strokeWidth={3} aria-hidden />
+        </span>
+        <span className="min-w-0 flex-1">
+          <span
+            className={cx(
+              "block text-[1rem] leading-snug",
+              item.enValija ? "text-label-2 line-through" : "text-label",
+            )}
+          >
+            {item.titulo}
+          </span>
+          <span className="mt-0.5 block text-[0.84rem] leading-snug text-label-3">
+            <span className="font-semibold tabular-nums text-label-2">
+              {item.cantidad}
+            </span>{" "}
+            {item.unidad}
+            {item.completado ? (
+              <span className="text-info">
+                {" "}
+                · Listo
+                {item.completadoPorNombre
+                  ? ` · ${item.completadoPorNombre}`
+                  : ""}
+              </span>
+            ) : null}
+          </span>
+        </span>
+      </button>
+      <button
+        type="button"
+        aria-pressed={item.completado}
+        aria-label={`${item.titulo}: ${item.completado ? "marcar no listo" : "marcar listo"}`}
+        onClick={() => {
+          vibrar();
+          onListo();
+        }}
+        className={cx(
+          "inline-flex min-h-11 shrink-0 items-center gap-1 rounded-full px-2.5 text-[0.8rem] font-semibold transition active:scale-95",
+          item.completado ? "bg-info-soft text-info" : "bg-fill text-label-3",
+        )}
+      >
+        {item.completado ? (
+          <CircleCheck className="h-4 w-4" aria-hidden />
+        ) : (
+          <Circle className="h-4 w-4" aria-hidden />
+        )}
+        Listo
+      </button>
+      <BotonIcono
+        etiqueta={`Editar ${item.titulo}`}
+        variante="plano"
+        icono={<Ellipsis className="h-5 w-5" aria-hidden />}
+        onClick={onEditar}
+        className="mx-0.5"
+      />
+    </li>
+  );
+}
+
+/** Hoja para corregir un ítem de la checklist (nombre, cantidad, unidad, categoría). */
+function HojaItemChecklist(props: {
+  item: EventoChecklistItem;
+  onCerrar: () => void;
+  onTitulo: (raw: string) => void;
+  onCantidad: (raw: string) => void;
+  onUnidad: (unidad: string) => void;
+  onCategoria: (categoria: EventoChecklistCategoria) => void;
+  onValija: () => void;
+  onEliminar: () => void;
+}) {
+  const {
+    item,
+    onCerrar,
+    onTitulo,
+    onCantidad,
+    onUnidad,
+    onCategoria,
+    onValija,
+    onEliminar,
+  } = props;
+  const [titulo, setTitulo] = useState(item.titulo);
+  const [cantidad, setCantidad] = useState(String(item.cantidad));
+
+  const normalizarCantidad = (raw: string) => {
+    const n = Number(raw);
+    return Number.isFinite(n) && n > 0 ? Math.floor(n) : 1;
+  };
+
+  const guardarTitulo = () => {
+    const limpio = titulo.trim();
+    if (!limpio) {
+      setTitulo(item.titulo);
+      return;
+    }
+    if (limpio !== item.titulo) onTitulo(limpio);
+  };
+
+  const guardarCantidad = (raw: string) => {
+    const n = normalizarCantidad(raw);
+    setCantidad(String(n));
+    if (n !== item.cantidad) onCantidad(String(n));
+  };
+
+  // Lo pendiente se guarda al cerrar; la función de cierre queda estable
+  // (ver comentario en EventosPage) y lee el último estado desde una ref.
+  const alCerrar = useRef<() => void>(() => {});
+  useEffect(() => {
+    alCerrar.current = () => {
+      if (!item.enValija) {
+        guardarTitulo();
+        guardarCantidad(cantidad);
+      }
+      onCerrar();
+    };
+  });
+  const cerrar = useCallback(() => alCerrar.current(), []);
+
+  const opcionesUnidad: OpcionSelector<string>[] = [
+    ...(EVENTO_CHECKLIST_UNIDADES.includes(
+      item.unidad as (typeof EVENTO_CHECKLIST_UNIDADES)[number],
+    )
+      ? []
+      : [{ valor: item.unidad, label: item.unidad }]),
+    ...EVENTO_CHECKLIST_UNIDADES.map((u) => ({ valor: u as string, label: u })),
+  ];
+
+  return (
+    <Hoja abierta onCerrar={cerrar} titulo={item.titulo}>
+      <div className="space-y-3 pb-2">
+        {item.enValija ? (
+          <div className="rounded-card bg-success-soft px-4 py-3">
+            <p className="text-[0.94rem] text-label">
+              <span className="font-semibold tabular-nums">
+                {item.cantidad}
+              </span>{" "}
+              {item.unidad} · {ETIQUETA_CHECKLIST_CATEGORIA[item.categoria]}
+            </p>
+            <p className="mt-1 text-[0.9rem] text-success">
+              Está en la valija. Sacalo para editarlo.
+            </p>
+            <div className="mt-3">
+              <Boton
+                variante="secundario"
+                ancho
+                icono={<Luggage className="h-[18px] w-[18px]" aria-hidden />}
+                onClick={onValija}
+              >
+                Sacar de la valija
+              </Boton>
+            </div>
+          </div>
+        ) : (
+          <>
+            <Campo
+              label="Nombre"
+              value={titulo}
+              onChange={(e) => setTitulo(e.target.value)}
+              onBlur={guardarTitulo}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") e.currentTarget.blur();
+              }}
+              enterKeyHint="done"
+              error={
+                titulo.trim() ? undefined : "El nombre no puede quedar vacío."
+              }
+            />
+            <div>
+              <p className="mb-1.5 pl-1 text-[0.82rem] font-medium text-label-2">
+                Cantidad
+              </p>
+              <div className="flex items-center gap-2">
+                <BotonIcono
+                  etiqueta="Restar 1"
+                  icono={<Minus className="h-5 w-5" aria-hidden />}
+                  disabled={normalizarCantidad(cantidad) <= 1}
+                  onClick={() =>
+                    guardarCantidad(String(normalizarCantidad(cantidad) - 1))
+                  }
+                  className="size-12"
+                />
+                <input
+                  type="number"
+                  min={1}
+                  inputMode="numeric"
+                  aria-label={`Cantidad de ${item.titulo}`}
+                  value={cantidad}
+                  onChange={(e) => setCantidad(e.target.value)}
+                  onBlur={(e) => guardarCantidad(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter") e.currentTarget.blur();
+                  }}
+                  className="min-h-12 w-0 min-w-0 flex-1 rounded-control bg-fill px-3 text-center font-mono text-[1.1rem] tabular-nums text-label outline-none ring-accent/60 focus:bg-surface-3 focus:ring-2"
+                />
+                <BotonIcono
+                  etiqueta="Sumar 1"
+                  icono={<Plus className="h-5 w-5" aria-hidden />}
+                  onClick={() =>
+                    guardarCantidad(String(normalizarCantidad(cantidad) + 1))
+                  }
+                  className="size-12"
+                />
+              </div>
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              <Selector
+                label="Unidad"
+                valor={item.unidad}
+                opciones={opcionesUnidad}
+                onChange={onUnidad}
+              />
+              <Selector
+                label="Categoría"
+                valor={item.categoria}
+                opciones={OPCIONES_CATEGORIA}
+                onChange={onCategoria}
+              />
+            </div>
+          </>
+        )}
+        <div className="pt-2">
+          <Boton
+            ancho
+            variante="peligro"
+            icono={<Trash2 className="h-[18px] w-[18px]" aria-hidden />}
+            onClick={onEliminar}
+          >
+            Eliminar de la checklist
+          </Boton>
+        </div>
+      </div>
+    </Hoja>
   );
 }
