@@ -1,7 +1,8 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { Loader2, Scale, TrendingUp, Wallet } from "lucide-react";
+import { Scale, TrendingUp, Wallet } from "lucide-react";
+import { EsqueletoLista } from "@/app/ui";
 import {
   Bar,
   BarChart,
@@ -267,10 +268,7 @@ export default function GastoPage() {
         ) : null}
 
         {isLoading ? (
-          <div className="flex items-center gap-2 text-sm text-zinc-400">
-            <Loader2 className="h-4 w-4 animate-spin" />
-            Cargando gasto...
-          </div>
+          <EsqueletoLista filas={6} />
         ) : compras.length === 0 ? (
           <p className="text-sm text-zinc-500">
             Todavía no hay compras cargadas. Importá albaranes con precio desde{" "}

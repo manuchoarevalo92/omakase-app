@@ -319,24 +319,31 @@ export default function AvisosPage() {
     };
   }, [undoSnapshot, deshacerResuelto]);
 
+  /** Optimista: la fila sale al instante; si el servidor falla, vuelve y avisa. */
   const marcarPedido = async (aviso: PedidoAviso) => {
-    setResolviendoId(aviso.id);
     setError(null);
+    setAvisos((prev) => prev.filter((a) => a.id !== aviso.id));
+    setUndoSnapshot({ aviso });
+    mostrarAviso(`${aviso.nombre}: pedido`, {
+      tono: "exito",
+      ms: UNDO_MS,
+      deshacer: () => void reabrir(aviso),
+    });
     try {
       await marcarAvisoResuelto(aviso.id);
-      setAvisos((prev) => prev.filter((a) => a.id !== aviso.id));
-      setUndoSnapshot({ aviso });
-      mostrarAviso(`${aviso.nombre}: pedido`, {
-        tono: "exito",
-        ms: UNDO_MS,
-        deshacer: () => void reabrir(aviso),
-      });
     } catch (err) {
+      setUndoSnapshot((current) =>
+        current?.aviso.id === aviso.id ? null : current,
+      );
+      setAvisos((prev) =>
+        prev.some((a) => a.id === aviso.id) ? prev : [...prev, aviso],
+      );
+      mostrarAviso(`No se pudo marcar ${aviso.nombre} como pedido.`, {
+        tono: "error",
+      });
       setError(
         err instanceof Error ? err.message : "No se pudo marcar como pedido.",
       );
-    } finally {
-      setResolviendoId(null);
     }
   };
 

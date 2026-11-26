@@ -17,6 +17,7 @@ import {
   Search,
   Trash2,
 } from "lucide-react";
+import { EsqueletoLista } from "@/app/ui";
 
 import { EventoMenuOmakase } from "@/app/components/evento-menu-omakase";
 import { EventoMenuNecesidades } from "@/app/components/evento-menu-necesidades";
@@ -1282,10 +1283,7 @@ export default function EventosPage() {
         ) : null}
 
         {isLoading ? (
-          <div className="flex items-center justify-center gap-2 py-12 text-zinc-400">
-            <Loader2 className="h-5 w-5 animate-spin" />
-            Cargando eventos…
-          </div>
+          <EsqueletoLista filas={6} />
         ) : eventos.length === 0 ? (
           <p className="py-8 text-center text-sm text-zinc-500">
             No hay eventos. Creá el primero con el botón de arriba.

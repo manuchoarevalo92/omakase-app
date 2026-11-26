@@ -2,6 +2,7 @@
 
 import { FormEvent, useEffect, useMemo, useState } from "react";
 import { Loader2, Plus, Trash2 } from "lucide-react";
+import { EsqueletoLista } from "@/app/ui";
 import Link from "next/link";
 
 import { formatPostgrestError } from "@/src/lib/supabase-errors";
@@ -219,10 +220,7 @@ export default function MepCortesPage() {
         )}
 
         {isLoading ? (
-          <div className="flex items-center justify-center gap-2 py-12 text-zinc-400">
-            <Loader2 className="h-5 w-5 animate-spin" />
-            Cargando catálogo…
-          </div>
+          <EsqueletoLista filas={6} />
         ) : grupos.length === 0 ? (
           <p className="py-8 text-center text-sm text-zinc-500">
             No hay ítems cargados. Agregá el primero arriba o ejecutá{" "}

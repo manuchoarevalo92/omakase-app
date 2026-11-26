@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { Loader2 } from "lucide-react";
+import { EsqueletoLista } from "@/app/ui";
 
 import { BebidasServicioResumen } from "@/app/components/bebidas-servicio-resumen";
 import { MenuGuardadoSecciones } from "@/app/components/menu-guardado-secciones";
@@ -208,10 +208,7 @@ export default function HistorialPage() {
         ) : null}
 
         {isLoading ? (
-          <div className="flex items-center gap-2 text-sm text-zinc-400">
-            <Loader2 className="h-4 w-4 animate-spin" />
-            Cargando historial...
-          </div>
+          <EsqueletoLista filas={6} />
         ) : historialAgrupado.length === 0 ? (
           historial.length === 0 ? (
             <div className="rounded-lg border border-zinc-800 bg-zinc-950/60 px-4 py-4 text-sm leading-relaxed text-zinc-400">

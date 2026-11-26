@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { Loader2, Plus, Trash2, UserRound } from "lucide-react";
+import { EsqueletoLista } from "@/app/ui";
 
 import { fetchSessionUsuario } from "@/src/lib/produccion-sesiones";
 import {
@@ -186,10 +187,7 @@ export default function PersonalPage() {
         ) : null}
 
         {isLoading ? (
-          <div className="flex items-center justify-center gap-2 py-16 text-zinc-400">
-            <Loader2 className="h-5 w-5 animate-spin" />
-            Cargando…
-          </div>
+          <EsqueletoLista filas={6} />
         ) : !permisoOk ? null : (
           <>
             <div className="mb-6 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">

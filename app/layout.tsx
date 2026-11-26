@@ -1,4 +1,5 @@
 import type { Metadata, Viewport } from "next";
+import { ViewTransition } from "react";
 import { Cormorant_Garamond, DM_Sans, JetBrains_Mono } from "next/font/google";
 import "./globals.css";
 import { AvisosProvider } from "@/app/ui";
@@ -93,7 +94,18 @@ export default function RootLayout({
               <RegisterServiceWorker />
               <MainNav />
               <div className="flex min-h-0 min-w-0 w-full max-w-full flex-1 flex-col pt-[env(safe-area-inset-top,0px)] sm:pt-0">
-                {children}
+                <ViewTransition
+                  update={{
+                    tab: "pantalla-tab",
+                    "nav-forward": "pantalla-avanza",
+                    default: "none",
+                  }}
+                  default="none"
+                >
+                  <div className="flex min-h-0 min-w-0 w-full max-w-full flex-1 flex-col">
+                    {children}
+                  </div>
+                </ViewTransition>
               </div>
               <BarraInferior />
             </div>

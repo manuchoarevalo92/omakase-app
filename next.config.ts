@@ -1,6 +1,10 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
+  experimental: {
+    // Transiciones entre pantallas con <ViewTransition> (app/layout.tsx).
+    viewTransition: true,
+  },
   async headers() {
     return [
       {

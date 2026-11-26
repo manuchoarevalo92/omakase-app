@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { Loader2, Trash2 } from "lucide-react";
+import { EsqueletoLista } from "@/app/ui";
 import Link from "next/link";
 
 import { MepCompararPanel } from "@/app/components/mep-comparar-panel";
@@ -303,10 +304,7 @@ export default function MepHistorialPage() {
         ) : null}
 
         {isLoading ? (
-          <div className="flex items-center gap-2 text-sm text-zinc-400">
-            <Loader2 className="h-4 w-4 animate-spin" />
-            Cargando historial…
-          </div>
+          <EsqueletoLista filas={6} />
         ) : cargasAgrupadas.length === 0 ? (
           cargas.length === 0 ? (
             <div className="rounded-lg border border-zinc-800 bg-zinc-950/60 px-4 py-4 text-sm leading-relaxed text-zinc-400">

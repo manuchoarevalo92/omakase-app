@@ -21,6 +21,7 @@ import {
   Undo2,
   X,
 } from "lucide-react";
+import { EsqueletoLista } from "@/app/ui";
 
 import {
   agruparComprasPorStockItem,
@@ -1360,10 +1361,7 @@ export default function ComprasPage() {
         ) : null}
 
         {isLoading ? (
-          <div className="flex items-center gap-2 text-sm text-zinc-400">
-            <Loader2 className="h-4 w-4 animate-spin" />
-            Cargando compras...
-          </div>
+          <EsqueletoLista filas={6} />
         ) : (
           <>
             <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">

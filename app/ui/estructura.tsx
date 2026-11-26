@@ -65,6 +65,7 @@ export function Pantalla(props: {
     <main className="min-w-0 flex-1 bg-surface text-label">
       <div
         aria-hidden={!compacta}
+        style={{ viewTransitionName: "cabecera-compacta" }}
         className={cx(
           "fixed inset-x-0 top-0 z-40 border-b bg-material pt-[env(safe-area-inset-top,0px)] backdrop-blur-xl backdrop-saturate-150 transition-[opacity,border-color] duration-200 sm:hidden",
           compacta
@@ -188,6 +189,8 @@ export function Fila(props: {
   onClick?: () => void;
   acciones?: AccionFila[];
   chevron?: boolean;
+  /** Tipo de transición de la navegación (p. ej. "nav-forward"). */
+  transicion?: string;
 }) {
   const {
     titulo,
@@ -198,6 +201,7 @@ export function Fila(props: {
     onClick,
     acciones = [],
     chevron,
+    transicion,
   } = props;
   const [dx, setDx] = useState(0);
   const [abierta, setAbierta] = useState(false);
@@ -344,7 +348,11 @@ export function Fila(props: {
         }}
       >
         {href ? (
-          <Link href={href} className={cx(clases, "active:bg-fill")}>
+          <Link
+            href={href}
+            transitionTypes={transicion ? [transicion] : undefined}
+            className={cx(clases, "active:bg-fill")}
+          >
             {contenido}
           </Link>
         ) : onClick ? (

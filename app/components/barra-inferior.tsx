@@ -155,6 +155,7 @@ export function BarraInferior() {
       {/* Franja bajo la barra de estado del teléfono (PWA a pantalla completa). */}
       <div
         aria-hidden
+        style={{ viewTransitionName: "barra-estado" }}
         className="pointer-events-none fixed inset-x-0 top-0 z-30 h-[env(safe-area-inset-top,0px)] bg-material backdrop-blur-xl sm:hidden"
       />
       <div
@@ -164,6 +165,7 @@ export function BarraInferior() {
 
       <nav
         aria-label="Navegación principal"
+        style={{ viewTransitionName: "barra-inferior" }}
         className="fixed inset-x-0 bottom-0 z-50 border-t border-separator bg-material pb-[env(safe-area-inset-bottom,0px)] backdrop-blur-xl backdrop-saturate-150 sm:hidden"
       >
         <ul className="mx-auto grid max-w-lg grid-cols-5">
@@ -176,6 +178,7 @@ export function BarraInferior() {
               <li key={p.href}>
                 <Link
                   href={p.href}
+                  transitionTypes={["tab"]}
                   onClick={() => vibrar()}
                   aria-current={activa ? "page" : undefined}
                   className={cx(
@@ -252,6 +255,7 @@ export function BarraInferior() {
                     <Fila
                       key={h}
                       href={h}
+                      transicion="nav-forward"
                       icono={
                         <span
                           className={cx(

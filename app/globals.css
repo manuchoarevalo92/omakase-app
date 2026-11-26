@@ -541,3 +541,70 @@ html[data-theme="dia"] {
     animation: none;
   }
 }
+
+/*
+  Transiciones entre pantallas (ViewTransition en app/layout.tsx).
+  Pestañas: fundido corto. Desde «Más»: la pantalla nueva entra desde la derecha.
+  La barra inferior y la franja de estado quedan quietas.
+*/
+::view-transition-group(barra-inferior),
+::view-transition-group(barra-estado),
+::view-transition-group(cabecera-compacta) {
+  animation: none;
+  z-index: 100;
+}
+::view-transition-old(barra-inferior),
+::view-transition-old(barra-estado),
+::view-transition-old(cabecera-compacta) {
+  display: none;
+}
+::view-transition-new(barra-inferior),
+::view-transition-new(barra-estado),
+::view-transition-new(cabecera-compacta) {
+  animation: none;
+}
+
+::view-transition-old(.pantalla-tab) {
+  animation: 90ms ease-in both vt-desvanecer;
+}
+::view-transition-new(.pantalla-tab) {
+  animation: 180ms cubic-bezier(0.22, 1, 0.36, 1) 40ms both vt-aparecer;
+}
+::view-transition-old(.pantalla-avanza) {
+  animation:
+    120ms ease-in both vt-desvanecer,
+    280ms cubic-bezier(0.32, 0.72, 0, 1) both vt-salir-izq;
+}
+::view-transition-new(.pantalla-avanza) {
+  animation:
+    200ms ease-out 60ms both vt-aparecer-plano,
+    320ms cubic-bezier(0.32, 0.72, 0, 1) both vt-entrar-der;
+}
+
+@keyframes vt-desvanecer {
+  to { opacity: 0; }
+}
+@keyframes vt-aparecer {
+  from { opacity: 0; translate: 0 6px; }
+  to { opacity: 1; translate: 0 0; }
+}
+@keyframes vt-aparecer-plano {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+@keyframes vt-salir-izq {
+  to { translate: -28px 0; }
+}
+@keyframes vt-entrar-der {
+  from { translate: 36px 0; }
+  to { translate: 0 0; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  ::view-transition-old(*),
+  ::view-transition-new(*),
+  ::view-transition-group(*) {
+    animation-duration: 0s !important;
+    animation-delay: 0s !important;
+  }
+}

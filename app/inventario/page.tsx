@@ -2,6 +2,7 @@
 
 import { FormEvent, useEffect, useMemo, useState } from "react";
 import { ChevronDown, ChevronRight, Loader2, Plus, Trash2 } from "lucide-react";
+import { EsqueletoLista } from "@/app/ui";
 
 import {
   normalizarRubro,
@@ -331,10 +332,7 @@ export default function InventarioPage() {
         ) : null}
 
         {isLoading ? (
-          <div className="flex items-center gap-2 text-sm text-zinc-400">
-            <Loader2 className="h-4 w-4 animate-spin" />
-            Cargando ingredientes...
-          </div>
+          <EsqueletoLista filas={6} />
         ) : !hasItems ? (
           <p className="text-sm text-zinc-500">
             No hay ingredientes todavía. Agregá el primero.

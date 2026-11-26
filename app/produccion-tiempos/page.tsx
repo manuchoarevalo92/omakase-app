@@ -16,6 +16,7 @@ import {
   X,
   BookOpen,
 } from "lucide-react";
+import { EsqueletoLista } from "@/app/ui";
 import {
   actualizarCategoriaPlanPreparacion,
   cantidadSugeridaAlMarcar,
@@ -502,10 +503,7 @@ export default function ProduccionTiemposPage() {
 
         <div className="mb-8 rounded-2xl border border-zinc-700/80 bg-zinc-950/80 p-5 sm:p-6">
           {isLoading ? (
-            <div className="flex items-center justify-center gap-2 py-10 text-zinc-400">
-              <Loader2 className="h-5 w-5 animate-spin" />
-              Cargando…
-            </div>
+            <EsqueletoLista filas={6} />
           ) : sesionPropia ? (
             <div className="flex flex-col items-center gap-4 text-center">
               <p className="text-xs font-semibold uppercase tracking-[0.16em] text-zinc-500">

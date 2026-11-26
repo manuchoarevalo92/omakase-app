@@ -8,7 +8,6 @@ import {
   ChevronLeft,
   ChevronRight,
   Copy,
-  Loader2,
   Plus,
   Timer,
   Trash2,
@@ -16,6 +15,7 @@ import {
   AlertTriangle,
   BookOpen,
 } from "lucide-react";
+import { EsqueletoLista } from "@/app/ui";
 
 import {
   cantidadSugeridaAlMarcar,
@@ -1141,10 +1141,7 @@ export default function ProduccionPlanPage() {
         ) : null}
 
         {isLoading ? (
-          <div className="flex items-center justify-center gap-2 py-16 text-zinc-400">
-            <Loader2 className="h-5 w-5 animate-spin" />
-            Cargando grilla…
-          </div>
+          <EsqueletoLista filas={6} />
         ) : fechasMostradas.length === 0 ? (
           <div className="rounded-xl border border-zinc-800 bg-zinc-950/50 p-4 text-sm text-zinc-400">
             El día de hoy no está en la semana visible. Tocá <span className="text-zinc-200">Esta semana</span>{" "}

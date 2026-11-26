@@ -1,7 +1,8 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { CalendarClock, Loader2, Package, Search, X } from "lucide-react";
+import { CalendarClock, Package, Search, X } from "lucide-react";
+import { EsqueletoLista } from "@/app/ui";
 
 import { fetchComprasHistorial, type CompraHistorialRow } from "@/src/lib/compras-historial";
 import {
@@ -197,10 +198,7 @@ export default function ConsumoPage() {
         </div>
 
         {isLoading ? (
-          <div className="flex items-center gap-2 text-sm text-zinc-400">
-            <Loader2 className="h-4 w-4 animate-spin" />
-            Cargando…
-          </div>
+          <EsqueletoLista filas={6} />
         ) : filtrados.length === 0 ? (
           <p className="rounded-xl border border-zinc-800 bg-zinc-950/50 px-4 py-6 text-center text-sm text-zinc-500">
             {consumo.length === 0

@@ -15,6 +15,7 @@ import {
   Trash2,
   Undo2,
 } from "lucide-react";
+import { EsqueletoLista } from "@/app/ui";
 
 import {
   calcularPrediccionProduccion,
@@ -1043,10 +1044,7 @@ export default function ProduccionPage() {
         ) : null}
 
         {isLoading ? (
-          <div className="flex items-center gap-2 text-sm text-zinc-400">
-            <Loader2 className="h-4 w-4 animate-spin" />
-            Cargando…
-          </div>
+          <EsqueletoLista filas={6} />
         ) : itemsDelArea.length === 0 ? (
           renderBloqueAlta()
         ) : (

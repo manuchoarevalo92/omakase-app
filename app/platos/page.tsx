@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { FormEvent, useEffect, useMemo, useState } from "react";
 import { Loader2, Plus, Trash2 } from "lucide-react";
+import { EsqueletoLista } from "@/app/ui";
 
 import { formatPostgrestError } from "@/src/lib/supabase-errors";
 import { supabase } from "@/src/lib/supabase";
@@ -409,10 +410,7 @@ export default function PlatosPage() {
         ) : null}
 
         {isLoading ? (
-          <div className="flex items-center gap-2 text-sm text-zinc-400">
-            <Loader2 className="h-4 w-4 animate-spin" />
-            Cargando platos...
-          </div>
+          <EsqueletoLista filas={6} />
         ) : (
           <div className="space-y-6">
             {platosPorCategoria.map((bloque) => (
