@@ -1,6 +1,6 @@
 "use client";
 
-import { BookOpen, ChevronDown, GraduationCap, Loader2, Plus, Search, X, Zap } from "lucide-react";
+import { BookOpen, GraduationCap, Loader2, Plus, Search, X, Zap } from "lucide-react";
 import { useCallback, useEffect, useMemo, useState } from "react";
 
 import {
@@ -28,7 +28,7 @@ const MODOS: { id: Modo; label: string; icono: typeof BookOpen }[] = [
 
 const MODO_STORAGE_KEY = "omakase_guia_bebidas_modo";
 
-type SeccionEstudio = "teoria" | "elaboracion" | "glosario" | CategoriaGuia;
+type SeccionEstudio = "elaboracion" | "glosario" | CategoriaGuia;
 
 function Chip(props: { activo: boolean; onClick: () => void; children: React.ReactNode }) {
   return (
@@ -75,10 +75,9 @@ function Estudiar(props: {
   onAbrir: (bebida: GuiaBebida, lista: GuiaBebida[]) => void;
 }) {
   const { guia, visibles, onAbrir } = props;
-  const [seccion, setSeccion] = useState<SeccionEstudio>("teoria");
+  const [seccion, setSeccion] = useState<SeccionEstudio>("elaboracion");
   const [filtroGlosario, setFiltroGlosario] = useState("");
 
-  const teoria = useMemo(() => guia.capitulos.filter((c) => !c.slug.startsWith("intro-")), [guia]);
   const glosarioPorArea = useMemo(() => {
     const q = normalizarBusqueda(filtroGlosario.trim());
     const areas: { area: string; terminos: GuiaCompleta["glosario"] }[] = [];
@@ -95,16 +94,13 @@ function Estudiar(props: {
     return areas;
   }, [guia, filtroGlosario]);
 
-  const esCategoria = seccion !== "teoria" && seccion !== "glosario" && seccion !== "elaboracion";
+  const esCategoria = seccion !== "glosario" && seccion !== "elaboracion";
   const deCategoria = esCategoria ? visibles.filter((b) => b.categoria === seccion) : [];
   const intro = guia.capitulos.find((c) => c.slug === `intro-${seccion}`);
 
   return (
     <div className="space-y-5">
       <FilaChips>
-        <Chip activo={seccion === "teoria"} onClick={() => setSeccion("teoria")}>
-          Teoría
-        </Chip>
         <Chip activo={seccion === "elaboracion"} onClick={() => setSeccion("elaboracion")}>
           Elaboración
         </Chip>
@@ -117,29 +113,6 @@ function Estudiar(props: {
           Glosario
         </Chip>
       </FilaChips>
-
-      {seccion === "teoria" ? (
-        <div className="space-y-3">
-          {teoria.map((cap, i) => (
-            <details
-              key={cap.id}
-              open={i === 0}
-              className="group rounded-xl border border-zinc-800 bg-zinc-900/60"
-            >
-              <summary className="flex min-h-14 cursor-pointer list-none items-center justify-between gap-3 px-4 py-3 [&::-webkit-details-marker]:hidden">
-                <span className="font-display text-xl font-medium text-ink">{cap.titulo}</span>
-                <ChevronDown
-                  className="h-4 w-4 shrink-0 text-zinc-500 transition group-open:rotate-180"
-                  aria-hidden
-                />
-              </summary>
-              <div className="border-t border-zinc-800 px-4 py-4">
-                <Bloques bloques={cap.bloques} />
-              </div>
-            </details>
-          ))}
-        </div>
-      ) : null}
 
       {seccion === "glosario" ? (
         <div className="space-y-5">
