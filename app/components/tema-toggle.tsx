@@ -19,9 +19,9 @@ export function TemaToggle() {
       onClick={cicloPreferencia}
       title={titulo}
       aria-label={titulo}
-      className="inline-flex size-10 shrink-0 items-center justify-center border border-ink-200 bg-ink-50 text-ink-400 transition hover:border-ink-400 hover:text-ink"
+      className="inline-flex size-11 shrink-0 items-center justify-center rounded-full bg-fill text-label-2 transition hover:bg-fill-strong active:scale-95"
     >
-      <Icon className="h-3.5 w-3.5" aria-hidden />
+      <Icon className="h-[18px] w-[18px]" aria-hidden />
     </button>
   );
 }

@@ -458,7 +458,7 @@ export function Etiqueta(props: {
   return (
     <span
       className={cx(
-        "inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-[0.76rem] font-semibold",
+        "inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-[0.8rem] font-semibold",
         TONO_ETIQUETA[tono],
       )}
     >

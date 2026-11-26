@@ -3,6 +3,7 @@
 import { X } from "lucide-react";
 import {
   useEffect,
+  useEffectEvent,
   useId,
   useRef,
   useState,
@@ -64,19 +65,27 @@ export function Hoja(props: {
 
   useBloquearScroll(abierta);
 
+  // useEffectEvent: el efecto depende solo de `abierta`. Si dependiera de
+  // onCerrar (una función nueva en cada render), al tipear dentro de la hoja se
+  // volvía a enfocar el panel y el campo perdía el foco.
+  const alEscape = useEffectEvent(() => onCerrar());
+
   useEffect(() => {
     if (!abierta) return;
     const previo = document.activeElement as HTMLElement | null;
-    panel.current?.focus({ preventScroll: true });
+    // Respeta un campo con autoFocus dentro de la hoja.
+    if (!panel.current?.contains(document.activeElement)) {
+      panel.current?.focus({ preventScroll: true });
+    }
     const onKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape") onCerrar();
+      if (e.key === "Escape") alEscape();
     };
     window.addEventListener("keydown", onKey);
     return () => {
       window.removeEventListener("keydown", onKey);
       previo?.focus?.({ preventScroll: true });
     };
-  }, [abierta, onCerrar]);
+  }, [abierta]);
 
   if (!montado || !abierta) return null;
 
