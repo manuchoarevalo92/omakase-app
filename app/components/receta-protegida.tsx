@@ -47,7 +47,7 @@ export function RecetaProtegida({ viewerName, children }: Props) {
           {Array.from({ length: 10 }).map((_, i) => (
             <p
               key={i}
-              className="whitespace-nowrap text-sm font-semibold tracking-widest text-zinc-100"
+              className="whitespace-nowrap text-sm font-semibold tracking-widest text-label"
             >
               {`${marca}    ${marca}    ${marca}`}
             </p>
@@ -55,7 +55,7 @@ export function RecetaProtegida({ viewerName, children }: Props) {
         </div>
       </div>
       {oculta ? (
-        <div className="absolute inset-0 flex items-center justify-center bg-zinc-950/80 text-xs text-zinc-400">
+        <div className="absolute inset-0 flex items-center justify-center bg-surface/80 text-[0.86rem] text-label-2">
           Receta oculta
         </div>
       ) : null}

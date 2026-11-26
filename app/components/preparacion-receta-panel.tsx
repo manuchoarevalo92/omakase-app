@@ -4,6 +4,7 @@ import Link from "next/link";
 import { AlertTriangle, BookOpen } from "lucide-react";
 
 import { RecetaProtegida } from "@/app/components/receta-protegida";
+import { Interruptor } from "@/app/ui";
 import {
   actualizarVinculoPreparacion,
   preparacionEstaConectada,
@@ -50,11 +51,11 @@ export function PreparacionRecetaPanel({
       {conectada ? (
         <div className="mb-3 space-y-2">
           {esAdmin && recetaIncompleta ? (
-            <p className="text-xs text-amber-200/90">
+            <p className="text-[0.86rem] leading-snug text-warning">
               Receta incompleta
               {!recetaTieneIngredientes(receta) ? ": faltan ingredientes" : ""}
               {receta.pasos.length === 0 ? ": faltan los pasos" : ""}.{" "}
-              <Link href={hrefReceta} className="underline hover:text-white">
+              <Link href={hrefReceta} className="font-semibold underline">
                 Completar
               </Link>
             </p>
@@ -62,22 +63,25 @@ export function PreparacionRecetaPanel({
           {esAdmin && !recetaIncompleta ? (
             <Link
               href={hrefReceta}
-              className="text-xs text-zinc-400 underline hover:text-white"
+              className="inline-flex min-h-11 items-center text-[0.9rem] font-semibold text-accent"
             >
               Abrir receta completa
             </Link>
           ) : null}
           {receta.pax != null ? (
-            <p className="text-[11px] text-zinc-500">Rinde {receta.pax} PAX</p>
+            <p className="text-[0.8rem] text-label-3">Rinde {receta.pax} PAX</p>
           ) : null}
           {recetaTieneIngredientes(receta) ? (
-            <ul className="space-y-0.5 text-xs text-zinc-200">
+            <ul className="space-y-1 text-[0.9rem] text-label">
               {receta.ingredientes
                 .filter((ing) => ing.nombre.trim())
                 .map((ing, i) => (
-                  <li key={`${ing.nombre}-${i}`} className="flex justify-between gap-2">
+                  <li
+                    key={`${ing.nombre}-${i}`}
+                    className="flex justify-between gap-2"
+                  >
                     <span>{ing.nombre}</span>
-                    <span className="shrink-0 tabular-nums text-zinc-400">
+                    <span className="shrink-0 tabular-nums text-label-2">
                       {formatearGramosReceta(ing.gramos)} g
                     </span>
                   </li>
@@ -85,7 +89,7 @@ export function PreparacionRecetaPanel({
             </ul>
           ) : null}
           {receta.pasos ? (
-            <pre className="max-h-40 overflow-y-auto whitespace-pre-wrap rounded-lg bg-zinc-900/80 p-2 text-xs leading-relaxed text-zinc-300">
+            <pre className="max-h-48 overflow-y-auto whitespace-pre-wrap rounded-control bg-fill p-3 font-sans text-[0.86rem] leading-relaxed text-label-2">
               {receta.pasos}
             </pre>
           ) : null}
@@ -109,22 +113,25 @@ export function PreparacionRecetaPanel({
   };
 
   return (
-    <div className="rounded-xl border border-zinc-700/80 bg-zinc-950/70 p-3">
+    <div className="rounded-card bg-surface-3 p-4 shadow-[0_1px_2px_rgb(0_0_0/0.04)]">
       <div className="mb-2 flex items-center gap-2">
         {conectada ? (
-          <BookOpen className="h-4 w-4 shrink-0 text-emerald-400" />
+          <BookOpen className="h-4 w-4 shrink-0 text-success" aria-hidden />
         ) : (
-          <AlertTriangle className="h-4 w-4 shrink-0 text-amber-400" />
+          <AlertTriangle
+            className="h-4 w-4 shrink-0 text-warning"
+            aria-hidden
+          />
         )}
-        <p className="text-xs font-semibold uppercase tracking-wide text-zinc-400">
+        <p className="text-[0.8rem] font-semibold uppercase tracking-[0.07em] text-label-3">
           Receta / proceso
         </p>
       </div>
 
       {esAdmin && !conectada ? (
-        <p className="mb-3 text-xs leading-relaxed text-amber-200/90">
+        <p className="mb-3 text-[0.86rem] leading-snug text-warning">
           Esta preparación todavía no tiene receta. Cargala en{" "}
-          <Link href={hrefReceta} className="underline hover:text-white">
+          <Link href={hrefReceta} className="font-semibold underline">
             Recetas y procesos
           </Link>
           .
@@ -135,9 +142,9 @@ export function PreparacionRecetaPanel({
       preparacion.recetaPlatoId &&
       !preparacionTieneIngredientesReceta(preparacion) &&
       !preparacion.proceso ? (
-        <p className="mb-3 text-xs text-amber-200/90">
+        <p className="mb-3 text-[0.86rem] leading-snug text-warning">
           Había un vínculo viejo a un plato. Completá la receta en{" "}
-          <Link href={hrefReceta} className="underline hover:text-white">
+          <Link href={hrefReceta} className="font-semibold underline">
             Recetas y procesos
           </Link>
           .
@@ -147,18 +154,19 @@ export function PreparacionRecetaPanel({
       {esAdmin ? (
         cuerpoReceta
       ) : (
-        <RecetaProtegida viewerName={viewer?.name ?? "staff"}>{cuerpoReceta}</RecetaProtegida>
+        <RecetaProtegida viewerName={viewer?.name ?? "staff"}>
+          {cuerpoReceta}
+        </RecetaProtegida>
       )}
 
       {esAdmin ? (
-        <label className="flex items-center gap-2 text-xs text-zinc-300">
-          <input
-            type="checkbox"
-            checked={preparacion.recetaSoloAdmin}
-            onChange={(e) => void guardarSoloAdmin(e.target.checked)}
-            className="rounded border-zinc-600"
-          />
+        <label className="flex min-h-11 items-center justify-between gap-3 border-t border-separator pt-2 text-[0.9rem] text-label-2">
           Solo Manu puede ver esta receta
+          <Interruptor
+            etiqueta="Solo Manu puede ver esta receta"
+            activo={preparacion.recetaSoloAdmin}
+            onChange={(v) => void guardarSoloAdmin(v)}
+          />
         </label>
       ) : null}
     </div>
