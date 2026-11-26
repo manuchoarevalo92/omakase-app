@@ -2,14 +2,12 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
-  Bell,
-  CheckCircle2,
-  Loader2,
+  Check,
+  CircleAlert,
+  CircleCheck,
   Plus,
   Search,
   Trash2,
-  Undo2,
-  X,
 } from "lucide-react";
 
 import {
@@ -39,6 +37,21 @@ import {
   type UnidadMedida,
 } from "@/src/lib/proveedores";
 import { supabase } from "@/src/lib/supabase";
+import {
+  Boton,
+  Campo,
+  EstadoVacio,
+  EsqueletoLista,
+  Etiqueta,
+  Fila,
+  Lista,
+  Pantalla,
+  Seccion,
+  Selector,
+  useAvisos,
+  vibrar,
+  type OpcionSelector,
+} from "@/app/ui";
 
 const PROVEEDOR_NUEVO = "__nuevo__";
 
@@ -74,15 +87,6 @@ function fechaHoraCarga(iso: string): string {
   });
 }
 
-function ProveedorBadge(props: { proveedor: Proveedor | null }) {
-  const { proveedor } = props;
-  return (
-    <span className="inline-flex shrink-0 items-center rounded-full border border-zinc-700 bg-zinc-900 px-2 py-0.5 text-[10px] font-medium uppercase tracking-wide text-zinc-400">
-      {proveedor ?? "Sin proveedor"}
-    </span>
-  );
-}
-
 export default function AvisosPage() {
   const [items, setItems] = useState<StockItem[]>([]);
   const [avisos, setAvisos] = useState<PedidoAviso[]>([]);
@@ -91,7 +95,9 @@ export default function AvisosPage() {
 
   const [proveedores, setProveedores] = useState<Proveedor[]>([...PROVEEDORES]);
   const [query, setQuery] = useState("");
-  const [itemSeleccionado, setItemSeleccionado] = useState<StockItem | null>(null);
+  const [itemSeleccionado, setItemSeleccionado] = useState<StockItem | null>(
+    null,
+  );
   const [nota, setNota] = useState("");
   const [dropdownAbierto, setDropdownAbierto] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -101,11 +107,15 @@ export default function AvisosPage() {
   const [proveedorElegido, setProveedorElegido] = useState("");
   const [proveedorNuevoNombre, setProveedorNuevoNombre] = useState("");
   const [unidadNueva, setUnidadNueva] = useState<UnidadMedida>("Unidad");
-  const [rubroNuevo, setRubroNuevo] = useState<RubroIngrediente>("Despensa/Prep");
+  const [rubroNuevo, setRubroNuevo] =
+    useState<RubroIngrediente>("Despensa/Prep");
 
   const [resolviendoId, setResolviendoId] = useState<string | null>(null);
-  const [undoSnapshot, setUndoSnapshot] = useState<SnapshotResuelto | null>(null);
+  const [undoSnapshot, setUndoSnapshot] = useState<SnapshotResuelto | null>(
+    null,
+  );
   const inputRef = useRef<HTMLInputElement>(null);
+  const { aviso: mostrarAviso, confirmar } = useAvisos();
 
   const cargar = useCallback(async () => {
     setIsLoading(true);
@@ -120,7 +130,9 @@ export default function AvisosPage() {
       setAvisos(avisosData);
       setProveedores(proveedoresData);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Error al conectar con Supabase.");
+      setError(
+        err instanceof Error ? err.message : "Error al conectar con Supabase.",
+      );
     } finally {
       setIsLoading(false);
     }
@@ -138,13 +150,17 @@ export default function AvisosPage() {
       return [];
     }
     const clave = normalizarNombreClave(query);
-    return items.filter((it) => normalizarNombreClave(it.nombre).includes(clave)).slice(0, 8);
+    return items
+      .filter((it) => normalizarNombreClave(it.nombre).includes(clave))
+      .slice(0, 8);
   }, [items, query, itemSeleccionado]);
 
   const coincideExacto = useMemo(() => {
     const clave = normalizarNombreClave(query);
     if (!clave) return null;
-    return items.find((it) => normalizarNombreClave(it.nombre) === clave) ?? null;
+    return (
+      items.find((it) => normalizarNombreClave(it.nombre) === clave) ?? null
+    );
   }, [items, query]);
 
   const seleccionarItem = (item: StockItem) => {
@@ -190,7 +206,9 @@ export default function AvisosPage() {
     if (!itemSeleccionado) {
       return;
     }
-    const yaPendiente = avisos.some((a) => a.stockItemId === itemSeleccionado.id);
+    const yaPendiente = avisos.some(
+      (a) => a.stockItemId === itemSeleccionado.id,
+    );
     if (yaPendiente) {
       setAvisoDuplicado(itemSeleccionado.nombre);
       return;
@@ -203,7 +221,9 @@ export default function AvisosPage() {
       limpiarFormulario();
       inputRef.current?.focus();
     } catch (err) {
-      setError(err instanceof Error ? err.message : "No se pudo agregar el aviso.");
+      setError(
+        err instanceof Error ? err.message : "No se pudo agregar el aviso.",
+      );
     } finally {
       setIsSubmitting(false);
     }
@@ -230,34 +250,41 @@ export default function AvisosPage() {
         unidadCompra: unidadNueva,
       });
       setItems((prev) =>
-        [...prev, item].sort((a, b) => a.nombre.localeCompare(b.nombre, "es"))
+        [...prev, item].sort((a, b) => a.nombre.localeCompare(b.nombre, "es")),
       );
       const nuevo = await crearAviso(item.id, nota);
       setAvisos((prev) => [...prev, nuevo]);
       limpiarFormulario();
       inputRef.current?.focus();
     } catch (err) {
-      setError(err instanceof Error ? err.message : "No se pudo crear el ítem.");
+      setError(
+        err instanceof Error ? err.message : "No se pudo crear el ítem.",
+      );
     } finally {
       setIsSubmitting(false);
     }
   };
 
-  const deshacerResuelto = useCallback(async () => {
-    if (!undoSnapshot) {
-      return;
-    }
-    const { aviso } = undoSnapshot;
-    setUndoSnapshot(null);
+  const reabrir = useCallback(async (aviso: PedidoAviso) => {
+    setUndoSnapshot((current) =>
+      current?.aviso.id === aviso.id ? null : current,
+    );
     try {
       await reabrirAviso(aviso.id);
       setAvisos((prev) =>
-        prev.some((a) => a.id === aviso.id) ? prev : [...prev, aviso]
+        prev.some((a) => a.id === aviso.id) ? prev : [...prev, aviso],
       );
     } catch (err) {
       setError(err instanceof Error ? err.message : "No se pudo deshacer.");
     }
-  }, [undoSnapshot]);
+  }, []);
+
+  const deshacerResuelto = useCallback(async () => {
+    if (!undoSnapshot) {
+      return;
+    }
+    await reabrir(undoSnapshot.aviso);
+  }, [undoSnapshot, reabrir]);
 
   useEffect(() => {
     if (!undoSnapshot) {
@@ -265,7 +292,9 @@ export default function AvisosPage() {
     }
     const snap = undoSnapshot;
     const timer = window.setTimeout(() => {
-      setUndoSnapshot((current) => (current?.aviso.id === snap.aviso.id ? null : current));
+      setUndoSnapshot((current) =>
+        current?.aviso.id === snap.aviso.id ? null : current,
+      );
     }, UNDO_MS);
 
     const onKeyDown = (e: KeyboardEvent) => {
@@ -297,15 +326,27 @@ export default function AvisosPage() {
       await marcarAvisoResuelto(aviso.id);
       setAvisos((prev) => prev.filter((a) => a.id !== aviso.id));
       setUndoSnapshot({ aviso });
+      mostrarAviso(`${aviso.nombre}: pedido`, {
+        tono: "exito",
+        ms: UNDO_MS,
+        deshacer: () => void reabrir(aviso),
+      });
     } catch (err) {
-      setError(err instanceof Error ? err.message : "No se pudo marcar como pedido.");
+      setError(
+        err instanceof Error ? err.message : "No se pudo marcar como pedido.",
+      );
     } finally {
       setResolviendoId(null);
     }
   };
 
   const borrarAviso = async (aviso: PedidoAviso) => {
-    const ok = window.confirm(`¿Borrar el aviso de "${aviso.nombre}"? (se cargó sin querer)`);
+    const ok = await confirmar({
+      titulo: `¿Borrar el aviso de «${aviso.nombre}»?`,
+      texto: "Usalo si se cargó sin querer. Si ya se pidió, tocá Pedido.",
+      confirmar: "Borrar aviso",
+      peligro: true,
+    });
     if (!ok) {
       return;
     }
@@ -321,7 +362,9 @@ export default function AvisosPage() {
       }
       setAvisos((prev) => prev.filter((a) => a.id !== aviso.id));
     } catch (err) {
-      setError(err instanceof Error ? err.message : "No se pudo borrar el aviso.");
+      setError(
+        err instanceof Error ? err.message : "No se pudo borrar el aviso.",
+      );
     } finally {
       setResolviendoId(null);
     }
@@ -347,339 +390,288 @@ export default function AvisosPage() {
       .filter((g) => g.avisos.length > 0);
   }, [avisos, proveedores]);
 
+  const opcionesProveedor: OpcionSelector<string>[] = [
+    { valor: "", label: "Sin proveedor" },
+    ...proveedores.map((p) => ({ valor: p, label: p })),
+    { valor: PROVEEDOR_NUEVO, label: "Nuevo proveedor…" },
+  ];
+
+  const mostrarSugerencias =
+    dropdownAbierto && !creandoItem && (sugerencias.length > 0 || query.trim());
+
   return (
-    <main className="min-h-screen min-w-0 bg-zinc-950 px-4 py-6 text-zinc-100 sm:px-6 sm:py-10">
-      <section className="mx-auto w-full max-w-2xl rounded-2xl border border-zinc-800 bg-zinc-900/60 p-6 shadow-[0_0_0_1px_rgba(255,255,255,0.02)] backdrop-blur">
-        <header className="mb-6">
-          <h1 className="flex items-center gap-2 font-display text-3xl font-medium tracking-tight text-ink">
-            <Bell className="h-5 w-5 text-amber-400" aria-hidden />
-            Avisos de pedido
-          </h1>
-          <p className="mt-1 text-sm text-zinc-400">
-            Cuando algo se está por acabar, cargalo acá. Si el ítem o el proveedor no
-            existen, los podés crear acá mismo. Queda en la lista para que alguien lo pida,
-            y lo marca como <span className="text-zinc-300">Pedido</span> cuando lo haga.
+    <Pantalla
+      titulo="Avisos"
+      subtitulo={
+        isLoading
+          ? "Cargando…"
+          : avisos.length === 0
+            ? "Nada pendiente de pedir"
+            : `${avisos.length} ${avisos.length === 1 ? "ítem" : "ítems"} para pedir`
+      }
+      ayuda={
+        <>
+          <p>
+            Cuando algo se está por acabar, buscalo y cargalo acá: queda en la
+            lista para que alguien lo pida.
           </p>
-        </header>
-
-        {error ? (
-          <p className="mb-4 rounded-lg border border-red-900/70 bg-red-950/50 px-3 py-2 text-sm text-red-200">
-            {error}
+          <p>
+            Si el ítem o el proveedor no existen, se crean desde el mismo
+            buscador con <strong className="text-label">Crear «…»</strong>.
           </p>
-        ) : null}
-
-        <div className="mb-6 rounded-xl border border-zinc-800 bg-zinc-950/60 p-4">
-          <label htmlFor="avisos-buscar" className="mb-1 block text-xs font-medium text-zinc-500">
-            Ítem
-          </label>
-          <div className="relative">
-            <Search
-              className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-zinc-500"
-              aria-hidden
-            />
-            <input
-              ref={inputRef}
-              id="avisos-buscar"
-              type="text"
-              value={query}
-              onChange={(e) => onCambiarQuery(e.target.value)}
-              onFocus={() => setDropdownAbierto(true)}
-              onBlur={() => window.setTimeout(() => setDropdownAbierto(false), 150)}
-              placeholder="Buscá por nombre… (ej. Salmón, Botellitas)"
-              autoComplete="off"
-              className="w-full rounded-lg border border-zinc-700 bg-zinc-900 py-2.5 pl-9 pr-3 text-sm text-zinc-100 outline-none transition focus:border-zinc-500"
-            />
-            {dropdownAbierto && !creandoItem && (sugerencias.length > 0 || query.trim()) ? (
-              <ul className="absolute z-20 mt-1 max-h-64 w-full overflow-y-auto rounded-lg border border-zinc-700 bg-zinc-900 shadow-xl">
-                {sugerencias.map((item) => (
-                  <li key={item.id}>
-                    <button
-                      type="button"
-                      onMouseDown={(e) => e.preventDefault()}
-                      onClick={() => seleccionarItem(item)}
-                      className="flex w-full items-center justify-between gap-2 px-3 py-2 text-left text-sm text-zinc-200 transition hover:bg-zinc-800"
-                    >
-                      <span className="truncate">{item.nombre}</span>
-                      <ProveedorBadge proveedor={item.proveedor} />
-                    </button>
-                  </li>
-                ))}
-                {query.trim() && !coincideExacto ? (
-                  <li>
-                    <button
-                      type="button"
-                      onMouseDown={(e) => e.preventDefault()}
-                      onClick={abrirCrearItem}
-                      className="flex w-full items-center gap-2 border-t border-zinc-800 px-3 py-2.5 text-left text-sm font-medium text-amber-200 transition hover:bg-zinc-800"
-                    >
-                      <Plus className="h-4 w-4 shrink-0" aria-hidden />
-                      Crear «{query.trim()}»
-                    </button>
-                  </li>
-                ) : null}
-              </ul>
-            ) : null}
-          </div>
-
-          {creandoItem ? (
-            <div className="mt-3 space-y-3 rounded-lg border border-zinc-800 bg-zinc-900/80 p-3">
-              <p className="text-xs text-zinc-400">
-                Ítem nuevo: <span className="font-medium text-zinc-200">{query.trim() || "—"}</span>
-              </p>
-              <div className="grid gap-2 sm:grid-cols-2">
-                <label className="text-xs text-zinc-500">
-                  Proveedor
-                  <select
-                    value={nuevoProveedorModo ? PROVEEDOR_NUEVO : proveedorElegido}
-                    onChange={(e) => {
-                      const v = e.target.value;
-                      if (v === PROVEEDOR_NUEVO) {
-                        setNuevoProveedorModo(true);
-                        setProveedorElegido(PROVEEDOR_NUEVO);
-                      } else {
-                        setNuevoProveedorModo(false);
-                        setProveedorElegido(v);
-                      }
-                    }}
-                    className="mt-1 block w-full rounded-lg border border-zinc-700 bg-zinc-950 px-3 py-2 text-sm text-white"
-                  >
-                    <option value="">Sin proveedor</option>
-                    {proveedores.map((p) => (
-                      <option key={p} value={p}>
-                        {p}
-                      </option>
-                    ))}
-                    <option value={PROVEEDOR_NUEVO}>Nuevo proveedor…</option>
-                  </select>
-                </label>
-                <label className="text-xs text-zinc-500">
-                  Unidad
-                  <select
-                    value={unidadNueva}
-                    onChange={(e) => setUnidadNueva(e.target.value as UnidadMedida)}
-                    className="mt-1 block w-full rounded-lg border border-zinc-700 bg-zinc-950 px-3 py-2 text-sm text-white"
-                  >
-                    {UNIDADES.map((u) => (
-                      <option key={u} value={u}>
-                        {u}
-                      </option>
-                    ))}
-                  </select>
-                </label>
-              </div>
-              {nuevoProveedorModo ? (
-                <label className="block text-xs text-zinc-500">
-                  Nombre del proveedor
-                  <input
-                    type="text"
-                    value={proveedorNuevoNombre}
-                    onChange={(e) => setProveedorNuevoNombre(e.target.value)}
-                    placeholder="Ej. Salvioni y Alomar"
-                    className="mt-1 block w-full rounded-lg border border-zinc-700 bg-zinc-950 px-3 py-2 text-sm text-white placeholder:text-zinc-600"
-                  />
-                </label>
-              ) : null}
-              <label className="block text-xs text-zinc-500">
-                Rubro
-                <select
-                  value={rubroNuevo}
-                  onChange={(e) => setRubroNuevo(e.target.value as RubroIngrediente)}
-                  className="mt-1 block w-full rounded-lg border border-zinc-700 bg-zinc-950 px-3 py-2 text-sm text-white"
-                >
-                  {RUBROS_INGREDIENTE.map((r) => (
-                    <option key={r} value={r}>
-                      {r}
-                    </option>
-                  ))}
-                </select>
-              </label>
-              <label className="block text-xs text-zinc-500">
-                Nota (opcional)
-                <input
-                  type="text"
-                  value={nota}
-                  onChange={(e) => setNota(e.target.value)}
-                  placeholder="Casi no queda, para el finde…"
-                  className="mt-1 block w-full rounded-lg border border-zinc-700 bg-zinc-950 px-3 py-2 text-sm text-white placeholder:text-zinc-600"
-                />
-              </label>
-              <div className="flex flex-wrap gap-2">
-                <button
-                  type="button"
-                  disabled={
-                    isSubmitting ||
-                    !query.trim() ||
-                    (nuevoProveedorModo && !proveedorNuevoNombre.trim())
-                  }
-                  onClick={() => void crearItemYAviso()}
-                  className="inline-flex items-center justify-center gap-1.5 rounded-xl border border-emerald-800/80 bg-emerald-900/50 px-4 py-2.5 text-sm font-semibold text-emerald-50 transition hover:bg-emerald-800/50 disabled:opacity-50"
-                >
-                  {isSubmitting ? (
-                    <Loader2 className="h-4 w-4 animate-spin" />
-                  ) : (
-                    <Plus className="h-4 w-4" />
-                  )}
-                  Crear y avisar
-                </button>
-                <button
-                  type="button"
-                  onClick={() => {
-                    setCreandoItem(false);
-                    setNuevoProveedorModo(false);
-                    setProveedorElegido("");
-                    setProveedorNuevoNombre("");
-                  }}
-                  className="inline-flex items-center rounded-xl border border-zinc-700 px-3 py-2.5 text-sm text-zinc-300 transition hover:bg-zinc-800"
-                >
-                  Cancelar
-                </button>
-              </div>
-            </div>
-          ) : itemSeleccionado ? (
-            <div className="mt-3 flex flex-col gap-2 sm:flex-row sm:items-end">
-              <label className="text-xs text-zinc-500 sm:flex-1">
-                Nota (opcional)
-                <input
-                  type="text"
-                  value={nota}
-                  onChange={(e) => setNota(e.target.value)}
-                  placeholder="Casi no queda, para el finde…"
-                  onKeyDown={(e) => {
-                    if (e.key === "Enter") {
-                      e.preventDefault();
-                      void agregarAviso();
-                    }
-                  }}
-                  className="mt-1 block w-full rounded-lg border border-zinc-700 bg-zinc-900 px-3 py-2 text-sm text-white placeholder:text-zinc-600"
-                />
-              </label>
-              <button
-                type="button"
-                disabled={isSubmitting}
-                onClick={() => void agregarAviso()}
-                className="inline-flex items-center justify-center gap-1.5 rounded-xl border border-emerald-800/80 bg-emerald-900/50 px-4 py-2.5 text-sm font-semibold text-emerald-50 transition hover:bg-emerald-800/50 disabled:opacity-50"
-              >
-                {isSubmitting ? (
-                  <Loader2 className="h-4 w-4 animate-spin" />
-                ) : (
-                  <Plus className="h-4 w-4" />
-                )}
-                Agregar
-              </button>
-            </div>
-          ) : null}
-
-          {avisoDuplicado ? (
-            <p className="mt-2 text-xs text-amber-300">
-              &quot;{avisoDuplicado}&quot; ya está en la lista de avisos.
-            </p>
-          ) : null}
-        </div>
-
-        {isLoading ? (
-          <div className="flex items-center gap-2 text-sm text-zinc-400">
-            <Loader2 className="h-4 w-4 animate-spin" />
-            Cargando…
-          </div>
-        ) : avisos.length === 0 ? (
-          <div className="rounded-xl border border-emerald-900/50 bg-emerald-950/30 px-4 py-3 text-sm text-emerald-200">
-            <div className="flex items-center gap-2">
-              <CheckCircle2 className="h-4 w-4 shrink-0" aria-hidden />
-              No hay nada pendiente de pedir.
-            </div>
-          </div>
-        ) : (
-          <div className="space-y-5">
-            {gruposPorProveedor.map(({ proveedor, avisos: avisosGrupo }) => (
-              <section key={proveedor}>
-                <h2 className="mb-2 flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.14em] text-zinc-500">
-                  {proveedor}
-                  <span className="rounded-full border border-zinc-700 bg-zinc-900 px-2 py-0.5 text-[10px] font-bold tabular-nums text-zinc-400">
-                    {avisosGrupo.length}
-                  </span>
-                </h2>
-                <ul className="overflow-hidden rounded-xl border border-zinc-800 divide-y divide-zinc-800/90">
-                  {avisosGrupo.map((aviso) => {
-                    const busy = resolviendoId === aviso.id;
-                    return (
-                      <li
-                        key={aviso.id}
-                        className="flex items-center gap-3 bg-zinc-950/40 px-3 py-2.5"
-                      >
-                        <div className="min-w-0 flex-1">
-                          <p className="truncate font-medium text-white">{aviso.nombre}</p>
-                          {aviso.nota ? (
-                            <p className="truncate text-xs text-zinc-300">{aviso.nota}</p>
-                          ) : null}
-                          <p className="truncate text-[11px] text-zinc-500">
-                            {fechaHoraCarga(aviso.createdAt)}
-                            <span className="text-zinc-600"> · {tiempoDesde(aviso.createdAt)}</span>
-                          </p>
-                        </div>
-                        <button
-                          type="button"
-                          disabled={busy}
-                          onClick={() => void borrarAviso(aviso)}
-                          title="Borrar este aviso (se cargó sin querer)"
-                          className="inline-flex shrink-0 items-center justify-center rounded-lg border border-transparent p-2 text-zinc-600 transition hover:border-zinc-700 hover:text-red-300 disabled:opacity-40"
-                        >
-                          <Trash2 className="h-4 w-4" aria-hidden />
-                        </button>
-                        <button
-                          type="button"
-                          disabled={busy}
-                          onClick={() => void marcarPedido(aviso)}
-                          className="inline-flex shrink-0 items-center gap-1.5 rounded-xl border border-emerald-700/80 bg-emerald-800/60 px-3 py-2 text-xs font-semibold text-emerald-50 transition active:scale-95 hover:bg-emerald-700/70 disabled:opacity-50"
-                        >
-                          {busy ? (
-                            <Loader2 className="h-4 w-4 animate-spin" aria-hidden />
-                          ) : (
-                            <CheckCircle2 className="h-4 w-4" aria-hidden />
-                          )}
-                          Pedido
-                        </button>
-                      </li>
-                    );
-                  })}
-                </ul>
-              </section>
-            ))}
-          </div>
-        )}
-      </section>
-
-      {undoSnapshot ? (
+          <p>
+            Quien hace el pedido toca{" "}
+            <strong className="text-label">Pedido</strong> (se puede deshacer).
+            Para borrar un aviso cargado sin querer, deslizá la fila hacia la
+            izquierda.
+          </p>
+        </>
+      }
+    >
+      {error ? (
         <div
-          className="fixed inset-x-4 bottom-4 z-50 mx-auto flex max-w-3xl items-center gap-3 rounded-xl border border-zinc-700 bg-zinc-900/95 px-4 py-3 shadow-xl backdrop-blur-sm sm:inset-x-6"
-          role="status"
-          aria-live="polite"
+          role="alert"
+          className="mb-4 flex gap-3 rounded-card bg-danger-soft px-4 py-3 text-[0.94rem] text-danger"
         >
-          <CheckCircle2 className="h-5 w-5 shrink-0 text-emerald-400" aria-hidden />
-          <p className="min-w-0 flex-1 text-sm text-zinc-200">
-            <span className="font-medium text-white">{undoSnapshot.aviso.nombre}</span> marcado
-            pedido
-          </p>
-          <button
-            type="button"
-            onClick={() => void deshacerResuelto()}
-            className="inline-flex shrink-0 items-center gap-1.5 rounded-lg border border-zinc-600 bg-zinc-800 px-3 py-1.5 text-sm font-semibold text-white transition hover:bg-zinc-700"
-          >
-            <Undo2 className="h-4 w-4" aria-hidden />
-            Deshacer
-            <kbd className="hidden rounded border border-zinc-600 bg-zinc-900 px-1.5 py-0.5 text-[10px] font-medium text-zinc-400 sm:inline">
-              Z
-            </kbd>
-          </button>
-          <button
-            type="button"
-            onClick={() => setUndoSnapshot(null)}
-            aria-label="Cerrar"
-            className="inline-flex shrink-0 items-center justify-center rounded-lg p-1 text-zinc-500 transition hover:text-zinc-200"
-          >
-            <X className="h-4 w-4" aria-hidden />
-          </button>
+          <CircleAlert
+            className="mt-0.5 h-[18px] w-[18px] shrink-0"
+            aria-hidden
+          />
+          <p className="min-w-0 flex-1">{error}</p>
         </div>
       ) : null}
-    </main>
+
+      <div className="rounded-card bg-surface-3 p-3 shadow-[0_1px_2px_rgb(0_0_0/0.04)]">
+        <div className="relative">
+          <Search
+            className="pointer-events-none absolute left-3.5 top-1/2 h-[18px] w-[18px] -translate-y-1/2 text-label-3"
+            aria-hidden
+          />
+          <input
+            ref={inputRef}
+            id="avisos-buscar"
+            type="search"
+            enterKeyHint="search"
+            aria-label="Qué se está acabando"
+            value={query}
+            onChange={(e) => onCambiarQuery(e.target.value)}
+            onFocus={() => setDropdownAbierto(true)}
+            onBlur={() =>
+              window.setTimeout(() => setDropdownAbierto(false), 150)
+            }
+            placeholder="¿Qué se está acabando?"
+            autoComplete="off"
+            className="min-h-12 w-full rounded-control bg-fill pl-10 pr-3.5 text-[1rem] text-label outline-none ring-accent/60 placeholder:text-label-3 focus:ring-2"
+          />
+          {mostrarSugerencias ? (
+            <ul className="absolute z-30 mt-1.5 max-h-72 w-full overflow-y-auto rounded-card bg-surface-2 shadow-[0_12px_32px_rgb(0_0_0/0.22)] ring-1 ring-separator">
+              {sugerencias.map((item) => (
+                <li
+                  key={item.id}
+                  className="border-b border-separator last:border-0"
+                >
+                  <button
+                    type="button"
+                    onMouseDown={(e) => e.preventDefault()}
+                    onClick={() => seleccionarItem(item)}
+                    className="flex min-h-12 w-full items-center justify-between gap-2 px-4 text-left text-[1rem] text-label transition active:bg-fill"
+                  >
+                    <span className="truncate">{item.nombre}</span>
+                    <Etiqueta>{item.proveedor ?? "Sin proveedor"}</Etiqueta>
+                  </button>
+                </li>
+              ))}
+              {query.trim() && !coincideExacto ? (
+                <li>
+                  <button
+                    type="button"
+                    onMouseDown={(e) => e.preventDefault()}
+                    onClick={abrirCrearItem}
+                    className="flex min-h-12 w-full items-center gap-2 px-4 text-left text-[1rem] font-semibold text-accent transition active:bg-fill"
+                  >
+                    <Plus className="h-[18px] w-[18px] shrink-0" aria-hidden />
+                    Crear «{query.trim()}»
+                  </button>
+                </li>
+              ) : null}
+            </ul>
+          ) : null}
+        </div>
+
+        {creandoItem ? (
+          <div className="mt-3 space-y-3 border-t border-separator pt-3">
+            <p className="px-1 text-[0.9rem] text-label-2">
+              Ítem nuevo:{" "}
+              <strong className="text-label">{query.trim() || "—"}</strong>
+            </p>
+            <div className="grid gap-3 sm:grid-cols-2">
+              <Selector
+                label="Proveedor"
+                valor={nuevoProveedorModo ? PROVEEDOR_NUEVO : proveedorElegido}
+                opciones={opcionesProveedor}
+                buscar={opcionesProveedor.length > 10}
+                onChange={(v) => {
+                  if (v === PROVEEDOR_NUEVO) {
+                    setNuevoProveedorModo(true);
+                    setProveedorElegido(PROVEEDOR_NUEVO);
+                  } else {
+                    setNuevoProveedorModo(false);
+                    setProveedorElegido(v);
+                  }
+                }}
+              />
+              <Selector
+                label="Unidad"
+                valor={unidadNueva}
+                opciones={UNIDADES.map((u) => ({ valor: u, label: u }))}
+                onChange={(v) => setUnidadNueva(v as UnidadMedida)}
+              />
+            </div>
+            {nuevoProveedorModo ? (
+              <Campo
+                label="Nombre del proveedor"
+                value={proveedorNuevoNombre}
+                onChange={(e) => setProveedorNuevoNombre(e.target.value)}
+                placeholder="Ej. Salvioni y Alomar"
+              />
+            ) : null}
+            <Selector
+              label="Rubro"
+              valor={rubroNuevo}
+              opciones={RUBROS_INGREDIENTE.map((r) => ({ valor: r, label: r }))}
+              onChange={(v) => setRubroNuevo(v as RubroIngrediente)}
+            />
+            <Campo
+              label="Nota (opcional)"
+              value={nota}
+              onChange={(e) => setNota(e.target.value)}
+              placeholder="Casi no queda, para el finde…"
+            />
+            <div className="grid grid-cols-[1fr_auto] gap-2">
+              <Boton
+                cargando={isSubmitting}
+                disabled={
+                  !query.trim() ||
+                  (nuevoProveedorModo && !proveedorNuevoNombre.trim())
+                }
+                icono={<Plus className="h-[18px] w-[18px]" aria-hidden />}
+                onClick={() => void crearItemYAviso()}
+              >
+                Crear y avisar
+              </Boton>
+              <Boton
+                variante="secundario"
+                onClick={() => {
+                  setCreandoItem(false);
+                  setNuevoProveedorModo(false);
+                  setProveedorElegido("");
+                  setProveedorNuevoNombre("");
+                }}
+              >
+                Cancelar
+              </Boton>
+            </div>
+          </div>
+        ) : itemSeleccionado ? (
+          <div className="mt-3 grid grid-cols-[1fr_auto] items-end gap-2 border-t border-separator pt-3">
+            <Campo
+              aria-label="Nota (opcional)"
+              value={nota}
+              onChange={(e) => setNota(e.target.value)}
+              placeholder="Nota (opcional)"
+              enterKeyHint="done"
+              onKeyDown={(e) => {
+                if (e.key === "Enter") {
+                  e.preventDefault();
+                  void agregarAviso();
+                }
+              }}
+            />
+            <Boton
+              cargando={isSubmitting}
+              icono={<Plus className="h-[18px] w-[18px]" aria-hidden />}
+              onClick={() => void agregarAviso()}
+              className="min-h-12"
+            >
+              Avisar
+            </Boton>
+          </div>
+        ) : null}
+
+        {avisoDuplicado ? (
+          <p className="mt-2 px-1 text-[0.86rem] text-warning">
+            «{avisoDuplicado}» ya está en la lista.
+          </p>
+        ) : null}
+      </div>
+
+      {isLoading ? (
+        <div className="mt-6">
+          <EsqueletoLista filas={5} />
+        </div>
+      ) : avisos.length === 0 ? (
+        <div className="mt-6 rounded-card bg-surface-3">
+          <EstadoVacio
+            icono={<CircleCheck className="h-6 w-6" aria-hidden />}
+            titulo="Nada pendiente de pedir"
+            texto="Cuando algo se esté por acabar, buscalo arriba y queda acá para que alguien lo pida."
+          />
+        </div>
+      ) : (
+        gruposPorProveedor.map(({ proveedor, avisos: avisosGrupo }) => (
+          <Seccion
+            key={proveedor}
+            titulo={`${proveedor} · ${avisosGrupo.length}`}
+          >
+            <Lista>
+              {avisosGrupo.map((aviso) => {
+                const busy = resolviendoId === aviso.id;
+                return (
+                  <Fila
+                    key={aviso.id}
+                    titulo={<span className="font-medium">{aviso.nombre}</span>}
+                    detalle={
+                      <>
+                        {aviso.nota ? (
+                          <span className="text-label-2">{aviso.nota} · </span>
+                        ) : null}
+                        {tiempoDesde(aviso.createdAt)}
+                        <span className="sr-only">
+                          {" "}
+                          ({fechaHoraCarga(aviso.createdAt)})
+                        </span>
+                      </>
+                    }
+                    chevron={false}
+                    valor={
+                      <button
+                        type="button"
+                        disabled={busy}
+                        onClick={() => {
+                          vibrar();
+                          void marcarPedido(aviso);
+                        }}
+                        className="inline-flex min-h-10 items-center gap-1.5 rounded-full bg-success-soft px-3.5 text-[0.88rem] font-semibold text-success transition active:scale-95 disabled:opacity-50"
+                      >
+                        <Check className="h-4 w-4" aria-hidden />
+                        Pedido
+                      </button>
+                    }
+                    acciones={[
+                      {
+                        label: "Borrar",
+                        tono: "peligro",
+                        icono: <Trash2 className="h-5 w-5" aria-hidden />,
+                        onClick: () => void borrarAviso(aviso),
+                      },
+                    ]}
+                  />
+                );
+              })}
+            </Lista>
+          </Seccion>
+        ))
+      )}
+    </Pantalla>
   );
 }
