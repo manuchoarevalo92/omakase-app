@@ -301,14 +301,16 @@ export default function EstadisticasPage() {
       serviciosConBebidas += 1;
       asientos.forEach((asiento) => {
         asiento.lineas.forEach((linea) => {
-          if (!linea.bebida.trim()) {
+          const nombre =
+            linea.bebida.trim() || (linea.formato === "Extra" ? "Extra" : "");
+          if (!nombre) {
             return;
           }
-          const key = claveNormalizada(linea.bebida);
+          const key = claveNormalizada(nombre);
           const prev = conteo.get(key);
           const sumar = cantidadBebidaANumero(linea.cantidad);
           const fila = prev ?? {
-            nombre: linea.bebida.trim(),
+            nombre,
             total: 0,
             porFormato: new Map<string, number>(),
           };

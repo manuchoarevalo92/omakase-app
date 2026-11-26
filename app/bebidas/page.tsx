@@ -1,6 +1,13 @@
 "use client";
 
-import { CircleAlert, FilePlus, Plus, Trash2, Wine } from "lucide-react";
+import {
+  ChevronDown,
+  CircleAlert,
+  FilePlus,
+  Plus,
+  Trash2,
+  Wine,
+} from "lucide-react";
 import Link from "next/link";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
@@ -72,12 +79,31 @@ const normalizarConsumos = (
       cantidad: typeof item.cantidad === "string" ? item.cantidad : "",
       formato: esFormatoBebida(item.formato) ? item.formato : "",
     }))
-    .filter((item) => item.bebida.trim() || item.cantidad.trim());
+    .filter(
+      (item) => item.bebida.trim() || item.cantidad.trim() || item.formato,
+    );
   return normalizados.length > 0 ? normalizados : [crearItem()];
 };
 
+/** Cuenta como bebida si tiene nombre o si es un extra (el atajo no pide nombre). */
+const lineaCargada = (item: BebidaItem): boolean =>
+  item.bebida.trim().length > 0 || item.formato === "Extra";
+
 const hayConsumosCargados = (asientos: BebidaItem[][]): boolean =>
-  asientos.some((items) => items.some((item) => item.bebida.trim().length > 0));
+  asientos.some((items) => items.some(lineaCargada));
+
+const CANTIDADES = ["1", "2", "3", "4", "5", "6", "7", "8", "9", "10"] as const;
+
+/** Cantidad a número: vacío o no parseable cuenta como 1. */
+const cantidadANumero = (cantidad: string): number => {
+  const n = Number(cantidad.replace(",", "."));
+  return cantidad.trim() && Number.isFinite(n) && n > 0 ? n : 1;
+};
+
+const extrasDelAsiento = (items: BebidaItem[]): number =>
+  items
+    .filter((item) => item.formato === "Extra")
+    .reduce((acc, item) => acc + cantidadANumero(item.cantidad), 0);
 
 export default function BebidasPage() {
   const [bebidasPorAsiento, setBebidasPorAsiento] =
@@ -89,6 +115,8 @@ export default function BebidasPage() {
   const [syncError, setSyncError] = useState<string | null>(null);
   const [lastSyncLabel, setLastSyncLabel] = useState<string | null>(null);
   const [sugerencias, setSugerencias] = useState<string[]>([]);
+  /** Línea con el selector de cantidad (1–10) desplegado. */
+  const [cantidadAbierta, setCantidadAbierta] = useState<string | null>(null);
   const { aviso, confirmar } = useAvisos();
   const cargadoRemotoRef = useRef(false);
   const timerSyncRef = useRef<number | null>(null);
@@ -268,8 +296,7 @@ export default function BebidasPage() {
 
   const totalItemsCargados = useMemo(() => {
     return bebidasPorAsiento.reduce(
-      (acc, asiento) =>
-        acc + asiento.filter((item) => item.bebida.trim().length > 0).length,
+      (acc, asiento) => acc + asiento.filter(lineaCargada).length,
       0,
     );
   }, [bebidasPorAsiento]);
@@ -295,6 +322,47 @@ export default function BebidasPage() {
       actual.map((items, i) =>
         i === asientoIndex ? [...items, crearItem()] : items,
       ),
+    );
+  };
+
+  /**
+   * Atajo: suma un extra al asiento. Si ya hay una línea de Extra le sube la
+   * cantidad; si no, usa la línea vacía o agrega una nueva.
+   */
+  const agregarExtra = (asientoIndex: number) => {
+    vibrar();
+    setBebidasPorAsiento((actual) =>
+      actual.map((items, i) => {
+        if (i !== asientoIndex) {
+          return items;
+        }
+        const ultimoExtra = [...items]
+          .reverse()
+          .find((item) => item.formato === "Extra");
+        if (ultimoExtra) {
+          const siguiente = String(cantidadANumero(ultimoExtra.cantidad) + 1);
+          return items.map((item) =>
+            item.id === ultimoExtra.id
+              ? { ...item, cantidad: siguiente }
+              : item,
+          );
+        }
+        const vacia = items.find(
+          (item) =>
+            !item.bebida.trim() && !item.cantidad.trim() && !item.formato,
+        );
+        if (vacia) {
+          return items.map((item) =>
+            item.id === vacia.id
+              ? { ...item, cantidad: "1", formato: "Extra" as const }
+              : item,
+          );
+        }
+        return [
+          ...items,
+          { ...crearItem(), cantidad: "1", formato: "Extra" as const },
+        ];
+      }),
     );
   };
 
@@ -477,9 +545,7 @@ export default function BebidasPage() {
               aria-label="Ir al asiento"
             >
               {bebidasPorAsiento.map((items, index) => {
-                const n = items.filter(
-                  (item) => item.bebida.trim().length > 0,
-                ).length;
+                const n = items.filter(lineaCargada).length;
                 return (
                   <button
                     key={index}
@@ -521,15 +587,22 @@ export default function BebidasPage() {
                 <Seccion
                   titulo={`Asiento ${ASIENTOS_NUMEROS[asientoIndex]}`}
                   accion={
-                    <Boton
-                      variante="terciario"
-                      tamano="chico"
-                      icono={<Plus className="h-4 w-4" aria-hidden />}
-                      onClick={() => agregarItem(asientoIndex)}
-                      aria-label={`Agregar bebida en asiento ${ASIENTOS_NUMEROS[asientoIndex]}`}
-                    >
-                      Añadir
-                    </Boton>
+                    <div className="flex items-center gap-1">
+                      <BotonExtra
+                        cantidad={extrasDelAsiento(items)}
+                        onClick={() => agregarExtra(asientoIndex)}
+                        etiqueta={`Sumar un extra en asiento ${ASIENTOS_NUMEROS[asientoIndex]}`}
+                      />
+                      <Boton
+                        variante="terciario"
+                        tamano="chico"
+                        icono={<Plus className="h-4 w-4" aria-hidden />}
+                        onClick={() => agregarItem(asientoIndex)}
+                        aria-label={`Agregar bebida en asiento ${ASIENTOS_NUMEROS[asientoIndex]}`}
+                      >
+                        Añadir
+                      </Boton>
+                    </div>
                   }
                 >
                   <ul className="overflow-hidden rounded-card bg-surface-3 shadow-[0_1px_2px_rgb(0_0_0/0.04)]">
@@ -565,18 +638,35 @@ export default function BebidasPage() {
                           />
                         </div>
                         <div className="flex items-center gap-2 pb-1.5 pr-2.5">
-                          <input
-                            value={item.cantidad}
-                            onChange={(e) =>
-                              actualizarItem(asientoIndex, item.id, {
-                                cantidad: e.target.value,
-                              })
-                            }
-                            placeholder="Cant."
-                            inputMode="decimal"
-                            aria-label={`Cantidad, asiento ${ASIENTOS_NUMEROS[asientoIndex]}`}
-                            className="h-10 w-14 shrink-0 rounded-[0.6rem] bg-fill text-center text-[1rem] tabular-nums text-label outline-none ring-accent/60 placeholder:text-label-3 focus:ring-2"
-                          />
+                          <button
+                            type="button"
+                            aria-expanded={cantidadAbierta === item.id}
+                            aria-label={`Cantidad, asiento ${ASIENTOS_NUMEROS[asientoIndex]}: ${item.cantidad || "sin indicar"}`}
+                            onClick={() => {
+                              vibrar();
+                              setCantidadAbierta((abierta) =>
+                                abierta === item.id ? null : item.id,
+                              );
+                            }}
+                            className={cx(
+                              "inline-flex h-10 w-14 shrink-0 items-center justify-center gap-0.5 rounded-[0.6rem] text-[1rem] tabular-nums transition-colors",
+                              cantidadAbierta === item.id
+                                ? "bg-accent-soft text-accent ring-2 ring-accent/60"
+                                : "bg-fill",
+                              item.cantidad
+                                ? "font-semibold text-label"
+                                : "text-label-3",
+                            )}
+                          >
+                            {item.cantidad || "Cant."}
+                            <ChevronDown
+                              className={cx(
+                                "h-3.5 w-3.5 shrink-0 opacity-60 transition-transform",
+                                cantidadAbierta === item.id && "rotate-180",
+                              )}
+                              aria-hidden
+                            />
+                          </button>
                           <SelectorFormato
                             valor={item.formato}
                             etiqueta={`Formato, asiento ${ASIENTOS_NUMEROS[asientoIndex]}`}
@@ -587,6 +677,40 @@ export default function BebidasPage() {
                             }
                           />
                         </div>
+                        {cantidadAbierta === item.id ? (
+                          <div
+                            role="radiogroup"
+                            aria-label={`Elegir cantidad, asiento ${ASIENTOS_NUMEROS[asientoIndex]}`}
+                            className="grid grid-cols-5 gap-1.5 pb-2 pr-2.5"
+                          >
+                            {CANTIDADES.map((n) => {
+                              const activo = item.cantidad === n;
+                              return (
+                                <button
+                                  key={n}
+                                  type="button"
+                                  role="radio"
+                                  aria-checked={activo}
+                                  onClick={() => {
+                                    vibrar();
+                                    actualizarItem(asientoIndex, item.id, {
+                                      cantidad: activo ? "" : n,
+                                    });
+                                    setCantidadAbierta(null);
+                                  }}
+                                  className={cx(
+                                    "h-11 rounded-[0.6rem] text-[1.05rem] tabular-nums transition active:scale-95",
+                                    activo
+                                      ? "bg-accent font-semibold text-on-accent"
+                                      : "bg-fill text-label active:bg-fill-strong",
+                                  )}
+                                >
+                                  {n}
+                                </button>
+                              );
+                            })}
+                          </div>
+                        ) : null}
                       </li>
                     ))}
                   </ul>
@@ -660,5 +784,38 @@ function SelectorFormato({
         );
       })}
     </div>
+  );
+}
+
+/** Atajo del asiento: cada toque suma un extra. Muestra cuántos lleva. */
+function BotonExtra({
+  cantidad,
+  onClick,
+  etiqueta,
+}: {
+  cantidad: number;
+  onClick: () => void;
+  etiqueta: string;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      aria-label={`${etiqueta}${cantidad > 0 ? ` (lleva ${cantidad})` : ""}`}
+      className={cx(
+        "inline-flex min-h-9 items-center gap-1.5 rounded-full px-3 text-[0.9rem] font-semibold transition active:scale-95",
+        cantidad > 0
+          ? "bg-accent-soft text-accent"
+          : "bg-fill text-label-2 active:bg-fill-strong",
+      )}
+    >
+      <Plus className="h-3.5 w-3.5" aria-hidden />
+      Extra
+      {cantidad > 0 ? (
+        <span className="min-w-5 rounded-full bg-accent px-1.5 text-center text-[0.78rem] leading-5 tabular-nums text-on-accent">
+          {cantidad}
+        </span>
+      ) : null}
+    </button>
   );
 }

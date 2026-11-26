@@ -31,7 +31,7 @@ export function BebidasServicioResumen({ asientos }: Props) {
                 className="flex gap-2"
               >
                 <span className="min-w-0 flex-1 break-words">
-                  {linea.bebida || "—"}
+                  {linea.bebida || (linea.formato === "Extra" ? "Extra" : "—")}
                 </span>
                 {linea.cantidad || linea.formato ? (
                   <span className="shrink-0 text-label-2">
