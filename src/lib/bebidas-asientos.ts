@@ -1,8 +1,17 @@
 import { supabase } from "@/src/lib/supabase";
 
+/** Cómo se sirvió la bebida. Vacío = sin indicar (líneas viejas). */
+export const FORMATOS_BEBIDA = ["Copa", "Tokkuri", "Botella", "Extra"] as const;
+export type FormatoBebida = (typeof FORMATOS_BEBIDA)[number];
+
+export const esFormatoBebida = (valor: unknown): valor is FormatoBebida =>
+  typeof valor === "string" &&
+  (FORMATOS_BEBIDA as readonly string[]).includes(valor);
+
 export type BebidaConsumo = {
   bebida: string;
   cantidad: string;
+  formato: FormatoBebida | "";
 };
 
 export type BebidaAsientoResumen = {
@@ -28,20 +37,26 @@ export function lineasDesdeConsumosJson(consumos: unknown): BebidaConsumo[] {
       if (!item || typeof item !== "object") {
         return null;
       }
-      const raw = item as { bebida?: unknown; cantidad?: unknown };
+      const raw = item as {
+        bebida?: unknown;
+        cantidad?: unknown;
+        formato?: unknown;
+      };
       const bebida = typeof raw.bebida === "string" ? raw.bebida.trim() : "";
-      const cantidad = typeof raw.cantidad === "string" ? raw.cantidad.trim() : "";
+      const cantidad =
+        typeof raw.cantidad === "string" ? raw.cantidad.trim() : "";
       if (!bebida && !cantidad) {
         return null;
       }
-      return { bebida, cantidad };
+      const formato = esFormatoBebida(raw.formato) ? raw.formato : "";
+      return { bebida, cantidad, formato };
     })
     .filter((linea): linea is BebidaConsumo => linea !== null);
 }
 
 export function resumenBebidasPorAsiento(
   rows: BebidaAsientoRow[],
-  historialServicioId: string
+  historialServicioId: string,
 ): BebidaAsientoResumen[] {
   const porAsiento = new Map<number, BebidaConsumo[]>();
 
@@ -60,7 +75,7 @@ export function resumenBebidasPorAsiento(
 }
 
 export function agruparBebidasPorHistorial(
-  rows: BebidaAsientoRow[]
+  rows: BebidaAsientoRow[],
 ): Map<string, BebidaAsientoResumen[]> {
   const ids = [...new Set(rows.map((row) => row.historial_servicio_id))];
   const map = new Map<string, BebidaAsientoResumen[]>();
@@ -75,7 +90,9 @@ export function agruparBebidasPorHistorial(
   return map;
 }
 
-export async function fetchBebidasPorHistorial(): Promise<Map<string, BebidaAsientoResumen[]>> {
+export async function fetchBebidasPorHistorial(): Promise<
+  Map<string, BebidaAsientoResumen[]>
+> {
   const { data, error } = await supabase
     .from("bebidas_asientos")
     .select("historial_servicio_id, asiento, consumos")

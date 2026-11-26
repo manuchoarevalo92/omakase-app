@@ -23,6 +23,7 @@ import {
 } from "@/app/ui";
 
 import {
+  FORMATOS_BEBIDA,
   fetchBebidasPorHistorial,
   type BebidaAsientoResumen,
 } from "@/src/lib/bebidas-asientos";
@@ -97,6 +98,8 @@ const claveNormalizada = (s: string): string => s.trim().toLowerCase();
 
 function BarraRanking(props: {
   etiqueta: string;
+  /** Línea chica debajo del nombre (p. ej. desglose por formato). */
+  subtitulo?: string;
   valor: number;
   max: number;
   sufijo?: string;
@@ -104,7 +107,16 @@ function BarraRanking(props: {
   detalle?: React.ReactNode;
   prefijo?: React.ReactNode;
 }) {
-  const { etiqueta, valor, max, sufijo, colorBarra, detalle, prefijo } = props;
+  const {
+    etiqueta,
+    subtitulo,
+    valor,
+    max,
+    sufijo,
+    colorBarra,
+    detalle,
+    prefijo,
+  } = props;
   const pct = max > 0 ? Math.max(4, Math.round((valor / max) * 100)) : 0;
   return (
     <li className="border-b border-separator px-4 py-3 last:border-0">
@@ -119,6 +131,11 @@ function BarraRanking(props: {
           {sufijo ? <span className="text-label-3">{sufijo}</span> : null}
         </span>
       </div>
+      {subtitulo ? (
+        <p className="mt-0.5 truncate text-[0.82rem] text-label-3">
+          {subtitulo}
+        </p>
+      ) : null}
       <div className="mt-2 h-1.5 w-full overflow-hidden rounded-full bg-fill">
         <div
           className={`h-full rounded-full ${colorBarra ?? "bg-label-3"}`}
@@ -270,7 +287,10 @@ export default function EstadisticasPage() {
 
   const rankingBebidas = useMemo(() => {
     const ids = new Set(historialFiltrado.map((r) => r.id));
-    const conteo = new Map<string, { nombre: string; total: number }>();
+    const conteo = new Map<
+      string,
+      { nombre: string; total: number; porFormato: Map<string, number> }
+    >();
     let serviciosConBebidas = 0;
 
     ids.forEach((id) => {
@@ -287,17 +307,35 @@ export default function EstadisticasPage() {
           const key = claveNormalizada(linea.bebida);
           const prev = conteo.get(key);
           const sumar = cantidadBebidaANumero(linea.cantidad);
-          if (prev) {
-            prev.total += sumar;
-          } else {
-            conteo.set(key, { nombre: linea.bebida.trim(), total: sumar });
+          const fila = prev ?? {
+            nombre: linea.bebida.trim(),
+            total: 0,
+            porFormato: new Map<string, number>(),
+          };
+          fila.total += sumar;
+          if (linea.formato) {
+            fila.porFormato.set(
+              linea.formato,
+              (fila.porFormato.get(linea.formato) ?? 0) + sumar,
+            );
+          }
+          if (!prev) {
+            conteo.set(key, fila);
           }
         });
       });
     });
 
+    const redondear = (n: number) => Math.round(n * 100) / 100;
     const filas = [...conteo.values()]
-      .map((f) => ({ ...f, total: Math.round(f.total * 100) / 100 }))
+      .map((f) => ({
+        nombre: f.nombre,
+        total: redondear(f.total),
+        // "3 Copa · 1 Botella", en el orden fijo de los formatos.
+        formatos: FORMATOS_BEBIDA.filter((fmt) => f.porFormato.has(fmt))
+          .map((fmt) => `${redondear(f.porFormato.get(fmt) ?? 0)} ${fmt}`)
+          .join(" · "),
+      }))
       .sort(
         (a, b) => b.total - a.total || a.nombre.localeCompare(b.nombre, "es"),
       );
@@ -643,6 +681,7 @@ export default function EstadisticasPage() {
                   <BarraRanking
                     key={fila.nombre}
                     etiqueta={fila.nombre}
+                    subtitulo={fila.formatos || undefined}
                     valor={fila.total}
                     max={maxBebidas}
                     colorBarra="bg-accent"

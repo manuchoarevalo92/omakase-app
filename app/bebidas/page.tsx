@@ -15,8 +15,14 @@ import {
   Seccion,
   cx,
   useAvisos,
+  vibrar,
 } from "@/app/ui";
 
+import {
+  esFormatoBebida,
+  FORMATOS_BEBIDA,
+  type FormatoBebida,
+} from "@/src/lib/bebidas-asientos";
 import { formatPostgrestError } from "@/src/lib/supabase-errors";
 import {
   etiquetaServicioHistorial,
@@ -29,6 +35,7 @@ type BebidaItem = {
   id: string;
   bebida: string;
   cantidad: string;
+  formato: FormatoBebida | "";
 };
 
 /** Números de asiento en orden de visualización. Los dos primeros (-2, -1) son
@@ -48,6 +55,7 @@ const crearItem = (): BebidaItem => ({
   id: crypto.randomUUID(),
   bebida: "",
   cantidad: "",
+  formato: "",
 });
 
 const crearEstadoVacio = (): BebidaItem[][] =>
@@ -58,10 +66,11 @@ const normalizarConsumos = (
 ): BebidaItem[] => {
   const lista = Array.isArray(consumos) ? consumos : [];
   const normalizados = lista
-    .map((item) => ({
+    .map((item): BebidaItem => ({
       id: item.id || crypto.randomUUID(),
       bebida: typeof item.bebida === "string" ? item.bebida : "",
       cantidad: typeof item.cantidad === "string" ? item.cantidad : "",
+      formato: esFormatoBebida(item.formato) ? item.formato : "",
     }))
     .filter((item) => item.bebida.trim() || item.cantidad.trim());
   return normalizados.length > 0 ? normalizados : [crearItem()];
@@ -527,41 +536,57 @@ export default function BebidasPage() {
                     {items.map((item) => (
                       <li
                         key={item.id}
-                        className="flex min-h-14 items-center gap-2 border-b border-separator py-1.5 pl-4 pr-1.5 last:border-0"
+                        className="border-b border-separator py-1.5 pl-4 pr-1.5 last:border-0"
                       >
-                        <input
-                          value={item.bebida}
-                          onChange={(e) =>
-                            actualizarItem(asientoIndex, item.id, {
-                              bebida: e.target.value,
-                            })
-                          }
-                          placeholder="Qué tomó…"
-                          list="bebidas-sugeridas"
-                          aria-label={`Bebida, asiento ${ASIENTOS_NUMEROS[asientoIndex]}`}
-                          className="min-w-0 flex-1 bg-transparent py-2 text-[1rem] text-label outline-none placeholder:text-label-3"
-                        />
-                        <input
-                          value={item.cantidad}
-                          onChange={(e) =>
-                            actualizarItem(asientoIndex, item.id, {
-                              cantidad: e.target.value,
-                            })
-                          }
-                          placeholder="Cant."
-                          inputMode="decimal"
-                          aria-label={`Cantidad, asiento ${ASIENTOS_NUMEROS[asientoIndex]}`}
-                          className="h-10 w-16 shrink-0 rounded-[0.6rem] bg-fill text-center text-[1rem] tabular-nums text-label outline-none ring-accent/60 placeholder:text-label-3 focus:ring-2"
-                        />
-                        <BotonIcono
-                          etiqueta="Quitar esta bebida"
-                          variante="plano"
-                          icono={
-                            <Trash2 className="h-[18px] w-[18px]" aria-hidden />
-                          }
-                          onClick={() => quitarItem(asientoIndex, item.id)}
-                          className="text-label-3 hover:text-danger"
-                        />
+                        <div className="flex min-h-11 items-center gap-2">
+                          <input
+                            value={item.bebida}
+                            onChange={(e) =>
+                              actualizarItem(asientoIndex, item.id, {
+                                bebida: e.target.value,
+                              })
+                            }
+                            placeholder="Qué tomó…"
+                            list="bebidas-sugeridas"
+                            aria-label={`Bebida, asiento ${ASIENTOS_NUMEROS[asientoIndex]}`}
+                            className="min-w-0 flex-1 bg-transparent py-2 text-[1rem] text-label outline-none placeholder:text-label-3"
+                          />
+                          <BotonIcono
+                            etiqueta="Quitar esta bebida"
+                            variante="plano"
+                            icono={
+                              <Trash2
+                                className="h-[18px] w-[18px]"
+                                aria-hidden
+                              />
+                            }
+                            onClick={() => quitarItem(asientoIndex, item.id)}
+                            className="text-label-3 hover:text-danger"
+                          />
+                        </div>
+                        <div className="flex items-center gap-2 pb-1.5 pr-2.5">
+                          <input
+                            value={item.cantidad}
+                            onChange={(e) =>
+                              actualizarItem(asientoIndex, item.id, {
+                                cantidad: e.target.value,
+                              })
+                            }
+                            placeholder="Cant."
+                            inputMode="decimal"
+                            aria-label={`Cantidad, asiento ${ASIENTOS_NUMEROS[asientoIndex]}`}
+                            className="h-10 w-14 shrink-0 rounded-[0.6rem] bg-fill text-center text-[1rem] tabular-nums text-label outline-none ring-accent/60 placeholder:text-label-3 focus:ring-2"
+                          />
+                          <SelectorFormato
+                            valor={item.formato}
+                            etiqueta={`Formato, asiento ${ASIENTOS_NUMEROS[asientoIndex]}`}
+                            onChange={(formato) =>
+                              actualizarItem(asientoIndex, item.id, {
+                                formato,
+                              })
+                            }
+                          />
+                        </div>
                       </li>
                     ))}
                   </ul>
@@ -592,5 +617,48 @@ export default function BebidasPage() {
         </>
       )}
     </Pantalla>
+  );
+}
+
+/** Copa / Tokkuri / Botella / Extra. Tocar el elegido lo deja sin indicar. */
+function SelectorFormato({
+  valor,
+  onChange,
+  etiqueta,
+}: {
+  valor: FormatoBebida | "";
+  onChange: (valor: FormatoBebida | "") => void;
+  etiqueta: string;
+}) {
+  return (
+    <div
+      role="radiogroup"
+      aria-label={etiqueta}
+      className="grid min-w-0 flex-1 grid-cols-4 gap-1 rounded-[0.75rem] bg-fill p-[3px]"
+    >
+      {FORMATOS_BEBIDA.map((formato) => {
+        const activo = formato === valor;
+        return (
+          <button
+            key={formato}
+            type="button"
+            role="radio"
+            aria-checked={activo}
+            onClick={() => {
+              vibrar();
+              onChange(activo ? "" : formato);
+            }}
+            className={cx(
+              "inline-flex h-[34px] min-w-0 items-center justify-center rounded-[0.6rem] px-1 text-[0.82rem] transition-colors",
+              activo
+                ? "bg-accent font-semibold text-on-accent shadow-[0_1px_3px_rgb(0_0_0/0.14)]"
+                : "text-label active:bg-fill-strong",
+            )}
+          >
+            {formato}
+          </button>
+        );
+      })}
+    </div>
   );
 }

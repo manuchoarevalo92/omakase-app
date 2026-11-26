@@ -33,9 +33,17 @@ export function BebidasServicioResumen({ asientos }: Props) {
                 <span className="min-w-0 flex-1 break-words">
                   {linea.bebida || "—"}
                 </span>
-                {linea.cantidad ? (
-                  <span className="shrink-0 font-mono tabular-nums text-label-2">
-                    {linea.cantidad}
+                {linea.cantidad || linea.formato ? (
+                  <span className="shrink-0 text-label-2">
+                    {linea.cantidad ? (
+                      <span className="font-mono tabular-nums">
+                        {linea.cantidad}
+                      </span>
+                    ) : null}
+                    {linea.cantidad && linea.formato ? " · " : null}
+                    {linea.formato ? (
+                      <span className="text-[0.88rem]">{linea.formato}</span>
+                    ) : null}
                   </span>
                 ) : null}
               </li>
