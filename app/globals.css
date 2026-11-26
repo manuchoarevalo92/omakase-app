@@ -198,6 +198,7 @@ html[data-theme="noche"] {
   --info: #9db3c8;
   --info-soft: rgb(157 179 200 / 0.14);
   --material: rgb(22 21 18 / 0.82);
+  --aviso: #33302b;
   --sombra-hoja: 0 -12px 40px rgb(0 0 0 / 0.5);
 }
 
@@ -223,6 +224,7 @@ html[data-theme="dia"] {
   --info: #4f667b;
   --info-soft: rgb(93 115 136 / 0.1);
   --material: rgb(255 252 247 / 0.82);
+  --aviso: #1a1916;
   --sombra-hoja: 0 -12px 40px rgb(26 25 22 / 0.14);
 }
 

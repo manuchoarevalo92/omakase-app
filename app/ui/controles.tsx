@@ -366,7 +366,149 @@ export type OpcionSelector<T extends string> = {
   label: string;
   detalle?: string;
   grupo?: string;
+  /** Se ve pero no se puede elegir (p. ej. ya usado en otro lugar). */
+  deshabilitada?: boolean;
 };
+
+function normalizarTexto(t: string): string {
+  return t
+    .normalize("NFKD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase()
+    .trim();
+}
+
+/**
+ * Hoja con la lista de opciones (la usa Selector y cualquier fila que abra
+ * una elección, como los pasos del menú Omakase).
+ */
+export function HojaOpciones<T extends string>(props: {
+  abierta: boolean;
+  onCerrar: () => void;
+  titulo: string;
+  opciones: OpcionSelector<T>[];
+  valor: T | null;
+  onElegir: (valor: T) => void;
+  buscar?: boolean;
+  /** Fila especial arriba de todo para dejar vacío (p. ej. "Sin regalo"). */
+  vaciar?: { valor: T; label: string };
+}) {
+  const {
+    abierta,
+    onCerrar,
+    titulo,
+    opciones,
+    valor,
+    onElegir,
+    buscar,
+    vaciar,
+  } = props;
+  const [q, setQ] = useState("");
+
+  const filtradas = useMemo(() => {
+    const n = normalizarTexto(q);
+    if (!n) return opciones;
+    return opciones.filter((o) =>
+      normalizarTexto(`${o.label} ${o.detalle ?? ""}`).includes(n),
+    );
+  }, [opciones, q]);
+
+  const cerrar = () => {
+    onCerrar();
+    setQ("");
+  };
+
+  const elegir = (v: T) => {
+    vibrar();
+    onElegir(v);
+    cerrar();
+  };
+
+  return (
+    <Hoja
+      abierta={abierta}
+      onCerrar={cerrar}
+      titulo={titulo}
+      alto={opciones.length > 8 ? "alta" : "auto"}
+    >
+      {buscar ? (
+        <div className="sticky top-0 z-10 -mx-4 bg-surface-2 px-4 pb-2">
+          <CampoBusqueda value={q} onChange={(e) => setQ(e.target.value)} />
+        </div>
+      ) : null}
+      {vaciar && !q ? (
+        <button
+          type="button"
+          onClick={() => elegir(vaciar.valor)}
+          className={cx(
+            "mb-3 flex min-h-12 w-full items-center gap-3 rounded-card bg-surface-3 px-4 text-left transition active:bg-fill",
+            valor === vaciar.valor
+              ? "font-semibold text-accent"
+              : "text-label-2",
+          )}
+        >
+          <span className="flex-1">{vaciar.label}</span>
+          {valor === vaciar.valor ? (
+            <Check className="h-5 w-5 text-accent" aria-hidden />
+          ) : null}
+        </button>
+      ) : null}
+      <ul
+        role="listbox"
+        aria-label={titulo}
+        className="overflow-hidden rounded-card bg-surface-3"
+      >
+        {filtradas.map((o, i) => {
+          const sel = o.valor === valor;
+          const cabecera =
+            o.grupo && o.grupo !== filtradas[i - 1]?.grupo ? o.grupo : null;
+          return (
+            <li
+              key={`${o.grupo ?? ""}-${o.valor}`}
+              role="option"
+              aria-selected={sel}
+              aria-disabled={o.deshabilitada || undefined}
+            >
+              {cabecera ? (
+                <p className="bg-surface-2 px-4 pb-1.5 pt-4 text-[0.75rem] font-semibold uppercase tracking-[0.08em] text-label-3">
+                  {cabecera}
+                </p>
+              ) : null}
+              <button
+                type="button"
+                disabled={o.deshabilitada}
+                onClick={() => elegir(o.valor)}
+                className="flex min-h-12 w-full items-center gap-3 border-b border-separator px-4 py-2.5 text-left transition last:border-0 active:bg-fill disabled:opacity-40"
+              >
+                <span className="min-w-0 flex-1">
+                  <span
+                    className={cx(
+                      "block truncate text-[1rem]",
+                      sel ? "font-semibold text-accent" : "text-label",
+                    )}
+                  >
+                    {o.label}
+                  </span>
+                  {o.detalle ? (
+                    <span className="block truncate text-[0.84rem] text-label-3">
+                      {o.detalle}
+                    </span>
+                  ) : null}
+                </span>
+                {sel ? (
+                  <Check className="h-5 w-5 shrink-0 text-accent" aria-hidden />
+                ) : null}
+              </button>
+            </li>
+          );
+        })}
+        {filtradas.length === 0 ? (
+          <li className="px-4 py-6 text-center text-label-3">Sin resultados</li>
+        ) : null}
+      </ul>
+    </Hoja>
+  );
+}
 
 export function Selector<T extends string>(props: {
   label?: string;
@@ -378,6 +520,7 @@ export function Selector<T extends string>(props: {
   /** Muestra un buscador arriba de la lista (útil con más de ~10 opciones). */
   buscar?: boolean;
   ayuda?: string;
+  vaciar?: { valor: T; label: string };
 }) {
   const {
     label,
@@ -388,28 +531,11 @@ export function Selector<T extends string>(props: {
     placeholder = "Elegir…",
     buscar,
     ayuda,
+    vaciar,
   } = props;
   const [abierto, setAbierto] = useState(false);
-  const [q, setQ] = useState("");
   const id = useId();
   const actual = opciones.find((o) => o.valor === valor) ?? null;
-
-  const filtradas = useMemo(() => {
-    const n = q.normalize("NFKD").replace(/[̀-ͯ]/g, "").toLowerCase().trim();
-    if (!n) return opciones;
-    return opciones.filter((o) =>
-      `${o.label} ${o.detalle ?? ""}`
-        .normalize("NFKD")
-        .replace(/[̀-ͯ]/g, "")
-        .toLowerCase()
-        .includes(n),
-    );
-  }, [opciones, q]);
-
-  const cerrar = () => {
-    setAbierto(false);
-    setQ("");
-  };
 
   return (
     <Envoltura id={id} label={label} ayuda={ayuda}>
@@ -434,78 +560,16 @@ export function Selector<T extends string>(props: {
           aria-hidden
         />
       </button>
-      <Hoja
+      <HojaOpciones
         abierta={abierto}
-        onCerrar={cerrar}
+        onCerrar={() => setAbierto(false)}
         titulo={titulo ?? label ?? "Elegir"}
-        alto={opciones.length > 8 ? "alta" : "auto"}
-      >
-        {buscar ? (
-          <div className="sticky top-0 z-10 -mx-4 bg-surface-2 px-4 pb-2">
-            <CampoBusqueda
-              value={q}
-              onChange={(e) => setQ(e.target.value)}
-              autoFocus
-            />
-          </div>
-        ) : null}
-        <ul
-          role="listbox"
-          aria-label={titulo ?? label}
-          className="overflow-hidden rounded-card bg-surface-3"
-        >
-          {filtradas.map((o, i) => {
-            const sel = o.valor === valor;
-            const cabecera =
-              o.grupo && o.grupo !== filtradas[i - 1]?.grupo ? o.grupo : null;
-            return (
-              <li key={o.valor} role="option" aria-selected={sel}>
-                {cabecera ? (
-                  <p className="bg-surface-2 px-4 pb-1.5 pt-4 text-[0.75rem] font-semibold uppercase tracking-[0.08em] text-label-3">
-                    {cabecera}
-                  </p>
-                ) : null}
-                <button
-                  type="button"
-                  onClick={() => {
-                    vibrar();
-                    onChange(o.valor);
-                    cerrar();
-                  }}
-                  className="flex min-h-12 w-full items-center gap-3 border-b border-separator px-4 py-2.5 text-left transition last:border-0 active:bg-fill"
-                >
-                  <span className="min-w-0 flex-1">
-                    <span
-                      className={cx(
-                        "block truncate text-[1rem]",
-                        sel ? "font-semibold text-accent" : "text-label",
-                      )}
-                    >
-                      {o.label}
-                    </span>
-                    {o.detalle ? (
-                      <span className="block truncate text-[0.84rem] text-label-3">
-                        {o.detalle}
-                      </span>
-                    ) : null}
-                  </span>
-                  {sel ? (
-                    <Check
-                      className="h-5 w-5 shrink-0 text-accent"
-                      aria-hidden
-                    />
-                  ) : null}
-                </button>
-              </li>
-            );
-          })}
-          {filtradas.length === 0 ? (
-            <li className="px-4 py-6 text-center text-label-3">
-              Sin resultados
-            </li>
-          ) : null}
-        </ul>
-      </Hoja>
+        opciones={opciones}
+        valor={valor}
+        onElegir={onChange}
+        buscar={buscar}
+        vaciar={vaciar}
+      />
     </Envoltura>
   );
 }

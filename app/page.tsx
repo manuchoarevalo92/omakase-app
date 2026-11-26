@@ -1,7 +1,16 @@
 "use client";
 
 import { Dispatch, SetStateAction, useEffect, useMemo, useState } from "react";
-import { Check, ChevronDown, ChevronUp, FilePlus, List, Loader2, Lock, Pencil } from "lucide-react";
+import {
+  ChevronDown,
+  ChevronRight,
+  ChevronUp,
+  CircleAlert,
+  FilePlus,
+  List,
+  Lock,
+  Pencil,
+} from "lucide-react";
 
 import { MenuGuardadoSecciones } from "@/app/components/menu-guardado-secciones";
 import { formatPostgrestError } from "@/src/lib/supabase-errors";
@@ -11,8 +20,25 @@ import {
   MENU_GUARDADO_POSTRE,
   partesDesdeMenuOmakaseGuardado,
 } from "@/src/lib/menu-omakase-guardado";
-import { formatearFechaServicio, formatearHoraServicio } from "@/src/lib/historial-servicios";
+import {
+  formatearFechaServicio,
+  formatearHoraServicio,
+} from "@/src/lib/historial-servicios";
 import { supabase } from "@/src/lib/supabase";
+import {
+  Boton,
+  Campo,
+  Etiqueta,
+  EsqueletoLista,
+  Fecha,
+  HojaOpciones,
+  Pantalla,
+  Seccion,
+  Segmentado,
+  cx,
+  useAvisos,
+  type OpcionSelector,
+} from "@/app/ui";
 
 type Categoria = "Otsumami" | "Nigiri" | "Postre" | "Extensión";
 type Servicio = "Mediodia" | "Noche";
@@ -71,7 +97,7 @@ const CATEGORIAS_EXTRAS: Categoria[] = ["Otsumami", "Nigiri", "Extensión"];
 
 function formatFechaLocalYYYYMMDD(d: Date): string {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(
-    d.getDate()
+    d.getDate(),
   ).padStart(2, "0")}`;
 }
 
@@ -101,7 +127,10 @@ function minutosHistoriaHora(h: string | null): number {
 }
 
 /** Último servicio cerrado primero (fecha ISO desc, hora desc, id). */
-function compararHistorialMasReciente(a: RegistroHistorialRow, b: RegistroHistorialRow): number {
+function compararHistorialMasReciente(
+  a: RegistroHistorialRow,
+  b: RegistroHistorialRow,
+): number {
   const df = b.fecha.localeCompare(a.fecha);
   if (df !== 0) {
     return df;
@@ -115,7 +144,7 @@ function compararHistorialMasReciente(a: RegistroHistorialRow, b: RegistroHistor
 }
 
 function registroMasRecienteEnHistorial(
-  rows: RegistroHistorialRow[]
+  rows: RegistroHistorialRow[],
 ): RegistroHistorialRow | null {
   if (!rows.length) {
     return null;
@@ -127,38 +156,38 @@ export default function Home() {
   const now = new Date();
   const [ingredientes, setIngredientes] = useState<Ingrediente[]>([]);
   const [platos, setPlatos] = useState<Plato[]>([]);
-  const [omakaseOtsumami, setOmakaseOtsumami] = useState<string[]>(
-    () => Array.from({ length: OTSUMAMI_BASE }, () => "")
+  const [omakaseOtsumami, setOmakaseOtsumami] = useState<string[]>(() =>
+    Array.from({ length: OTSUMAMI_BASE }, () => ""),
   );
   const [omakaseOtsumamiRegalo, setOmakaseOtsumamiRegalo] = useState<string[]>(
-    () => Array.from({ length: OTSUMAMI_REGALO }, () => "")
+    () => Array.from({ length: OTSUMAMI_REGALO }, () => ""),
   );
-  const [omakaseNigiri, setOmakaseNigiri] = useState<string[]>(
-    () => Array.from({ length: NIGIRI_BASE }, () => "")
+  const [omakaseNigiri, setOmakaseNigiri] = useState<string[]>(() =>
+    Array.from({ length: NIGIRI_BASE }, () => ""),
   );
-  const [omakasePostre, setOmakasePostre] = useState<string[]>(
-    () => Array.from({ length: POSTRE_BASE }, () => "")
+  const [omakasePostre, setOmakasePostre] = useState<string[]>(() =>
+    Array.from({ length: POSTRE_BASE }, () => ""),
   );
   const [extensionSlots, setExtensionSlots] = useState<string[]>(() =>
-    Array.from({ length: EXTENSION_SLOTS }, () => "")
+    Array.from({ length: EXTENSION_SLOTS }, () => ""),
   );
-  const [fechaServicio, setFechaServicio] = useState(() => formatFechaLocalYYYYMMDD(now));
+  const [fechaServicio, setFechaServicio] = useState(() =>
+    formatFechaLocalYYYYMMDD(now),
+  );
   const [horaServicio, setHoraServicio] = useState(
-    `${String(now.getHours()).padStart(2, "0")}:${String(now.getMinutes()).padStart(
-      2,
-      "0"
-    )}`
+    `${String(now.getHours()).padStart(2, "0")}:${String(
+      now.getMinutes(),
+    ).padStart(2, "0")}`,
   );
   const [servicio, setServicio] = useState<Servicio>(
-    now.getHours() < 17 ? "Mediodia" : "Noche"
+    now.getHours() < 17 ? "Mediodia" : "Noche",
   );
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [success, setSuccess] = useState<string | null>(null);
-  const [resumenServicio, setResumenServicio] = useState<ResumenServicio | null>(
-    null
-  );
+  const { aviso, confirmar } = useAvisos();
+  const [resumenServicio, setResumenServicio] =
+    useState<ResumenServicio | null>(null);
   /** Con menú del día activo: true = sólo visualización arriba; false = formulario de edición visible. */
   const [editorOcultoTrasGuardar, setEditorOcultoTrasGuardar] = useState(false);
   const [menuNigiriOnly, setMenuNigiriOnly] = useState(false);
@@ -174,23 +203,25 @@ export default function Home() {
   const platosConEstado = useMemo(() => {
     return platos.map((plato) => ({
       ...plato,
-      disponible: (plato.ingredientes_requeridos ?? []).every((ingredienteId) => {
-        const ingrediente = ingredientesMap.get(ingredienteId);
-        return ingrediente ? ingrediente.disponible : false;
-      }),
+      disponible: (plato.ingredientes_requeridos ?? []).every(
+        (ingredienteId) => {
+          const ingrediente = ingredientesMap.get(ingredienteId);
+          return ingrediente ? ingrediente.disponible : false;
+        },
+      ),
     }));
   }, [platos, ingredientesMap]);
 
   const menuOmakaseDisponibles = useMemo(() => {
     return platosConEstado.filter(
       (plato) =>
-        CATEGORIAS_OMAKASE.includes(plato.categoria) && plato.disponible
+        CATEGORIAS_OMAKASE.includes(plato.categoria) && plato.disponible,
     );
   }, [platosConEstado]);
 
   const omakaseOpcionesPorCategoria = useMemo(() => {
     const map = new Map<Categoria, (Plato & { disponible: boolean })[]>(
-      CATEGORIAS_OMAKASE.map((categoria) => [categoria, []])
+      CATEGORIAS_OMAKASE.map((categoria) => [categoria, []]),
     );
     menuOmakaseDisponibles.forEach((plato) => {
       const current = map.get(plato.categoria) ?? [];
@@ -204,23 +235,23 @@ export default function Home() {
     if (menuNigiriOnly) {
       return omakaseNigiri.filter((id) => id.trim().length > 0).length;
     }
-    return [
-      ...omakaseOtsumami,
-      ...omakaseNigiri,
-      ...omakasePostre,
-    ].filter((id) => id.trim().length > 0).length;
+    return [...omakaseOtsumami, ...omakaseNigiri, ...omakasePostre].filter(
+      (id) => id.trim().length > 0,
+    ).length;
   }, [menuNigiriOnly, omakaseNigiri, omakaseOtsumami, omakasePostre]);
 
-  const totalPasosBaseObjetivo = menuNigiriOnly ? NIGIRI_BASE : TOTAL_ITEMS_OMAKASE_CLASICO;
+  const totalPasosBaseObjetivo = menuNigiriOnly
+    ? NIGIRI_BASE
+    : TOTAL_ITEMS_OMAKASE_CLASICO;
 
   const pasosRegaloCompletados = useMemo(
     () => omakaseOtsumamiRegalo.filter((id) => id.trim().length > 0).length,
-    [omakaseOtsumamiRegalo]
+    [omakaseOtsumamiRegalo],
   );
 
   const extrasDisponiblesPorCategoria = useMemo(() => {
     const map = new Map<Categoria, (Plato & { disponible: boolean })[]>(
-      CATEGORIAS_EXTRAS.map((categoria) => [categoria, []])
+      CATEGORIAS_EXTRAS.map((categoria) => [categoria, []]),
     );
     platosConEstado.forEach((plato) => {
       if (!plato.disponible || !CATEGORIAS_EXTRAS.includes(plato.categoria)) {
@@ -236,7 +267,7 @@ export default function Home() {
   const extrasDisponiblesTotal = useMemo(() => {
     return CATEGORIAS_EXTRAS.reduce(
       (acc, cat) => acc + (extrasDisponiblesPorCategoria.get(cat)?.length ?? 0),
-      0
+      0,
     );
   }, [extrasDisponiblesPorCategoria]);
 
@@ -269,10 +300,16 @@ export default function Home() {
       hora: horaServicio,
       servicio,
       menuTipo: menuNigiriOnly ? "Nigiri only" : "Clasico",
-      otsumamiBase: menuNigiriOnly ? [] : omakaseOtsumami.filter((id) => id.trim().length > 0),
+      otsumamiBase: menuNigiriOnly
+        ? []
+        : omakaseOtsumami.filter((id) => id.trim().length > 0),
       nigiri: omakaseNigiri.filter((id) => id.trim().length > 0),
-      postre: menuNigiriOnly ? [] : omakasePostre.filter((id) => id.trim().length > 0),
-      regalo: menuNigiriOnly ? [] : omakaseOtsumamiRegalo.filter((id) => id.trim().length > 0),
+      postre: menuNigiriOnly
+        ? []
+        : omakasePostre.filter((id) => id.trim().length > 0),
+      regalo: menuNigiriOnly
+        ? []
+        : omakaseOtsumamiRegalo.filter((id) => id.trim().length > 0),
       extensiones: extensionSlots.filter((id) => id.trim().length > 0),
     };
   }, [
@@ -289,7 +326,7 @@ export default function Home() {
 
   const hidratarFormularioDesdeRegistroHistorial = (
     elegido: RegistroHistorialRow,
-    servicioFallback: Servicio
+    servicioFallback: Servicio,
   ): void => {
     const idsSinVacios = (elegido.menu_omakase ?? [])
       .map((id) => String(id).trim())
@@ -301,14 +338,18 @@ export default function Home() {
 
     const esNigiriOnly = idsSinVacios.length === MENU_GUARDADO_NIGIRI;
     const esClasicoValido =
-      idsSinVacios.length >= minPlatosClasico && idsSinVacios.length <= maxPlatosClasico;
+      idsSinVacios.length >= minPlatosClasico &&
+      idsSinVacios.length <= maxPlatosClasico;
 
     if (!esNigiriOnly && !esClasicoValido) {
       return;
     }
 
     const refDate = new Date();
-    const horaEtiqueta = elegido.hora?.trim() ? elegido.hora : horaLocalHHmm(refDate);
+    // "20:01:00+00" → "20:01" para el campo de hora.
+    const horaEtiqueta = elegido.hora?.trim()
+      ? formatearHoraServicio(elegido.hora)
+      : horaLocalHHmm(refDate);
     const servicioRow: Servicio =
       elegido.servicio === "Mediodia" || elegido.servicio === "Noche"
         ? elegido.servicio
@@ -342,9 +383,12 @@ export default function Home() {
       setOmakaseOtsumamiRegalo(rega);
     }
 
-    const ext = (elegido.extensiones ?? []).map(String).filter((id) => id.trim());
+    const ext = (elegido.extensiones ?? [])
+      .map(String)
+      .filter((id) => id.trim());
     setExtensionSlots(rellenarIdsPorSlot(ext, EXTENSION_SLOTS));
-    setFechaServicio(elegido.fecha);
+    // La base devuelve fecha con zona ("2026-11-25T00:00:00+00:00"); los campos usan YYYY-MM-DD.
+    setFechaServicio(elegido.fecha.slice(0, 10));
     setHoraServicio(horaEtiqueta);
     setServicio(servicioRow);
 
@@ -374,9 +418,6 @@ export default function Home() {
 
     setResumenServicio(resumenArmado);
     setEditorOcultoTrasGuardar(true);
-    setSuccess(
-      `Último menú del historial cargado (${formatearFechaServicio(elegido.fecha)} · ${servicioRow}${horaEtiqueta ? ` · ${formatearHoraServicio(horaEtiqueta)}` : ""}). Tocá Editar menú para modificarlo o guardalo de nuevo.`
-    );
     setError(null);
   };
 
@@ -420,15 +461,18 @@ export default function Home() {
 
       if (!historialResponse.error && historialResponse.data?.length) {
         const elegido = registroMasRecienteEnHistorial(
-          historialResponse.data as RegistroHistorialRow[]
+          historialResponse.data as RegistroHistorialRow[],
         );
         if (elegido) {
-          hidratarFormularioDesdeRegistroHistorial(elegido, servicioFallbackInicial);
+          hidratarFormularioDesdeRegistroHistorial(
+            elegido,
+            servicioFallbackInicial,
+          );
         }
       }
     } catch (err) {
       setError(
-        err instanceof Error ? err.message : "Error al conectar con Supabase."
+        err instanceof Error ? err.message : "Error al conectar con Supabase.",
       );
     } finally {
       setIsLoading(false);
@@ -448,12 +492,10 @@ export default function Home() {
   const actualizarPasoOmakase = (
     index: number,
     platoId: string,
-    setter: Dispatch<SetStateAction<string[]>>
+    setter: Dispatch<SetStateAction<string[]>>,
   ) => {
     setError(null);
-    setter((actual) =>
-      actual.map((item, i) => (i === index ? platoId : item))
-    );
+    setter((actual) => actual.map((item, i) => (i === index ? platoId : item)));
   };
 
   const intercambiarIndicesNigiri = (i: number, j: number) => {
@@ -473,14 +515,14 @@ export default function Home() {
   const actualizarExtensionSlot = (index: number, platoId: string) => {
     setError(null);
     setExtensionSlots((actual) =>
-      actual.map((item, i) => (i === index ? platoId : item))
+      actual.map((item, i) => (i === index ? platoId : item)),
     );
   };
 
   const esOpcionDuplicadaEnSeccion = (
     seccion: string[],
     indexActual: number,
-    platoId: string
+    platoId: string,
   ) => {
     return seccion.some((id, i) => i !== indexActual && id === platoId);
   };
@@ -498,11 +540,15 @@ export default function Home() {
     );
   };
 
-  const iniciarNuevoMenu = () => {
+  const iniciarNuevoMenu = async () => {
     if (hayBorradorEnFormulario()) {
-      const ok = window.confirm(
-        "¿Empezar un menú nuevo desde cero? Se vaciarán los platos y extras del generador que no hayas guardado en historial."
-      );
+      const ok = await confirmar({
+        titulo: "¿Empezar un menú nuevo?",
+        texto:
+          "Se vacían los platos y extras que no hayas guardado en historial.",
+        confirmar: "Empezar de cero",
+        peligro: true,
+      });
       if (!ok) {
         return;
       }
@@ -520,19 +566,17 @@ export default function Home() {
     setResumenServicio(null);
     setEditorOcultoTrasGuardar(false);
     setError(null);
-    setSuccess(
-      "Menú nuevo en blanco: fecha y hora puestas a hoy. Cuando lo cierres, se guarda en historial."
-    );
+    aviso("Menú nuevo en blanco, con fecha y hora de ahora.");
   };
 
   const cerrarYGuardarMenu = async () => {
     setIsSaving(true);
     setError(null);
-    setSuccess(null);
 
     if (pasosBaseCompletados !== totalPasosBaseObjetivo) {
-      setError(
-        `Completa los ${totalPasosBaseObjetivo} pasos del Menú Omakase antes de guardar.`
+      aviso(
+        `Faltan ${totalPasosBaseObjetivo - pasosBaseCompletados} platos: completá los ${totalPasosBaseObjetivo} pasos antes de guardar.`,
+        { tono: "error" },
       );
       setIsSaving(false);
       return;
@@ -541,10 +585,17 @@ export default function Home() {
     const menuOmakaseFinal = (
       menuNigiriOnly
         ? [...omakaseNigiri]
-        : [...omakaseOtsumami, ...omakaseNigiri, ...omakasePostre, ...omakaseOtsumamiRegalo]
+        : [
+            ...omakaseOtsumami,
+            ...omakaseNigiri,
+            ...omakasePostre,
+            ...omakaseOtsumamiRegalo,
+          ]
     ).filter((id) => id.trim().length > 0);
 
-    const extensionesFinal = extensionSlots.filter((id) => id.trim().length > 0);
+    const extensionesFinal = extensionSlots.filter(
+      (id) => id.trim().length > 0,
+    );
 
     const payload: HistorialPayload = {
       fecha: fechaServicio,
@@ -564,26 +615,27 @@ export default function Home() {
       if (saveError) {
         setResumenServicio(resumen);
         setEditorOcultoTrasGuardar(true);
-        setSuccess(null);
+        aviso("No se pudo guardar en la nube.", { tono: "error" });
         setError(
-          `No se pudo guardar en la nube (el resumen de arriba es local hasta que se solucione). ${formatPostgrestError(saveError)}`
+          `No se pudo guardar en la nube (el resumen de arriba es local hasta que se solucione). ${formatPostgrestError(saveError)}`,
         );
         return;
       }
 
-      setSuccess(
-        `Menú guardado para ${fechaServicio} (${servicio} - ${horaServicio}).`
+      aviso(
+        `Menú guardado: ${formatearFechaServicio(fechaServicio)} · ${servicio === "Mediodia" ? "Mediodía" : servicio} · ${formatearHoraServicio(horaServicio)}`,
+        { tono: "exito" },
       );
       setResumenServicio(resumen);
       setEditorOcultoTrasGuardar(true);
     } catch (err) {
       setResumenServicio(resumen);
       setEditorOcultoTrasGuardar(true);
-      setSuccess(null);
+      aviso("No se pudo guardar en la nube.", { tono: "error" });
       setError(
         err instanceof Error
           ? `Error al guardar: ${err.message}`
-          : "Error desconocido al conectar con Supabase."
+          : "Error desconocido al conectar con Supabase.",
       );
     } finally {
       setIsSaving(false);
@@ -593,575 +645,589 @@ export default function Home() {
   const nombrePlato = (id: string) =>
     platosPorId.get(id)?.nombre ?? "Plato no encontrado";
 
-  const renderCard = (
-    plato: Plato & { disponible: boolean },
-    selected: boolean,
-    onClick: () => void,
-    blocked = false,
-    numero?: number
-  ) => {
-    const ingredientesTexto = (plato.ingredientes_requeridos ?? [])
+  const textoIngredientes = (plato: Plato) =>
+    (plato.ingredientes_requeridos ?? [])
       .map((id) => ingredientesMap.get(id)?.nombre)
       .filter(Boolean)
       .join(" · ");
 
-    return (
-      <button
-        key={plato.id}
-        type="button"
-        onClick={onClick}
-        disabled={blocked}
-        className={`w-full rounded-xl border px-4 py-3 text-left transition ${
-          blocked
-            ? "cursor-not-allowed border-zinc-800 bg-zinc-900/40 text-zinc-500"
-            : selected
-              ? "border-zinc-200 bg-zinc-100 text-zinc-900"
-              : "border-zinc-700 bg-zinc-900 text-zinc-100 hover:border-zinc-500"
-        }`}
-      >
-        <div className="flex items-center justify-between gap-3">
-          <span className="text-sm font-medium">
-            {numero ? `${numero}. ` : ""}
-            {plato.nombre}
-          </span>
-          {blocked ? (
-            <Lock className="h-4 w-4 shrink-0" />
-          ) : selected ? (
-            <Check className="h-4 w-4 shrink-0" />
-          ) : null}
-        </div>
-        <p className="mt-1 text-xs opacity-75">
-          {ingredientesTexto || "Sin ingredientes asignados"}
-        </p>
-      </button>
+  /** Qué ingredientes le faltan a un plato no disponible (los que no están o están agotados). */
+  const ingredientesFaltantes = (plato: Plato) =>
+    (plato.ingredientes_requeridos ?? [])
+      .map((id) => ingredientesMap.get(id))
+      .filter((ing) => !ing?.disponible)
+      .map((ing) => ing?.nombre ?? "ingrediente borrado")
+      .join(", ");
+
+  const opcionesDe = (
+    categoria: Categoria,
+    seccion: string[],
+    index: number,
+  ): OpcionSelector<string>[] =>
+    (omakaseOpcionesPorCategoria.get(categoria) ?? []).map((plato) => ({
+      valor: plato.id,
+      label: plato.nombre,
+      detalle: textoIngredientes(plato) || undefined,
+      deshabilitada: esOpcionDuplicadaEnSeccion(seccion, index, plato.id),
+    }));
+
+  const opcionesExtra = (index: number): OpcionSelector<string>[] =>
+    CATEGORIAS_EXTRAS.flatMap((categoria) =>
+      (extrasDisponiblesPorCategoria.get(categoria) ?? []).map((plato) => {
+        const yaEnMenu = idsEnMenuSeleccionado.has(plato.id);
+        const yaEnExtras = esOpcionDuplicadaEnSeccion(
+          extensionSlots,
+          index,
+          plato.id,
+        );
+        const valor = extensionSlots[index];
+        return {
+          valor: plato.id,
+          label: plato.nombre,
+          grupo: categoria,
+          detalle: yaEnMenu
+            ? "Ya está en el menú"
+            : textoIngredientes(plato) || undefined,
+          // Nunca deshabilitar el valor ya elegido en este slot.
+          deshabilitada: (yaEnMenu || yaEnExtras) && plato.id !== valor,
+        };
+      }),
     );
-  };
+
+  const extrasElegidos = extensionSlots.filter((id) => id).length;
+  const completo = pasosBaseCompletados === totalPasosBaseObjetivo;
+  const resumen = resumenDerivadoDelFormulario;
+  const etiquetaServicio = (s: Servicio) => (s === "Mediodia" ? "Mediodía" : s);
+  const enVisor = Boolean(resumenServicio && editorOcultoTrasGuardar);
 
   return (
-    <main className="min-h-screen min-w-0 bg-zinc-950 px-4 py-6 text-zinc-100 sm:px-6 sm:py-10">
-      <section className="mx-auto w-full min-w-0 max-w-6xl rounded-2xl border border-zinc-800 bg-zinc-900/60 p-4 shadow-[0_0_0_1px_rgba(255,255,255,0.02)] backdrop-blur sm:p-6">
-        <header className="mb-4">
-          <h1 className="font-display text-balance text-2xl font-medium tracking-tight text-ink sm:text-3xl md:text-4xl">
-            Generador de Menú Diario
-          </h1>
-          <div className="mt-3 h-px w-12 bg-seal/70" />
-          <p className="mt-3 text-pretty text-sm text-zinc-400">
-            Si ya hay registros en historial, ves primero el{" "}
-            <span className="text-zinc-300">último menú guardado</span> (solo lectura) con{" "}
-            <span className="text-zinc-300">Editar menú</span> o{" "}
-            <span className="text-zinc-300">Nuevo menú</span> para otro día.{" "}
-            <span className="text-zinc-300">Ver sólo menú</span> vuelve al visor mientras editás.
-            Sin historial, sólo el generador.
+    <Pantalla
+      titulo="Omakase"
+      subtitulo={
+        isLoading
+          ? "Cargando…"
+          : enVisor
+            ? "Último menú guardado"
+            : "Armando el menú del día"
+      }
+      ancho="amplio"
+      ayuda={
+        <>
+          <p>
+            Al abrir ves el{" "}
+            <strong className="text-label">último menú guardado</strong> en el
+            historial, solo para leer.
           </p>
-        </header>
-
-        {error ? (
-          <p className="mb-4 rounded-lg border border-red-900/70 bg-red-950/40 px-3 py-2 text-sm text-red-200">
-            {error}
+          <p>
+            <strong className="text-label">Editar</strong> retoca ese cierre;{" "}
+            <strong className="text-label">Nuevo</strong> arranca otro día en
+            blanco con la fecha y hora de ahora.
           </p>
-        ) : null}
-
-        {success ? (
-          <p className="mb-4 rounded-lg border border-emerald-900/70 bg-emerald-950/40 px-3 py-2 text-sm text-emerald-200">
-            {success}
+          <p>
+            Cada paso se elige de la lista de platos <em>disponibles</em> (con
+            todos sus ingredientes en stock). Los Nigiri se ordenan con las
+            flechas. Al terminar,{" "}
+            <strong className="text-label">Cerrar y guardar</strong> lo manda al
+            historial.
           </p>
-        ) : null}
+        </>
+      }
+    >
+      {error ? (
+        <div
+          role="alert"
+          className="mb-4 flex gap-3 rounded-card bg-danger-soft px-4 py-3 text-[0.94rem] text-danger"
+        >
+          <CircleAlert
+            className="mt-0.5 h-[18px] w-[18px] shrink-0"
+            aria-hidden
+          />
+          <p className="min-w-0 flex-1">{error}</p>
+        </div>
+      ) : null}
 
-        {isLoading ? (
-          <div className="flex items-center gap-2 text-sm text-zinc-400">
-            <Loader2 className="h-4 w-4 animate-spin" />
-            Cargando historial, platos e ingredientes...
+      {isLoading ? (
+        <div className="space-y-6">
+          <EsqueletoLista filas={4} />
+          <EsqueletoLista filas={6} />
+        </div>
+      ) : enVisor ? (
+        <>
+          <div className="rounded-card bg-surface-3 p-4 shadow-[0_1px_2px_rgb(0_0_0/0.04)]">
+            <div className="flex items-start justify-between gap-3">
+              <div className="min-w-0">
+                <p className="font-display text-[1.6rem] font-semibold leading-tight text-label">
+                  {formatearFechaServicio(resumen.fecha)}
+                </p>
+                <p className="mt-0.5 text-[0.94rem] text-label-2">
+                  {etiquetaServicio(resumen.servicio)} ·{" "}
+                  {formatearHoraServicio(resumen.hora)}
+                </p>
+              </div>
+              <Etiqueta
+                tono={resumen.menuTipo === "Clasico" ? "acento" : "info"}
+              >
+                {resumen.menuTipo === "Clasico" ? "Clásico" : "Nigiri only"}
+              </Etiqueta>
+            </div>
+            <div className="mt-4 grid grid-cols-2 gap-2">
+              <Boton
+                variante="secundario"
+                icono={<Pencil className="h-[18px] w-[18px]" aria-hidden />}
+                onClick={() => setEditorOcultoTrasGuardar(false)}
+              >
+                Editar
+              </Boton>
+              <Boton
+                variante="secundario"
+                icono={<FilePlus className="h-[18px] w-[18px]" aria-hidden />}
+                onClick={() => void iniciarNuevoMenu()}
+              >
+                Nuevo
+              </Boton>
+            </div>
           </div>
-        ) : (
-          <>
-            {resumenServicio && editorOcultoTrasGuardar ? (
-              <div className="relative z-10 mb-6 min-w-0 rounded-xl border border-zinc-500/80 bg-zinc-950/95 p-3 shadow-[0_12px_48px_rgba(0,0,0,0.45)] backdrop-blur-sm ring-1 ring-zinc-500/20 sm:sticky sm:top-2 sm:p-5">
-                <div className="mb-3 flex flex-col gap-2 border-b border-zinc-800/80 pb-3 max-sm:border-0 max-sm:pb-2 sm:flex-row sm:flex-wrap sm:items-start sm:justify-between sm:gap-x-4">
-                  <div className="min-w-0">
-                    <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-zinc-400">
-                      Visor · último menú del historial · solo lectura
-                    </p>
-                    <p className="mt-1 flex flex-wrap gap-x-1 text-sm text-zinc-100">
-                      <span className="tabular-nums">{formatearFechaServicio(resumenDerivadoDelFormulario.fecha)}</span>
-                      <span className="text-zinc-600">·</span>
-                      <span className="tabular-nums">{formatearHoraServicio(resumenDerivadoDelFormulario.hora)}</span>
-                      <span className="text-zinc-600">·</span>
-                      <span>{resumenDerivadoDelFormulario.servicio}</span>
-                      <span className="text-zinc-600">·</span>
-                      <span>{resumenDerivadoDelFormulario.menuTipo}</span>
-                    </p>
-                    <p className="mt-1.5 max-w-xl text-[11px] leading-snug text-zinc-500">
-                      Tomado del registro más reciente en la nube.{" "}
-                      <span className="text-zinc-400">Editar menú</span> para retocar ese cierre;{" "}
-                      <span className="text-zinc-400">Nuevo menú</span> para arrancar otro día en blanco.
-                    </p>
-                  </div>
-                  <div className="flex w-full shrink-0 flex-col gap-2 sm:w-auto sm:min-w-[11rem] sm:flex-row sm:flex-wrap sm:justify-end">
-                    <button
-                      type="button"
-                      onClick={() => setEditorOcultoTrasGuardar(false)}
-                      className="inline-flex w-full items-center justify-center gap-1.5 rounded-lg border border-emerald-900/50 bg-emerald-950/50 px-3 py-2.5 text-xs font-semibold text-emerald-50 transition hover:bg-emerald-900/40 sm:w-auto"
-                    >
-                      <Pencil className="h-3.5 w-3.5 shrink-0" aria-hidden />
-                      Editar menú
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => iniciarNuevoMenu()}
-                      className="inline-flex w-full items-center justify-center gap-1.5 rounded-lg border border-zinc-600 bg-zinc-900 px-3 py-2.5 text-xs font-medium text-zinc-100 transition hover:border-zinc-500 hover:bg-zinc-800 sm:w-auto"
-                    >
-                      <FilePlus className="h-3.5 w-3.5 shrink-0" aria-hidden />
-                      Nuevo menú
-                    </button>
-                  </div>
-                </div>
-                {/* Móvil: una sola sábana (scroll del documento). Desktop: panel sticky con scroll interno. */}
-                <div className="min-w-0 max-sm:overflow-visible sm:max-h-[min(75vh,36rem)] sm:overflow-y-auto sm:overscroll-contain">
-                  <MenuGuardadoSecciones
-                    otsumami={resumenDerivadoDelFormulario.otsumamiBase}
-                    nigiri={resumenDerivadoDelFormulario.nigiri}
-                    postre={resumenDerivadoDelFormulario.postre}
-                    regalo={resumenDerivadoDelFormulario.regalo}
-                    extensiones={resumenDerivadoDelFormulario.extensiones}
-                    nombrePlato={nombrePlato}
-                  />
-                </div>
-              </div>
-            ) : null}
+          <div className="mt-6">
+            <MenuGuardadoSecciones
+              otsumami={resumen.otsumamiBase}
+              nigiri={resumen.nigiri}
+              postre={resumen.postre}
+              regalo={resumen.regalo}
+              extensiones={resumen.extensiones}
+              nombrePlato={nombrePlato}
+            />
+          </div>
+        </>
+      ) : (
+        <>
+          {resumenServicio ? (
+            <div className="mb-4 flex items-center gap-2 rounded-card bg-fill py-1.5 pl-4 pr-1.5">
+              <p className="min-w-0 flex-1 leading-tight">
+                <span className="block text-[0.7rem] font-semibold uppercase tracking-[0.07em] text-label-3">
+                  Editando
+                </span>
+                <span className="block truncate text-[0.9rem] text-label">
+                  {formatearFechaServicio(resumen.fecha)} ·{" "}
+                  {etiquetaServicio(resumen.servicio)}
+                </span>
+              </p>
+              <Boton
+                variante="terciario"
+                tamano="chico"
+                icono={<List className="h-4 w-4" aria-hidden />}
+                onClick={() => setEditorOcultoTrasGuardar(true)}
+              >
+                Ver menú
+              </Boton>
+              <Boton
+                variante="terciario"
+                tamano="chico"
+                icono={<FilePlus className="h-4 w-4" aria-hidden />}
+                onClick={() => void iniciarNuevoMenu()}
+              >
+                Nuevo
+              </Boton>
+            </div>
+          ) : null}
 
-            {editorOcultoTrasGuardar ? null : (
-            <>
-            {resumenServicio ? (
-              <div className="mb-4 flex flex-col gap-2 rounded-lg border border-zinc-800 bg-zinc-950/60 px-3 py-2.5 sm:flex-row sm:flex-wrap sm:items-center sm:justify-between">
-                <p className="text-xs text-zinc-400">
-                  Editando menú del{" "}
-                  <span className="tabular-nums text-zinc-200">{formatearFechaServicio(resumenDerivadoDelFormulario.fecha)}</span>
-                  {" · "}
-                  <span className="text-zinc-200">{resumenDerivadoDelFormulario.servicio}</span>
-                </p>
-                <div className="flex flex-wrap gap-2 sm:justify-end">
-                  <button
-                    type="button"
-                    onClick={() => iniciarNuevoMenu()}
-                    className="inline-flex shrink-0 items-center justify-center gap-1.5 rounded-md border border-zinc-600 bg-zinc-900 px-3 py-2 text-[11px] font-medium text-zinc-200 transition hover:border-zinc-500 hover:bg-zinc-800/90"
-                  >
-                    <FilePlus className="h-3.5 w-3.5 shrink-0" aria-hidden />
-                    Nuevo menú
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setEditorOcultoTrasGuardar(true)}
-                    className="inline-flex shrink-0 items-center justify-center gap-1.5 rounded-md border border-zinc-600 bg-zinc-900 px-3 py-2 text-[11px] font-medium text-zinc-200 transition hover:border-zinc-500 hover:bg-zinc-800/90"
-                  >
-                    <List className="h-3.5 w-3.5 shrink-0" aria-hidden />
-                    Ver sólo menú
-                  </button>
-                </div>
-              </div>
-            ) : null}
-            <div className="grid min-w-0 gap-4 md:grid-cols-2">
-              <section className="min-w-0 rounded-xl border border-zinc-800 bg-zinc-950/60 p-4">
-                <div className="mb-3 flex items-center justify-between gap-2">
-                  <h2 className="min-w-0 text-balance break-words text-sm uppercase tracking-[0.16em] text-zinc-400">
-                    Menú Omakase (Base {pasosBaseCompletados}/{totalPasosBaseObjetivo}
-                    {!menuNigiriOnly
-                      ? ` · Regalo ${pasosRegaloCompletados}/${OTSUMAMI_REGALO}`
-                      : ""}
-                    )
-                  </h2>
-                  <label className="inline-flex shrink-0 items-center gap-2 rounded-md border border-zinc-700 bg-zinc-900 px-2.5 py-1.5 text-[11px] text-zinc-300">
-                    <input
-                      type="checkbox"
-                      checked={menuNigiriOnly}
-                      onChange={(event) => {
-                        setMenuNigiriOnly(event.target.checked);
-                        setError(null);
-                      }}
-                      className="h-3.5 w-3.5 rounded border-zinc-600 bg-zinc-950 text-zinc-100"
-                    />
-                    Menú nigiri only
-                  </label>
-                </div>
-                {menuOmakaseDisponibles.length > 0 ? (
-                  <div className="space-y-4">
-                    {!menuNigiriOnly ? (
-                      <>
-                        <div>
-                          <h3 className="mb-2 text-xs uppercase tracking-[0.14em] text-zinc-500">
-                            Otsumami (4 base)
-                          </h3>
-                          <div className="grid gap-2 sm:grid-cols-2">
-                            {omakaseOtsumami.map((valor, index) => (
-                              <div
-                                key={`otsu-base-${index + 1}`}
-                                className="rounded-lg border border-zinc-800 bg-zinc-900/60 px-3 py-2"
-                              >
-                                <label
-                                  htmlFor={`otsu-base-${index + 1}`}
-                                  className="mb-1 block text-[11px] uppercase tracking-[0.12em] text-zinc-500"
-                                >
-                                  Otsumami {index + 1}
-                                </label>
-                                <select
-                                  id={`otsu-base-${index + 1}`}
-                                  value={valor}
-                                  onChange={(event) =>
-                                    actualizarPasoOmakase(
-                                      index,
-                                      event.target.value,
-                                      setOmakaseOtsumami
-                                    )
-                                  }
-                                  className="w-full rounded-md border border-zinc-700 bg-zinc-950 px-2.5 py-2 text-sm text-zinc-100 outline-none transition focus:border-zinc-500"
-                                >
-                                  <option value="">Seleccionar Otsumami...</option>
-                                  {(omakaseOpcionesPorCategoria.get("Otsumami") ?? []).map(
-                                    (plato) => (
-                                      <option
-                                        key={plato.id}
-                                        value={plato.id}
-                                        disabled={esOpcionDuplicadaEnSeccion(
-                                          omakaseOtsumami,
-                                          index,
-                                          plato.id
-                                        )}
-                                      >
-                                        {plato.nombre}
-                                      </option>
-                                    )
-                                  )}
-                                </select>
-                              </div>
-                            ))}
-                          </div>
-                        </div>
+          <Segmentado
+            etiqueta="Tipo de menú"
+            valor={menuNigiriOnly ? "nigiri" : "clasico"}
+            onChange={(v) => {
+              setMenuNigiriOnly(v === "nigiri");
+              setError(null);
+            }}
+            opciones={[
+              { valor: "clasico", label: "Clásico" },
+              { valor: "nigiri", label: "Nigiri only" },
+            ]}
+          />
 
-                        <div>
-                          <h3 className="mb-2 text-xs uppercase tracking-[0.14em] text-zinc-500">
-                            Otsumami regalo (opcionales)
-                          </h3>
-                          <div className="grid gap-2 sm:grid-cols-2">
-                            {omakaseOtsumamiRegalo.map((valor, index) => (
-                              <div
-                                key={`otsu-regalo-${index + 1}`}
-                                className="rounded-lg border border-zinc-800 bg-zinc-900/40 px-3 py-2"
-                              >
-                                <label
-                                  htmlFor={`otsu-regalo-${index + 1}`}
-                                  className="mb-1 block text-[11px] uppercase tracking-[0.12em] text-zinc-500"
-                                >
-                                  Regalo {index + 1}
-                                </label>
-                                <select
-                                  id={`otsu-regalo-${index + 1}`}
-                                  value={valor}
-                                  onChange={(event) =>
-                                    actualizarPasoOmakase(
-                                      index,
-                                      event.target.value,
-                                      setOmakaseOtsumamiRegalo
-                                    )
-                                  }
-                                  className="w-full rounded-md border border-zinc-700 bg-zinc-950 px-2.5 py-2 text-sm text-zinc-100 outline-none transition focus:border-zinc-500"
-                                >
-                                  <option value="">Sin regalo</option>
-                                  {(omakaseOpcionesPorCategoria.get("Otsumami") ?? []).map(
-                                    (plato) => (
-                                      <option
-                                        key={plato.id}
-                                        value={plato.id}
-                                        disabled={esOpcionDuplicadaEnSeccion(
-                                          omakaseOtsumamiRegalo,
-                                          index,
-                                          plato.id
-                                        )}
-                                      >
-                                        {plato.nombre}
-                                      </option>
-                                    )
-                                  )}
-                                </select>
-                              </div>
-                            ))}
-                          </div>
-                        </div>
-                      </>
-                    ) : null}
-
-                    <div>
-                      <h3 className="mb-2 text-xs uppercase tracking-[0.14em] text-zinc-500">
-                        Nigiri (12) · orden con flechas
-                      </h3>
-                      <div className="grid gap-2 sm:grid-cols-2">
-                        {omakaseNigiri.map((valor, index) => (
-                          <div
-                            key={`nigiri-${index + 1}`}
-                            className="flex gap-2 rounded-lg border border-zinc-800 bg-zinc-900/60 px-2 py-2 sm:px-3"
-                          >
-                            <div className="min-w-0 flex-1">
-                              <label
-                                htmlFor={`nigiri-${index + 1}`}
-                                className="mb-1 block text-[11px] uppercase tracking-[0.12em] text-zinc-500"
-                              >
-                                Nigiri {index + 1}
-                              </label>
-                              <select
-                                id={`nigiri-${index + 1}`}
-                                value={valor}
-                                onChange={(event) =>
-                                  actualizarPasoOmakase(
-                                    index,
-                                    event.target.value,
-                                    setOmakaseNigiri
-                                  )
-                                }
-                                className="w-full rounded-md border border-zinc-700 bg-zinc-950 px-2.5 py-2 text-sm text-zinc-100 outline-none transition focus:border-zinc-500"
-                              >
-                                <option value="">Seleccionar Nigiri...</option>
-                                {(omakaseOpcionesPorCategoria.get("Nigiri") ?? []).map(
-                                  (plato) => (
-                                    <option
-                                      key={plato.id}
-                                      value={plato.id}
-                                      disabled={esOpcionDuplicadaEnSeccion(
-                                        omakaseNigiri,
-                                        index,
-                                        plato.id
-                                      )}
-                                    >
-                                      {plato.nombre}
-                                    </option>
-                                  )
-                                )}
-                              </select>
-                            </div>
-                            <div className="flex shrink-0 flex-col justify-center gap-0.5 border-l border-zinc-800/80 pl-1.5">
-                              <button
-                                type="button"
-                                disabled={index === 0}
-                                onClick={() => intercambiarIndicesNigiri(index, index - 1)}
-                                title="Subir una posición (intercambia con el de arriba; si está vacío, queda como mover)"
-                                aria-label={`Subir Nigiri ${index + 1}`}
-                                className="inline-flex size-8 items-center justify-center rounded-md border border-zinc-700 bg-zinc-950 text-zinc-400 transition hover:border-zinc-500 hover:text-zinc-100 disabled:cursor-not-allowed disabled:opacity-30"
-                              >
-                                <ChevronUp className="h-4 w-4" aria-hidden />
-                              </button>
-                              <button
-                                type="button"
-                                disabled={index >= NIGIRI_BASE - 1}
-                                onClick={() => intercambiarIndicesNigiri(index, index + 1)}
-                                title="Bajar una posición"
-                                aria-label={`Bajar Nigiri ${index + 1}`}
-                                className="inline-flex size-8 items-center justify-center rounded-md border border-zinc-700 bg-zinc-950 text-zinc-400 transition hover:border-zinc-500 hover:text-zinc-100 disabled:cursor-not-allowed disabled:opacity-30"
-                              >
-                                <ChevronDown className="h-4 w-4" aria-hidden />
-                              </button>
-                            </div>
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-
-                    {!menuNigiriOnly ? (
-                      <div>
-                        <h3 className="mb-2 text-xs uppercase tracking-[0.14em] text-zinc-500">
-                          Postre (1)
-                        </h3>
-                        <div className="grid gap-2 sm:grid-cols-2">
-                          {omakasePostre.map((valor, index) => (
-                            <div
-                              key={`postre-${index + 1}`}
-                              className="rounded-lg border border-zinc-800 bg-zinc-900/60 px-3 py-2"
-                            >
-                              <label
-                                htmlFor={`postre-${index + 1}`}
-                                className="mb-1 block text-[11px] uppercase tracking-[0.12em] text-zinc-500"
-                              >
-                                Postre
-                              </label>
-                              <select
-                                id={`postre-${index + 1}`}
-                                value={valor}
-                                onChange={(event) =>
-                                  actualizarPasoOmakase(
-                                    index,
-                                    event.target.value,
-                                    setOmakasePostre
-                                  )
-                                }
-                                className="w-full rounded-md border border-zinc-700 bg-zinc-950 px-2.5 py-2 text-sm text-zinc-100 outline-none transition focus:border-zinc-500"
-                              >
-                                <option value="">Seleccionar Postre...</option>
-                                {(omakaseOpcionesPorCategoria.get("Postre") ?? []).map(
-                                  (plato) => (
-                                    <option
-                                      key={plato.id}
-                                      value={plato.id}
-                                      disabled={esOpcionDuplicadaEnSeccion(
-                                        omakasePostre,
-                                        index,
-                                        plato.id
-                                      )}
-                                    >
-                                      {plato.nombre}
-                                    </option>
-                                  )
-                                )}
-                              </select>
-                            </div>
-                          ))}
-                        </div>
-                      </div>
-                    ) : null}
-                  </div>
-                ) : (
-                  <p className="text-sm text-zinc-500">
-                    No hay platos omakase disponibles.
-                  </p>
+          <div className="mt-4 rounded-card bg-surface-3 px-4 py-3 shadow-[0_1px_2px_rgb(0_0_0/0.04)]">
+            <div className="flex items-baseline justify-between gap-3">
+              <p className="text-[0.94rem] text-label-2">
+                <span className="font-semibold tabular-nums text-label">
+                  {pasosBaseCompletados}/{totalPasosBaseObjetivo}
+                </span>{" "}
+                platos del menú
+              </p>
+              <p className="text-[0.84rem] tabular-nums text-label-3">
+                {!menuNigiriOnly
+                  ? `Regalo ${pasosRegaloCompletados}/${OTSUMAMI_REGALO} · `
+                  : ""}
+                Extras {extrasElegidos}/{EXTENSION_SLOTS}
+              </p>
+            </div>
+            <div
+              className="mt-2.5 h-1.5 overflow-hidden rounded-full bg-fill"
+              role="progressbar"
+              aria-label="Platos del menú elegidos"
+              aria-valuenow={pasosBaseCompletados}
+              aria-valuemin={0}
+              aria-valuemax={totalPasosBaseObjetivo}
+            >
+              <div
+                className={cx(
+                  "h-full rounded-full transition-all duration-300",
+                  completo ? "bg-success" : "bg-accent",
                 )}
-              </section>
+                style={{
+                  width: `${(pasosBaseCompletados / totalPasosBaseObjetivo) * 100}%`,
+                }}
+              />
+            </div>
+          </div>
 
-              <section className="min-w-0 rounded-xl border border-zinc-800 bg-zinc-950/60 p-4">
-                <h2 className="mb-3 min-w-0 text-balance break-words text-sm uppercase tracking-[0.16em] text-zinc-400">
-                  Extensiones / Extras ({extensionSlots.filter((id) => id).length}/
-                  {EXTENSION_SLOTS})
-                </h2>
-                <p className="mb-3 text-xs leading-relaxed text-zinc-500">
-                  Hasta cinco extras opcionales: podés elegir Otsumami, Nigiri o platos de categoría
-                  Extensión (solo disponibles).
-                </p>
-                {extrasDisponiblesTotal > 0 ? (
-                  <div className="grid gap-2 sm:grid-cols-2">
-                    {extensionSlots.map((valor, index) => (
-                      <div
-                        key={`extra-${index + 1}`}
-                        className="rounded-lg border border-zinc-800 bg-zinc-900/60 px-3 py-2"
-                      >
-                        <label
-                          htmlFor={`extra-${index + 1}`}
-                          className="mb-1 block text-[11px] uppercase tracking-[0.12em] text-zinc-500"
-                        >
-                          Extra {index + 1}
-                        </label>
-                        <select
-                          id={`extra-${index + 1}`}
-                          value={valor}
-                          onChange={(event) =>
-                            actualizarExtensionSlot(index, event.target.value)
-                          }
-                          className="w-full rounded-md border border-zinc-700 bg-zinc-950 px-2.5 py-2 text-sm text-zinc-100 outline-none transition focus:border-zinc-500"
-                        >
-                          <option value="">Sin extra</option>
-                          {CATEGORIAS_EXTRAS.map((categoria) => (
-                            <optgroup key={categoria} label={categoria}>
-                              {(extrasDisponiblesPorCategoria.get(categoria) ?? []).map(
-                                (plato) => {
-                                  const yaEnMenu = idsEnMenuSeleccionado.has(plato.id);
-                                  const yaEnExtras = esOpcionDuplicadaEnSeccion(
-                                    extensionSlots,
-                                    index,
-                                    plato.id
-                                  );
-                                  // Nunca deshabilitar el valor ya elegido en este slot.
-                                  const deshabilitado =
-                                    (yaEnMenu || yaEnExtras) && plato.id !== valor;
-                                  return (
-                                    <option
-                                      key={plato.id}
-                                      value={plato.id}
-                                      disabled={deshabilitado}
-                                    >
-                                      {plato.nombre}
-                                      {yaEnMenu ? " · ya en el menú" : ""}
-                                    </option>
-                                  );
-                                }
+          <div className="grid min-w-0 gap-x-6 md:grid-cols-2">
+            <div className="min-w-0">
+              {menuOmakaseDisponibles.length === 0 ? (
+                <Seccion titulo="Menú">
+                  <p className="rounded-card bg-surface-3 px-4 py-4 text-label-2">
+                    No hay platos omakase disponibles: revisá los ingredientes
+                    agotados.
+                  </p>
+                </Seccion>
+              ) : (
+                <>
+                  {!menuNigiriOnly ? (
+                    <>
+                      <Seccion titulo="Otsumami">
+                        <ul className="overflow-hidden rounded-card bg-surface-3 shadow-[0_1px_2px_rgb(0_0_0/0.04)]">
+                          {omakaseOtsumami.map((valor, index) => (
+                            <SlotPlato
+                              key={`otsu-${index}`}
+                              numero={index + 1}
+                              titulo={`Otsumami ${index + 1}`}
+                              placeholder="Elegir otsumami"
+                              valor={valor}
+                              nombre={valor ? nombrePlato(valor) : null}
+                              opciones={opcionesDe(
+                                "Otsumami",
+                                omakaseOtsumami,
+                                index,
                               )}
-                            </optgroup>
+                              onElegir={(id) =>
+                                actualizarPasoOmakase(
+                                  index,
+                                  id,
+                                  setOmakaseOtsumami,
+                                )
+                              }
+                            />
                           ))}
-                        </select>
-                      </div>
-                    ))}
-                  </div>
-                ) : (
-                  <p className="text-sm text-zinc-500">
-                    No hay platos disponibles para extras (Otsumami, Nigiri o Extensión).
-                  </p>
-                )}
-              </section>
+                        </ul>
+                      </Seccion>
+                      <Seccion
+                        titulo="Regalo"
+                        pie="Opcionales: no cuentan para completar el menú."
+                      >
+                        <ul className="overflow-hidden rounded-card bg-surface-3 shadow-[0_1px_2px_rgb(0_0_0/0.04)]">
+                          {omakaseOtsumamiRegalo.map((valor, index) => (
+                            <SlotPlato
+                              key={`regalo-${index}`}
+                              numero={index + 1}
+                              titulo={`Regalo ${index + 1}`}
+                              placeholder="Sin regalo"
+                              valor={valor}
+                              nombre={valor ? nombrePlato(valor) : null}
+                              opciones={opcionesDe(
+                                "Otsumami",
+                                omakaseOtsumamiRegalo,
+                                index,
+                              )}
+                              vaciar="Sin regalo"
+                              onElegir={(id) =>
+                                actualizarPasoOmakase(
+                                  index,
+                                  id,
+                                  setOmakaseOtsumamiRegalo,
+                                )
+                              }
+                            />
+                          ))}
+                        </ul>
+                      </Seccion>
+                    </>
+                  ) : null}
+
+                  <Seccion
+                    titulo="Nigiri"
+                    pie="Las flechas cambian el orden de servicio."
+                  >
+                    <ul className="overflow-hidden rounded-card bg-surface-3 shadow-[0_1px_2px_rgb(0_0_0/0.04)]">
+                      {omakaseNigiri.map((valor, index) => (
+                        <SlotPlato
+                          key={`nigiri-${index}`}
+                          numero={index + 1}
+                          titulo={`Nigiri ${index + 1}`}
+                          placeholder="Elegir nigiri"
+                          valor={valor}
+                          nombre={valor ? nombrePlato(valor) : null}
+                          opciones={opcionesDe("Nigiri", omakaseNigiri, index)}
+                          onElegir={(id) =>
+                            actualizarPasoOmakase(index, id, setOmakaseNigiri)
+                          }
+                          orden={{
+                            subir:
+                              index > 0
+                                ? () =>
+                                    intercambiarIndicesNigiri(index, index - 1)
+                                : undefined,
+                            bajar:
+                              index < NIGIRI_BASE - 1
+                                ? () =>
+                                    intercambiarIndicesNigiri(index, index + 1)
+                                : undefined,
+                          }}
+                        />
+                      ))}
+                    </ul>
+                  </Seccion>
+
+                  {!menuNigiriOnly ? (
+                    <Seccion titulo="Postre">
+                      <ul className="overflow-hidden rounded-card bg-surface-3 shadow-[0_1px_2px_rgb(0_0_0/0.04)]">
+                        {omakasePostre.map((valor, index) => (
+                          <SlotPlato
+                            key={`postre-${index}`}
+                            titulo="Postre"
+                            placeholder="Elegir postre"
+                            valor={valor}
+                            nombre={valor ? nombrePlato(valor) : null}
+                            opciones={opcionesDe(
+                              "Postre",
+                              omakasePostre,
+                              index,
+                            )}
+                            onElegir={(id) =>
+                              actualizarPasoOmakase(index, id, setOmakasePostre)
+                            }
+                          />
+                        ))}
+                      </ul>
+                    </Seccion>
+                  ) : null}
+                </>
+              )}
             </div>
 
-            <section className="mt-6 min-w-0 rounded-xl border border-zinc-800 bg-zinc-950/60 p-4">
-              <h2 className="mb-3 min-w-0 text-sm uppercase tracking-[0.16em] text-zinc-400">
-                No disponibles
-              </h2>
-              <div className="grid gap-2 sm:grid-cols-2">
-                {platosNoDisponibles.length > 0 ? (
-                  platosNoDisponibles.map((plato) =>
-                    renderCard(plato, false, () => undefined, true)
-                  )
+            <div className="min-w-0">
+              <Seccion
+                titulo="Extras"
+                pie="Hasta cinco: otsumami, nigiri o extensiones disponibles que no estén ya en el menú."
+              >
+                {extrasDisponiblesTotal > 0 ? (
+                  <ul className="overflow-hidden rounded-card bg-surface-3 shadow-[0_1px_2px_rgb(0_0_0/0.04)]">
+                    {extensionSlots.map((valor, index) => (
+                      <SlotPlato
+                        key={`extra-${index}`}
+                        numero={index + 1}
+                        titulo={`Extra ${index + 1}`}
+                        placeholder="Sin extra"
+                        valor={valor}
+                        nombre={valor ? nombrePlato(valor) : null}
+                        opciones={opcionesExtra(index)}
+                        vaciar="Sin extra"
+                        buscar
+                        onElegir={(id) => actualizarExtensionSlot(index, id)}
+                      />
+                    ))}
+                  </ul>
                 ) : (
-                  <p className="text-sm text-zinc-500">
+                  <p className="rounded-card bg-surface-3 px-4 py-4 text-label-2">
+                    No hay platos disponibles para extras.
+                  </p>
+                )}
+              </Seccion>
+
+              <Seccion titulo="Servicio">
+                <div className="space-y-3">
+                  <Fecha valor={fechaServicio} onChange={setFechaServicio} />
+                  <div className="grid grid-cols-[minmax(0,1fr)_minmax(0,1.4fr)] gap-2">
+                    <Campo
+                      type="time"
+                      aria-label="Hora del servicio"
+                      value={horaServicio}
+                      onChange={(event) => setHoraServicio(event.target.value)}
+                      className="text-center tabular-nums"
+                    />
+                    <Segmentado
+                      etiqueta="Servicio"
+                      valor={servicio}
+                      onChange={setServicio}
+                      opciones={[
+                        { valor: "Mediodia", label: "Mediodía" },
+                        { valor: "Noche", label: "Noche" },
+                      ]}
+                    />
+                  </div>
+                </div>
+              </Seccion>
+
+              <Seccion
+                titulo={`No disponibles · ${platosNoDisponibles.length}`}
+              >
+                {platosNoDisponibles.length > 0 ? (
+                  <details className="group overflow-hidden rounded-card bg-surface-3 shadow-[0_1px_2px_rgb(0_0_0/0.04)]">
+                    <summary className="flex min-h-12 cursor-pointer list-none items-center gap-3 px-4 text-[0.94rem] text-label-2 [&::-webkit-details-marker]:hidden">
+                      <Lock
+                        className="h-4 w-4 shrink-0 text-label-3"
+                        aria-hidden
+                      />
+                      <span className="flex-1">
+                        Ver qué falta para cada plato
+                      </span>
+                      <ChevronRight
+                        className="h-[18px] w-[18px] text-label-3 transition group-open:rotate-90"
+                        aria-hidden
+                      />
+                    </summary>
+                    <ul className="border-t border-separator">
+                      {platosNoDisponibles.map((plato) => (
+                        <li
+                          key={plato.id}
+                          className="border-b border-separator px-4 py-2.5 last:border-0"
+                        >
+                          <p className="text-[0.97rem] text-label">
+                            {plato.nombre}
+                          </p>
+                          <p className="text-[0.84rem] text-label-3">
+                            {plato.categoria} · falta{" "}
+                            {ingredientesFaltantes(plato) ||
+                              "asignar ingredientes"}
+                          </p>
+                        </li>
+                      ))}
+                    </ul>
+                  </details>
+                ) : (
+                  <p className="rounded-card bg-surface-3 px-4 py-3 text-label-2">
                     Todos los platos están disponibles.
                   </p>
                 )}
-              </div>
-            </section>
-
-            <div className="mt-6 flex flex-col gap-3 border-t border-zinc-800 pt-5 sm:flex-row sm:items-center sm:justify-between">
-              <div className="flex flex-col gap-3">
-                <p className="text-sm text-zinc-400">
-                  Seleccionados: {pasosBaseCompletados}/{totalPasosBaseObjetivo} base
-                  {!menuNigiriOnly
-                    ? ` + ${pasosRegaloCompletados}/${OTSUMAMI_REGALO} regalo`
-                    : ""}
-                  {" / "}
-                  {extensionSlots.filter((id) => id).length}/{EXTENSION_SLOTS} extras
-                </p>
-                <div className="grid gap-2 sm:grid-cols-3">
-                  <input
-                    type="date"
-                    value={fechaServicio}
-                    onChange={(event) => setFechaServicio(event.target.value)}
-                    className="rounded-lg border border-zinc-700 bg-zinc-900 px-3 py-2 text-sm text-zinc-100 outline-none transition focus:border-zinc-500"
-                  />
-                  <input
-                    type="time"
-                    value={horaServicio}
-                    onChange={(event) => setHoraServicio(event.target.value)}
-                    className="rounded-lg border border-zinc-700 bg-zinc-900 px-3 py-2 text-sm text-zinc-100 outline-none transition focus:border-zinc-500"
-                  />
-                  <select
-                    value={servicio}
-                    onChange={(event) => setServicio(event.target.value as Servicio)}
-                    className="rounded-lg border border-zinc-700 bg-zinc-900 px-3 py-2 text-sm text-zinc-100 outline-none transition focus:border-zinc-500"
-                  >
-                    <option value="Mediodia">Mediodia</option>
-                    <option value="Noche">Noche</option>
-                  </select>
-                </div>
-              </div>
-              <button
-                type="button"
-                onClick={() => void cerrarYGuardarMenu()}
-                disabled={isSaving}
-                className="inline-flex items-center justify-center gap-2 rounded-xl border border-zinc-700 bg-zinc-100 px-4 py-2 text-sm font-medium text-zinc-900 transition hover:bg-zinc-50 disabled:cursor-not-allowed disabled:opacity-60"
-              >
-                {isSaving ? (
-                  <>
-                    <Loader2 className="h-4 w-4 animate-spin" />
-                    Guardando...
-                  </>
-                ) : (
-                  "Cerrar Menú y Guardar"
-                )}
-              </button>
+              </Seccion>
             </div>
-            </>
+          </div>
+
+          <div className="sticky bottom-[calc(env(safe-area-inset-bottom,0px)+4.75rem)] z-20 -mx-4 mt-6 px-4 pb-1 sm:bottom-4 sm:mx-0 sm:px-0">
+            <Boton
+              ancho
+              tamano="grande"
+              variante={completo ? "primario" : "secundario"}
+              cargando={isSaving}
+              onClick={() => void cerrarYGuardarMenu()}
+              className={cx(
+                "shadow-[0_8px_24px_rgb(0_0_0/0.18)]",
+                completo ? "" : "bg-surface-3 backdrop-blur-xl",
+              )}
+            >
+              {isSaving
+                ? "Guardando…"
+                : completo
+                  ? "Cerrar menú y guardar"
+                  : `Faltan ${totalPasosBaseObjetivo - pasosBaseCompletados} para cerrar`}
+            </Boton>
+          </div>
+        </>
+      )}
+    </Pantalla>
+  );
+}
+
+/**
+ * Un paso del menú: muestra el plato elegido (o el lugar vacío) y al tocarlo abre
+ * la hoja con los platos disponibles. Los Nigiri suman flechas para reordenar.
+ */
+function SlotPlato(props: {
+  numero?: number;
+  titulo: string;
+  placeholder: string;
+  valor: string;
+  nombre: string | null;
+  opciones: OpcionSelector<string>[];
+  onElegir: (id: string) => void;
+  vaciar?: string;
+  buscar?: boolean;
+  orden?: { subir?: () => void; bajar?: () => void };
+}) {
+  const {
+    numero,
+    titulo,
+    placeholder,
+    valor,
+    nombre,
+    opciones,
+    onElegir,
+    vaciar,
+    buscar,
+    orden,
+  } = props;
+  const [abierta, setAbierta] = useState(false);
+  return (
+    <li className="flex min-h-14 items-center border-b border-separator last:border-0">
+      <button
+        type="button"
+        onClick={() => setAbierta(true)}
+        aria-label={`${titulo}: ${nombre ?? placeholder}`}
+        className="flex min-h-14 min-w-0 flex-1 items-center gap-3 py-2 pl-4 pr-2 text-left transition active:bg-fill"
+      >
+        {numero !== undefined ? (
+          <span
+            className={cx(
+              "flex size-7 shrink-0 items-center justify-center rounded-full font-mono text-[0.8rem] tabular-nums",
+              nombre ? "bg-accent-soft text-accent" : "bg-fill text-label-3",
             )}
-          </>
+          >
+            {numero}
+          </span>
+        ) : null}
+        <span
+          className={cx(
+            "min-w-0 flex-1 text-[1rem] leading-snug",
+            nombre ? "text-label" : "text-label-3",
+          )}
+        >
+          {nombre ?? placeholder}
+        </span>
+        {orden ? null : (
+          <ChevronRight
+            className="h-[18px] w-[18px] shrink-0 text-label-3"
+            aria-hidden
+          />
         )}
-      </section>
-    </main>
+      </button>
+      {orden ? (
+        <div className="flex shrink-0 items-center pr-1.5">
+          <button
+            type="button"
+            disabled={!orden.subir}
+            onClick={orden.subir}
+            aria-label={`Subir ${titulo}`}
+            className="inline-flex size-10 items-center justify-center rounded-full text-label-2 transition active:scale-90 active:bg-fill disabled:opacity-25"
+          >
+            <ChevronUp className="h-5 w-5" aria-hidden />
+          </button>
+          <button
+            type="button"
+            disabled={!orden.bajar}
+            onClick={orden.bajar}
+            aria-label={`Bajar ${titulo}`}
+            className="inline-flex size-10 items-center justify-center rounded-full text-label-2 transition active:scale-90 active:bg-fill disabled:opacity-25"
+          >
+            <ChevronDown className="h-5 w-5" aria-hidden />
+          </button>
+        </div>
+      ) : null}
+      <HojaOpciones
+        abierta={abierta}
+        onCerrar={() => setAbierta(false)}
+        titulo={titulo}
+        opciones={opciones}
+        valor={valor || (vaciar ? "" : null)}
+        onElegir={onElegir}
+        buscar={buscar ?? opciones.length > 12}
+        vaciar={vaciar ? { valor: "", label: vaciar } : undefined}
+      />
+    </li>
   );
 }

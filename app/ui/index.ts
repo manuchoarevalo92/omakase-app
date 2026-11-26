@@ -12,6 +12,7 @@ export {
   CampoBusqueda,
   Contador,
   Fecha,
+  HojaOpciones,
   Interruptor,
   Segmentado,
   Selector,

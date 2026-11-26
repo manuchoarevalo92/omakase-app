@@ -161,7 +161,7 @@ function AvisoBurbuja(props: { aviso: AvisoEntrada; onFin: () => void }) {
   return (
     <div
       role="status"
-      className="ui-aviso-entra pointer-events-auto flex min-h-12 w-full max-w-md items-center gap-3 rounded-2xl bg-[#1a1916] py-2 pl-4 pr-2 text-[0.94rem] text-[#f3f0ea] shadow-[0_10px_30px_rgb(0_0_0/0.3)]"
+      className="ui-aviso-entra pointer-events-auto flex min-h-12 w-full max-w-md items-center gap-3 rounded-2xl bg-[var(--aviso)] py-2 pl-4 pr-2 text-[0.94rem] text-[#f3f0ea] shadow-[0_10px_30px_rgb(0_0_0/0.3)]"
     >
       <Icono
         className={cx(
