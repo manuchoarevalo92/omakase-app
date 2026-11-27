@@ -1,4 +1,9 @@
-export const TEMA_STORAGE_KEY = "omakase-tema";
+/**
+ * Cada dispositivo guarda su elección. La clave cambió (v2) para que todos
+ * vuelvan una vez a «Auto» y se vean igual; la vieja se borra al cargar.
+ */
+export const TEMA_STORAGE_KEY = "omakase-tema-v2";
+const TEMA_STORAGE_KEY_VIEJA = "omakase-tema";
 
 export const TEMAS_PREFERENCIA = ["auto", "dia", "noche"] as const;
 export type TemaPreferencia = (typeof TEMAS_PREFERENCIA)[number];
@@ -85,4 +90,4 @@ export function siguienteTemaPreferencia(actual: TemaPreferencia): TemaPreferenc
 }
 
 /** Corre antes del paint para no parpadear el tema oscuro de día. */
-export const TEMA_BOOTSTRAP_SCRIPT = `(function(){try{var k=${JSON.stringify(TEMA_STORAGE_KEY)};var m=localStorage.getItem(k);if(m!=="auto"&&m!=="dia"&&m!=="noche")m="auto";var h=new Date().getHours();var dia=m==="dia"||(m!=="noche"&&h>=${HORA_DIA_DESDE}&&h<${HORA_DIA_HASTA});var t=dia?"dia":"noche";var r=document.documentElement;r.setAttribute("data-theme",t);r.style.colorScheme=dia?"light":"dark";var c=dia?"#f7f3ec":"#0e0d0b";document.querySelectorAll('meta[name="theme-color"]').forEach(function(meta){meta.setAttribute("content",c);});}catch(e){}})();`;
+export const TEMA_BOOTSTRAP_SCRIPT = `(function(){try{localStorage.removeItem(${JSON.stringify(TEMA_STORAGE_KEY_VIEJA)});var k=${JSON.stringify(TEMA_STORAGE_KEY)};var m=localStorage.getItem(k);if(m!=="auto"&&m!=="dia"&&m!=="noche")m="auto";var h=new Date().getHours();var dia=m==="dia"||(m!=="noche"&&h>=${HORA_DIA_DESDE}&&h<${HORA_DIA_HASTA});var t=dia?"dia":"noche";var r=document.documentElement;r.setAttribute("data-theme",t);r.style.colorScheme=dia?"light":"dark";var c=dia?"#f7f3ec":"#0e0d0b";document.querySelectorAll('meta[name="theme-color"]').forEach(function(meta){meta.setAttribute("content",c);});}catch(e){}})();`;
