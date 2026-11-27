@@ -91,7 +91,7 @@ function Estudiar(props: {
   onAbrir: (bebida: GuiaBebida, lista: GuiaBebida[]) => void;
 }) {
   const { guia, visibles, onAbrir } = props;
-  const [seccion, setSeccion] = useState<SeccionEstudio>("servicio");
+  const [seccion, setSeccion] = useState<SeccionEstudio>("elaboracion");
   const [filtroGlosario, setFiltroGlosario] = useState("");
 
   const glosarioPorArea = useMemo(() => {
@@ -126,12 +126,6 @@ function Estudiar(props: {
     <div className="space-y-5">
       <FilaChips>
         <Chip
-          activo={seccion === "servicio"}
-          onClick={() => setSeccion("servicio")}
-        >
-          Servicio
-        </Chip>
-        <Chip
           activo={seccion === "elaboracion"}
           onClick={() => setSeccion("elaboracion")}
         >
@@ -151,6 +145,12 @@ function Estudiar(props: {
           onClick={() => setSeccion("glosario")}
         >
           Glosario
+        </Chip>
+        <Chip
+          activo={seccion === "servicio"}
+          onClick={() => setSeccion("servicio")}
+        >
+          Servicio
         </Chip>
       </FilaChips>
 
