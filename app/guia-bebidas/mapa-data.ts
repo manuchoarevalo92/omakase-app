@@ -116,12 +116,13 @@ export const HELADERAS: Heladera[] = [
           },
           {
             codigo: "A5",
-            familia: "Riesling",
-            capacidad: 7,
+            familia: "Riesling y Azores",
+            capacidad: 9,
             carriles: [
               uno("FIO", "blanco", "FIO Falkenberg Riesling", 2, "falkenberg"),
               uno("Kreydenweiss", "blanco", "Kreydenweiss Wiebelsberg", 2, "kreydenweiss"),
               uno("Schaefer", "blanco", "Schaefer Domprobst Auction", 3, "schaefer"),
+              uno("Pico", "blanco", "Pico Arinto dos Açores", 2, "arinto"),
             ],
           },
           {
@@ -135,14 +136,6 @@ export const HELADERAS: Heladera[] = [
           },
           {
             codigo: "A7",
-            familia: "Azores",
-            capacidad: 7,
-            carriles: [
-              uno("Pico", "blanco", "Pico Arinto dos Açores", 2, "arinto"),
-            ],
-          },
-          {
-            codigo: "A8",
             familia: "Loira, Godello y Jerez",
             capacidad: 7,
             carriles: [
@@ -152,7 +145,7 @@ export const HELADERAS: Heladera[] = [
             ],
           },
           {
-            codigo: "A9",
+            codigo: "A8",
             familia: "España, grandes",
             capacidad: 7,
             carriles: [
@@ -245,7 +238,7 @@ export const HELADERAS: Heladera[] = [
     lugar: "Almacén",
     zonas: [
       {
-        titulo: "Repuestos de copa",
+        titulo: "Refuerzos por copa",
         temp: 10,
         estantes: [
           {
@@ -258,7 +251,9 @@ export const HELADERAS: Heladera[] = [
             codigo: "C2",
             familia: "Copa de blanco",
             capacidad: 3,
-            carriles: [uno("Ekam", "blanco", "Ekam", 3, "ekam")],
+            carriles: [
+              uno("Petit Chablis", "blanco", "Billaud-Simon Petit Chablis", 3, "petit chablis"),
+            ],
           },
           {
             codigo: "C3",
