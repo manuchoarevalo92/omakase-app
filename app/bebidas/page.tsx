@@ -9,7 +9,14 @@ import {
   Wine,
 } from "lucide-react";
 import Link from "next/link";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import {
+  useCallback,
+  useEffect,
+  useEffectEvent,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 
 import {
   Boton,
@@ -92,6 +99,33 @@ const lineaCargada = (item: BebidaItem): boolean =>
 const hayConsumosCargados = (asientos: BebidaItem[][]): boolean =>
   asientos.some((items) => items.some(lineaCargada));
 
+/** Copia que guarda el celu mientras se anota (por si la nube falla). */
+const leerCopiaLocal = (historialServicioId: string): BebidaItem[][] | null => {
+  try {
+    const raw = window.localStorage.getItem(STORAGE_KEY);
+    if (!raw) {
+      return null;
+    }
+    const copia = JSON.parse(raw) as {
+      historialServicioId?: string;
+      asientos?: unknown;
+    };
+    if (
+      copia.historialServicioId !== historialServicioId ||
+      !Array.isArray(copia.asientos) ||
+      copia.asientos.length !== TOTAL_ASIENTOS
+    ) {
+      return null;
+    }
+    const asientos = copia.asientos.map((items) =>
+      normalizarConsumos(Array.isArray(items) ? (items as BebidaItem[]) : null),
+    );
+    return hayConsumosCargados(asientos) ? asientos : null;
+  } catch {
+    return null;
+  }
+};
+
 const CANTIDADES = ["1", "2", "3", "4", "5", "6", "7", "8", "9", "10"] as const;
 
 /** Cantidad a número: vacío o no parseable cuenta como 1. */
@@ -117,8 +151,16 @@ export default function BebidasPage() {
   const [sugerencias, setSugerencias] = useState<string[]>([]);
   /** Línea con el selector de cantidad (1–10) desplegado. */
   const [cantidadAbierta, setCantidadAbierta] = useState<string | null>(null);
+  /** Índice en ASIENTOS_NUMEROS del asiento que se está anotando (arranca en el 1). */
+  const [asientoElegido, setAsientoElegido] = useState(2);
   const { aviso, confirmar } = useAvisos();
   const cargadoRemotoRef = useRef(false);
+  /**
+   * Solo se guarda (en la nube y en el celu) cuando alguien cambió algo. Abrir
+   * la página nunca escribe: así un fallo al cargar no pisa lo que ya había.
+   */
+  const hayCambiosRef = useRef(false);
+  const recuperacionOfrecidaRef = useRef(false);
   const timerSyncRef = useRef<number | null>(null);
   const servicioActivoIdRef = useRef<string | null>(null);
 
@@ -126,6 +168,29 @@ export default function BebidasPage() {
   useEffect(() => {
     servicioActivoIdRef.current = servicioActivo?.id ?? null;
   }, [servicioActivo?.id]);
+
+  /** Si la nube vino vacía pero este celu tiene bebidas anotadas, ofrece subirlas. */
+  const ofrecerRecuperar = useEffectEvent(async (local: BebidaItem[][]) => {
+    if (recuperacionOfrecidaRef.current) {
+      return;
+    }
+    recuperacionOfrecidaRef.current = true;
+    const n = local.reduce(
+      (acc, items) => acc + items.filter(lineaCargada).length,
+      0,
+    );
+    const ok = await confirmar({
+      titulo: "Recuperar bebidas de este celu",
+      texto: `Este celu tiene ${n} ${n === 1 ? "bebida anotada" : "bebidas anotadas"} de este servicio que ${n === 1 ? "no está" : "no están"} en la nube. ¿${n === 1 ? "La" : "Las"} recuperás?`,
+      confirmar: "Recuperar",
+    });
+    if (!ok) {
+      return;
+    }
+    hayCambiosRef.current = true;
+    setBebidasPorAsiento(local);
+    aviso("Bebidas recuperadas", { tono: "exito" });
+  });
 
   const cargarBebidasParaServicio = useCallback(async (historialId: string) => {
     const { data, error } = await supabase
@@ -166,19 +231,22 @@ export default function BebidasPage() {
         } else {
           setSyncError(formatPostgrestError(err as { message: string }));
         }
+        // Sin datos de la nube no se puede guardar encima: quedaría vacío.
         setServicioActivo(row);
         setBebidasPorAsiento(crearEstadoVacio());
-        cargadoRemotoRef.current = true;
-        return;
+        cargadoRemotoRef.current = false;
+        return null;
       }
 
       if (opts?.limpiarSiSinDatosEnNube && !hayConsumosCargados(asientos)) {
         asientos = crearEstadoVacio();
       }
 
+      hayCambiosRef.current = false;
       setServicioActivo(row);
       setBebidasPorAsiento(asientos);
       cargadoRemotoRef.current = true;
+      return asientos;
     },
     [cargarBebidasParaServicio],
   );
@@ -195,14 +263,20 @@ export default function BebidasPage() {
           cargadoRemotoRef.current = true;
           return;
         }
-        await activarServicio(ultimo);
+        const remoto = await activarServicio(ultimo);
+        if (remoto && !hayConsumosCargados(remoto)) {
+          const local = leerCopiaLocal(ultimo.id);
+          if (local) {
+            ofrecerRecuperar(local);
+          }
+        }
       } catch (err) {
         setSyncError(
           err instanceof Error
             ? formatPostgrestError(err as { message: string })
             : "Error al cargar el último servicio.",
         );
-        cargadoRemotoRef.current = true;
+        cargadoRemotoRef.current = false;
       } finally {
         setIsLoading(false);
       }
@@ -229,7 +303,7 @@ export default function BebidasPage() {
   }, []);
 
   useEffect(() => {
-    if (!servicioActivo?.id) {
+    if (!servicioActivo?.id || !hayCambiosRef.current) {
       return;
     }
     try {
@@ -246,7 +320,11 @@ export default function BebidasPage() {
   }, [bebidasPorAsiento, servicioActivo?.id]);
 
   useEffect(() => {
-    if (!cargadoRemotoRef.current || !servicioActivoIdRef.current) {
+    if (
+      !cargadoRemotoRef.current ||
+      !servicioActivoIdRef.current ||
+      !hayCambiosRef.current
+    ) {
       return;
     }
 
@@ -306,6 +384,7 @@ export default function BebidasPage() {
     itemId: string,
     patch: Partial<BebidaItem>,
   ) => {
+    hayCambiosRef.current = true;
     setBebidasPorAsiento((actual) =>
       actual.map((items, i) =>
         i !== asientoIndex
@@ -318,6 +397,7 @@ export default function BebidasPage() {
   };
 
   const agregarItem = (asientoIndex: number) => {
+    hayCambiosRef.current = true;
     setBebidasPorAsiento((actual) =>
       actual.map((items, i) =>
         i === asientoIndex ? [...items, crearItem()] : items,
@@ -331,6 +411,7 @@ export default function BebidasPage() {
    */
   const agregarExtra = (asientoIndex: number) => {
     vibrar();
+    hayCambiosRef.current = true;
     setBebidasPorAsiento((actual) =>
       actual.map((items, i) => {
         if (i !== asientoIndex) {
@@ -367,6 +448,7 @@ export default function BebidasPage() {
   };
 
   const quitarItem = (asientoIndex: number, itemId: string) => {
+    hayCambiosRef.current = true;
     setBebidasPorAsiento((actual) =>
       actual.map((items, i) => {
         if (i !== asientoIndex) {
@@ -381,6 +463,7 @@ export default function BebidasPage() {
   };
 
   const limpiarAsientosActuales = () => {
+    hayCambiosRef.current = true;
     setBebidasPorAsiento(crearEstadoVacio());
   };
 
@@ -408,6 +491,7 @@ export default function BebidasPage() {
           return;
         }
         await activarServicio(ultimo, { limpiarSiSinDatosEnNube: true });
+        hayCambiosRef.current = true;
         setBebidasPorAsiento(crearEstadoVacio());
         aviso(`Toma reiniciada: ${etiquetaServicioHistorial(ultimo)}`);
         return;
@@ -452,10 +536,10 @@ export default function BebidasPage() {
     aviso("Asientos vaciados");
   };
 
-  const irAlAsiento = (index: number) => {
-    document
-      .getElementById(`asiento-${index}`)
-      ?.scrollIntoView({ behavior: "smooth", block: "start" });
+  const elegirAsiento = (index: number) => {
+    vibrar();
+    setAsientoElegido(index);
+    setCantidadAbierta(null);
   };
 
   const estadoSync = isSyncing
@@ -539,36 +623,13 @@ export default function BebidasPage() {
               </p>
               <Etiqueta tono={estadoSync.tono}>{estadoSync.texto}</Etiqueta>
             </div>
-            <div
-              className="mt-3 grid grid-cols-5 gap-1.5"
-              role="navigation"
-              aria-label="Ir al asiento"
-            >
-              {bebidasPorAsiento.map((items, index) => {
-                const n = items.filter(lineaCargada).length;
-                return (
-                  <button
-                    key={index}
-                    type="button"
-                    onClick={() => irAlAsiento(index)}
-                    aria-label={`Asiento ${ASIENTOS_NUMEROS[index]}: ${n} bebidas`}
-                    className={cx(
-                      "flex min-h-12 flex-col items-center justify-center rounded-control transition active:scale-95",
-                      n > 0
-                        ? "bg-accent-soft text-accent"
-                        : "bg-fill text-label-2",
-                    )}
-                  >
-                    <span className="font-mono text-[1rem] font-semibold tabular-nums">
-                      {ASIENTOS_NUMEROS[index]}
-                    </span>
-                    <span className="text-[0.66rem] leading-none opacity-80">
-                      {n > 0 ? `${n} beb.` : "—"}
-                    </span>
-                  </button>
-                );
-              })}
-            </div>
+            <MapaBarra
+              conteos={bebidasPorAsiento.map(
+                (items) => items.filter(lineaCargada).length,
+              )}
+              elegido={asientoElegido}
+              onElegir={elegirAsiento}
+            />
           </div>
 
           <datalist id="bebidas-sugeridas">
@@ -577,146 +638,147 @@ export default function BebidasPage() {
             ))}
           </datalist>
 
-          <div className="grid gap-x-6 sm:grid-cols-2">
-            {bebidasPorAsiento.map((items, asientoIndex) => (
-              <div
-                key={asientoIndex}
-                id={`asiento-${asientoIndex}`}
-                className="scroll-mt-4"
-              >
-                <Seccion
-                  titulo={`Asiento ${ASIENTOS_NUMEROS[asientoIndex]}`}
-                  accion={
-                    <div className="flex items-center gap-1">
-                      <BotonExtra
-                        cantidad={extrasDelAsiento(items)}
-                        onClick={() => agregarExtra(asientoIndex)}
-                        etiqueta={`Sumar un extra en asiento ${ASIENTOS_NUMEROS[asientoIndex]}`}
-                      />
-                      <Boton
-                        variante="terciario"
-                        tamano="chico"
-                        icono={<Plus className="h-4 w-4" aria-hidden />}
-                        onClick={() => agregarItem(asientoIndex)}
-                        aria-label={`Agregar bebida en asiento ${ASIENTOS_NUMEROS[asientoIndex]}`}
-                      >
-                        Añadir
-                      </Boton>
-                    </div>
-                  }
+          <div>
+            {bebidasPorAsiento.map((items, asientoIndex) =>
+              asientoIndex !== asientoElegido ? null : (
+                <div
+                  key={asientoIndex}
+                  className="animate-[vt-aparecer-plano_160ms_ease-out]"
                 >
-                  <ul className="overflow-hidden rounded-card bg-surface-3 shadow-[0_1px_2px_rgb(0_0_0/0.04)]">
-                    {items.map((item) => (
-                      <li
-                        key={item.id}
-                        className="border-b border-separator py-1.5 pl-4 pr-1.5 last:border-0"
-                      >
-                        <div className="flex min-h-11 items-center gap-2">
-                          <input
-                            value={item.bebida}
-                            onChange={(e) =>
-                              actualizarItem(asientoIndex, item.id, {
-                                bebida: e.target.value,
-                              })
-                            }
-                            placeholder="Qué tomó…"
-                            list="bebidas-sugeridas"
-                            aria-label={`Bebida, asiento ${ASIENTOS_NUMEROS[asientoIndex]}`}
-                            className="min-w-0 flex-1 bg-transparent py-2 text-[1rem] text-label outline-none placeholder:text-label-3"
-                          />
-                          <BotonIcono
-                            etiqueta="Quitar esta bebida"
-                            variante="plano"
-                            icono={
-                              <Trash2
-                                className="h-[18px] w-[18px]"
+                  <Seccion
+                    titulo={`Asiento ${ASIENTOS_NUMEROS[asientoIndex]}`}
+                    accion={
+                      <div className="flex items-center gap-1">
+                        <BotonExtra
+                          cantidad={extrasDelAsiento(items)}
+                          onClick={() => agregarExtra(asientoIndex)}
+                          etiqueta={`Sumar un extra en asiento ${ASIENTOS_NUMEROS[asientoIndex]}`}
+                        />
+                        <Boton
+                          variante="terciario"
+                          tamano="chico"
+                          icono={<Plus className="h-4 w-4" aria-hidden />}
+                          onClick={() => agregarItem(asientoIndex)}
+                          aria-label={`Agregar bebida en asiento ${ASIENTOS_NUMEROS[asientoIndex]}`}
+                        >
+                          Añadir
+                        </Boton>
+                      </div>
+                    }
+                  >
+                    <ul className="overflow-hidden rounded-card bg-surface-3 shadow-[0_1px_2px_rgb(0_0_0/0.04)]">
+                      {items.map((item) => (
+                        <li
+                          key={item.id}
+                          className="border-b border-separator py-1.5 pl-4 pr-1.5 last:border-0"
+                        >
+                          <div className="flex min-h-11 items-center gap-2">
+                            <input
+                              value={item.bebida}
+                              onChange={(e) =>
+                                actualizarItem(asientoIndex, item.id, {
+                                  bebida: e.target.value,
+                                })
+                              }
+                              placeholder="Qué tomó…"
+                              list="bebidas-sugeridas"
+                              aria-label={`Bebida, asiento ${ASIENTOS_NUMEROS[asientoIndex]}`}
+                              className="min-w-0 flex-1 bg-transparent py-2 text-[1rem] text-label outline-none placeholder:text-label-3"
+                            />
+                            <BotonIcono
+                              etiqueta="Quitar esta bebida"
+                              variante="plano"
+                              icono={
+                                <Trash2
+                                  className="h-[18px] w-[18px]"
+                                  aria-hidden
+                                />
+                              }
+                              onClick={() => quitarItem(asientoIndex, item.id)}
+                              className="text-label-3 hover:text-danger"
+                            />
+                          </div>
+                          <div className="flex items-center gap-2 pb-1.5 pr-2.5">
+                            <button
+                              type="button"
+                              aria-expanded={cantidadAbierta === item.id}
+                              aria-label={`Cantidad, asiento ${ASIENTOS_NUMEROS[asientoIndex]}: ${item.cantidad || "sin indicar"}`}
+                              onClick={() => {
+                                vibrar();
+                                setCantidadAbierta((abierta) =>
+                                  abierta === item.id ? null : item.id,
+                                );
+                              }}
+                              className={cx(
+                                "inline-flex h-10 w-14 shrink-0 items-center justify-center gap-0.5 rounded-[0.6rem] text-[1rem] tabular-nums transition-colors",
+                                cantidadAbierta === item.id
+                                  ? "bg-accent-soft text-accent ring-2 ring-accent/60"
+                                  : "bg-fill",
+                                item.cantidad
+                                  ? "font-semibold text-label"
+                                  : "text-label-3",
+                              )}
+                            >
+                              {item.cantidad || "Cant."}
+                              <ChevronDown
+                                className={cx(
+                                  "h-3.5 w-3.5 shrink-0 opacity-60 transition-transform",
+                                  cantidadAbierta === item.id && "rotate-180",
+                                )}
                                 aria-hidden
                               />
-                            }
-                            onClick={() => quitarItem(asientoIndex, item.id)}
-                            className="text-label-3 hover:text-danger"
-                          />
-                        </div>
-                        <div className="flex items-center gap-2 pb-1.5 pr-2.5">
-                          <button
-                            type="button"
-                            aria-expanded={cantidadAbierta === item.id}
-                            aria-label={`Cantidad, asiento ${ASIENTOS_NUMEROS[asientoIndex]}: ${item.cantidad || "sin indicar"}`}
-                            onClick={() => {
-                              vibrar();
-                              setCantidadAbierta((abierta) =>
-                                abierta === item.id ? null : item.id,
-                              );
-                            }}
-                            className={cx(
-                              "inline-flex h-10 w-14 shrink-0 items-center justify-center gap-0.5 rounded-[0.6rem] text-[1rem] tabular-nums transition-colors",
-                              cantidadAbierta === item.id
-                                ? "bg-accent-soft text-accent ring-2 ring-accent/60"
-                                : "bg-fill",
-                              item.cantidad
-                                ? "font-semibold text-label"
-                                : "text-label-3",
-                            )}
-                          >
-                            {item.cantidad || "Cant."}
-                            <ChevronDown
-                              className={cx(
-                                "h-3.5 w-3.5 shrink-0 opacity-60 transition-transform",
-                                cantidadAbierta === item.id && "rotate-180",
-                              )}
-                              aria-hidden
+                            </button>
+                            <SelectorFormato
+                              valor={item.formato}
+                              etiqueta={`Formato, asiento ${ASIENTOS_NUMEROS[asientoIndex]}`}
+                              onChange={(formato) =>
+                                actualizarItem(asientoIndex, item.id, {
+                                  formato,
+                                })
+                              }
                             />
-                          </button>
-                          <SelectorFormato
-                            valor={item.formato}
-                            etiqueta={`Formato, asiento ${ASIENTOS_NUMEROS[asientoIndex]}`}
-                            onChange={(formato) =>
-                              actualizarItem(asientoIndex, item.id, {
-                                formato,
-                              })
-                            }
-                          />
-                        </div>
-                        {cantidadAbierta === item.id ? (
-                          <div
-                            role="radiogroup"
-                            aria-label={`Elegir cantidad, asiento ${ASIENTOS_NUMEROS[asientoIndex]}`}
-                            className="grid grid-cols-5 gap-1.5 pb-2 pr-2.5"
-                          >
-                            {CANTIDADES.map((n) => {
-                              const activo = item.cantidad === n;
-                              return (
-                                <button
-                                  key={n}
-                                  type="button"
-                                  role="radio"
-                                  aria-checked={activo}
-                                  onClick={() => {
-                                    vibrar();
-                                    actualizarItem(asientoIndex, item.id, {
-                                      cantidad: activo ? "" : n,
-                                    });
-                                    setCantidadAbierta(null);
-                                  }}
-                                  className={cx(
-                                    "h-11 rounded-[0.6rem] text-[1.05rem] tabular-nums transition active:scale-95",
-                                    activo
-                                      ? "bg-accent font-semibold text-on-accent"
-                                      : "bg-fill text-label active:bg-fill-strong",
-                                  )}
-                                >
-                                  {n}
-                                </button>
-                              );
-                            })}
                           </div>
-                        ) : null}
-                      </li>
-                    ))}
-                  </ul>
-                </Seccion>
-              </div>
-            ))}
+                          {cantidadAbierta === item.id ? (
+                            <div
+                              role="radiogroup"
+                              aria-label={`Elegir cantidad, asiento ${ASIENTOS_NUMEROS[asientoIndex]}`}
+                              className="grid grid-cols-5 gap-1.5 pb-2 pr-2.5"
+                            >
+                              {CANTIDADES.map((n) => {
+                                const activo = item.cantidad === n;
+                                return (
+                                  <button
+                                    key={n}
+                                    type="button"
+                                    role="radio"
+                                    aria-checked={activo}
+                                    onClick={() => {
+                                      vibrar();
+                                      actualizarItem(asientoIndex, item.id, {
+                                        cantidad: activo ? "" : n,
+                                      });
+                                      setCantidadAbierta(null);
+                                    }}
+                                    className={cx(
+                                      "h-11 rounded-[0.6rem] text-[1.05rem] tabular-nums transition active:scale-95",
+                                      activo
+                                        ? "bg-accent font-semibold text-on-accent"
+                                        : "bg-fill text-label active:bg-fill-strong",
+                                    )}
+                                  >
+                                    {n}
+                                  </button>
+                                );
+                              })}
+                            </div>
+                          ) : null}
+                        </li>
+                      ))}
+                    </ul>
+                  </Seccion>
+                </div>
+              ),
+            )}
           </div>
 
           <Seccion titulo="Servicio">
@@ -817,5 +879,94 @@ function BotonExtra({
         </span>
       ) : null}
     </button>
+  );
+}
+
+/**
+ * La barra vista desde arriba: una L con el tramo largo arriba (asientos 1 a 8,
+ * hacia la derecha) y la pata corta bajando por la izquierda (-1 y, abajo, -2).
+ * El interior de la barra queda abajo a la derecha. Tocar un asiento lo abre
+ * para anotar.
+ */
+function MapaBarra({
+  conteos,
+  elegido,
+  onElegir,
+}: {
+  conteos: number[];
+  elegido: number;
+  onElegir: (index: number) => void;
+}) {
+  // Posición en la grilla (columna, fila) de cada asiento, en el orden de ASIENTOS_NUMEROS.
+  const posicion = (index: number) =>
+    index < 2
+      ? { gridColumn: 1, gridRow: 4 - index }
+      : { gridColumn: index, gridRow: 1 };
+
+  return (
+    <div
+      role="radiogroup"
+      aria-label="Asiento a anotar"
+      className="mt-4 grid gap-x-1 gap-y-1.5"
+      style={{
+        gridTemplateColumns: "repeat(9, minmax(0, 1fr))",
+        gridTemplateRows: "auto 0.6rem auto auto",
+      }}
+    >
+      {/* Barra: pata corta vertical + tramo largo horizontal. */}
+      <div
+        aria-hidden
+        className="w-2.5 justify-self-start rounded-b-full bg-fill-strong"
+        style={{ gridColumn: 2, gridRow: "2 / 5" }}
+      />
+      <div
+        aria-hidden
+        className="rounded-r-full bg-fill-strong"
+        style={{ gridColumn: "2 / 10", gridRow: 2 }}
+      />
+      <div
+        aria-hidden
+        className="flex items-center justify-center text-[0.7rem] font-semibold uppercase tracking-[0.2em] text-label-3"
+        style={{ gridColumn: "3 / 10", gridRow: "3 / 5" }}
+      >
+        Barra
+      </div>
+
+      {ASIENTOS_NUMEROS.map((numero, index) => {
+        const n = conteos[index] ?? 0;
+        const activo = index === elegido;
+        return (
+          <button
+            key={numero}
+            type="button"
+            role="radio"
+            aria-checked={activo}
+            aria-label={`Asiento ${numero}: ${n} ${n === 1 ? "bebida" : "bebidas"}`}
+            onClick={() => onElegir(index)}
+            style={posicion(index)}
+            className={cx(
+              "relative flex min-h-12 min-w-0 flex-col items-center justify-center rounded-[0.7rem] transition active:scale-95",
+              activo
+                ? "bg-accent text-on-accent shadow-[0_2px_8px_rgb(0_0_0/0.18)]"
+                : n > 0
+                  ? "bg-accent-soft text-accent"
+                  : "bg-fill text-label-2",
+            )}
+          >
+            <span className="font-mono text-[0.95rem] font-semibold tabular-nums leading-none">
+              {numero}
+            </span>
+            <span
+              className={cx(
+                "mt-1 text-[0.66rem] leading-none tabular-nums",
+                n > 0 ? "opacity-90" : "opacity-50",
+              )}
+            >
+              {n > 0 ? n : "·"}
+            </span>
+          </button>
+        );
+      })}
+    </div>
   );
 }
