@@ -13,6 +13,7 @@ import {
   useCallback,
   useEffect,
   useEffectEvent,
+  useId,
   useMemo,
   useRef,
   useState,
@@ -629,12 +630,6 @@ export default function BebidasPage() {
             />
           </div>
 
-          <datalist id="bebidas-sugeridas">
-            {sugerencias.map((nombre) => (
-              <option key={nombre} value={nombre} />
-            ))}
-          </datalist>
-
           <div>
             {bebidasPorAsiento.map((items, asientoIndex) =>
               asientoIndex !== asientoElegido ? null : (
@@ -663,24 +658,22 @@ export default function BebidasPage() {
                       </div>
                     }
                   >
-                    <ul className="overflow-hidden rounded-card bg-surface-3 shadow-[0_1px_2px_rgb(0_0_0/0.04)]">
+                    <ul className="rounded-card bg-surface-3 shadow-[0_1px_2px_rgb(0_0_0/0.04)]">
                       {items.map((item) => (
                         <li
                           key={item.id}
                           className="border-b border-separator py-1.5 pl-4 pr-1.5 last:border-0"
                         >
                           <div className="flex min-h-11 items-center gap-2">
-                            <input
-                              value={item.bebida}
-                              onChange={(e) =>
+                            <CampoBebida
+                              valor={item.bebida}
+                              sugerencias={sugerencias}
+                              etiqueta={`Bebida, asiento ${ASIENTOS_NUMEROS[asientoIndex]}`}
+                              onChange={(bebida) =>
                                 actualizarItem(asientoIndex, item.id, {
-                                  bebida: e.target.value,
+                                  bebida,
                                 })
                               }
-                              placeholder="Qué tomó…"
-                              list="bebidas-sugeridas"
-                              aria-label={`Bebida, asiento ${ASIENTOS_NUMEROS[asientoIndex]}`}
-                              className="min-w-0 flex-1 bg-transparent py-2 text-[1rem] text-label outline-none placeholder:text-label-3"
                             />
                             <BotonIcono
                               etiqueta="Quitar esta bebida"
@@ -930,7 +923,7 @@ function SelectorCantidad({
 }) {
   const fuera = valor && !(CANTIDADES as readonly string[]).includes(valor);
   return (
-    <div className="relative w-16 shrink-0">
+    <div className="relative w-[4.75rem] shrink-0">
       <select
         value={valor}
         onChange={(e) => onChange(e.target.value)}
@@ -952,6 +945,124 @@ function SelectorCantidad({
         className="pointer-events-none absolute right-1.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-label-3"
         aria-hidden
       />
+    </div>
+  );
+}
+
+const sinTildes = (t: string) =>
+  t
+    .normalize("NFKD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase()
+    .trim();
+
+/** Hasta 5 nombres de la Guía que contienen todas las palabras escritas. */
+function buscarSugerencias(texto: string, nombres: string[]): string[] {
+  const q = sinTildes(texto);
+  if (!q) {
+    return [];
+  }
+  const palabras = q.split(/\s+/);
+  return nombres
+    .map((nombre) => ({ nombre, n: sinTildes(nombre) }))
+    .filter(({ n }) => n !== q && palabras.every((p) => n.includes(p)))
+    .sort(
+      (a, b) =>
+        Number(b.n.startsWith(q)) - Number(a.n.startsWith(q)) ||
+        a.nombre.length - b.nombre.length,
+    )
+    .slice(0, 5)
+    .map(({ nombre }) => nombre);
+}
+
+/**
+ * Campo de bebida con sugerencias de la Guía debajo. No usa <datalist>: en
+ * iPhone (sobre todo con la app instalada) Safari no lo muestra.
+ */
+function CampoBebida({
+  valor,
+  onChange,
+  sugerencias,
+  etiqueta,
+}: {
+  valor: string;
+  onChange: (valor: string) => void;
+  sugerencias: string[];
+  etiqueta: string;
+}) {
+  const [abierto, setAbierto] = useState(false);
+  const inputRef = useRef<HTMLInputElement>(null);
+  const idLista = useId();
+  const opciones = useMemo(
+    () => (abierto ? buscarSugerencias(valor, sugerencias) : []),
+    [abierto, valor, sugerencias],
+  );
+  const mostrar = opciones.length > 0;
+
+  const elegir = (nombre: string) => {
+    vibrar();
+    onChange(nombre);
+    setAbierto(false);
+    inputRef.current?.blur();
+  };
+
+  return (
+    <div className="relative min-w-0 flex-1">
+      <input
+        ref={inputRef}
+        value={valor}
+        onChange={(e) => {
+          onChange(e.target.value);
+          setAbierto(true);
+        }}
+        onFocus={() => setAbierto(true)}
+        onBlur={() => setAbierto(false)}
+        onKeyDown={(e) => {
+          if (e.key === "Enter" && mostrar) {
+            e.preventDefault();
+            elegir(opciones[0]);
+          } else if (e.key === "Escape") {
+            setAbierto(false);
+          }
+        }}
+        placeholder="Qué tomó…"
+        autoComplete="off"
+        autoCorrect="off"
+        spellCheck={false}
+        role="combobox"
+        aria-expanded={mostrar}
+        aria-controls={idLista}
+        aria-autocomplete="list"
+        aria-label={etiqueta}
+        className="w-full bg-transparent py-2 text-[1rem] text-label outline-none placeholder:text-label-3"
+      />
+      {mostrar ? (
+        <ul
+          id={idLista}
+          role="listbox"
+          className="absolute left-[-0.5rem] right-[-0.5rem] top-full z-30 mt-1 overflow-hidden rounded-[0.85rem] border border-separator bg-surface-3 shadow-[0_8px_24px_rgb(0_0_0/0.18)]"
+        >
+          {opciones.map((nombre) => (
+            <li
+              key={nombre}
+              role="option"
+              aria-selected={false}
+              className="border-b border-separator last:border-0"
+            >
+              <button
+                type="button"
+                tabIndex={-1}
+                // Evita que el campo pierda el foco antes de elegir.
+                onPointerDown={(e) => e.preventDefault()}
+                onClick={() => elegir(nombre)}
+                className="flex min-h-11 w-full items-center px-3 py-2 text-left text-[0.97rem] leading-snug text-label active:bg-fill"
+              >
+                <span className="line-clamp-2">{nombre}</span>
+              </button>
+            </li>
+          ))}
+        </ul>
+      ) : null}
     </div>
   );
 }
