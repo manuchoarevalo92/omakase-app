@@ -30,6 +30,7 @@ import {
 import {
   formatearFechaServicio,
   formatearHoraServicio,
+  sinMenu,
 } from "@/src/lib/historial-servicios";
 import { supabase } from "@/src/lib/supabase";
 import {
@@ -467,8 +468,11 @@ export default function Home() {
       setPlatos((platosResponse.data as Plato[]) ?? []);
 
       if (!historialResponse.error && historialResponse.data?.length) {
+        // Los servicios que abrió Bebidas sin menú no cuentan como «menú del día».
         const elegido = registroMasRecienteEnHistorial(
-          historialResponse.data as RegistroHistorialRow[],
+          (historialResponse.data as RegistroHistorialRow[]).filter(
+            (r) => !sinMenu(r),
+          ),
         );
         if (elegido) {
           hidratarFormularioDesdeRegistroHistorial(
@@ -618,9 +622,38 @@ export default function Home() {
     const resumen = resumenDerivadoDelFormulario;
 
     try {
-      const { error: saveError } = await supabase
+      // Si Bebidas ya abrió este servicio (sin menú), se completa ese mismo
+      // registro: así las bebidas y el menú quedan juntos.
+      const { data: recientes } = await supabase
         .from("historial_servicios")
-        .insert(payload);
+        .select("id, fecha, hora, servicio, menu_omakase, extensiones")
+        .order("fecha", { ascending: false })
+        .limit(40);
+      const abiertoPorBebidas = registroMasRecienteEnHistorial(
+        ((recientes ?? []) as RegistroHistorialRow[]).filter(
+          (r) =>
+            r.fecha.slice(0, 10) === fechaServicio &&
+            r.servicio === servicio &&
+            sinMenu(r),
+        ),
+      );
+      let saveError: { message: string } | null = null;
+      let completado = false;
+      if (abiertoPorBebidas) {
+        const { data: actualizados, error } = await supabase
+          .from("historial_servicios")
+          .update(payload)
+          .eq("id", abiertoPorBebidas.id)
+          .select("id");
+        saveError = error;
+        completado = !error && (actualizados?.length ?? 0) > 0;
+      }
+      if (!completado && !saveError) {
+        const { error } = await supabase
+          .from("historial_servicios")
+          .insert(payload);
+        saveError = error;
+      }
 
       if (saveError) {
         setResumenServicio(resumen);

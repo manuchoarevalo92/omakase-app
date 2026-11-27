@@ -1,14 +1,6 @@
 "use client";
 
-import {
-  ChevronDown,
-  CircleAlert,
-  FilePlus,
-  Plus,
-  Trash2,
-  Wine,
-} from "lucide-react";
-import Link from "next/link";
+import { ChevronDown, CircleAlert, Clock, Plus, Trash2 } from "lucide-react";
 import {
   useCallback,
   useEffect,
@@ -22,7 +14,6 @@ import {
 import {
   Boton,
   BotonIcono,
-  EstadoVacio,
   Esqueleto,
   EsqueletoLista,
   Etiqueta,
@@ -40,9 +31,14 @@ import {
 } from "@/src/lib/bebidas-asientos";
 import { formatPostgrestError } from "@/src/lib/supabase-errors";
 import {
-  etiquetaServicioHistorial,
-  fetchUltimoHistorialServicio,
+  claveTurno,
+  crearHistorialParaTurno,
+  etiquetaTurno,
+  fetchHistorialDelTurno,
+  horaProximoTurno,
+  turnoActual,
   type HistorialServicioRow,
+  type TurnoBebidas,
 } from "@/src/lib/historial-servicios";
 import { supabase } from "@/src/lib/supabase";
 
@@ -127,6 +123,25 @@ const leerCopiaLocal = (historialServicioId: string): BebidaItem[][] | null => {
   }
 };
 
+const tieneAlgo = (item: BebidaItem): boolean =>
+  Boolean(item.bebida.trim() || item.cantidad.trim() || item.formato);
+
+/**
+ * Otro celu ya había empezado este turno: se suman sus líneas y las de este
+ * (las de acá son todas nuevas, porque se arrancó con la hoja en blanco).
+ */
+const unirAsientos = (
+  remoto: BebidaItem[][],
+  local: BebidaItem[][],
+): BebidaItem[][] =>
+  remoto.map((items, i) => {
+    const juntas = [
+      ...items.filter(tieneAlgo),
+      ...(local[i] ?? []).filter(tieneAlgo),
+    ];
+    return juntas.length ? juntas : [crearItem()];
+  });
+
 const CANTIDADES = ["1", "2", "3", "4", "5", "6", "7", "8", "9", "10"] as const;
 
 /** Cantidad a número: vacío o no parseable cuenta como 1. */
@@ -143,8 +158,15 @@ const extrasDelAsiento = (items: BebidaItem[]): number =>
 export default function BebidasPage() {
   const [bebidasPorAsiento, setBebidasPorAsiento] =
     useState<BebidaItem[][]>(crearEstadoVacio);
+  /**
+   * Servicio donde se guardan las bebidas. Null mientras el turno no tiene
+   * servicio todavía: se crea con la primera bebida que se anota.
+   */
   const [servicioActivo, setServicioActivo] =
     useState<HistorialServicioRow | null>(null);
+  const [turno, setTurno] = useState<TurnoBebidas | null>(null);
+  const turnoRef = useRef<TurnoBebidas | null>(null);
+  const creandoServicioRef = useRef(false);
   const [isLoading, setIsLoading] = useState(true);
   const [isSyncing, setIsSyncing] = useState(false);
   const [syncError, setSyncError] = useState<string | null>(null);
@@ -209,6 +231,36 @@ export default function BebidasPage() {
     });
   }, []);
 
+  /** Sube la hoja entera al servicio. Devuelve si salió bien. */
+  const guardarEnNube = useCallback(
+    async (historialId: string, asientos: BebidaItem[][]) => {
+      setIsSyncing(true);
+      const payload = asientos.map((consumos, index) => ({
+        historial_servicio_id: historialId,
+        asiento: ASIENTOS_NUMEROS[index],
+        consumos,
+        updated_at: new Date().toISOString(),
+      }));
+      const { error } = await supabase
+        .from("bebidas_asientos")
+        .upsert(payload, { onConflict: "historial_servicio_id,asiento" });
+      setIsSyncing(false);
+      if (error) {
+        setSyncError(formatPostgrestError(error));
+        return false;
+      }
+      setSyncError(null);
+      setLastSyncLabel(
+        new Date().toLocaleTimeString("es-ES", {
+          hour: "2-digit",
+          minute: "2-digit",
+        }),
+      );
+      return true;
+    },
+    [],
+  );
+
   const activarServicio = useCallback(
     async (
       row: HistorialServicioRow,
@@ -250,38 +302,49 @@ export default function BebidasPage() {
     [cargarBebidasParaServicio],
   );
 
-  useEffect(() => {
-    const init = async () => {
-      setIsLoading(true);
-      setSyncError(null);
-      try {
-        const ultimo = await fetchUltimoHistorialServicio();
-        if (!ultimo) {
-          setServicioActivo(null);
-          setBebidasPorAsiento(crearEstadoVacio());
-          cargadoRemotoRef.current = true;
-          return;
-        }
-        const remoto = await activarServicio(ultimo);
-        if (remoto && !hayConsumosCargados(remoto)) {
-          const local = leerCopiaLocal(ultimo.id);
-          if (local) {
-            ofrecerRecuperar(local);
-          }
-        }
-      } catch (err) {
-        setSyncError(
-          err instanceof Error
-            ? formatPostgrestError(err as { message: string })
-            : "Error al cargar el último servicio.",
-        );
-        cargadoRemotoRef.current = false;
-      } finally {
-        setIsLoading(false);
+  /** Carga la hoja del turno: su servicio si ya existe, o en blanco. */
+  const cargarTurno = useEffectEvent(async (t: TurnoBebidas) => {
+    setIsLoading(true);
+    setSyncError(null);
+    turnoRef.current = t;
+    setTurno(t);
+    recuperacionOfrecidaRef.current = false;
+    try {
+      const row = await fetchHistorialDelTurno(t);
+      if (turnoRef.current !== t) {
+        return;
       }
-    };
-    void init();
-  }, [activarServicio]);
+      if (!row) {
+        hayCambiosRef.current = false;
+        servicioActivoIdRef.current = null;
+        setServicioActivo(null);
+        setBebidasPorAsiento(crearEstadoVacio());
+        cargadoRemotoRef.current = true;
+        return;
+      }
+      const remoto = await activarServicio(row);
+      if (remoto && !hayConsumosCargados(remoto)) {
+        const local = leerCopiaLocal(row.id);
+        if (local) {
+          ofrecerRecuperar(local);
+        }
+      }
+    } catch (err) {
+      setSyncError(
+        err instanceof Error
+          ? formatPostgrestError(err as { message: string })
+          : "Error al cargar el servicio.",
+      );
+      cargadoRemotoRef.current = false;
+    } finally {
+      setIsLoading(false);
+    }
+  });
+
+  useEffect(() => {
+    const timer = window.setTimeout(() => void cargarTurno(turnoActual()), 0);
+    return () => window.clearTimeout(timer);
+  }, []);
 
   useEffect(() => {
     // Nombres de la Guía de bebidas para autocompletar (si falla, se escribe a mano).
@@ -334,34 +397,8 @@ export default function BebidasPage() {
     const historialId = servicioActivoIdRef.current;
 
     timerSyncRef.current = window.setTimeout(() => {
-      const sync = async () => {
-        setIsSyncing(true);
-        const payload = bebidasPorAsiento.map((consumos, index) => ({
-          historial_servicio_id: historialId,
-          asiento: ASIENTOS_NUMEROS[index],
-          consumos,
-          updated_at: new Date().toISOString(),
-        }));
-        const { error } = await supabase
-          .from("bebidas_asientos")
-          .upsert(payload, { onConflict: "historial_servicio_id,asiento" });
-
-        if (error) {
-          setSyncError(formatPostgrestError(error));
-          setIsSyncing(false);
-          return;
-        }
-
-        setSyncError(null);
-        setLastSyncLabel(
-          new Date().toLocaleTimeString("es-ES", {
-            hour: "2-digit",
-            minute: "2-digit",
-          }),
-        );
-        setIsSyncing(false);
-      };
-      void sync();
+      timerSyncRef.current = null;
+      void guardarEnNube(historialId, bebidasPorAsiento);
     }, 700);
 
     return () => {
@@ -369,7 +406,109 @@ export default function BebidasPage() {
         window.clearTimeout(timerSyncRef.current);
       }
     };
-  }, [bebidasPorAsiento]);
+  }, [bebidasPorAsiento, guardarEnNube]);
+
+  /** Primera bebida de un turno sin servicio: lo crea (o se suma al de otro celu). */
+  const asegurarServicio = useEffectEvent(async () => {
+    const t = turnoRef.current;
+    if (servicioActivoIdRef.current || creandoServicioRef.current || !t) {
+      return;
+    }
+    creandoServicioRef.current = true;
+    setIsSyncing(true);
+    try {
+      let row = await fetchHistorialDelTurno(t);
+      const remoto = row ? await cargarBebidasParaServicio(row.id) : null;
+      if (!row) {
+        row = await crearHistorialParaTurno(t);
+      }
+      if (turnoRef.current !== t) {
+        return;
+      }
+      servicioActivoIdRef.current = row.id;
+      cargadoRemotoRef.current = true;
+      hayCambiosRef.current = true;
+      setServicioActivo(row);
+      // Hoja nueva (otra referencia) para que se dispare el guardado.
+      setBebidasPorAsiento((actual) =>
+        remoto
+          ? unirAsientos(remoto, actual)
+          : actual.map((items) => [...items]),
+      );
+    } catch (err) {
+      setSyncError(
+        err instanceof Error
+          ? formatPostgrestError(err as { message: string })
+          : "No se pudo crear el servicio de este turno.",
+      );
+      setIsSyncing(false);
+    } finally {
+      creandoServicioRef.current = false;
+    }
+  });
+
+  useEffect(() => {
+    if (
+      hayCambiosRef.current &&
+      !servicioActivoIdRef.current &&
+      turno &&
+      bebidasPorAsiento.some((items) => items.some(tieneAlgo))
+    ) {
+      void asegurarServicio();
+    }
+  }, [bebidasPorAsiento, turno]);
+
+  /**
+   * A las 19:00 y a las 4:00 la hoja pasa sola al turno siguiente. Lo del
+   * turno que terminó ya está guardado con su servicio (si quedaba algo sin
+   * subir, se sube antes de cambiar).
+   */
+  const revisarTurno = useEffectEvent(async () => {
+    const actual = turnoRef.current;
+    const nuevo = turnoActual();
+    if (!actual || claveTurno(nuevo) === claveTurno(actual)) {
+      return;
+    }
+    const historialId = servicioActivoIdRef.current;
+    const habiaBebidas = hayConsumosCargados(bebidasPorAsiento);
+    if (hayCambiosRef.current && cargadoRemotoRef.current && historialId) {
+      if (timerSyncRef.current) {
+        window.clearTimeout(timerSyncRef.current);
+        timerSyncRef.current = null;
+      }
+      const ok = await guardarEnNube(historialId, bebidasPorAsiento);
+      if (!ok) {
+        // Sin guardar no se cambia: se reintenta en la próxima revisión.
+        return;
+      }
+    }
+    await cargarTurno(nuevo);
+    setAsientoElegido(2);
+    setLastSyncLabel(null);
+    aviso(
+      habiaBebidas
+        ? `Servicio guardado. Hoja lista para ${etiquetaTurno(nuevo)}`
+        : `Hoja lista para ${etiquetaTurno(nuevo)}`,
+      { tono: "exito" },
+    );
+  });
+
+  useEffect(() => {
+    const revisar = () => void revisarTurno();
+    const alVolver = () => {
+      if (document.visibilityState === "visible") {
+        revisar();
+      }
+    };
+    const id = window.setInterval(revisar, 30_000);
+    document.addEventListener("visibilitychange", alVolver);
+    window.addEventListener("focus", revisar);
+    return () => {
+      window.clearInterval(id);
+      document.removeEventListener("visibilitychange", alVolver);
+      window.removeEventListener("focus", revisar);
+    };
+  }, []);
 
   const totalItemsCargados = useMemo(() => {
     return bebidasPorAsiento.reduce(
@@ -466,59 +605,6 @@ export default function BebidasPage() {
     setBebidasPorAsiento(crearEstadoVacio());
   };
 
-  const iniciarNuevoServicio = async () => {
-    setSyncError(null);
-    setIsLoading(true);
-    try {
-      const ultimo = await fetchUltimoHistorialServicio();
-      if (!ultimo) {
-        setSyncError(
-          "No hay ningún menú guardado en historial. Cerrá un menú en la página principal antes de tomar bebidas.",
-        );
-        return;
-      }
-
-      const mismoServicio = servicioActivo?.id === ultimo.id;
-      if (mismoServicio && hayConsumosCargados(bebidasPorAsiento)) {
-        const ok = await confirmar({
-          titulo: "¿Empezar de cero las bebidas?",
-          texto: `Se borran las líneas actuales de ${etiquetaServicioHistorial(ultimo)}.`,
-          confirmar: "Empezar de cero",
-          peligro: true,
-        });
-        if (!ok) {
-          return;
-        }
-        await activarServicio(ultimo, { limpiarSiSinDatosEnNube: true });
-        hayCambiosRef.current = true;
-        setBebidasPorAsiento(crearEstadoVacio());
-        aviso(`Toma reiniciada: ${etiquetaServicioHistorial(ultimo)}`);
-        return;
-      }
-
-      if (!mismoServicio) {
-        await activarServicio(ultimo, { limpiarSiSinDatosEnNube: true });
-        aviso(`Bebidas ligadas a ${etiquetaServicioHistorial(ultimo)}`, {
-          tono: "exito",
-        });
-        return;
-      }
-
-      await activarServicio(ultimo, { limpiarSiSinDatosEnNube: true });
-      aviso(`Servicio activo: ${etiquetaServicioHistorial(ultimo)}`);
-    } catch (err) {
-      setSyncError(
-        err instanceof Error
-          ? formatPostgrestError(err as { message: string })
-          : "No se pudo actualizar el servicio activo.",
-      );
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  const sinServicio = !isLoading && !servicioActivo;
-
   const confirmarLimpiar = async () => {
     if (hayConsumosCargados(bebidasPorAsiento)) {
       const ok = await confirmar({
@@ -551,25 +637,19 @@ export default function BebidasPage() {
   return (
     <Pantalla
       titulo="Bebidas"
-      subtitulo={
-        isLoading
-          ? "Cargando…"
-          : servicioActivo
-            ? etiquetaServicioHistorial(servicioActivo)
-            : "Sin servicio activo"
-      }
+      subtitulo={isLoading ? "Cargando…" : turno ? etiquetaTurno(turno) : ""}
       ayuda={
         <>
           <p>
-            Las bebidas se guardan ligadas al{" "}
-            <strong className="text-label">último menú cerrado</strong> en el
-            historial, asiento por asiento, y se sincronizan solas mientras
-            escribís.
+            Las bebidas se guardan solas mientras escribís, asiento por asiento,
+            en el servicio del turno.
           </p>
           <p>
-            Cuando cerraste otro menú y arranca otro servicio, tocá{" "}
-            <strong className="text-label">Nuevo servicio</strong> para empezar
-            una toma en blanco ligada a ese menú.
+            La hoja cambia sola: a las{" "}
+            <strong className="text-label">19:00</strong> se guarda el mediodía
+            y queda lista para la noche, y a las{" "}
+            <strong className="text-label">4:00</strong> se guarda la noche. Lo
+            anotado queda en Historial y Estadísticas.
           </p>
           <p>Al escribir, la app sugiere nombres de la Guía de bebidas.</p>
         </>
@@ -592,22 +672,6 @@ export default function BebidasPage() {
         <div className="space-y-4">
           <Esqueleto className="h-24 w-full rounded-card" />
           <EsqueletoLista filas={4} />
-        </div>
-      ) : sinServicio ? (
-        <div className="rounded-card bg-surface-3">
-          <EstadoVacio
-            icono={<Wine className="h-6 w-6" aria-hidden />}
-            titulo="Todavía no hay menús cerrados"
-            texto="Cerrá un servicio en Omakase con «Cerrar menú y guardar» y volvé para tomar bebidas."
-            accion={
-              <Link
-                href="/"
-                className="inline-flex min-h-11 items-center rounded-control bg-accent px-4 font-semibold text-on-accent"
-              >
-                Ir a Omakase
-              </Link>
-            }
-          />
         </div>
       ) : (
         <>
@@ -719,23 +783,26 @@ export default function BebidasPage() {
           </div>
 
           <Seccion titulo="Servicio">
-            <div className="grid grid-cols-2 gap-2">
-              <Boton
-                variante="secundario"
-                icono={<FilePlus className="h-[18px] w-[18px]" aria-hidden />}
-                onClick={() => void iniciarNuevoServicio()}
-                disabled={isLoading}
-              >
-                Nuevo servicio
-              </Boton>
-              <Boton
-                variante="peligro"
-                onClick={() => void confirmarLimpiar()}
-                disabled={isLoading}
-              >
-                Vaciar asientos
-              </Boton>
-            </div>
+            {turno ? (
+              <p className="mb-3 flex gap-2 text-[0.92rem] leading-snug text-label-2">
+                <Clock
+                  className="mt-0.5 h-4 w-4 shrink-0 text-label-3"
+                  aria-hidden
+                />
+                <span>
+                  A las {horaProximoTurno(turno)} este servicio se guarda solo y
+                  la hoja queda lista para el{" "}
+                  {turno.servicio === "Mediodia" ? "de la noche" : "mediodía"}.
+                </span>
+              </p>
+            ) : null}
+            <Boton
+              variante="peligro"
+              onClick={() => void confirmarLimpiar()}
+              disabled={isLoading}
+            >
+              Vaciar asientos
+            </Boton>
           </Seccion>
         </>
       )}

@@ -23,6 +23,7 @@ import { formatPostgrestError } from "@/src/lib/supabase-errors";
 import {
   formatearFechaServicio,
   formatearHoraServicio,
+  sinMenu,
 } from "@/src/lib/historial-servicios";
 import { supabase } from "@/src/lib/supabase";
 
@@ -326,15 +327,23 @@ export default function HistorialPage() {
                     ) : null}
                   </h3>
                   <div className="mt-3 grid gap-6 lg:grid-cols-[3fr_2fr]">
-                    <MenuGuardadoSecciones
-                      {...partesDesdeMenuOmakaseGuardado(registro.menu_omakase)}
-                      extensiones={(registro.extensiones ?? []).filter((id) =>
-                        String(id ?? "").trim(),
-                      )}
-                      nombrePlato={(id) =>
-                        platosMap.get(id) ?? `Plato ${id.slice(0, 6)}…`
-                      }
-                    />
+                    {sinMenu(registro) ? (
+                      <p className="rounded-card bg-surface-3 px-4 py-3 text-[0.92rem] text-label-3">
+                        Sin menú cargado: este servicio lo abrió Bebidas.
+                      </p>
+                    ) : (
+                      <MenuGuardadoSecciones
+                        {...partesDesdeMenuOmakaseGuardado(
+                          registro.menu_omakase,
+                        )}
+                        extensiones={(registro.extensiones ?? []).filter((id) =>
+                          String(id ?? "").trim(),
+                        )}
+                        nombrePlato={(id) =>
+                          platosMap.get(id) ?? `Plato ${id.slice(0, 6)}…`
+                        }
+                      />
+                    )}
                     <section>
                       <h3 className="mb-2 px-1 text-[0.8rem] font-semibold uppercase tracking-[0.07em] text-label-3">
                         Bebidas
