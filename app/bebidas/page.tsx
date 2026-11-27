@@ -149,8 +149,6 @@ export default function BebidasPage() {
   const [syncError, setSyncError] = useState<string | null>(null);
   const [lastSyncLabel, setLastSyncLabel] = useState<string | null>(null);
   const [sugerencias, setSugerencias] = useState<string[]>([]);
-  /** Línea con el selector de cantidad (1–10) desplegado. */
-  const [cantidadAbierta, setCantidadAbierta] = useState<string | null>(null);
   /** Índice en ASIENTOS_NUMEROS del asiento que se está anotando (arranca en el 1). */
   const [asientoElegido, setAsientoElegido] = useState(2);
   const { aviso, confirmar } = useAvisos();
@@ -539,7 +537,6 @@ export default function BebidasPage() {
   const elegirAsiento = (index: number) => {
     vibrar();
     setAsientoElegido(index);
-    setCantidadAbierta(null);
   };
 
   const estadoSync = isSyncing
@@ -699,35 +696,16 @@ export default function BebidasPage() {
                             />
                           </div>
                           <div className="flex items-center gap-2 pb-1.5 pr-2.5">
-                            <button
-                              type="button"
-                              aria-expanded={cantidadAbierta === item.id}
-                              aria-label={`Cantidad, asiento ${ASIENTOS_NUMEROS[asientoIndex]}: ${item.cantidad || "sin indicar"}`}
-                              onClick={() => {
+                            <SelectorCantidad
+                              valor={item.cantidad}
+                              etiqueta={`Cantidad, asiento ${ASIENTOS_NUMEROS[asientoIndex]}`}
+                              onChange={(cantidad) => {
                                 vibrar();
-                                setCantidadAbierta((abierta) =>
-                                  abierta === item.id ? null : item.id,
-                                );
+                                actualizarItem(asientoIndex, item.id, {
+                                  cantidad,
+                                });
                               }}
-                              className={cx(
-                                "inline-flex h-10 w-14 shrink-0 items-center justify-center gap-0.5 rounded-[0.6rem] text-[1rem] tabular-nums transition-colors",
-                                cantidadAbierta === item.id
-                                  ? "bg-accent-soft text-accent ring-2 ring-accent/60"
-                                  : "bg-fill",
-                                item.cantidad
-                                  ? "font-semibold text-label"
-                                  : "text-label-3",
-                              )}
-                            >
-                              {item.cantidad || "Cant."}
-                              <ChevronDown
-                                className={cx(
-                                  "h-3.5 w-3.5 shrink-0 opacity-60 transition-transform",
-                                  cantidadAbierta === item.id && "rotate-180",
-                                )}
-                                aria-hidden
-                              />
-                            </button>
+                            />
                             <SelectorFormato
                               valor={item.formato}
                               etiqueta={`Formato, asiento ${ASIENTOS_NUMEROS[asientoIndex]}`}
@@ -738,40 +716,6 @@ export default function BebidasPage() {
                               }
                             />
                           </div>
-                          {cantidadAbierta === item.id ? (
-                            <div
-                              role="radiogroup"
-                              aria-label={`Elegir cantidad, asiento ${ASIENTOS_NUMEROS[asientoIndex]}`}
-                              className="grid grid-cols-5 gap-1.5 pb-2 pr-2.5"
-                            >
-                              {CANTIDADES.map((n) => {
-                                const activo = item.cantidad === n;
-                                return (
-                                  <button
-                                    key={n}
-                                    type="button"
-                                    role="radio"
-                                    aria-checked={activo}
-                                    onClick={() => {
-                                      vibrar();
-                                      actualizarItem(asientoIndex, item.id, {
-                                        cantidad: activo ? "" : n,
-                                      });
-                                      setCantidadAbierta(null);
-                                    }}
-                                    className={cx(
-                                      "h-11 rounded-[0.6rem] text-[1.05rem] tabular-nums transition active:scale-95",
-                                      activo
-                                        ? "bg-accent font-semibold text-on-accent"
-                                        : "bg-fill text-label active:bg-fill-strong",
-                                    )}
-                                  >
-                                    {n}
-                                  </button>
-                                );
-                              })}
-                            </div>
-                          ) : null}
                         </li>
                       ))}
                     </ul>
@@ -967,6 +911,47 @@ function MapaBarra({
           </button>
         );
       })}
+    </div>
+  );
+}
+
+/**
+ * Desplegable nativo del 1 al 10 (en el celu abre la lista / ruedita del
+ * sistema). Si la línea traía otra cantidad (p. ej. «0,5»), se conserva.
+ */
+function SelectorCantidad({
+  valor,
+  onChange,
+  etiqueta,
+}: {
+  valor: string;
+  onChange: (valor: string) => void;
+  etiqueta: string;
+}) {
+  const fuera = valor && !(CANTIDADES as readonly string[]).includes(valor);
+  return (
+    <div className="relative w-16 shrink-0">
+      <select
+        value={valor}
+        onChange={(e) => onChange(e.target.value)}
+        aria-label={etiqueta}
+        className={cx(
+          "h-10 w-full appearance-none rounded-[0.6rem] bg-fill pl-3 pr-6 text-[1rem] tabular-nums outline-none ring-accent/60 focus:ring-2",
+          valor ? "font-semibold text-label" : "text-label-3",
+        )}
+      >
+        <option value="">Cant.</option>
+        {fuera ? <option value={valor}>{valor}</option> : null}
+        {CANTIDADES.map((n) => (
+          <option key={n} value={n}>
+            {n}
+          </option>
+        ))}
+      </select>
+      <ChevronDown
+        className="pointer-events-none absolute right-1.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-label-3"
+        aria-hidden
+      />
     </div>
   );
 }
