@@ -106,10 +106,11 @@ export const HELADERAS: Heladera[] = [
         estantes: [
           {
             codigo: "A4",
-            familia: "Petit Chablis y Mâconnais",
+            familia: "España y Mâconnais",
             capacidad: 7,
             carriles: [
-              uno("Petit Chablis", "blanco", "Billaud-Simon Petit Chablis", 5, "petit chablis"),
+              uno("Selma", "blanco", "Selma de Nin", 4, "selma"),
+              uno("Qué Bonito", "blanco", "Qué Bonito Cacareaba", 1),
               uno("Rijckaert", "blanco", "Rijckaert Pouilly-Fuissé", 2, "rijckaert"),
             ],
           },
@@ -134,22 +135,20 @@ export const HELADERAS: Heladera[] = [
           },
           {
             codigo: "A7",
-            familia: "Loira, Azores y Jerez",
+            familia: "Azores",
             capacidad: 7,
             carriles: [
-              uno("Nozay", "blanco", "Clos de Nozay", 3, "nozay"),
               uno("Pico", "blanco", "Pico Arinto dos Açores", 2, "arinto"),
-              uno("Corrales", "blanco", "Viña Corrales Fino", 2, "corrales"),
             ],
           },
           {
             codigo: "A8",
-            familia: "España",
+            familia: "Loira, Godello y Jerez",
             capacidad: 7,
             carriles: [
-              uno("Selma", "blanco", "Selma de Nin", 4, "selma"),
-              uno("Godello", "blanco", "Godello de Consuelo", 2, "godello"),
-              uno("Qué Bonito", "blanco", "Qué Bonito Cacareaba", 1),
+              uno("Nozay", "blanco", "Clos de Nozay", 3, "nozay"),
+              uno("Cantariña", "blanco", "Cantariña, El Godello de Consuelo", 2, "godello"),
+              uno("Fino", "blanco", "Viña Corrales Fino", 2, "corrales"),
             ],
           },
           {
