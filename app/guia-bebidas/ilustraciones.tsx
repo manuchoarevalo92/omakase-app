@@ -8,20 +8,20 @@ import type { ReactNode } from "react";
  * igual en tema día y noche. Las animaciones (.guia-*) viven en globals.css.
  */
 
-const TINTA = "#3d3a36";
-const LINEA = "#8a847a";
-const SUAVE = "#e4dfd4";
-const FONDO = "#f7f3ea";
-const PIEL = "#f0c9a0";
+export const TINTA = "#3d3a36";
+export const LINEA = "#8a847a";
+export const SUAVE = "#e4dfd4";
+export const FONDO = "#f7f3ea";
+export const PIEL = "#f0c9a0";
 const PELO = "#3b2f2a";
-const ROJO = "#c43a2e";
-const MADERA = "#c39a6b";
-const MADERA_OSC = "#8a6238";
-const ACERO = "#cfd3d6";
+export const ROJO = "#c43a2e";
+export const MADERA = "#c39a6b";
+export const MADERA_OSC = "#8a6238";
+export const ACERO = "#cfd3d6";
 const COBRE = "#c77b4a";
-const SAKE = "#ece4c0";
-const BLANCO = "#e3d77c";
-const TINTO = "#8c2f45";
+export const SAKE = "#ece4c0";
+export const BLANCO = "#e3d77c";
+export const TINTO = "#8c2f45";
 const WHISKY = "#d39a3c";
 const AGUA = "#7fb6de";
 const ARROZ = "#fbf8ee";
@@ -30,19 +30,22 @@ const UVA_B = "#a9c25d";
 const HOJA = "#6f9a55";
 const PAJA = "#dcb65a";
 
-const SUELO = 96;
+export const SUELO = 96;
 
-type Gorro = "vincha" | "paja" | "boina" | "gorra";
+type Gorro = "vincha" | "paja" | "boina" | "gorra" | "nada";
 type Punto = [number, number];
 
 const OFICIO = {
   sake: { color: "#5d7388", gorro: "vincha" as Gorro },
   vino: { color: "#5f7d52", gorro: "boina" as Gorro },
   whisky: { color: "#8a6a4a", gorro: "gorra" as Gorro },
+  /** Servicio: quien sirve y el comensal. */
+  sala: { color: "#2f3440", gorro: "nada" as Gorro },
+  cliente: { color: "#b07a5a", gorro: "nada" as Gorro },
 };
 
 /** Personita. `x` es el centro de los pies; las manos van relativas a los pies. */
-function Persona(props: {
+export function Persona(props: {
   x: number;
   y?: number;
   oficio?: keyof typeof OFICIO;
@@ -118,7 +121,7 @@ function Persona(props: {
   );
 }
 
-function T(props: { x: number; y: number; children: ReactNode; ancla?: "start" | "middle" | "end"; fuerte?: boolean }) {
+export function T(props: { x: number; y: number; children: ReactNode; ancla?: "start" | "middle" | "end"; fuerte?: boolean }) {
   return (
     <text
       x={props.x}
@@ -133,7 +136,7 @@ function T(props: { x: number; y: number; children: ReactNode; ancla?: "start" |
   );
 }
 
-function Flecha(props: { x1: number; y1: number; x2: number; y2: number }) {
+export function Flecha(props: { x1: number; y1: number; x2: number; y2: number }) {
   const { x1, y1, x2, y2 } = props;
   const a = Math.atan2(y2 - y1, x2 - x1);
   const r = (n: number) => Math.round(n * 100) / 100;
@@ -214,7 +217,7 @@ function Burbujas(props: { x: number; y: number; w: number; n?: number }) {
   );
 }
 
-function Vapor(props: { x: number; y: number; n?: number; paso?: number }) {
+export function Vapor(props: { x: number; y: number; n?: number; paso?: number }) {
   const { x, y, n = 3, paso = 11 } = props;
   return (
     <g>
@@ -234,7 +237,7 @@ function Vapor(props: { x: number; y: number; n?: number; paso?: number }) {
   );
 }
 
-function Gotas(props: { x: number; y: number; color: string; n?: number }) {
+export function Gotas(props: { x: number; y: number; color: string; n?: number }) {
   const { x, y, color, n = 2 } = props;
   return (
     <g>
@@ -253,7 +256,7 @@ function Gotas(props: { x: number; y: number; color: string; n?: number }) {
   );
 }
 
-function Llama(props: { x: number; y: number; s?: number }) {
+export function Llama(props: { x: number; y: number; s?: number }) {
   const { x, y, s = 1 } = props;
   return (
     <g transform={`translate(${x} ${y}) scale(${s})`}>
@@ -265,7 +268,7 @@ function Llama(props: { x: number; y: number; s?: number }) {
   );
 }
 
-function Botella(props: { x: number; base?: number; h: number; color: string; tapon?: string; etiqueta?: boolean }) {
+export function Botella(props: { x: number; base?: number; h: number; color: string; tapon?: string; etiqueta?: boolean }) {
   const { x, base = SUELO, h, color, tapon = TINTA, etiqueta = true } = props;
   const w = h * 0.3;
   const hombro = base - h * 0.62;
@@ -360,7 +363,7 @@ function Reloj(props: { x: number; y: number; texto: string }) {
   );
 }
 
-function Copo(props: { x: number; y: number }) {
+export function Copo(props: { x: number; y: number }) {
   const { x, y } = props;
   return (
     <path

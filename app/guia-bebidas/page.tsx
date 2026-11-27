@@ -25,6 +25,7 @@ import {
 import { Etiquetas, FichaBebida } from "./ficha";
 import { Procesos } from "./procesos";
 import { Repaso } from "./repaso";
+import { Servicio } from "./servicio";
 import { Bloques, FotoBotella, Md } from "./ui";
 
 type Modo = "estudiar" | "machete" | "repasar";
@@ -37,7 +38,7 @@ const MODOS: { id: Modo; label: string; icono: typeof BookOpen }[] = [
 
 const MODO_STORAGE_KEY = "omakase_guia_bebidas_modo";
 
-type SeccionEstudio = "elaboracion" | "glosario" | CategoriaGuia;
+type SeccionEstudio = "servicio" | "elaboracion" | "glosario" | CategoriaGuia;
 
 function Chip(props: {
   activo: boolean;
@@ -90,7 +91,7 @@ function Estudiar(props: {
   onAbrir: (bebida: GuiaBebida, lista: GuiaBebida[]) => void;
 }) {
   const { guia, visibles, onAbrir } = props;
-  const [seccion, setSeccion] = useState<SeccionEstudio>("elaboracion");
+  const [seccion, setSeccion] = useState<SeccionEstudio>("servicio");
   const [filtroGlosario, setFiltroGlosario] = useState("");
 
   const glosarioPorArea = useMemo(() => {
@@ -112,7 +113,10 @@ function Estudiar(props: {
     return areas;
   }, [guia, filtroGlosario]);
 
-  const esCategoria = seccion !== "glosario" && seccion !== "elaboracion";
+  const esCategoria =
+    seccion !== "glosario" &&
+    seccion !== "elaboracion" &&
+    seccion !== "servicio";
   const deCategoria = esCategoria
     ? visibles.filter((b) => b.categoria === seccion)
     : [];
@@ -121,6 +125,12 @@ function Estudiar(props: {
   return (
     <div className="space-y-5">
       <FilaChips>
+        <Chip
+          activo={seccion === "servicio"}
+          onClick={() => setSeccion("servicio")}
+        >
+          Servicio
+        </Chip>
         <Chip
           activo={seccion === "elaboracion"}
           onClick={() => setSeccion("elaboracion")}
@@ -182,6 +192,8 @@ function Estudiar(props: {
           ))}
         </div>
       ) : null}
+
+      {seccion === "servicio" ? <Servicio /> : null}
 
       {seccion === "elaboracion" ? <Procesos /> : null}
 
