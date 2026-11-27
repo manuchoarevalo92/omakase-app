@@ -215,7 +215,7 @@ export function Procesos() {
       ) : null}
 
       {/* Términos: barra fija para ir cambiando sin perder de vista la línea de pasos. */}
-      <div className="sticky top-[env(safe-area-inset-top,0px)] z-20 -mx-4 border-b border-separator bg-surface/95 backdrop-blur sm:top-0 sm:mx-0">
+      <div className="sticky top-[calc(env(safe-area-inset-top,0px)+2.75rem)] z-20 -mx-4 border-b border-separator bg-surface/95 backdrop-blur sm:top-0 sm:mx-0">
         <div className="flex items-center gap-2 overflow-x-auto px-4 py-2 [scrollbar-width:none] sm:px-0">
           {grupos.map((g) => (
             <div key={g.grupo} className="flex shrink-0 items-center gap-2">

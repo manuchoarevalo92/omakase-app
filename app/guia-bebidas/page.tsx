@@ -5,6 +5,7 @@ import {
   BookOpen,
   CircleAlert,
   GraduationCap,
+  Map as MapaIcono,
   Plus,
   Search,
   X,
@@ -24,15 +25,17 @@ import {
 
 import { Etiquetas, FichaBebida } from "./ficha";
 import { Procesos } from "./procesos";
+import { Mapa } from "./mapa";
 import { Repaso } from "./repaso";
 import { Servicio } from "./servicio";
 import { Bloques, FotoBotella, Md } from "./ui";
 
-type Modo = "estudiar" | "machete" | "repasar";
+type Modo = "estudiar" | "machete" | "mapa" | "repasar";
 
 const MODOS: { id: Modo; label: string; icono: typeof BookOpen }[] = [
   { id: "estudiar", label: "Estudiar", icono: BookOpen },
   { id: "machete", label: "Machete", icono: Zap },
+  { id: "mapa", label: "Mapa", icono: MapaIcono },
   { id: "repasar", label: "Repasar", icono: GraduationCap },
 ];
 
@@ -290,7 +293,7 @@ function Machete(props: {
 
   return (
     <div className="space-y-4">
-      <div className="sticky top-[env(safe-area-inset-top,0px)] z-20 -mx-4 space-y-3 bg-surface/90 px-4 pb-2 pt-2 backdrop-blur-xl sm:top-0 sm:mx-0 sm:px-0">
+      <div className="sticky top-[calc(env(safe-area-inset-top,0px)+2.75rem)] z-20 -mx-4 space-y-3 bg-surface/90 px-4 pb-2 pt-2 backdrop-blur-xl sm:top-0 sm:mx-0 sm:px-0">
         <div className="relative">
           <Search
             className="pointer-events-none absolute left-3.5 top-1/2 h-[18px] w-[18px] -translate-y-1/2 text-label-3"
@@ -438,7 +441,12 @@ export default function GuiaBebidasPage() {
     const timer = window.setTimeout(() => {
       try {
         const guardado = window.localStorage.getItem(MODO_STORAGE_KEY);
-        if (guardado === "machete" || guardado === "repasar") setModo(guardado);
+        if (
+          guardado === "machete" ||
+          guardado === "mapa" ||
+          guardado === "repasar"
+        )
+          setModo(guardado);
       } catch {
         // sin localStorage: queda el modo por defecto
       }
@@ -514,6 +522,10 @@ export default function GuiaBebidasPage() {
             para el servicio, con la línea «En sala» de cada botella a la vista.
           </p>
           <p>
+            <strong className="text-label">Mapa</strong>: dónde está cada
+            botella en las heladeras de barra y almacén, y a qué temperatura.
+          </p>
+          <p>
             <strong className="text-label">Repasar</strong>: tarjetas para
             practicar; las falladas vuelven a salir.
           </p>
@@ -531,7 +543,7 @@ export default function GuiaBebidasPage() {
               valor: m.id,
               label: (
                 <>
-                  <Icono className="h-4 w-4" aria-hidden />
+                  <Icono className="hidden h-4 w-4 sm:block" aria-hidden />
                   {m.label}
                 </>
               ),
@@ -566,6 +578,12 @@ export default function GuiaBebidasPage() {
               esAdmin={esAdmin}
               onAbrir={abrir}
               onNueva={setNueva}
+            />
+          ) : null}
+          {modo === "mapa" ? (
+            <Mapa
+              bebidas={visibles}
+              onAbrir={(b) => abrir(b, [b])}
             />
           ) : null}
           {modo === "repasar" ? <Repaso guia={guia} /> : null}

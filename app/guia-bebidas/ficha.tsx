@@ -6,6 +6,7 @@ import {
   ChevronRight,
   Leaf,
   Loader2,
+  MapPin,
   Pencil,
   TriangleAlert,
   X,
@@ -25,11 +26,35 @@ import {
 
 import { Selector } from "@/app/ui";
 
+import { ubicacionesDeBebida } from "./mapa-data";
 import { FotoBotella, Md } from "./ui";
 
 const INPUT =
   "w-full rounded-lg border border-separator bg-surface px-3 py-2.5 text-base text-label outline-none focus:border-accent";
 const LABEL = "mb-1 block text-xs font-medium text-label-3";
+
+/** En qué heladera está, según el Mapa. */
+function DondeEsta(props: { bebida: GuiaBebida }) {
+  const ubicaciones = ubicacionesDeBebida(props.bebida);
+  if (ubicaciones.length === 0) return null;
+  return (
+    <p className="flex flex-wrap items-center gap-1.5 text-sm text-label-2">
+      <MapPin className="h-4 w-4 shrink-0 text-accent" aria-hidden />
+      <span className="sr-only">Dónde está:</span>
+      {ubicaciones.map((u, i) => (
+        <span
+          key={i}
+          className="rounded-full bg-accent-soft px-2.5 py-0.5 text-[0.82rem] text-accent"
+        >
+          <span className="font-mono font-semibold">{u.codigo}</span>{" "}
+          {u.nivel ? `${u.nivel} · ` : ""}
+          {u.lugar}
+          {u.n ? ` · ${u.n} en frío` : ""}
+        </span>
+      ))}
+    </p>
+  );
+}
 
 export function Etiquetas(props: { bebida: GuiaBebida }) {
   const { bebida } = props;
@@ -417,6 +442,7 @@ export function FichaBebida(props: {
                   <p className="text-sm text-label-2">{bebida.meta}</p>
                 ) : null}
                 <Etiquetas bebida={bebida} />
+                <DondeEsta bebida={bebida} />
               </header>
 
               {bebida.enSala ? (
